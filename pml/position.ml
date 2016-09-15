@@ -44,3 +44,33 @@ let locate buf1 pos1 buf2 pos2 =
   ; end_line   = Input.line_num buf2
   ; end_col    = Input.utf8_col_num buf2 pos2
   }
+
+(** [pos_to_string pos] transforms the position [pos] into a readable
+    format. *)
+let pos_to_string : pos -> string =
+  fun p ->
+    if p.start_line <> p.end_line then
+      Printf.sprintf "file <%s>, position %d:%d to %d:%d"
+        p.fname p.start_line p.start_col p.end_line p.end_col
+    else if p.start_col = p.end_col then
+      Printf.sprintf "file <%s>, line %d, character %d"
+        p.fname p.start_line p.start_col
+    else
+      Printf.sprintf "file <%s>, line %d, character %d to %d"
+        p.fname p.start_line p.start_col p.end_col
+
+(** [print_pos oc pos] prints the position [pos] to the channel [oc]. *)
+let print_pos : out_channel -> pos -> unit =
+  fun ch p -> output_string ch (pos_to_string p)
+
+(** [short_pos_to_string pos] is similar to [pos_to_string pos] but uses
+    a shorter format. *)
+let short_pos_to_string : pos -> string =
+  fun p ->
+    Printf.sprintf "%s, %d:%d-%d:%d"
+      p.fname p.start_line p.start_col p.end_line p.end_col
+
+(** [print_short_pos oc pos] prints the position [pos] to the channel [oc]
+    using a shorter format that [print_pos oc pos]. *)
+let print_short_pos : out_channel -> pos -> unit =
+  fun ch p -> output_string ch (short_pos_to_string p)
