@@ -296,11 +296,15 @@ let dsum : popt -> (popt * pbox) M.t -> pbox =
     let f (lpos, a) = box_apply (fun a -> (lpos, a)) a in
     box_apply (fun m -> {elt = DSum(m); pos}) (M.map_box f m)
 
-(*
-  TODO
-  | Univ : ('a ex, p ex) lbinder                       -> p ex
-  | Exis : ('a ex, p ex) lbinder                       -> p ex
-*)
+let univ : type a. popt -> strloc -> (a var -> pbox) -> pbox =
+  fun pos x f ->
+    let b = vbind mk_free x.elt f in
+    box_apply (fun b -> {elt = Univ((x.pos, b)); pos}) b
+
+let exis : type a. popt -> strloc -> (a var -> pbox) -> pbox =
+  fun pos x f ->
+    let b = vbind mk_free x.elt f in
+    box_apply (fun b -> {elt = Exis((x.pos, b)); pos}) b
 
 let fixm : popt -> obox -> strloc -> (pvar -> pbox) -> pbox =
   fun pos o x f ->
