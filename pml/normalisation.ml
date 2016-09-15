@@ -86,6 +86,7 @@ let rec full_nf : type a. a ex loc -> a ex loc = fun exp ->
   | Epsi      -> exp
   | Conv      -> exp
   | ITag(_)   -> exp
+  | Dumm      -> exp
   | UVar(_)   -> exp
   | VWit(_)   -> exp
   | SWit(_)   -> exp

@@ -20,8 +20,8 @@ type 'a loc =
   ; pos : pos option    (** Position of the element in the source code. *)
   }
 
-(** Type of an identifier (i.e. a localised name). *)
-type ident = string loc
+(** Localised string type (widely used). *)
+type strloc = string loc
 
 
 (** [in_pos pos elt] associates the position [pos] to [elt]. *)
