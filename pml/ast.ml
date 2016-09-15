@@ -167,32 +167,36 @@ type stac = s ex loc (** Type of stacks.   *)
 (** {6 Smart constructors} *)
 
 type popt = pos option
+type 'a var = 'a ex variable
+type 'a box = 'a ex loc bindbox
 
-type vvar = v ex variable
-type tvar = t ex variable
-type svar = s ex variable
-type pvar = p ex variable
-type ovar = o ex variable
+type vvar = v var
+type tvar = t var
+type svar = s var
+type pvar = p var
+type ovar = o var
 
-type vbox = valu bindbox
-type tbox = term bindbox
-type sbox = stac bindbox
-type pbox = prop bindbox
-type obox = ordi bindbox
+type vbox = v box
+type tbox = t box
+type sbox = s box
+type pbox = p box
+type obox = o box
 
 let mk_free : 'a ex variable -> 'a ex =
   fun x -> Vari(x)
 
 (** {5 Higher order stuff} *)
 
-let vari : type a. popt -> a ex variable -> a ex loc bindbox =
+let vari : type a. popt -> a var -> a ex loc bindbox =
   fun pos x -> box_apply (fun x -> {elt = x; pos}) (box_of_var x)
 
-(*
-  TODO
-  | HFun : ('a ex, 'b ex) lbinder                      -> ('a -> 'b) ex
-  | HApp : ('a -> 'b) ex loc * 'a ex loc               -> 'b ex
-*) 
+let hfun : type a b. popt -> strloc -> (a var -> b box) -> (a -> b) box =
+  fun pos x f ->
+    let b = vbind mk_free x.elt f in
+    box_apply (fun b -> {elt = HFun((x.pos, b)); pos}) b
+
+let happ : type a b. popt -> (a -> b) box -> a box -> b box =
+  fun pos -> box_apply2 (fun f a -> {elt = HApp(f,a); pos})
 
 (** {5 Value constructors} *)
 
