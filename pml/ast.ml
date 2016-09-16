@@ -3,7 +3,7 @@
 
 
 open Bindlib
-open Position
+open Pos
 
 (** Module for Maps with [string] keys. *)
 module StrMap = Map.Make(String)

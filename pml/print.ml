@@ -1,5 +1,5 @@
 open Bindlib
-open Position
+open Pos
 open Ast
 
 type 'a printer = out_channel -> 'a -> unit
@@ -24,7 +24,7 @@ let is_tuple ls =
 
 let rec print_ex : type a. out_channel -> a ex loc -> unit =
   fun ch e ->
-    let e = Normalisation.whnf e in
+    let e = Norm.whnf e in
     match e.elt with
     | Vari(x)     -> output_string ch (name_of x)
     | HFun(b)     -> let (x,t) = unbind mk_free (snd b) in

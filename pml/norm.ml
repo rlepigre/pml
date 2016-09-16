@@ -4,7 +4,7 @@
     variables. *)
 
 open Bindlib
-open Position
+open Pos
 open Ast
 
 (** [repr e] unfolds surface unification variables. *)

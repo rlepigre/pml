@@ -1,5 +1,5 @@
 open Bindlib
-open Position
+open Pos
 open Util
 open Ast
 
@@ -95,7 +95,7 @@ let erasure_error : type a. string -> a =
   fun msg -> raise (Erasure_error msg)
 
 let rec valu_erasure : valu -> e_vbox = fun v ->
-  let v = Normalisation.whnf v in
+  let v = Norm.whnf v in
   match v.elt with
   | Vari(x)   -> box_of_var (copy_var x (name_of x) mk_vvari)
   | HApp(_,_) -> erasure_error "not a normalisation value (value)"
@@ -116,7 +116,7 @@ let rec valu_erasure : valu -> e_vbox = fun v ->
   | UVar(_)   -> erasure_error "unif. variables cannot be erased (value)"
 
 and     term_erasure : term -> e_tbox = fun t ->
-  let t = Normalisation.whnf t in
+  let t = Norm.whnf t in
   match t.elt with
   | Vari(x)   -> box_of_var (copy_var x (name_of x) mk_tvari)
   | HApp(_,_) -> erasure_error "not a normalisation value (term)"
@@ -144,7 +144,7 @@ and     term_erasure : term -> e_tbox = fun t ->
   | UVar(_)   -> erasure_error "unif. variables cannot be erased (term)"
 
 and     stac_erasure : stac -> e_sbox = fun s ->
-  let s = Normalisation.whnf s in
+  let s = Norm.whnf s in
   match s.elt with
   | Vari(x)   -> box_of_var (copy_var x (name_of x) mk_svari)
   | HApp(_,_) -> erasure_error "not a normalisation value (stack)"
