@@ -1,9 +1,57 @@
 open Bindlib
+open Position
 open Util
 open Ast
 
-type proc = term * stac
+type e_valu =
+  | VVari of e_valu variable
+  | VLAbs of (e_valu, e_term) binder
+  | VCons of string * e_valu
+  | VReco of e_valu M.t
+  | VScis
+and  e_term =
+  | TVari of e_term variable
+  | TValu of e_valu
+  | TAppl of e_term * e_term
+  | TMAbs of (e_stac, e_term) binder
+  | TName of e_stac * e_term
+  | TProj of e_valu * string
+  | TCase of e_valu * (e_valu, e_term) binder M.t
+  | TFixY of e_term * e_valu
+and  e_stac =
+  | SVari of e_stac variable
+  | SEpsi
+  | SPush of e_valu * e_stac
+  | SFram of e_term * e_stac
 
+type proc = e_term * e_stac
+
+exception Erasure_error of string
+let erasure_error : type a. string -> a =  fun msg -> raise (Erasure_error msg)
+
+let rec valu_erasure : valu -> e_valu = fun v ->
+  match (v.elt : v ex) with
+  | Vari(x)   -> VVari(copy_var x (name_of x) (fun x -> VVari(x)))
+  | HApp(_,_) -> erasure_error "not a normalisation value"
+  | LAbs(_,b) -> assert false
+  | Cons(c,v) -> VCons(c.elt, valu_erasure v)
+  | Reco(m)   -> VReco(M.map (fun (_,v) -> valu_erasure v) m)
+  | Scis      -> VScis
+  | VTyp(v,_) -> valu_erasure v
+  | VLam(f)   -> valu_erasure (lsubst f Dumm)
+  | ITag(_)   -> erasure_error "a tag cannot be erased"
+  | Dumm      -> erasure_error "a dummy value cannot be erased"
+  | VWit(_)   -> erasure_error "a witness cannot be erased"
+  | UWit(_)   -> erasure_error "a witness cannot be erased"
+  | EWit(_)   -> erasure_error "a witness cannot be erased"
+  | UVar(r)   ->
+      begin
+        match !r with
+        | None   -> erasure_error "a unification variable cannot be erased"
+        | Some v -> valu_erasure v
+      end
+ 
+(*
 exception Runtime_error of string
 let runtime_error : type a. string -> a = fun msg -> raise (Runtime_error msg)
 
@@ -43,3 +91,4 @@ let eval : term -> valu = fun t ->
   match steps (t, Epsi) with
   | (Valu v, Epsi) -> v
   | _              -> runtime_error "unexpected error"
+  *)

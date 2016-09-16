@@ -24,7 +24,7 @@ let rec whnf : type a. a ex loc -> a ex loc = fun exp ->
         let e = whnf e and f = whnf f in
         match (e.elt, f.elt) with
         | (HFun(b), f) -> whnf (lsubst b f)
-        | (e      , f) -> {exp with elt = HApp(Obj.magic e, Obj.magic f)}
+        | (_      , _) -> {exp with elt = HApp(e, f)}
       end
   (* Unfolding of a unification variable. *)
   | UVar({contents = Some exp}) -> whnf exp
@@ -40,7 +40,7 @@ let rec full_nf : type a. a ex loc -> a ex loc = fun exp ->
         let e = full_nf e and f = full_nf f in
         match (e.elt, f.elt) with
         | (HFun(b), f) -> full_nf (lsubst b f)
-        | (e      , f) -> {exp with elt = HApp(Obj.magic e, Obj.magic f)}
+        | (_      , _) -> {exp with elt = HApp(e, f)}
       end
   (* Unfolding of a unification variable. *)
   | UVar({contents = Some exp}) -> full_nf exp

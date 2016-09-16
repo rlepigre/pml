@@ -6,8 +6,9 @@ all: depchecks pml pml_doc
 HAS_OCAMLFIND  := $(shell which ocamlfind 2> /dev/null)
 HAS_OCAMLBUILD := $(shell which ocamlbuild 2> /dev/null)
 
-# Check for the bindlib library.
+# Check for the bindlib and decap library.
 HAS_BINDLIB    := $(shell ocamlfind query -format %p bindlib 2> /dev/null)
+HAS_DECAP      := $(shell ocamlfind query -format %p decap 2> /dev/null)
 
 .PHONY: depchecks
 depchecks:
@@ -19,6 +20,9 @@ ifndef HAS_OCAMLFIND
 endif
 ifndef HAS_BINDLIB
 	$(error "The bindlib library is required...")
+endif
+ifndef HAS_DECAP
+	$(error "The decap library is required...")
 endif
 
 # Compilation of the pml.

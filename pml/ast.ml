@@ -1,6 +1,7 @@
 (** Abstract syntax tree. This module defined the internal representation
     of PML's programs and higher-order type. *)
 
+
 open Bindlib
 open Position
 
@@ -31,11 +32,11 @@ let lbinder_cmp : ('a, 'b) lbinder -> ('b loc -> 'c loc) -> ('a, 'c) lbinder =
 
 (** {6 Main abstract syntax tree types} *)
 
-type o (** Phantom type for the sort of ordinals. *)
-type p (** Phantom type for the sort of types.    *)
-type v (** Phantom type for the sort of values.   *)
-type t (** Phantom type for the sort of terms.    *)
-type s (** Phantom type for the sort of stacks.   *)
+type o = O_ (** Phantom type for the sort of ordinals. *)
+type p = P_ (** Phantom type for the sort of types.    *)
+type v = V_ (** Phantom type for the sort of values.   *)
+type t = T_ (** Phantom type for the sort of terms.    *)
+type s = S_ (** Phantom type for the sort of stacks.   *)
 
 (** Representation of our sorts. *)
 type _ sort =
@@ -87,7 +88,7 @@ type _ ex =
 
   | LAbs : p ex loc option * (v ex, t ex) lbinder             -> v ex
   (** Lambda abstraction. *)
-  | Cons : M.key loc option * v ex loc                        -> v ex
+  | Cons : M.key loc * v ex loc                               -> v ex
   (** Constructor with exactly one argument. *)
   | Reco : (pos option * v ex loc) M.t                        -> v ex
   (** Record (i.e. tuple with named fields). *)
@@ -104,7 +105,7 @@ type _ ex =
   (** Mu abstraction. *)
   | Name : s ex loc * t ex loc                                -> t ex
   (** Named term. *)
-  | Proj : v ex loc * M.key loc option                        -> t ex
+  | Proj : v ex loc * M.key loc                               -> t ex
   (** Record projection. *)
   | Case : v ex loc * (pos option * (v ex, t ex) lbinder) M.t -> t ex 
   (** Case analysis. *)
@@ -207,7 +208,7 @@ let labs : popt -> pbox option -> strloc -> (vvar -> tbox) -> vbox =
     let b = vbind mk_free x.elt f in
     box_apply2 (fun ao b -> {elt = LAbs(ao, (x.pos, b)); pos}) (box_opt ao) b
 
-let cons : popt -> strloc option -> vbox -> vbox =
+let cons : popt -> strloc -> vbox -> vbox =
   fun pos c -> box_apply (fun v -> {elt = Cons(c,v); pos})
 
 let reco : popt -> (popt * vbox) M.t -> vbox =
@@ -244,7 +245,7 @@ let mabs : popt -> strloc -> (svar -> tbox) -> tbox =
 let name : popt -> sbox -> tbox -> tbox =
   fun pos -> box_apply2 (fun s t -> {elt = Name(s,t); pos})
 
-let proj : popt -> vbox -> strloc option -> tbox =
+let proj : popt -> vbox -> strloc -> tbox =
   fun pos v l -> box_apply (fun v -> {elt = Proj(v,l); pos}) v
 
 let case : popt -> vbox -> (popt * strloc * (vvar -> tbox)) M.t -> tbox =
@@ -336,3 +337,8 @@ let conv : popt -> obox =
 
 let succ : popt -> obox -> obox =
   fun pos -> box_apply (fun o -> {elt = Succ(o); pos})
+
+(** {5 other constructors} *)
+
+let dumm : 'a ex loc =
+  {elt = Dumm; pos = None}
