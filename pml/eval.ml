@@ -119,7 +119,7 @@ let rec valu_erasure : valu -> e_vbox = fun v ->
         | Some v -> valu_erasure v
       end
 
-and     term_erasure : term -> e_tbox = fun t -> 
+and     term_erasure : term -> e_tbox = fun t ->
   match t.elt with
   | Vari(x)   -> box_of_var (copy_var x (name_of x) mk_tvari)
   | HApp(_,_) -> erasure_error "not a normalisation value (term)"
@@ -151,7 +151,7 @@ and     term_erasure : term -> e_tbox = fun t ->
         | Some t -> term_erasure t
       end
 
-and     stac_erasure : stac -> e_sbox = fun s -> 
+and     stac_erasure : stac -> e_sbox = fun s ->
   match s.elt with
   | Vari(x)   -> box_of_var (copy_var x (name_of x) mk_svari)
   | HApp(_,_) -> erasure_error "not a normalisation value (stack)"
@@ -169,45 +169,58 @@ and     stac_erasure : stac -> e_sbox = fun s ->
         | None   -> erasure_error "unif. variables cannot be erased (stack)"
         | Some s -> stac_erasure s
       end
- 
-(*
+
+let valu_erasure : valu -> e_valu =
+  fun v -> unbox (valu_erasure v)
+
+let term_erasure : term -> e_term =
+  fun t -> unbox (term_erasure t)
+
+let stac_erasure : stac -> e_stac =
+  fun s -> unbox (stac_erasure s)
+
+(* Reduction. *)
+type proc = e_term * e_stac
+
 exception Runtime_error of string
-let runtime_error : type a. string -> a = fun msg -> raise (Runtime_error msg)
+let runtime_error : type a. string -> a =
+  fun msg -> raise (Runtime_error msg)
 
 let step : proc -> proc option = function
-  | (Valu(v)          , Epsi      ) -> None
-  | (Appl(t,u)        , pi        ) -> Some (u, Fram(t,pi))
-  | (Valu(v)          , Fram(t,pi)) -> Some (t, Push(v,pi))
-  | (Valu(LAbs(_,b))  , Push(v,pi)) -> Some (subst b v, pi)
-  | (MAbs(b)          , pi        ) -> Some (subst b pi, pi)
-  | (Name(pi,t)       , _         ) -> Some (t, pi)
-  | (Proj(Reco(m),l)  , pi        ) ->
+  | (TValu(v)          , SEpsi      ) -> None
+  | (TAppl(t,u)        , pi         ) -> Some (u, SFram(t,pi))
+  | (TValu(v)          , SFram(t,pi)) -> Some (t, SPush(v,pi))
+  | (TValu(VLAbs(b))   , SPush(v,pi)) -> Some (subst b v, pi)
+  | (TMAbs(b)          , pi         ) -> Some (subst b pi, pi)
+  | (TName(pi,t)       , _          ) -> Some (t, pi)
+  | (TProj(VReco(m),l) , pi         ) ->
       begin
-        try Some (Valu(M.find l m), pi)
+        try Some (TValu(M.find l m), pi)
         with Not_found -> runtime_error "Unknown record field"
       end
-  | (Case(Cons(c,v),m), pi        ) ->
+  | (TCase(VCons(c,v),m), pi        ) ->
       begin
-        try Some (subst (snd (M.find c m)) v, pi)
+        try Some (subst (M.find c m) v, pi)
         with Not_found -> runtime_error "Unknown constructor"
       end
-  | (FixY(t,v)        , pi        ) -> let f = fun x -> FixY(t,x) in
-                                       let b = binder_from_fun "x" f in
-                                       Some (t, Push(LAbs(None,b),Push(v,pi)))
+  | (TFixY(t,v)        , pi         ) ->
+      begin
+        let f = fun x -> TFixY(t,x) in
+        let b = binder_from_fun "x" f in
+        Some (t, SPush(VLAbs(b),SPush(v,pi)))
+      end
   (* Runtime errors. *)
-  | (Proj(_)          , _         ) -> runtime_error "invalid projection"
-  | (Case(_,_)        , _         ) -> runtime_error "invalid case analysis"
-  | (Vari(_)          , _         ) -> runtime_error "free term variable"
-  | (Valu(_)          , _         ) -> runtime_error "free stack variable"
-  | (HApp(_,_)        , _         ) -> runtime_error "higher-order"
+  | (TProj(_)          , _          ) -> runtime_error "invalid projection"
+  | (TCase(_,_)        , _          ) -> runtime_error "invalid case analysis"
+  | (TVari(_)          , _          ) -> runtime_error "free term variable"
+  | (TValu(_)          , _          ) -> runtime_error "free stack variable"
 
 let rec steps : proc -> proc = fun p ->
   match step p with
   | None   -> p
   | Some p -> steps p
 
-let eval : term -> valu = fun t ->
-  match steps (t, Epsi) with
-  | (Valu v, Epsi) -> v
-  | _              -> runtime_error "unexpected error"
-  *)
+let eval : e_term -> e_valu = fun t ->
+  match steps (t, SEpsi) with
+  | (TValu v, SEpsi) -> v
+  | (_      , _    ) -> runtime_error "unexpected error"
