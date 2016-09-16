@@ -95,6 +95,7 @@ let erasure_error : type a. string -> a =
   fun msg -> raise (Erasure_error msg)
 
 let rec valu_erasure : valu -> e_vbox = fun v ->
+  let v = Normalisation.whnf v in
   match v.elt with
   | Vari(x)   -> box_of_var (copy_var x (name_of x) mk_vvari)
   | HApp(_,_) -> erasure_error "not a normalisation value (value)"
@@ -112,14 +113,10 @@ let rec valu_erasure : valu -> e_vbox = fun v ->
   | VWit(_)   -> erasure_error "a witness cannot be erased (value)"
   | UWit(_)   -> erasure_error "a witness cannot be erased (value)"
   | EWit(_)   -> erasure_error "a witness cannot be erased (value)"
-  | UVar(r)   ->
-      begin
-        match !r with
-        | None   -> erasure_error "unif. variables cannot be erased (value)"
-        | Some v -> valu_erasure v
-      end
+  | UVar(_)   -> erasure_error "unif. variables cannot be erased (value)"
 
 and     term_erasure : term -> e_tbox = fun t ->
+  let t = Normalisation.whnf t in
   match t.elt with
   | Vari(x)   -> box_of_var (copy_var x (name_of x) mk_tvari)
   | HApp(_,_) -> erasure_error "not a normalisation value (term)"
@@ -144,14 +141,10 @@ and     term_erasure : term -> e_tbox = fun t ->
   | Dumm      -> erasure_error "a dummy value cannot be erased (term)"
   | UWit(_)   -> erasure_error "a witness cannot be erased (term)"
   | EWit(_)   -> erasure_error "a witness cannot be erased (term)"
-  | UVar(r)   ->
-      begin
-        match !r with
-        | None   -> erasure_error "unif. variables cannot be erased (term)"
-        | Some t -> term_erasure t
-      end
+  | UVar(_)   -> erasure_error "unif. variables cannot be erased (term)"
 
 and     stac_erasure : stac -> e_sbox = fun s ->
+  let s = Normalisation.whnf s in
   match s.elt with
   | Vari(x)   -> box_of_var (copy_var x (name_of x) mk_svari)
   | HApp(_,_) -> erasure_error "not a normalisation value (stack)"
@@ -163,12 +156,7 @@ and     stac_erasure : stac -> e_sbox = fun s ->
   | SWit(_,_) -> erasure_error "a witness cannot be erased (stack)"
   | UWit(_)   -> erasure_error "a witness cannot be erased (stack)"
   | EWit(_)   -> erasure_error "a witness cannot be erased (stack)"
-  | UVar(r)   ->
-      begin
-        match !r with
-        | None   -> erasure_error "unif. variables cannot be erased (stack)"
-        | Some s -> stac_erasure s
-      end
+  | UVar(_)   -> erasure_error "unif. variables cannot be erased (stack)"
 
 let valu_erasure : valu -> e_valu =
   fun v -> unbox (valu_erasure v)

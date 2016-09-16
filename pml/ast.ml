@@ -155,7 +155,7 @@ type _ ex =
   (** Universal quantifier witness (a.k.a. epsilon). *)
   | EWit : t ex loc * ('a ex, p ex) lbinder                   -> 'a ex
   (** Existential quantifier witness (a.k.a. epsilon). *)
-  | UVar : 'a ex loc option ref                               -> 'a ex
+  | UVar : int * 'a ex loc option ref                         -> 'a ex
   (** Unification variable. *)
   (* TODO add MuRec and NuRec *)
 
