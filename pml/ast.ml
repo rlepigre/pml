@@ -183,7 +183,7 @@ type sbox = s box
 type pbox = p box
 type obox = o box
 
-let mk_free : 'a ex variable -> 'a ex =
+let mk_free : 'a var -> 'a ex =
   fun x -> Vari(x)
 
 (** {5 Higher order stuff} *)
