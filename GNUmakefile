@@ -48,7 +48,7 @@ parser: parser/test.byte
 PARSERFILES := $(wildcard parser/*.ml) $(wildcard parser/*.ml)
 
 parser/test.byte: 
-	$(OCAMLBUILD) -package bindlib -package decap $@
+	$(OCAMLBUILD) -I pml -package bindlib -package decap $@
 
 clean:
 	ocamlbuild -clean
