@@ -1,6 +1,6 @@
 OCAMLBUILD := ocamlbuild -docflags -hide-warnings -use-ocamlfind -r
 
-all: depchecks pml pml_doc
+all: depchecks pml pml_doc parser
 
 # Check for ocamlfind and ocamlbuild on the system.
 HAS_OCAMLFIND  := $(shell which ocamlfind 2> /dev/null)
@@ -30,20 +30,28 @@ endif
 pml: pml/pml.cmxa pml/pml.cma
 pml_doc: pml/pml.docdir/index.html
 
-KERNELIMPL := $(wildcard pml/*.ml)
-KERNELINTF := $(wildcard pml/*.ml)
+KERNELFILES := $(wildcard pml/*.ml) $(wildcard pml/*.ml)
 
-pml/pml.cmxa: $(KERNELIMPL) $(KERNELINTF)
+pml/pml.cmxa: $(KERNELFILES)
 	$(OCAMLBUILD) -package bindlib -package decap $@
 
-pml/pml.cma: $(KERNELIMPL) $(KERNELINTF)
+pml/pml.cma: $(KERNELFILES)
 	$(OCAMLBUILD) -package bindlib -package decap $@
 
-pml/pml.docdir/index.html: $(KERNELIMPL) $(KERNELINTF)
+pml/pml.docdir/index.html: $(KERNELFILES)
+	$(OCAMLBUILD) -package bindlib -package decap $@
+
+# Compilation of the parser.
+.PHONY: parser parser_doc
+parser: parser/test.byte
+
+PARSERFILES := $(wildcard parser/*.ml) $(wildcard parser/*.ml)
+
+parser/test.byte: 
 	$(OCAMLBUILD) -package bindlib -package decap $@
 
 clean:
 	ocamlbuild -clean
 
 distclean: clean
-	rm -f *~ pml/*~
+	rm -f *~ pml/*~ parser/*~ editors/*~ tests/*~
