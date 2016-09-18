@@ -215,4 +215,5 @@ let expr = expr `Any
 
 (** Toplevel. *)
 let parser toplevel =
-  | "sort" id:lid '=' s:sort
+  | "sort" id:llid '=' s:sort -> Raw.Sort_def(id,s)
+  | "def"  id:llid '=' e:expr -> Raw.Expr_def(id,e)
