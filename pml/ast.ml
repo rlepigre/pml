@@ -136,9 +136,9 @@ type _ ex =
   (** Type coercion on a term. *)
   | TTyp : t ex loc * p ex loc                                -> t ex
   (** Type coercion on a term. *)
-  | VLam : (p ex, v ex) lbinder                               -> v ex
+  | VLam : ('a ex, v ex) lbinder                              -> v ex
   (** Type abstraction on a value. *)
-  | TLam : (p ex, t ex) lbinder                               -> t ex
+  | TLam : ('a ex, t ex) lbinder                              -> t ex
   (** Type abstraction on a term. *)
 
   (* Special constructors. *)
