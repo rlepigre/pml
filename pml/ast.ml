@@ -101,7 +101,7 @@ type _ ex =
   (** Value as a term. *)
   | Appl : t ex loc * t ex loc                                -> t ex
   (** Application. *)
-  | MAbs : (s ex, t ex) lbinder                               -> t ex
+  | MAbs : p ex loc option * (s ex, t ex) lbinder             -> t ex
   (** Mu abstraction. *)
   | Name : s ex loc * t ex loc                                -> t ex
   (** Named term. *)
@@ -237,10 +237,10 @@ let valu : popt -> vbox -> tbox =
 let appl : popt -> tbox -> tbox -> tbox =
   fun pos -> box_apply2 (fun t u -> {elt = Appl(t,u); pos})
 
-let mabs : popt -> strloc -> (svar -> tbox) -> tbox =
-  fun pos x f ->
+let mabs : popt -> pbox option -> strloc -> (svar -> tbox) -> tbox =
+  fun pos ao x f ->
     let b = vbind mk_free x.elt f in
-    box_apply (fun b -> {elt = MAbs((x.pos, b)); pos}) b
+    box_apply2 (fun ao b -> {elt = MAbs(ao, (x.pos, b)); pos}) (box_opt ao) b
 
 let name : popt -> sbox -> tbox -> tbox =
   fun pos -> box_apply2 (fun s t -> {elt = Name(s,t); pos})

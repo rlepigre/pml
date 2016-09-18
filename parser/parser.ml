@@ -18,6 +18,7 @@ let parser luid = id:uid -> in_pos _loc id
 
 let parser arrow = "→" | "->"
 let parser impl  = "⇒" | "=>"
+let parser scis  = "✂" | "8<"
 let parser equiv =
   | {"≡" | "="} -> true 
   | "≠"         -> false
@@ -96,28 +97,83 @@ let parser expr (m : mode) =
   | (expr (`Prp`F))
       when m = `Any
 
-  (* TODO *)
-(*
-  | LAbs : p ex loc option * (v ex, t ex) lbinder             -> v ex
-  | Cons : M.key loc * v ex loc                               -> v ex
-  | Reco : (pos option * v ex loc) M.t                        -> v ex
-  | Scis :                                                       v ex
-  | Valu : v ex loc                                           -> t ex
-  | Appl : t ex loc * t ex loc                                -> t ex
-  | MAbs : (s ex, t ex) lbinder                               -> t ex
-  | Name : s ex loc * t ex loc                                -> t ex
-  | Proj : v ex loc * M.key loc                               -> t ex
-  | Case : v ex loc * (pos option * (v ex, t ex) lbinder) M.t -> t ex 
-  | FixY : t ex loc * v ex loc                                -> t ex
-  | VTyp : v ex loc * p ex loc                                -> v ex
-  | TTyp : t ex loc * p ex loc                                -> t ex
-  | VLam : ('a ex, v ex) lbinder                              -> v ex
-  | TLam : ('a ex, t ex) lbinder                              -> t ex
-*)
+  (* Term (variable and higher-order application) *)
+  | id:llid args:{"(" (lsep "," (expr `Any)) "}"}?[[]]
+      when m = `Trm`A
+      -> in_pos _loc (EVari(id, args)) 
+  (* Term (lambda abstraction) *)
+  | "fun" args:fun_arg+ arrow t:(expr (`Trm`F))
+      when m = `Trm`F
+      -> in_pos _loc (ELAbs(args,t))
+  | "λ" args:fun_arg+ "." t:(expr (`Trm`F))
+      when m = `Trm`F
+      -> in_pos _loc (ELAbs(args,t))
+  (* Term (constructor) *)
+  | c:luid "[" t:(expr (`Trm`F))? "]"
+      when m = `Trm`A 
+      -> in_pos _loc (ECons(c,t))
+  (* Term (record) *)
+  | "{" fs:(lsep ";" (parser l:llid "=" a:(expr (`Trm`F)))) "}"
+      when m = `Trm`A
+      -> in_pos _loc (EReco(fs))
+  (* Term (scisors) *)
+  | scis
+      when m = `Trm`A
+      -> in_pos _loc EScis
+  (* Term (application) *)
+  | t:(expr (`Trm`Ap)) u:(expr (`Trm`F))
+      when m = `Trm`Ap
+      -> in_pos _loc (EAppl(t,u))
+  (* Term (mu abstraction) *)
+  | "save" args:fun_arg+ arrow t:(expr (`Trm`F))
+      when m = `Trm`F
+      -> in_pos _loc (EMAbs(args,t))
+  | "μ" args:fun_arg+ "." t:(expr (`Trm`F))
+      when m = `Trm`F
+      -> in_pos _loc (EMAbs(args,t))
+  (* Term (name) *)
+  | "[" s:(expr `Stk) "]" t:(expr (`Trm`F))
+      when m = `Trm`F
+      -> in_pos _loc (EName(s,t))
+  (* Term (projection) *)
+  | t:(expr (`Trm`A)) "." l:llid
+      when m = `Trm`A
+      -> in_pos _loc (EProj(t,l))
+  (* Term (case analysis) *)
+  | "case" t:(expr (`Trm`F)) "of" ps:pattern*
+      when m = `Trm`F
+      -> in_pos _loc (ECase(t,ps))
+  | "[" t:(expr (`Trm`F)) ps:pattern* "]"
+      when m = `Trm`A
+      -> in_pos _loc (ECase(t,ps))
+  (* Term (fixpoint) *)
+  | "fix" t:(expr (`Trm`F))
+      when m = `Trm`F
+      -> in_pos _loc (EFixY(t))
+  (* Term (type coersion) *)
+  | "(" t:(expr (`Trm`F)) ":" a:(expr (`Prp`F)) ")"
+      when m = `Trm`A
+      -> in_pos _loc (ECoer(t,a))
+  (* Term (type abstraction) *)
+  | "Λ" "(" x:llid ":" s:sort ")" t:(expr (`Trm`F))
+      when m = `Trm`F
+      -> in_pos _loc (ELamb(x,s,t))
+  (* Term (parentheses) *)
+  | "(" t:(expr (`Trm`F)) ")"
+      when m = `Trm`A
+  (* Term (level coersions) *)
+  | (expr (`Trm`A))
+      when m = `Trm`Ap
+  | (expr (`Trm`Ap))
+      when m = `Trm`F
   (* Term (from anything) *)
   | (expr (`Trm`F))
       when m = `Any
 
+  (* Stack (variable and higher-order application) *)
+  | id:llid args:{"(" (lsep "," (expr `Any)) "}"}?[[]]
+      when m = `Stk
+      -> in_pos _loc (EVari(id, args)) 
   (* Stack (empty) *)
   | "ε"
       when m = `Stk
@@ -149,6 +205,12 @@ let parser expr (m : mode) =
   (* Ordinal (from anything) *)
   | (expr `Ord)
       when m = `Any
+and fun_arg =
+  | id:llid                               -> (id, None  )
+  | "(" id:llid ":" a:(expr (`Prp`A)) ")" -> (id, Some a)
+and pattern =
+  | "|" c:luid "[" x:llid a:{":" (expr (`Prp`F))}? "]" arrow t:(expr (`Trm`F)) 
+    -> (c, (x,a), t)
 let expr = expr `Any
 
 (** Toplevel. *)

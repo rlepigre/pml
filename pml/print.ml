@@ -54,6 +54,7 @@ let rec print_ex : type a. out_channel -> a ex loc -> unit =
                      in Printf.fprintf ch "%a | %a" print_ex a print_eq e
     | LAbs(ao,b)  -> let (x,t) = unbind mk_free (snd b) in
                      Printf.fprintf ch "λ%s.%a" (name_of x) print_ex t
+                     (* TODO print ao *)
     | Cons(c,v)   -> Printf.fprintf ch "%s[%a]" c.elt print_ex v
     | Reco(m)     -> let pelt ch (l,(_,a)) =
                        Printf.fprintf ch "%s = %a" l print_ex a
@@ -61,8 +62,9 @@ let rec print_ex : type a. out_channel -> a ex loc -> unit =
     | Scis        -> output_string ch "✂"
     | Valu(v)     -> print_ex ch v
     | Appl(t,u)   -> Printf.fprintf ch "(%a) %a" print_ex t print_ex u
-    | MAbs(b)     -> let (x,t) = unbind mk_free (snd b) in
+    | MAbs(ao,b)  -> let (x,t) = unbind mk_free (snd b) in
                      Printf.fprintf ch "μ%s.%a" (name_of x) print_ex t
+                     (* TODO print ao *)
     | Name(s,t)   -> Printf.fprintf ch "[%a]%a" print_ex s print_ex t
     | Proj(v,l)   -> Printf.fprintf ch "%a.%s" print_ex v l.elt
     | Case(v,m)   -> let pelt ch (c, (_, (_,b))) =

@@ -122,7 +122,7 @@ and     term_erasure : term -> e_tbox = fun t ->
   | HApp(_,_) -> erasure_error "not a normalisation value (term)"
   | Valu(v)   -> tvalu (valu_erasure v)
   | Appl(t,u) -> tappl (term_erasure t) (term_erasure u)
-  | MAbs(b)   -> let f x =
+  | MAbs(_,b) -> let f x =
                    let x = copy_var x (name_of x) mk_free in
                    term_erasure (lsubst b (free_of x))
                  in tmabs (binder_name (snd b)) f
