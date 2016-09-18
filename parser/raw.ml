@@ -69,4 +69,4 @@ module Expr =
 
 type toplevel =
   | Sort_def of strloc * Sort.sort
-  | Expr_def of strloc * Expr.expr
+  | Expr_def of strloc * (strloc * Sort.sort) list * Sort.sort * Expr.expr

@@ -9,7 +9,7 @@ let _ =
   let show = function
     | Sort_def(id,s) ->
         Printf.printf "Sort %S defined as \"%a\"\n%!" id.elt Raw.Sort.print s
-    | Expr_def(id,e) ->
+    | Expr_def(id,args,s,e) ->
         Printf.printf "Expr %S defined as ...\n%!" id.elt
   in
   List.iter show l
