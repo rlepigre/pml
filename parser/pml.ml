@@ -13,7 +13,9 @@ let interpret : Env.env -> Raw.toplevel -> Env.env = fun env top ->
   | Expr_def(id,s,e) ->
       let open Env in
       let Expr(s,e) = unsugar_expr env e s in
-      Printf.printf "expr %s ≔ ...\n%!" id.elt; env
+      Printf.printf "expr %s : %a ≔ %a\n%!" id.elt
+        Print.print_sort s Print.print_ex e;
+      env
 
 let red fmt = "\027[31m" ^^ fmt ^^ "\027[0m"
 

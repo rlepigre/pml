@@ -46,10 +46,10 @@ let rec print_ex : type a. out_channel -> a ex loc -> unit =
     | Func(a,b)   -> Printf.fprintf ch "%a ⇒ %a" print_ex a print_ex b
     | Prod(m)     -> let pelt ch (l,(_,a)) =
                        Printf.fprintf ch "%s : %a" l print_ex a
-                     in Printf.fprintf ch "{ %a}" (print_map pelt "; ") m
+                     in Printf.fprintf ch "{%a}" (print_map pelt "; ") m
     | DSum(m)     -> let pelt ch (l,(_,a)) =
                        Printf.fprintf ch "%s : %a" l print_ex a
-                     in Printf.fprintf ch "[ %a]" (print_map pelt "; ") m
+                     in Printf.fprintf ch "[%a]" (print_map pelt "; ") m
     | Univ(b)     -> let (x,a) = unbind mk_free (snd b) in
                      Printf.fprintf ch "∀%s.%a" (name_of x) print_ex a
     | Exis(b)     -> let (x,a) = unbind mk_free (snd b) in
@@ -71,7 +71,7 @@ let rec print_ex : type a. out_channel -> a ex loc -> unit =
     | Cons(c,v)   -> Printf.fprintf ch "%s[%a]" c.elt print_ex v
     | Reco(m)     -> let pelt ch (l,(_,a)) =
                        Printf.fprintf ch "%s = %a" l print_ex a
-                     in Printf.fprintf ch "{ %a}" (print_map pelt "; ") m
+                     in Printf.fprintf ch "{%a}" (print_map pelt "; ") m
     | Scis        -> output_string ch "✂"
     | Valu(v)     -> print_ex ch v
     | Appl(t,u)   -> Printf.fprintf ch "(%a) %a" print_ex t print_ex u

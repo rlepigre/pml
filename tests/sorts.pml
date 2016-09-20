@@ -10,6 +10,8 @@ sort c = (v → w) → ο → κ
 sort l = ι → κ 
 sort m = <term> -> (<term> -> <term>)
 
-//sort e = ι → f
+// sort e = ι → f
 
-def id : v = λx.x
+def unit : ι = {}
+def rec  : ι = {l1 = {}; l2 = {}}
+// def unit_v : v = {}
