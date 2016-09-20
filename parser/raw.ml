@@ -131,9 +131,11 @@ let rec eq_sort : env -> raw_sort -> raw_sort -> bool = fun env s1 s2 ->
   | (SUni(r)    , _          ) -> r := Some s2; true
   | (_          , SUni(r)    ) -> r := Some s1; true
   | (_          , _          ) ->
+      (*
       let Sort s1 = unsugar_sort env s1 in
       let Sort s2 = unsugar_sort env s2 in
       Printf.printf "%a ≠ %a\n%!" Print.print_sort s1 Print.print_sort s2;
+      *)
       false
 
 let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
@@ -391,12 +393,21 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> any_expr = fun env e s ->
   let rec unsugar env vars e s =
     match (e.elt, (sort_repr env s).elt) with
     | (EVari(x,[])  , _        ) ->
-        let Sort s = unsugar_sort env s in
-        let e =
-          try sort_filter s (snd (M.find x.elt vars)) with Not_found ->
-            assert false (* TODO *)
-        in
-        Box(s, e)
+        begin
+          let Sort s = unsugar_sort env s in
+          try
+            let (_, Box(sx, ex)) = M.find x.elt vars in
+            match eq_sort s sx with
+            | Eq  -> Box(s, sort_filter s (Box(sx,ex)))
+            | NEq ->
+                begin
+                  match (s, sx) with
+                  | (T, V) -> Box(T, valu e.pos ex)
+                  | (_, _) -> assert false
+                end
+          with Not_found ->
+            assert false
+        end
     | (EVari(x,args), _        ) -> assert false (* TODO *)
     | (EHOFn(x,k,f) , SFun(a,b)) ->
         let Sort sa = unsugar_sort env a in
@@ -490,10 +501,10 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> any_expr = fun env e s ->
           | None   -> None
           | Some a -> Some (to_prop (unsugar env vars a _sp))
         in
-        let fn xx : t box =
+        let fn xx =
           let xx = (x.pos, Box(V, vari x.pos xx)) in
           let vars = M.add x.elt xx vars in
-          to_term (unsugar env vars e _st)
+          to_term (unsugar env vars t _st)
         in
         Box(V, labs e.pos ao x fn)
     | (ELAbs(x::v,t), SV       ) -> assert false (* TODO *)
