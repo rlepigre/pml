@@ -23,6 +23,9 @@ type 'a loc =
 (** Localised string type (widely used). *)
 type strloc = string loc
 
+(** [build_pos pos elt] associates the position [pos] to [elt]. *)
+let build_pos : pos option -> 'a -> 'a loc =
+  fun pos elt -> { elt ; pos }
 
 (** [in_pos pos elt] associates the position [pos] to [elt]. *)
 let in_pos : pos -> 'a -> 'a loc =
@@ -33,6 +36,21 @@ let in_pos : pos -> 'a -> 'a loc =
 let none : 'a -> 'a loc =
   fun elt -> { elt ; pos = None }
 
+let merge : pos -> pos -> pos = fun p1 p2 ->
+  match compare p1.start_line p2.start_line with
+  | n when n < 0 -> {p1 with end_line = p2.end_line ; end_col = p2.end_col}
+  | n when n > 0 -> {p2 with end_line = p1.end_line ; end_col = p1.end_col}
+  | _ (* n=0 *)  -> let start_col = min p1.start_col p2.start_col in
+                    let end_col   = max p1.start_col p2.start_col in
+                    {p1 with start_col ; end_col}
+
+let union : pos option -> pos option -> pos option = fun p1 p2 ->
+  match (p1, p2) with
+  | (None   , None   ) -> None
+  | (Some _ , None   ) -> p1
+  | (None   , Some _ ) -> p2
+  | (Some p1, Some p2) -> Some (merge p1 p2)
+
 (** [locate buf1 pos1 buf2 pos2] builds a position structure given two
     DeCaP input buffers. This function can be used by DeCaP to generate
     the position of elements during parsing.
@@ -40,7 +58,7 @@ let none : 'a -> 'a loc =
 let locate buf1 pos1 buf2 pos2 =
   { fname      = Input.fname buf1
   ; start_line = Input.line_num buf1
-  ; start_col  = Input.utf8_col_num buf1 pos1
+  ; start_col  = (Input.utf8_col_num buf1 pos1) + 1
   ; end_line   = Input.line_num buf2
   ; end_col    = Input.utf8_col_num buf2 pos2
   }
@@ -56,7 +74,7 @@ let pos_to_string : pos -> string =
       Printf.sprintf "file <%s>, line %d, character %d"
         p.fname p.start_line p.start_col
     else
-      Printf.sprintf "file <%s>, line %d, character %d to %d"
+      Printf.sprintf "file <%s>, line %d, characters %d to %d"
         p.fname p.start_line p.start_col p.end_col
 
 (** [print_pos oc pos] prints the position [pos] to the channel [oc]. *)

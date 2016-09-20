@@ -9,3 +9,7 @@ sort z = (ι → ι) → ι
 sort c = (v → w) → ο → κ 
 sort l = ι → κ 
 sort m = <term> -> (<term> -> <term>)
+
+//sort e = ι → f
+
+def id : v = λx.x

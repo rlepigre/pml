@@ -2,19 +2,59 @@
 
 open Pos
 open Blank
-open Raw.Sort
-open Raw.Expr
+open Raw
 
 let lsep s elt =
   parser
   | EMPTY                      -> []
   | e:elt es:{_:STR(s) elt}* $ -> e::es
 
-let parser lid = ''[a-z][a-zA-Z0-9_']*''
-let parser uid = ''[A-Z][a-zA-Z0-9_']*''
+let lsep_ne s elt =
+  parser
+  | e:elt es:{_:STR(s) elt}* $ -> e::es
+
+module KW =
+  struct
+    let keywords = Hashtbl.create 20
+    let is_keyword : string -> bool = Hashtbl.mem keywords
+
+    let check_not_keyword : string -> unit = fun s ->
+      if is_keyword s then Decap.error ()
+
+    let new_keyword : string -> unit Decap.grammar = fun s ->
+      let ls = String.length s in
+      if ls < 1 then raise (Invalid_argument "invalid keyword");
+      if is_keyword s then raise (Invalid_argument "keyword already defied");
+      Hashtbl.add keywords s s;
+      let f str pos =
+        let str = ref str in
+        let pos = ref pos in
+        for i = 0 to ls - 1 do
+          let (c,str',pos') = Input.read !str !pos in
+          if c <> s.[i] then Decap.error ();
+          str := str'; pos := pos'
+        done;
+        let (c,_,_) = Input.read !str !pos in
+        match c with
+        | 'a'..'z' | 'A'..'Z' | '0'..'9' | '_' | '\'' -> Decap.error ()
+        | _                                           -> ((), !str, !pos)
+      in
+      Decap.black_box f (Charset.singleton s.[0]) false s
+  end
+
+let parser lid = id:''[a-z][a-zA-Z0-9_']*'' -> KW.check_not_keyword id; id
+let parser uid = id:''[A-Z][a-zA-Z0-9_']*'' -> KW.check_not_keyword id; id
 
 let parser llid = id:lid -> in_pos _loc id
 let parser luid = id:uid -> in_pos _loc id
+
+let _sort_ = KW.new_keyword "sort"
+let _def_  = KW.new_keyword "def"
+let _fun_  = KW.new_keyword "fun"
+let _save_ = KW.new_keyword "save"
+let _case_ = KW.new_keyword "case"
+let _of_   = KW.new_keyword "of"
+let _fix_  = KW.new_keyword "fix"
 
 let parser arrow = "→" | "->"
 let parser impl  = "⇒" | "=>"
@@ -25,14 +65,14 @@ let parser equiv =
 
 (** Parser for sorts. *)
 let parser sort (p : [`A | `F]) =
-  | {"ι" | "<iota>"    | "<value>"  } when p = `A -> in_pos _loc V
-  | {"τ" | "<tau>"     | "<term>"   } when p = `A -> in_pos _loc T
-  | {"σ" | "<sigma>"   | "<stack>"  } when p = `A -> in_pos _loc S
-  | {"ο" | "<omicron>" | "<prop>"   } when p = `A -> in_pos _loc P
-  | {"κ" | "<kappa>"   | "<ordinal>"} when p = `A -> in_pos _loc O
-  | id:lid                            when p = `A -> in_pos _loc (Var(id))
+  | {"ι" | "<iota>"    | "<value>"  } when p = `A -> in_pos _loc SV
+  | {"τ" | "<tau>"     | "<term>"   } when p = `A -> in_pos _loc ST
+  | {"σ" | "<sigma>"   | "<stack>"  } when p = `A -> in_pos _loc SS
+  | {"ο" | "<omicron>" | "<prop>"   } when p = `A -> in_pos _loc SP
+  | {"κ" | "<kappa>"   | "<ordinal>"} when p = `A -> in_pos _loc SO
+  | id:lid                            when p = `A -> in_pos _loc (SVar(id))
   | "(" s:(sort `F) ")"               when p = `A -> s
-  | s1:(sort `A) arrow s2:(sort `F)   when p = `F -> in_pos _loc (Fun(s1,s2))
+  | s1:(sort `A) arrow s2:(sort `F)   when p = `F -> in_pos _loc (SFun(s1,s2))
   | s:(sort `A)                       when p = `F -> s
 let sort = sort `F
 
@@ -43,6 +83,11 @@ type t_prio = [`A | `Ap | `F]
 type mode = [`Any | `Prp of p_prio | `Trm of t_prio | `Stk | `Ord ]
 
 let parser expr (m : mode) =
+  (* Any (higher-order function) *)
+  | "(" x:llid s:{":" s:sort} "↦" e:(expr `Any)
+      when m = `Any
+      -> in_pos _loc (EHOFn(x,s,e))
+
   (* Proposition (variable and higher-order application) *)
   | id:llid args:{"(" (lsep "," (expr `Any)) "}"}?[[]]
       when m = `Prp`A
@@ -51,14 +96,18 @@ let parser expr (m : mode) =
   | a:(expr (`Prp`A)) impl b:(expr (`Prp`F))
       when m = `Prp`F
       -> in_pos _loc (EFunc(a,b))
-  (* Proposition (product) *)
-  | "{" fs:(lsep ";" (parser l:llid ":" a:(expr (`Prp`F)))) "}"
+  (* Proposition (non-empty product) *)
+  | "{" fs:(lsep_ne ";" (parser l:llid ":" a:(expr (`Prp`F)))) "}"
       when m = `Prp`A
       -> in_pos _loc (EProd(fs))
+  (* Proposition / Term (empty product / empty record) *)
+  | "{" "}"
+      when m = `Prp`A || m = `Trm`A
+      -> in_pos _loc EUnit
   (* Proposition (disjoint sum) *)
   | "[" fs:(lsep ";" (parser l:llid "of" a:(expr (`Prp`F)))) "]"
       when m = `Prp`A
-      -> in_pos _loc (EProd(fs))
+      -> in_pos _loc (EDSum(fs))
   (* Proposition (universal quantification) *)
   | "∀" '(' x:llid ":" s:sort ")" a:(expr (`Prp`F))
       when m = `Prp`F
@@ -102,7 +151,7 @@ let parser expr (m : mode) =
       when m = `Trm`A
       -> in_pos _loc (EVari(id, args)) 
   (* Term (lambda abstraction) *)
-  | "fun" args:fun_arg+ arrow t:(expr (`Trm`F))
+  | _fun_ args:fun_arg+ arrow t:(expr (`Trm`F))
       when m = `Trm`F
       -> in_pos _loc (ELAbs(args,t))
   | "λ" args:fun_arg+ "." t:(expr (`Trm`F))
@@ -113,7 +162,7 @@ let parser expr (m : mode) =
       when m = `Trm`A 
       -> in_pos _loc (ECons(c,t))
   (* Term (record) *)
-  | "{" fs:(lsep ";" (parser l:llid "=" a:(expr (`Trm`F)))) "}"
+  | "{" fs:(lsep_ne ";" (parser l:llid "=" a:(expr (`Trm`F)))) "}"
       when m = `Trm`A
       -> in_pos _loc (EReco(fs))
   (* Term (scisors) *)
@@ -125,7 +174,7 @@ let parser expr (m : mode) =
       when m = `Trm`Ap
       -> in_pos _loc (EAppl(t,u))
   (* Term (mu abstraction) *)
-  | "save" args:fun_arg+ arrow t:(expr (`Trm`F))
+  | _save_ args:fun_arg+ arrow t:(expr (`Trm`F))
       when m = `Trm`F
       -> in_pos _loc (EMAbs(args,t))
   | "μ" args:fun_arg+ "." t:(expr (`Trm`F))
@@ -140,14 +189,14 @@ let parser expr (m : mode) =
       when m = `Trm`A
       -> in_pos _loc (EProj(t,l))
   (* Term (case analysis) *)
-  | "case" t:(expr (`Trm`F)) "of" ps:pattern*
+  | _case_ t:(expr (`Trm`F)) _of_ ps:pattern*
       when m = `Trm`F
       -> in_pos _loc (ECase(t,ps))
   | "[" t:(expr (`Trm`F)) ps:pattern* "]"
       when m = `Trm`A
       -> in_pos _loc (ECase(t,ps))
   (* Term (fixpoint) *)
-  | "fix" t:(expr (`Trm`F))
+  | _fix_ t:(expr (`Trm`F))
       when m = `Trm`F
       -> in_pos _loc (EFixY(t))
   (* Term (type coersion) *)
@@ -179,7 +228,7 @@ let parser expr (m : mode) =
       when m = `Stk
       -> in_pos _loc EEpsi
   (* Stack (push) *)
-  | v:(expr (`Trm`F)) {"." | "·"} s:(expr `Stk)
+  | v:(expr (`Trm`A)) {"." | "·"} s:(expr `Stk)
       when m = `Stk
       -> in_pos _loc (EPush(v,s))
   (* Stack (frame) *)
@@ -215,8 +264,20 @@ let expr = expr `Any
 
 (** Toplevel. *)
 let parser toplevel =
-  | "sort" id:llid '=' s:sort
-    -> Raw.Sort_def(id,s)
-  | "def"  id:llid args:sort_arg* ":" s:sort '=' e:expr
-    -> Raw.Expr_def(id,args,s,e)
-and sort_arg = "(" llid ":" sort ")"
+  | _sort_ id:llid '=' s:sort
+    -> Sort_def(id,s)
+  | _def_  id:llid args:sort_arg* s:{":" sort}? '=' e:expr
+    -> let s = sort_from_opt s in
+       let f (id,s) e = Pos.none (EHOFn(id,s,e)) in
+       let e = List.fold_right f args e in
+       let f (_ ,a) s = Pos.none (SFun(a,s)) in
+       let s = List.fold_right f args s in
+       Expr_def(id,s,e)
+and sort_arg =
+  | id:llid                    -> (id, new_sort_uvar ())
+  | "(" id:llid ":" s:sort ")" -> (id, s)
+
+let parse_file =
+  let open Decap in
+  handle_exception (parse_file (parser toplevel*) blank)
+

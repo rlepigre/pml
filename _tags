@@ -1,4 +1,1 @@
-"parser/tokens.ml" : pp(pa_ocaml)
 "parser/parser.ml" : pp(pa_ocaml)
-"parser/test.ml"   : pp(pa_ocaml)
-

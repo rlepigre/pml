@@ -43,11 +43,11 @@ pml/pml.docdir/index.html: $(KERNELFILES)
 
 # Compilation of the parser.
 .PHONY: parser parser_doc
-parser: parser/test.byte
+parser: parser/pml.byte
 
 PARSERFILES := $(wildcard parser/*.ml) $(wildcard parser/*.ml)
 
-parser/test.byte: 
+parser/pml.byte: 
 	$(OCAMLBUILD) -I pml -package bindlib -package decap $@
 
 clean:

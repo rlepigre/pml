@@ -22,6 +22,19 @@ let is_tuple ls =
     done; true
   with Exit -> false
 
+let rec print_sort : type a. out_channel -> a sort -> unit = fun ch s ->
+  match s with
+  | V      -> output_string ch "ι"
+  | T      -> output_string ch "τ"
+  | S      -> output_string ch "σ"
+  | P      -> output_string ch "ο"
+  | O      -> output_string ch "κ"
+  | F(a,b) -> let isfun = match a with F(_,_) -> true | _ -> false in
+              if isfun then
+                Printf.fprintf ch "(%a) → %a" print_sort a print_sort b
+              else
+                Printf.fprintf ch "%a → %a" print_sort a print_sort b
+
 let rec print_ex : type a. out_channel -> a ex loc -> unit =
   fun ch e ->
     let e = Norm.whnf e in
