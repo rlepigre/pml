@@ -13,6 +13,24 @@ and raw_sort' =
   | SVar of string
   | SUni of raw_sort option ref
 
+let print_raw_sort : out_channel -> raw_sort -> unit = fun ch s ->
+  let rec print ch s =
+    match s.elt with
+    | SV        -> output_string ch "SV"
+    | ST        -> output_string ch "ST"
+    | SS        -> output_string ch "SS"
+    | SP        -> output_string ch "SP"
+    | SO        -> output_string ch "SO"
+    | SFun(a,b) -> Printf.fprintf ch "SFun(%a,%a)" print a print b
+    | SVar(x)   -> Printf.fprintf ch "SVar(%S)" x
+    | SUni(r)   ->
+        begin
+          match !r with
+          | None   -> output_string ch "SUni(None)"
+          | Some a -> Printf.fprintf ch "SUni(Some(%a))" print a
+        end
+  in print ch s
+
 let _sv = Pos.none SV
 let _st = Pos.none ST
 let _ss = Pos.none SS
@@ -107,6 +125,44 @@ and raw_ex' =
   | EConv
   | ESucc of raw_ex
 
+let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
+  let rec print ch e =
+    match e.elt with
+    | EVari(x,args) -> Printf.fprintf ch "EVari(%S,[%a])" x.elt
+                         (Print.print_list print "; ") args
+    | EHOFn(x,s,e)  -> Printf.fprintf ch "EHOFn(%S,%a,%a)" x.elt
+                         print_raw_sort s print e
+    | EHOAp(e,f)    -> Printf.fprintf ch "EHOAp(%a,%a)" print e print f
+    | EFunc(a,b)    -> Printf.fprintf ch "EFunc(%a,%a)" print a print b
+    | EProd(l)      -> Printf.fprintf ch "E(Prod)"
+    | EUnit         -> Printf.fprintf ch "EUnit"
+    | EDSum(l)      -> Printf.fprintf ch "EDSum(...)" (* TODO *)
+    | EUniv(x,s,a)  -> Printf.fprintf ch "EUniv(...)" (* TODO *)
+    | EExis(x,s,a)  -> Printf.fprintf ch "EExis(...)" (* TODO *)
+    | EFixM(o,x,a)  -> Printf.fprintf ch "EFixM(...)" (* TODO *)
+    | EFixN(o,x,a)  -> Printf.fprintf ch "EFixN(...)" (* TODO *)
+    | EMemb(t,a)    -> Printf.fprintf ch "EMemb(...)" (* TODO *)
+    | ERest(a,eq)   -> Printf.fprintf ch "ERest(...)" (* TODO *)
+    | EDPrj(t,x)    -> Printf.fprintf ch "EDPrj(...)" (* TODO *)
+    | ELAbs(args,t) -> Printf.fprintf ch "ELAbs(...)" (* TODO *)
+    | ECons(c,ao)   -> Printf.fprintf ch "ECons(...)" (* TODO *)
+    | EReco(l)      -> Printf.fprintf ch "EReco(...)" (* TODO *)
+    | EScis         -> Printf.fprintf ch "EScis"
+    | EAppl(t,u)    -> Printf.fprintf ch "EAppl(%a,%a)" print t print u
+    | EMAbs(args,t) -> Printf.fprintf ch "EMAbs(...)" (* TODO *)
+    | EName(s,t)    -> Printf.fprintf ch "EName(%a,%a)" print s print t
+    | EProj(v,l)    -> Printf.fprintf ch "EProj(%a,%S)" print v l.elt
+    | ECase(v,l)    -> Printf.fprintf ch "ECase(...)" (* TODO *)
+    | EFixY(t)      -> Printf.fprintf ch "EFixY(%a)" print t
+    | ECoer(t,a)    -> Printf.fprintf ch "ECoer(...)" (* TODO *)
+    | ELamb(x,a,t)  -> Printf.fprintf ch "ELamb(...)" (* TODO *)
+    | EEpsi         -> Printf.fprintf ch "EEpsi"
+    | EPush(v,s)    -> Printf.fprintf ch "EPush(%a,%a)" print v print s
+    | EFram(t,s)    -> Printf.fprintf ch "EFram(%a,%a)" print t print s
+    | EConv         -> Printf.fprintf ch "EConv"
+    | ESucc(o)      -> Printf.fprintf ch "ESucc(%a)" print o
+  in print ch e
+
 exception Unbound_variable of string * Pos.pos option
 let unbound_var : string -> Pos.pos option -> 'a =
   fun s p -> raise (Unbound_variable(s,p))
@@ -147,7 +203,7 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
           try
             let (p,sx) =
               try M.find x.elt vars with Not_found ->
-              let Expr(k,e) = find_expr x.elt env in
+              let Expr(k,e,_) = find_expr x.elt env in
               (e.pos, sort_from_ast k)
             in
             let sx_is_v = unsugar_sort env sx = Sort V in
@@ -164,7 +220,7 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
             assert false (* TODO *)
           with Not_found ->
           try
-            let Expr(k,_) = find_expr x.elt env in
+            let Expr(k,_,_) = find_expr x.elt env in
             let k = sort_from_ast k in
             ignore k; assert false (* TODO *)
           with Not_found -> unbound_var x.elt x.pos
@@ -388,15 +444,23 @@ let to_stac : boxed -> s box = sort_filter S
 let to_prop : boxed -> p box = sort_filter P
 let to_ordi : boxed -> o box = sort_filter O
 
-let unsugar_expr : env -> raw_ex -> raw_sort -> any_expr = fun env e s ->
+let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
   infer_sorts env e s;
   let rec unsugar env vars e s =
+    (*
+    Printf.printf "e = %a\n%!" print_raw_expr e;
+    Printf.printf "s = %a\n%!" print_raw_sort s;
+    *)
     match (e.elt, (sort_repr env s).elt) with
     | (EVari(x,[])  , _        ) ->
         begin
           let Sort s = unsugar_sort env s in
           try
-            let (_, Box(sx, ex)) = M.find x.elt vars in
+            let Box(sx, ex) =
+              try snd (M.find x.elt vars) with Not_found ->
+              let Expr(sx, _, ex) = find_expr x.elt env in
+              Box(sx,ex)
+            in
             match eq_sort s sx with
             | Eq  -> Box(s, sort_filter s (Box(sx,ex)))
             | NEq ->
@@ -415,7 +479,7 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> any_expr = fun env e s ->
         let fn xk =
           let xk = (x.pos, Box(sa, vari x.pos xk)) in
           let vars = M.add x.elt xk vars in
-          sort_filter sb (unsugar env vars e b)
+          sort_filter sb (unsugar env vars f b)
         in
         Box(F(sa,sb), hfun e.pos x fn)
     | (EHOAp(a,b)   , _        ) -> assert false (* TODO *)
@@ -567,7 +631,7 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> any_expr = fun env e s ->
         Box(O, succ e.pos o)
     | (_            , _        ) -> assert false
   in
-  match unsugar env M.empty e s with Box(s, e) -> Expr(s, unbox e)
+  unsugar env M.empty e s
 
 type toplevel =
   | Sort_def of strloc * raw_sort

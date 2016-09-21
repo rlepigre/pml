@@ -1,8 +1,8 @@
 open Ast
 open Pos
 
-type any_sort = Sort : 'a sort             -> any_sort
-type any_expr = Expr : 'a sort * 'a ex loc -> any_expr
+type any_sort = Sort : 'a sort                      -> any_sort
+type any_expr = Expr : 'a sort * 'a ex loc * 'a box -> any_expr
 
 type env =
   { sorts : any_sort M.t
@@ -21,5 +21,6 @@ let find_expr : string -> env -> any_expr =
 let add_sort : type a. string -> a sort -> env -> env =
   fun id s env -> {env with sorts = M.add id (Sort s) env.sorts}
 
-let add_expr : type a. string -> a ex loc -> a sort -> env -> env =
-  fun id e s env -> {env with exprs = M.add id (Expr (s,e)) env.exprs}
+let add_expr : type a. string -> a sort -> a box -> env -> env =
+  fun id s bx env ->
+    {env with exprs = M.add id (Expr(s, Bindlib.unbox bx, bx)) env.exprs}

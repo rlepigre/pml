@@ -6,9 +6,9 @@ def id = λx.x
 def stack = (λx.x) . ε
 def delta = λx.x x
 
-// def omega : τ = delta delta
+def omega : τ = delta delta
 
-// def arrow (a : ο) (b : ο) : ο = a ⇒ b
+def arrow (a : ο) (b : ο) : ο = a ⇒ b
 // def fixid : τ = fix (λx.x)
 // 
 // def test_case : τ =
