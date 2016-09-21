@@ -86,6 +86,7 @@ let rec unsugar_sort : env -> raw_sort -> any_sort = fun env s ->
       end
   | SUni(_)     -> assert false
 
+type flag = [`V | `T] ref
 
 type raw_ex = raw_ex' loc
 and raw_ex' =
@@ -106,14 +107,14 @@ and raw_ex' =
   | EDPrj of raw_ex * strloc
 
   | ELAbs of (strloc * raw_ex option) list * raw_ex
-  | ECons of strloc * raw_ex option
-  | EReco of (strloc * raw_ex) list
+  | ECons of strloc * (raw_ex * flag) option
+  | EReco of (strloc * raw_ex * flag) list
   | EScis
   | EAppl of raw_ex * raw_ex
   | EMAbs of (strloc * raw_ex option) list * raw_ex
   | EName of raw_ex * raw_ex
-  | EProj of raw_ex * strloc
-  | ECase of raw_ex * (strloc * (strloc * raw_ex option) * raw_ex) list
+  | EProj of raw_ex * flag * strloc
+  | ECase of raw_ex * flag * (strloc * (strloc * raw_ex option) * raw_ex) list
   | EFixY of raw_ex
   | ECoer of raw_ex * raw_ex
   | ELamb of strloc * raw_sort * raw_ex
@@ -134,16 +135,18 @@ let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
                          print_raw_sort s print e
     | EHOAp(e,f)    -> Printf.fprintf ch "EHOAp(%a,%a)" print e print f
     | EFunc(a,b)    -> Printf.fprintf ch "EFunc(%a,%a)" print a print b
-    | EProd(l)      -> Printf.fprintf ch "E(Prod)"
+    | EProd(l)      -> Printf.fprintf ch "EProd(...)" (* TODO *)
     | EUnit         -> Printf.fprintf ch "EUnit"
     | EDSum(l)      -> Printf.fprintf ch "EDSum(...)" (* TODO *)
-    | EUniv(x,s,a)  -> Printf.fprintf ch "EUniv(...)" (* TODO *)
-    | EExis(x,s,a)  -> Printf.fprintf ch "EExis(...)" (* TODO *)
+    | EUniv(x,s,a)  -> Printf.fprintf ch "EUniv(%S,%a,%a)" x.elt
+                         print_raw_sort s print a
+    | EExis(x,s,a)  -> Printf.fprintf ch "EExis(%S,%a,%a)" x.elt
+                         print_raw_sort s print a
     | EFixM(o,x,a)  -> Printf.fprintf ch "EFixM(...)" (* TODO *)
     | EFixN(o,x,a)  -> Printf.fprintf ch "EFixN(...)" (* TODO *)
-    | EMemb(t,a)    -> Printf.fprintf ch "EMemb(...)" (* TODO *)
+    | EMemb(t,a)    -> Printf.fprintf ch "EMemb(%a,%a" print t print a
     | ERest(a,eq)   -> Printf.fprintf ch "ERest(...)" (* TODO *)
-    | EDPrj(t,x)    -> Printf.fprintf ch "EDPrj(...)" (* TODO *)
+    | EDPrj(t,x)    -> Printf.fprintf ch "EDPrj(%a,%S)" print t x.elt
     | ELAbs(args,t) -> Printf.fprintf ch "ELAbs(...)" (* TODO *)
     | ECons(c,ao)   -> Printf.fprintf ch "ECons(...)" (* TODO *)
     | EReco(l)      -> Printf.fprintf ch "EReco(...)" (* TODO *)
@@ -151,11 +154,12 @@ let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
     | EAppl(t,u)    -> Printf.fprintf ch "EAppl(%a,%a)" print t print u
     | EMAbs(args,t) -> Printf.fprintf ch "EMAbs(...)" (* TODO *)
     | EName(s,t)    -> Printf.fprintf ch "EName(%a,%a)" print s print t
-    | EProj(v,l)    -> Printf.fprintf ch "EProj(%a,%S)" print v l.elt
-    | ECase(v,l)    -> Printf.fprintf ch "ECase(...)" (* TODO *)
+    | EProj(v,_,l)  -> Printf.fprintf ch "EProj(%a,%S)" print v l.elt
+    | ECase(v,_,l)  -> Printf.fprintf ch "ECase(...)" (* TODO *)
     | EFixY(t)      -> Printf.fprintf ch "EFixY(%a)" print t
-    | ECoer(t,a)    -> Printf.fprintf ch "ECoer(...)" (* TODO *)
-    | ELamb(x,a,t)  -> Printf.fprintf ch "ELamb(...)" (* TODO *)
+    | ECoer(t,a)    -> Printf.fprintf ch "ECoer(%a,%a)" print t print a
+    | ELamb(x,s,t)  -> Printf.fprintf ch "ELamb(%S,%a,%a)" x.elt
+                         print_raw_sort s print t
     | EEpsi         -> Printf.fprintf ch "EEpsi"
     | EPush(v,s)    -> Printf.fprintf ch "EPush(%a,%a)" print v print s
     | EFram(t,s)    -> Printf.fprintf ch "EFram(%a,%a)" print t print s
@@ -303,41 +307,61 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
         end
     | (ELAbs(_,_)   , SUni(r)  ) -> r := Some _sv; infer env vars e s
     | (ELAbs(_,_)   , _        ) -> sort_clash e s
-    | (ECons(_,vo)  , SV       )
+    | (ECons(_,vo)  , SV       ) ->
+        begin
+          match vo with
+          | None       -> ()
+          | Some (v,r) -> infer env vars v _sv; r := `V
+        end
     | (ECons(_,vo)  , ST       ) ->
         begin
           match vo with
-          | None   -> ()
-          | Some v ->
+          | None       -> ()
+          | Some (v,r) ->
               begin
                 let tm = Time.save () in
-                try infer env vars v _sv
+                try infer env vars v _sv; r := `V
                 with Sort_clash(_,_) ->
-                  Time.rollback tm;
-                  infer env vars v _st
+                  Time.rollback tm; infer env vars v _st; r := `T
               end
         end
     | (ECons(_,vo)  , SUni(r)  ) ->
         begin
           match vo with
-          | None   -> r := Some _sv
-          | Some v -> infer env vars v s
+          | None       -> r := Some _sv
+          | Some (v,f) ->
+              begin
+                let tm = Time.save () in
+                try infer env vars v _sv; f := `V; r := Some _sv
+                with Sort_clash(_,_) ->
+                  Time.rollback tm;
+                  infer env vars v _st; f := `T; r := Some _st
+              end
         end
     | (ECons(_,_)   , _        ) -> sort_clash e s
-    | (EReco(l)     , SV       )
+    | (EReco(l)     , SV       ) ->
+        let fn (_,v,r) = infer env vars v _sv; r := `V in
+        List.iter fn l
     | (EReco(l)     , ST       ) ->
-        List.iter (fun (_,v) -> infer env vars v s) l
-    | (EReco(l)     , SUni(r)  ) ->
-        begin
+        let fn (_,v,r) =
           let tm = Time.save () in
-          try
-            List.iter (fun (_,v) -> infer env vars v _sv) l;
-            r := Some _sv
+          try infer env vars v _sv; r := `V
           with Sort_clash(_,_) ->
             Time.rollback tm;
-            r := Some _st;
-            infer env vars e s
-        end
+            infer env vars v _st; r := `T
+        in
+        List.iter fn l
+    | (EReco(l)     , SUni(r)  ) ->
+        let all_val = ref true in
+        let fn (_,v,r) =
+          let tm = Time.save () in
+          try infer env vars v _sv; r := `V
+          with Sort_clash(_,_) ->
+            Time.rollback tm;
+            infer env vars v _st; r := `T; all_val << false
+        in
+        List.iter fn l;
+        r := Some (if !all_val then _sv else _st)
     | (EReco(_)     , _        ) -> sort_clash e s
     | (EScis        , SV       )
     | (EScis        , ST       ) -> ()
@@ -364,10 +388,15 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
     | (EName(s,t)   , ST       ) -> infer env vars s _ss; infer env vars t _st
     | (EName(_,_)   , SUni(r)  ) -> r := Some _st; infer env vars e s
     | (EName(_,_)   , _        ) -> sort_clash e s
-    | (EProj(v,_)   , ST       ) -> infer env vars v _sv
-    | (EProj(v,_)   , SUni(r)  ) -> r := Some _st; infer env vars e s
-    | (EProj(_,_)   , _        ) -> sort_clash e s
-    | (ECase(v,l)   , ST       ) ->
+    | (EProj(v,r,_) , ST       ) ->
+        begin
+          try infer env vars v _sv; r := `V
+          with Sort_clash(_,_) ->
+            infer env vars v _st; r := `T
+        end
+    | (EProj(_,_,_) , SUni(r)  ) -> r := Some _st; infer env vars e s
+    | (EProj(_,_,_) , _        ) -> sort_clash e s
+    | (ECase(v,r,l) , ST       ) ->
         begin
           let fn (_, (x, ao), t) =
             infer env (M.add x.elt (x.pos, Pos.none SV) vars) t _st;
@@ -377,15 +406,16 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
           in
           List.iter fn l;
           let tm = Time.save () in
-          try infer env vars v _sv;
+          try infer env vars v _sv; r := `V
           with Sort_clash(_,_) ->
             Time.rollback tm;
-            infer env vars v _st;
+            infer env vars v _st; r := `T
         end
-    | (ECase(_,_)   , SUni(r)  ) -> r := Some _st; infer env vars e s
-    | (ECase(_,_)   , _        ) -> sort_clash e s
-    | (EFixY(t)     , ST       ) -> infer env vars t s
-    | (EFixY(_)     , SUni(r)  ) -> r := Some _st; infer env vars e s
+    | (ECase(_,_,_) , SUni(r)  ) -> r := Some _st; infer env vars e s
+    | (ECase(_,_,_) , _        ) -> sort_clash e s
+    | (EFixY(t)     , ST       )
+    | (EFixY(t)     , SV       ) -> infer env vars t _st
+    | (EFixY(_)     , SUni(r)  ) -> r := Some _sv; infer env vars e s
     | (EFixY(_)     , _        ) -> sort_clash e s
     | (ECoer(t,a)   , SV       )
     | (ECoer(t,a)   , ST       ) -> infer env vars t s; infer env vars a _sp
@@ -575,12 +605,12 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
     | (ECons(c,vo)  , SV       ) ->
         let v =
           match vo with
-          | None   -> reco None M.empty
-          | Some v -> to_valu (unsugar env vars v _sv)
+          | None       -> reco None M.empty
+          | Some (v,_) -> to_valu (unsugar env vars v _sv)
         in
         Box(V, cons e.pos c v)
     | (EReco(l)     , SV       ) ->
-        let fn (p, v) = (p.elt, (p.pos, to_valu (unsugar env vars v _sv))) in
+        let fn (p,v,_) = (p.elt, (p.pos, to_valu (unsugar env vars v _sv))) in
         let gn m (k,v) =
           if M.mem k m then assert false;
           M.add k v m
@@ -608,12 +638,60 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
         let s = to_stac (unsugar env vars s _ss) in
         let t = to_term (unsugar env vars t _st) in
         Box(T, name e.pos s t)
-    | (EProj(v,_)   , ST       ) -> assert false (* TODO *)
-    | (ECase(v,l)   , ST       ) -> assert false (* TODO *)
-    | (EFixY(t)     , ST       ) -> assert false (* TODO *)
-    | (ECoer(t,a)   , SV       ) -> assert false (* TODO *)
-    | (ECoer(t,a)   , ST       ) -> assert false (* TODO *)
-    | (ELamb(x,k,t) , _        ) -> assert false (* TODO *)
+    | (EProj(v,r,_) , ST       ) -> assert false (* TODO *)
+    | (ECase(v,r,l) , ST       ) ->
+        begin
+          match !r with
+          | `V -> let v = to_valu (unsugar env vars v _sv) in
+                  let fn (c, (x, ao), t) = 
+                    let f xx =
+                      let xx = (x.pos, Box(V, vari x.pos xx)) in
+                      let vars = M.add x.elt xx vars in
+                      to_term (unsugar env vars t _st)
+                    in
+                    (c.elt, (c.pos, x, f))
+                  in
+                  let gn m (k,v) =
+                    if M.mem k m then assert false;
+                    M.add k v m
+                  in
+                  let m = List.fold_left gn M.empty (List.map fn l) in
+                  Box(T, case e.pos v m)          
+          | `T -> let t = to_term (unsugar env vars v _st) in
+                  let fn (c, (x, ao), t) = 
+                    let f xx =
+                      let xx = (x.pos, Box(V, vari x.pos xx)) in
+                      let vars = M.add x.elt xx vars in
+                      to_term (unsugar env vars t _st)
+                    in
+                    (c.elt, (c.pos, x, f))
+                  in
+                  let gn m (k,v) =
+                    if M.mem k m then assert false;
+                    M.add k v m
+                  in
+                  let m = List.fold_left gn M.empty (List.map fn l) in
+                  let f xx = case e.pos (vari None xx) m in
+                  let lcs = labs e.pos None (Pos.none "x") f in
+                  Box(T, appl e.pos (valu e.pos lcs) t)
+        end
+    | (EFixY(t)     , SV       ) ->
+        let t = to_term (unsugar env vars t _st) in
+        let f xx = fixy e.pos t (vari None xx) in
+        Box(V, labs e.pos None (Pos.none "x") f)
+    | (EFixY(t)     , ST       ) ->
+        let v = to_valu (unsugar env vars e _sv) in
+        Box(T, valu e.pos v)
+    | (ECoer(v,a)   , SV       ) ->
+        let v = to_valu (unsugar env vars v _sv) in
+        let a = to_prop (unsugar env vars a _sp) in
+        Box(V, vtyp e.pos v a)
+    | (ECoer(t,a)   , ST       ) ->
+        let t = to_term (unsugar env vars t _st) in
+        let a = to_prop (unsugar env vars a _sp) in
+        Box(T, ttyp e.pos t a)
+    | (ELamb(x,k,t) , SV       ) -> assert false (* TODO *)
+    | (ELamb(x,k,t) , ST       ) -> assert false (* TODO *)
     (* Stacks. *)
     | (EEpsi        , SS       ) -> Box(S, epsi e.pos)
     | (EPush(v,pi)  , SS       ) ->

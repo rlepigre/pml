@@ -160,11 +160,11 @@ let parser expr (m : mode) =
   (* Term (constructor) *)
   | c:luid "[" t:(expr (`Trm`F))? "]"
       when m = `Trm`A 
-      -> in_pos _loc (ECons(c,t))
+      -> in_pos _loc (ECons(c, Util.map_opt (fun t -> (t, ref `T)) t))
   (* Term (record) *)
   | "{" fs:(lsep_ne ";" (parser l:llid "=" a:(expr (`Trm`F)))) "}"
       when m = `Trm`A
-      -> in_pos _loc (EReco(fs))
+      -> in_pos _loc (EReco(List.map (fun (l,a) -> (l, a, ref `T)) fs))
   (* Term (scisors) *)
   | scis
       when m = `Trm`A
@@ -187,14 +187,14 @@ let parser expr (m : mode) =
   (* Term (projection) *)
   | t:(expr (`Trm`A)) "." l:llid
       when m = `Trm`A
-      -> in_pos _loc (EProj(t,l))
+      -> in_pos _loc (EProj(t, ref `T, l))
   (* Term (case analysis) *)
   | _case_ t:(expr (`Trm`F)) _of_ ps:pattern*
       when m = `Trm`F
-      -> in_pos _loc (ECase(t,ps))
+      -> in_pos _loc (ECase(t, ref `T, ps))
   | "[" t:(expr (`Trm`F)) ps:pattern* "]"
       when m = `Trm`A
-      -> in_pos _loc (ECase(t,ps))
+      -> in_pos _loc (ECase(t, ref `T, ps))
   (* Term (fixpoint) *)
   | _fix_ t:(expr (`Trm`F))
       when m = `Trm`F

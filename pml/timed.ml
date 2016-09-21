@@ -14,6 +14,8 @@ module Time =
       in fn t.next; t.next <- None; current := t
   end
 
+let (<<) : 'a ref -> 'a -> unit = (:=)
+
 let (:=) : 'a ref -> 'a -> unit = fun r v ->
   let open Time in
   let v0 = !r in
