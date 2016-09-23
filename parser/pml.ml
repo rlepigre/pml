@@ -2,6 +2,7 @@ open Blank
 open Parser
 open Pos
 open Raw
+open Typing
 
 let interpret : Env.env -> Raw.toplevel -> Env.env = fun env top ->
   match top with

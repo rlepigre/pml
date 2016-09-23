@@ -222,7 +222,7 @@ let scis : popt -> vbox =
 let vtyp : popt -> vbox -> pbox -> vbox =
   fun pos -> box_apply2 (fun v p -> {elt = VTyp(v,p); pos})
 
-let vlam : popt -> strloc -> (pvar -> vbox) -> vbox =
+let vlam : type a. popt -> strloc -> (a var -> vbox) -> vbox =
   fun pos x f ->
     let b = vbind mk_free x.elt f in
     box_apply (fun b -> {elt = VLam((x.pos, b)); pos}) b
@@ -262,7 +262,7 @@ let fixy : popt -> tbox -> vbox -> tbox =
 let ttyp : popt -> tbox -> pbox -> tbox =
   fun pos -> box_apply2 (fun t p -> {elt = TTyp(t,p); pos})
 
-let tlam : popt -> strloc -> (pvar -> tbox) -> tbox =
+let tlam : type a. popt -> strloc -> (a var -> tbox) -> tbox =
   fun pos x f ->
     let b = vbind mk_free x.elt f in
     box_apply (fun b -> {elt = TLam((x.pos, b)); pos}) b

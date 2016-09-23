@@ -690,8 +690,22 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
         let t = to_term (unsugar env vars t _st) in
         let a = to_prop (unsugar env vars a _sp) in
         Box(T, ttyp e.pos t a)
-    | (ELamb(x,k,t) , SV       ) -> assert false (* TODO *)
-    | (ELamb(x,k,t) , ST       ) -> assert false (* TODO *)
+    | (ELamb(x,k,t) , SV       ) ->
+        let Sort k = unsugar_sort env k in
+        let f xx =
+          let xx = (x.pos, Box(k, vari x.pos xx)) in
+          let vars = M.add x.elt xx vars in
+          to_valu (unsugar env vars t _sv)
+        in
+        Box(V, vlam e.pos x f)
+    | (ELamb(x,k,t) , ST       ) ->
+        let Sort k = unsugar_sort env k in
+        let f xx =
+          let xx = (x.pos, Box(k, vari x.pos xx)) in
+          let vars = M.add x.elt xx vars in
+          to_term (unsugar env vars t _sv)
+        in
+        Box(T, tlam e.pos x f)
     (* Stacks. *)
     | (EEpsi        , SS       ) -> Box(S, epsi e.pos)
     | (EPush(v,pi)  , SS       ) ->
