@@ -14,10 +14,12 @@ exception Unexpected_error of string
 let unexpected : string -> 'a =
   fun msg -> raise (Unexpected_error msg)
 
-type valu_proof = valu * prop * unit
-type term_proof = term * prop * unit
+type context = unit
+type rule = unit
+type proof = term * prop * rule
+let proof : proof -> rule = fun (_,_,r) -> r
 
-let rec type_check_valu : valu -> prop -> valu_proof = fun v c ->
+let rec type_check_valu : context -> valu -> prop -> proof = fun ctxt v c ->
   let r =
     match (Norm.repr v).elt with
     | LAbs(ao,b)  -> assert false
@@ -36,12 +38,12 @@ let rec type_check_valu : valu -> prop -> valu_proof = fun v c ->
     | Dumm        -> unexpected "Dummy value during typing..."
     | ITag(_)     -> unexpected "Tag during typing..."
   in
-  (v, c, r)
+  (build_pos v.pos (Valu(v)), c, r)
 
-and type_check_term : term -> prop -> term_proof = fun t c ->
+and type_check_term : context -> term -> prop -> proof = fun ctxt t c ->
   let r =
     match (Norm.repr t).elt with
-    | Valu(v)     -> assert false
+    | Valu(v)     -> proof (type_check_valu ctxt v c)
     | Appl(t,u)   -> assert false
     | MAbs(ao,b)  -> assert false
     | Name(pi,t)  -> assert false
