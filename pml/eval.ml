@@ -107,7 +107,7 @@ let rec valu_erasure : valu -> e_vbox = fun v ->
   | Reco(m)   -> vreco (M.map (fun (_,v) -> valu_erasure v) m)
   | Scis      -> vscis
   | VTyp(v,_) -> valu_erasure v
-  | VLam(f)   -> valu_erasure (lsubst f Dumm)
+  | VLam(_,f) -> valu_erasure (lsubst f Dumm)
   | ITag(_)   -> erasure_error "a tag cannot be erased (value)"
   | Dumm      -> erasure_error "a dummy value cannot be erased (value)"
   | VWit(_)   -> erasure_error "a witness cannot be erased (value)"
@@ -136,7 +136,7 @@ and     term_erasure : term -> e_tbox = fun t ->
                  in tcase (valu_erasure v) (M.map f m)
   | FixY(t,v) -> tfixy (term_erasure t) (valu_erasure v)
   | TTyp(t,_) -> term_erasure t
-  | TLam(f)   -> term_erasure (lsubst f Dumm)
+  | TLam(_,f) -> term_erasure (lsubst f Dumm)
   | ITag(_)   -> erasure_error "a tag cannot be erased (term)"
   | Dumm      -> erasure_error "a dummy value cannot be erased (term)"
   | UWit(_)   -> erasure_error "a witness cannot be erased (term)"

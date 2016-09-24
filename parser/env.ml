@@ -1,3 +1,4 @@
+open Sorts
 open Ast
 open Pos
 

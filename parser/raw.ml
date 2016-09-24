@@ -2,6 +2,8 @@
     for the language. *)
 
 
+open Bindlib
+open Sorts
 open Pos
 open Ast
 open Env
@@ -441,30 +443,11 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
     | (ESucc(_)     , _        ) -> sort_clash e s
   in infer env M.empty e s
 
-open Bindlib
 type boxed = Box : 'a sort * 'a ex loc bindbox -> boxed
-
-type ('a,'b) eq = Eq : ('a,'a) eq | NEq : ('a,'b) eq
-
-let rec eq_sort : type a b. a sort -> b sort -> (a,b) eq =
-  fun s1 s2 ->
-    match (s1, s2) with
-    | (V       , V       ) -> Eq
-    | (T       , T       ) -> Eq
-    | (S       , S       ) -> Eq
-    | (P       , P       ) -> Eq
-    | (O       , O       ) -> Eq
-    | (F(a1,b1), F(a2,b2)) ->
-        begin
-          match (eq_sort a1 a2, eq_sort b1 b2) with
-          | (Eq, Eq) -> Eq
-          | _        -> NEq
-        end
-    | (_       , _       ) -> NEq
 
 let rec sort_filter : type a b. a sort -> boxed -> a box =
   fun s (Box(k,e)) ->
-    match eq_sort k s with
+    match Sorts.eq_sort k s with
     | Eq  -> e
     | NEq -> assert false
 
@@ -491,7 +474,7 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
               let Expr(sx, _, ex) = find_expr x.elt env in
               Box(sx,ex)
             in
-            match eq_sort s sx with
+            match Sorts.eq_sort s sx with
             | Eq  -> Box(s, sort_filter s (Box(sx,ex)))
             | NEq ->
                 begin
@@ -544,7 +527,7 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
           let vars = M.add x.elt xk vars in
           to_prop (unsugar env vars e _sp)
         in
-        Box(P, univ e.pos x fn)
+        Box(P, univ e.pos x k fn)
     | (EExis(x,k,e) , SP       ) ->
         let Sort k = unsugar_sort env k in
         let fn xk : p box =
@@ -552,7 +535,7 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
           let vars = M.add x.elt xk vars in
           to_prop (unsugar env vars e _sp)
         in
-        Box(P, exis e.pos x fn)
+        Box(P, exis e.pos x k fn)
     | (EFixM(o,x,e) , SP       ) ->
         let o = to_ordi (unsugar env vars o _so) in
         let fn xo : pbox =
@@ -697,7 +680,7 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
           let vars = M.add x.elt xx vars in
           to_valu (unsugar env vars t _sv)
         in
-        Box(V, vlam e.pos x f)
+        Box(V, vlam e.pos x k f)
     | (ELamb(x,k,t) , ST       ) ->
         let Sort k = unsugar_sort env k in
         let f xx =
@@ -705,7 +688,7 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
           let vars = M.add x.elt xx vars in
           to_term (unsugar env vars t _sv)
         in
-        Box(T, tlam e.pos x f)
+        Box(T, tlam e.pos x k f)
     (* Stacks. *)
     | (EEpsi        , SS       ) -> Box(S, epsi e.pos)
     | (EPush(v,pi)  , SS       ) ->

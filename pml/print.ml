@@ -1,4 +1,5 @@
 open Bindlib
+open Sorts
 open Pos
 open Ast
 
@@ -50,9 +51,9 @@ let rec print_ex : type a. out_channel -> a ex loc -> unit =
     | DSum(m)     -> let pelt ch (l,(_,a)) =
                        Printf.fprintf ch "%s : %a" l print_ex a
                      in Printf.fprintf ch "[%a]" (print_map pelt "; ") m
-    | Univ(b)     -> let (x,a) = unbind mk_free (snd b) in
+    | Univ(_,b)   -> let (x,a) = unbind mk_free (snd b) in
                      Printf.fprintf ch "∀%s.%a" (name_of x) print_ex a
-    | Exis(b)     -> let (x,a) = unbind mk_free (snd b) in
+    | Exis(_,b)   -> let (x,a) = unbind mk_free (snd b) in
                      Printf.fprintf ch "∃%s.%a" (name_of x) print_ex a
     | FixM(o,b)   -> let (x,a) = unbind mk_free (snd b) in
                      Printf.fprintf ch "μ(%a) %s.%a"
@@ -96,14 +97,14 @@ let rec print_ex : type a. out_channel -> a ex loc -> unit =
     | DPrj(t,x)   -> Printf.fprintf ch "(%a).%s" print_ex t x.elt
     | VTyp(v,a)   -> Printf.fprintf ch "(%a : %a)" print_ex v print_ex a
     | TTyp(t,a)   -> Printf.fprintf ch "(%a : %a)" print_ex t print_ex a
-    | VLam(b)     -> let (x,t) = unbind mk_free (snd b) in
+    | VLam(_,b)   -> let (x,t) = unbind mk_free (snd b) in
                      Printf.fprintf ch "Λ%s.%a" (name_of x) print_ex t
-    | TLam(b)     -> let (x,t) = unbind mk_free (snd b) in
+    | TLam(_,b)   -> let (x,t) = unbind mk_free (snd b) in
                      Printf.fprintf ch "Λ%s.%a" (name_of x) print_ex t
     | ITag(i)     -> Printf.fprintf ch "#%i" i
     | Dumm        -> output_string ch "∅"
     | VWit(_,_,_) -> output_string ch "ει"
     | SWit(_,_)   -> output_string ch "εσ"
-    | UWit(_,_)   -> output_string ch "ε∀"
-    | EWit(_,_)   -> output_string ch "ε∃"
+    | UWit(_,_,_) -> output_string ch "ε∀"
+    | EWit(_,_,_) -> output_string ch "ε∃"
     | UVar(i,_)   -> Printf.fprintf ch "?%i" i

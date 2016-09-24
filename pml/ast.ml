@@ -3,6 +3,7 @@
 
 
 open Bindlib
+open Sorts
 open Pos
 
 (** Module for Maps with [string] keys. *)
@@ -30,22 +31,10 @@ let lsubst : ('a, 'b) lbinder -> 'a -> 'b loc =
 let lbinder_cmp : ('a, 'b) lbinder -> ('b loc -> 'c loc) -> ('a, 'c) lbinder =
   fun (p, b) f -> (p, binder_compose_right b f)
 
-(** {6 Main abstract syntax tree types} *)
+let lbinder_name : ('a, 'b) lbinder -> string =
+  fun (_, b) -> binder_name b
 
-type o = O_ (** Phantom type for the sort of ordinals. *)
-type p = P_ (** Phantom type for the sort of types.    *)
-type v = V_ (** Phantom type for the sort of values.   *)
-type t = T_ (** Phantom type for the sort of terms.    *)
-type s = S_ (** Phantom type for the sort of stacks.   *)
-
-(** Representation of our sorts. *)
-type _ sort =
-  | O : o sort
-  | P : p sort
-  | V : v sort
-  | T : t sort
-  | S : s sort
-  | F : 'a sort * 'b sort -> ('a -> 'b) sort
+(** {6 Main abstract syntax tree type} *)
 
 (** Type of (well-sorted) expressions. This is the core abstract syntax
     representation of our language. Everything is unified as a single GADT
@@ -71,9 +60,9 @@ type _ ex =
   (** Product (or record) type. *)
   | DSum : (pos option * p ex loc) M.t                        -> p ex
   (** Disjoint sum type. *)
-  | Univ : ('a ex, p ex) lbinder                              -> p ex
+  | Univ : 'a sort * ('a ex, p ex) lbinder                    -> p ex
   (** Universal quantification (e.g. polymorphism). *)
-  | Exis : ('a ex, p ex) lbinder                              -> p ex
+  | Exis : 'a sort * ('a ex, p ex) lbinder                    -> p ex
   (** Existential quantification (e.g. type abstraction). *)
   | FixM : o ex loc * (p ex, p ex) lbinder                    -> p ex
   (** Inductive type with an ordinal size. *)
@@ -136,9 +125,9 @@ type _ ex =
   (** Type coercion on a term. *)
   | TTyp : t ex loc * p ex loc                                -> t ex
   (** Type coercion on a term. *)
-  | VLam : ('a ex, v ex) lbinder                              -> v ex
+  | VLam : 'a sort * ('a ex, v ex) lbinder                    -> v ex
   (** Type abstraction on a value. *)
-  | TLam : ('a ex, t ex) lbinder                              -> t ex
+  | TLam : 'a sort * ('a ex, t ex) lbinder                    -> t ex
   (** Type abstraction on a term. *)
 
   (* Special constructors. *)
@@ -151,9 +140,9 @@ type _ ex =
   (** Value witness (a.k.a. epsilon). *)
   | SWit : (s ex, t ex) lbinder * p ex loc                    -> s ex
   (** Stack witness (a.k.a. epsilon). *)
-  | UWit : t ex loc * ('a ex, p ex) lbinder                   -> 'a ex
+  | UWit : 'a sort * t ex loc * ('a ex, p ex) lbinder         -> 'a ex
   (** Universal quantifier witness (a.k.a. epsilon). *)
-  | EWit : t ex loc * ('a ex, p ex) lbinder                   -> 'a ex
+  | EWit : 'a sort * t ex loc * ('a ex, p ex) lbinder         -> 'a ex
   (** Existential quantifier witness (a.k.a. epsilon). *)
   | UVar : int * 'a ex loc option ref                         -> 'a ex
   (** Unification variable. *)
@@ -222,10 +211,10 @@ let scis : popt -> vbox =
 let vtyp : popt -> vbox -> pbox -> vbox =
   fun pos -> box_apply2 (fun v p -> {elt = VTyp(v,p); pos})
 
-let vlam : type a. popt -> strloc -> (a var -> vbox) -> vbox =
-  fun pos x f ->
+let vlam : type a. popt -> strloc -> a sort -> (a var -> vbox) -> vbox =
+  fun pos x s f ->
     let b = vbind mk_free x.elt f in
-    box_apply (fun b -> {elt = VLam((x.pos, b)); pos}) b
+    box_apply (fun b -> {elt = VLam(s, (x.pos, b)); pos}) b
  
 (** {5 Term constructors} *)
 
@@ -262,10 +251,10 @@ let fixy : popt -> tbox -> vbox -> tbox =
 let ttyp : popt -> tbox -> pbox -> tbox =
   fun pos -> box_apply2 (fun t p -> {elt = TTyp(t,p); pos})
 
-let tlam : type a. popt -> strloc -> (a var -> tbox) -> tbox =
-  fun pos x f ->
+let tlam : type a. popt -> strloc -> a sort -> (a var -> tbox) -> tbox =
+  fun pos x s f ->
     let b = vbind mk_free x.elt f in
-    box_apply (fun b -> {elt = TLam((x.pos, b)); pos}) b
+    box_apply (fun b -> {elt = TLam(s, (x.pos, b)); pos}) b
 
 (** {5 Stack constructors} *)
 
@@ -297,15 +286,15 @@ let dsum : popt -> (popt * pbox) M.t -> pbox =
     let f (lpos, a) = box_apply (fun a -> (lpos, a)) a in
     box_apply (fun m -> {elt = DSum(m); pos}) (M.map_box f m)
 
-let univ : type a. popt -> strloc -> (a var -> pbox) -> pbox =
-  fun pos x f ->
+let univ : type a. popt -> strloc -> a sort -> (a var -> pbox) -> pbox =
+  fun pos x s f ->
     let b = vbind mk_free x.elt f in
-    box_apply (fun b -> {elt = Univ((x.pos, b)); pos}) b
+    box_apply (fun b -> {elt = Univ(s, (x.pos, b)); pos}) b
 
-let exis : type a. popt -> strloc -> (a var -> pbox) -> pbox =
-  fun pos x f ->
+let exis : type a. popt -> strloc -> a sort -> (a var -> pbox) -> pbox =
+  fun pos x s f ->
     let b = vbind mk_free x.elt f in
-    box_apply (fun b -> {elt = Exis((x.pos, b)); pos}) b
+    box_apply (fun b -> {elt = Exis(s, (x.pos, b)); pos}) b
 
 let fixm : popt -> obox -> strloc -> (pvar -> pbox) -> pbox =
   fun pos o x f ->
