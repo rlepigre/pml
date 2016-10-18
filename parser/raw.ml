@@ -149,7 +149,7 @@ let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
     | EMemb(t,a)    -> Printf.fprintf ch "EMemb(%a,%a" print t print a
     | ERest(a,eq)   -> Printf.fprintf ch "ERest(...)" (* TODO *)
     | EDPrj(t,x)    -> Printf.fprintf ch "EDPrj(%a,%S)" print t x.elt
-    | ELAbs(args,t) -> Printf.fprintf ch "ELAbs(...)" (* TODO *)
+    | ELAbs(args,t) -> Printf.fprintf ch "ELAbs(..., %a)" print t (* TODO *)
     | ECons(c,ao)   -> Printf.fprintf ch "ECons(...)" (* TODO *)
     | EReco(l)      -> Printf.fprintf ch "EReco(...)" (* TODO *)
     | EScis         -> Printf.fprintf ch "EScis"
@@ -203,6 +203,10 @@ let rec eq_sort : env -> raw_sort -> raw_sort -> bool = fun env s1 s2 ->
 let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
   let open Timed in
   let rec infer env vars e s =
+    (*
+    Printf.printf "infer_sort e = %a\n%!" print_raw_expr e;
+    Printf.printf "infer_sort s = %a\n%!" print_raw_sort s;
+    *)
     match (e.elt, (sort_repr env s).elt) with
     | (EVari(x,[])  , _        ) ->
         begin
@@ -452,7 +456,13 @@ let rec sort_filter : type a b. a sort -> boxed -> a box =
     | NEq -> assert false
 
 let to_valu : boxed -> v box = sort_filter V
-let to_term : boxed -> t box = sort_filter T
+
+let to_term : boxed -> t box = fun e ->
+  match e with
+  | Box(T,e) -> e
+  | Box(V,e) -> valu None e
+  | _        -> assert false
+
 let to_stac : boxed -> s box = sort_filter S
 let to_prop : boxed -> p box = sort_filter P
 let to_ordi : boxed -> o box = sort_filter O
@@ -461,8 +471,8 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
   infer_sorts env e s;
   let rec unsugar env vars e s =
     (*
-    Printf.printf "e = %a\n%!" print_raw_expr e;
-    Printf.printf "s = %a\n%!" print_raw_sort s;
+    Printf.printf "unsugar_expr e = %a\n%!" print_raw_expr e;
+    Printf.printf "unsugar_expr s = %a\n%!" print_raw_sort s;
     *)
     match (e.elt, (sort_repr env s).elt) with
     | (EVari(x,[])  , _        ) ->

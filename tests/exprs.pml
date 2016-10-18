@@ -20,3 +20,6 @@ def test2 : τ =
 
 def fixid : τ = fix (λx.x)
 
+def lamb_v : ι = Λ (a:ο) λx.x
+
+def lamb_t : τ = Λ (a:ο) λx.x
