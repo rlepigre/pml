@@ -172,18 +172,18 @@ and sub_proof = term * prop * prop * sub_rule
 
 
 
-let rec get_lam : type a. string -> a sort -> term -> prop -> a ex =
+let rec get_lam : type a. string -> a sort -> term -> prop -> a ex * prop =
   fun x s t c ->
     match (Norm.whnf c).elt with
-    | Univ(k,f) when lbinder_name f = x ->
-        get_lam x s t (lsubst f (UWit(k,t,f)))
+    | Univ(k,f) when lbinder_name f <> x ->
+        unexpected "Name missmatch between Λ and ∀..."
     | Univ(k,f) ->
         begin
           match eq_sort s k with
-          | Eq  -> UWit(k,t,f)
-          | NEq -> assert false
+          | Eq  -> let wit = UWit(k,t,f) in (wit, lsubst f wit)
+          | NEq -> unexpected "Sort missmatch between Λ and ∀..."
         end
-    | _         -> assert false
+    | _         -> unexpected "Expected ∀ type..."
 
 
 
@@ -272,8 +272,8 @@ and type_valu : ctxt -> valu -> prop -> ctxt * typ_proof = fun ctx v c ->
         (ctx, Typ_VTyp(p1,p2))
     (* Type abstraction. *)
     | VLam(s,b)   ->
-        let a = get_lam (lbinder_name b) s t c in
-        let (ctx, p) = type_valu ctx (lsubst b a) c in
+        let (w, c) = get_lam (lbinder_name b) s t c in
+        let (ctx, p) = type_valu ctx (lsubst b w) c in
         (ctx, Typ_VLam(p))
     (* Witness. *)
     | VWit(_,a,_) ->
@@ -327,8 +327,8 @@ and type_term : ctxt -> term -> prop -> ctxt * typ_proof = fun ctx t c ->
         (ctx, Typ_TTyp(p1,p2))
     (* Type abstraction. *)
     | TLam(s,b)   ->
-        let a = get_lam (lbinder_name b) s t c in
-        let (ctx, p) = type_term ctx (lsubst b a) c in
+        let (w, c) = get_lam (lbinder_name b) s t c in
+        let (ctx, p) = type_term ctx (lsubst b w) c in
         (ctx, Typ_TLam(p))
     (* Constructors that cannot appear in user-defined terms. *)
     | UWit(_,_,_) -> unexpected "∀-witness during typing..."
