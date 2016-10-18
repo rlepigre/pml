@@ -98,7 +98,7 @@ let rec valu_erasure : valu -> e_vbox = fun v ->
   let v = Norm.whnf v in
   match v.elt with
   | Vari(x)   -> box_of_var (copy_var x (name_of x) mk_vvari)
-  | HApp(_,_) -> erasure_error "not a normalisation value (value)"
+  | HApp(_)   -> erasure_error "not a normalisation value (value)"
   | LAbs(_,b) -> let f x =
                    let x = copy_var x (name_of x) mk_free in
                    term_erasure (lsubst b (free_of x))
@@ -119,7 +119,7 @@ and     term_erasure : term -> e_tbox = fun t ->
   let t = Norm.whnf t in
   match t.elt with
   | Vari(x)   -> box_of_var (copy_var x (name_of x) mk_tvari)
-  | HApp(_,_) -> erasure_error "not a normalisation value (term)"
+  | HApp(_)   -> erasure_error "not a normalisation value (term)"
   | Valu(v)   -> tvalu (valu_erasure v)
   | Appl(t,u) -> tappl (term_erasure t) (term_erasure u)
   | MAbs(_,b) -> let f x =
@@ -147,7 +147,7 @@ and     stac_erasure : stac -> e_sbox = fun s ->
   let s = Norm.whnf s in
   match s.elt with
   | Vari(x)   -> box_of_var (copy_var x (name_of x) mk_svari)
-  | HApp(_,_) -> erasure_error "not a normalisation value (stack)"
+  | HApp(_)   -> erasure_error "not a normalisation value (stack)"
   | Epsi      -> sepsi
   | Push(v,s) -> spush (valu_erasure v) (stac_erasure s)
   | Fram(t,s) -> sfram (term_erasure t) (stac_erasure s)

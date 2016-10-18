@@ -49,7 +49,7 @@ type _ ex =
 
   | HFun : ('a ex, 'b ex) lbinder                             -> ('a -> 'b) ex
   (** Higher-order function (e.g. parametric type). *)
-  | HApp : ('a -> 'b) ex loc * 'a ex loc                      -> 'b ex
+  | HApp : 'a sort * ('a -> 'b) ex loc * 'a ex loc            -> 'b ex
   (** Corresponding higher-order application. *)
 
   (* Proposition constructors. *)
@@ -144,7 +144,7 @@ type _ ex =
   (** Universal quantifier witness (a.k.a. epsilon). *)
   | EWit : 'a sort * t ex loc * ('a ex, p ex) lbinder         -> 'a ex
   (** Existential quantifier witness (a.k.a. epsilon). *)
-  | UVar : int * 'a ex loc option ref                         -> 'a ex
+  | UVar : int * 'a sort * 'a ex loc option ref               -> 'a ex
   (** Unification variable. *)
   (* TODO add MuRec and NuRec *)
 
@@ -185,8 +185,8 @@ let hfun : type a b. popt -> strloc -> (a var -> b box) -> (a -> b) box =
     let b = vbind mk_free x.elt f in
     box_apply (fun b -> {elt = HFun((x.pos, b)); pos}) b
 
-let happ : type a b. popt -> (a -> b) box -> a box -> b box =
-  fun pos -> box_apply2 (fun f a -> {elt = HApp(f,a); pos})
+let happ : type a b. popt -> a sort -> (a -> b) box -> a box -> b box =
+  fun pos s -> box_apply2 (fun f a -> {elt = HApp(s,f,a); pos})
 
 (** {5 Value constructors} *)
 

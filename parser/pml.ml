@@ -1,3 +1,4 @@
+open Bindlib
 open Blank
 open Parser
 open Pos
@@ -17,6 +18,16 @@ let interpret : Env.env -> Raw.toplevel -> Env.env = fun env top ->
       Printf.printf "expr %s : %a ≔ %a\n%!" id.elt
         Print.print_sort s Print.print_ex (Bindlib.unbox e);
       add_expr id.elt s e env
+  | Valu_def(id,ao,t) ->
+      let open Env in
+      let ao =
+        match ao with
+        | None   -> None
+        | Some a -> Some(unbox (to_prop (unsugar_expr env a _sp)))
+      in
+      let t = unbox (to_term (unsugar_expr env t _st)) in
+      let prf = type_check t ao in
+      ignore prf; env (* TODO *)
 
 let red fmt = "\027[31m" ^^ fmt ^^ "\027[0m"
 

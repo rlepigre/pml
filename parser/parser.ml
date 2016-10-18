@@ -50,6 +50,7 @@ let parser luid = id:uid -> in_pos _loc id
 
 let _sort_ = KW.new_keyword "sort"
 let _def_  = KW.new_keyword "def"
+let _val_  = KW.new_keyword "val"
 let _fun_  = KW.new_keyword "fun"
 let _save_ = KW.new_keyword "save"
 let _case_ = KW.new_keyword "case"
@@ -266,13 +267,15 @@ let expr = expr `Any
 let parser toplevel =
   | _sort_ id:llid '=' s:sort
     -> Sort_def(id,s)
-  | _def_  id:llid args:sort_arg* s:{":" sort}? '=' e:expr
+  | _def_  id:llid args:sort_arg* s:{':' sort}? '=' e:expr
     -> let s = sort_from_opt s in
        let f (id,s) e = Pos.none (EHOFn(id,s,e)) in
        let e = List.fold_right f args e in
        let f (_ ,a) s = Pos.none (SFun(a,s)) in
        let s = List.fold_right f args s in
        Expr_def(id,s,e)
+  | _val_  id:llid ao:{':' expr}? '=' t:expr
+    -> Valu_def(id, ao, t)
 and sort_arg =
   | id:llid                    -> (id, new_sort_uvar ())
   | "(" id:llid ":" s:sort ")" -> (id, s)

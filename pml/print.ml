@@ -43,7 +43,7 @@ let rec print_ex : type a. out_channel -> a ex loc -> unit =
     | Vari(x)     -> output_string ch (name_of x)
     | HFun(b)     -> let (x,t) = unbind mk_free (snd b) in
                      Printf.fprintf ch "(%s ↦ %a)" (name_of x) print_ex t
-    | HApp(f,a)   -> Printf.fprintf ch "%a(%a)" print_ex f print_ex a
+    | HApp(_,f,a) -> Printf.fprintf ch "%a(%a)" print_ex f print_ex a
     | Func(a,b)   -> Printf.fprintf ch "%a ⇒ %a" print_ex a print_ex b
     | Prod(m)     -> let pelt ch (l,(_,a)) =
                        Printf.fprintf ch "%s : %a" l print_ex a
@@ -107,4 +107,4 @@ let rec print_ex : type a. out_channel -> a ex loc -> unit =
     | SWit(_,_)   -> output_string ch "εσ"
     | UWit(_,_,_) -> output_string ch "ε∀"
     | EWit(_,_,_) -> output_string ch "ε∃"
-    | UVar(i,_)   -> Printf.fprintf ch "?%i" i
+    | UVar(i,_,_) -> Printf.fprintf ch "?%i" i

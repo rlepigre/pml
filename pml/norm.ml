@@ -10,8 +10,8 @@ open Ast
 (** [repr e] unfolds surface unification variables. *)
 let rec repr : type a. a ex loc -> a ex loc = fun exp ->
   match exp.elt with
-  | UVar(_, {contents = Some exp}) -> repr exp
-  | _                              -> exp
+  | UVar(_, _, {contents = Some exp}) -> repr exp
+  | _                                 -> exp
 
 (** [whnf e] normalises the expression [e] until it does not contain any
     surface redex of the form [HApp(HFun _, _)]. This function also unfolds
@@ -19,14 +19,14 @@ let rec repr : type a. a ex loc -> a ex loc = fun exp ->
 let rec whnf : type a. a ex loc -> a ex loc = fun exp ->
   match exp.elt with
   (* Reduction of a redex. *)
-  | HApp(e,f)                      ->
+  | HApp(s,e,f)                       ->
       begin
         let e = whnf e and f = whnf f in
         match (e.elt, f.elt) with
         | (HFun(b), f) -> whnf (lsubst b f)
-        | (_      , _) -> {exp with elt = HApp(e, f)}
+        | (_      , _) -> {exp with elt = HApp(s, e, f)}
       end
   (* Unfolding of a unification variable. *)
-  | UVar(_, {contents = Some exp}) -> whnf exp
+  | UVar(_, _, {contents = Some exp}) -> whnf exp
   (* No possible surface reduction. *)
-  | _                              -> exp
+  | _                                 -> exp
