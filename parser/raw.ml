@@ -142,28 +142,36 @@ let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
     | EHOAp(e,f)    -> Printf.fprintf ch "EHOAp(%a,%a)" print e print f
     | EFunc(a,b)    -> Printf.fprintf ch "EFunc(%a,%a)" print a print b
     | EProd(l)      -> Printf.fprintf ch "EProd([%a])"
-                         (Print.print_list aux "; ") l
+                         (Print.print_list aux_ps "; ") l
     | EUnit         -> Printf.fprintf ch "EUnit"
     | EDSum(l)      -> Printf.fprintf ch "EDSum([%a])"
-                         (Print.print_list aux "; ") l
+                         (Print.print_list aux_ps "; ") l
     | EUniv(x,s,a)  -> Printf.fprintf ch "EUniv(%S,%a,%a)" x.elt
                          print_raw_sort s print a
     | EExis(x,s,a)  -> Printf.fprintf ch "EExis(%S,%a,%a)" x.elt
                          print_raw_sort s print a
-    | EFixM(o,x,a)  -> Printf.fprintf ch "EFixM(...)" (* TODO *)
-    | EFixN(o,x,a)  -> Printf.fprintf ch "EFixN(...)" (* TODO *)
+    | EFixM(o,x,a)  -> Printf.fprintf ch "EFixM(%a,%S,%a)"
+                         print o x.elt print a
+    | EFixN(o,x,a)  -> Printf.fprintf ch "EFixN(%a,%S,%a)"
+                         print o x.elt print a
     | EMemb(t,a)    -> Printf.fprintf ch "EMemb(%a,%a)" print t print a
-    | ERest(a,eq)   -> Printf.fprintf ch "ERest(...)" (* TODO *)
+    | ERest(a,eq)   -> Printf.fprintf ch "ERest(%a,%a)" aux_opt a aux_eq eq
     | EDPrj(t,x)    -> Printf.fprintf ch "EDPrj(%a,%S)" print t x.elt
-    | ELAbs(args,t) -> Printf.fprintf ch "ELAbs(..., %a)" print t (* TODO *)
-    | ECons(c,ao)   -> Printf.fprintf ch "ECons(...)" (* TODO *)
-    | EReco(l)      -> Printf.fprintf ch "EReco(...)" (* TODO *)
+    | ELAbs(args,t) -> Printf.fprintf ch "ELAbs([%a],%a)"
+                         (Print.print_list aux_arg "; ")
+                         (ne_list_to_list args) print t
+    | ECons(c,ao)   -> Printf.fprintf ch "ECons(%S,%a)" c.elt aux_cons ao
+    | EReco(l)      -> Printf.fprintf ch "EReco([%a])"
+                         (Print.print_list aux_rec "; ") l
     | EScis         -> Printf.fprintf ch "EScis"
     | EAppl(t,u)    -> Printf.fprintf ch "EAppl(%a,%a)" print t print u
-    | EMAbs(args,t) -> Printf.fprintf ch "EMAbs(...)" (* TODO *)
+    | EMAbs(args,t) -> Printf.fprintf ch "EMAbs([%a],%a)"
+                         (Print.print_list aux_arg "; ")
+                         (ne_list_to_list args) print t
     | EName(s,t)    -> Printf.fprintf ch "EName(%a,%a)" print s print t
     | EProj(v,_,l)  -> Printf.fprintf ch "EProj(%a,%S)" print v l.elt
-    | ECase(v,_,l)  -> Printf.fprintf ch "ECase(...)" (* TODO *)
+    | ECase(v,_,l)  -> Printf.fprintf ch "ECase(%a,[%a])" print v
+                         (Print.print_list aux_patt "; ") l
     | EFixY(t)      -> Printf.fprintf ch "EFixY(%a)" print t
     | ECoer(t,a)    -> Printf.fprintf ch "ECoer(%a,%a)" print t print a
     | ELamb(x,s,t)  -> Printf.fprintf ch "ELamb(%S,%a,%a)" x.elt
@@ -173,7 +181,18 @@ let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
     | EFram(t,s)    -> Printf.fprintf ch "EFram(%a,%a)" print t print s
     | EConv         -> Printf.fprintf ch "EConv"
     | ESucc(o)      -> Printf.fprintf ch "ESucc(%a)" print o
-  and aux ch (l,e) = Printf.fprintf ch "(%S, %a)" l.elt print e
+  and aux_ps ch (l,e) = Printf.fprintf ch "(%S,%a)" l.elt print e
+  and aux_rec ch (l,e,_) = Printf.fprintf ch "(%S,%a)" l.elt print e
+  and aux_cons ch = function
+    | None      -> Printf.fprintf ch "None"
+    | Some(e,_) -> Printf.fprintf ch "Some(%a)" print e
+  and aux_opt ch = function
+    | None    -> Printf.fprintf ch "None"
+    | Some(e) -> Printf.fprintf ch "Some(%a)" print e
+  and aux_eq ch (t,b,u) = Printf.fprintf ch "(%a,%b,%a)" print t b print u
+  and aux_arg ch (s,ao) = Printf.fprintf ch "(%S,%a)" s.elt aux_opt ao
+  and aux_patt ch (c,(x,ao),t) =
+    Printf.fprintf ch "(%S,(%S,%a),%a)" c.elt x.elt aux_opt ao print t
   in print ch e
 
 exception Unbound_variable of string * Pos.pos option
