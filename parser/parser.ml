@@ -177,10 +177,10 @@ let parser expr (m : mode) =
   (* Term (mu abstraction) *)
   | _save_ args:fun_arg+ arrow t:(expr (`Trm`F))
       when m = `Trm`F
-      -> in_pos _loc (EMAbs(args,t))
+      -> in_pos _loc (EMAbs((List.hd args, List.tl args),t))
   | "μ" args:fun_arg+ "." t:(expr (`Trm`F))
       when m = `Trm`F
-      -> in_pos _loc (EMAbs(args,t))
+      -> in_pos _loc (EMAbs((List.hd args, List.tl args),t))
   (* Term (name) *)
   | "[" s:(expr `Stk) "]" t:(expr (`Trm`F))
       when m = `Trm`F
@@ -193,7 +193,7 @@ let parser expr (m : mode) =
   | _case_ t:(expr (`Trm`F)) _of_ ps:pattern*
       when m = `Trm`F
       -> in_pos _loc (ECase(t, ref `T, ps))
-  | "[" t:(expr (`Trm`F)) ps:pattern* "]"
+  | "[" "?" t:(expr (`Trm`F)) ps:pattern* "]"
       when m = `Trm`A
       -> in_pos _loc (ECase(t, ref `T, ps))
   (* Term (fixpoint) *)

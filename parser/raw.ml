@@ -4,6 +4,7 @@
 
 open Bindlib
 open Sorts
+open Util
 open Pos
 open Ast
 open Env
@@ -90,6 +91,9 @@ let rec unsugar_sort : env -> raw_sort -> any_sort = fun env s ->
 
 type flag = [`V | `T] ref
 
+type 'a ne_list = 'a * 'a list
+let ne_list_to_list : 'a ne_list -> 'a list = fun (x,xs) -> x::xs
+
 type raw_ex = raw_ex' loc
 and raw_ex' =
   | EVari of strloc * raw_ex list
@@ -113,7 +117,7 @@ and raw_ex' =
   | EReco of (strloc * raw_ex * flag) list
   | EScis
   | EAppl of raw_ex * raw_ex
-  | EMAbs of (strloc * raw_ex option) list * raw_ex
+  | EMAbs of (strloc * raw_ex option) ne_list * raw_ex
   | EName of raw_ex * raw_ex
   | EProj of raw_ex * flag * strloc
   | ECase of raw_ex * flag * (strloc * (strloc * raw_ex option) * raw_ex) list
@@ -386,7 +390,7 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
             end;
             M.add x.elt (x.pos, Pos.none SS) vs
           in
-          let vars = List.fold_left fn vars args in
+          let vars = List.fold_left fn vars (ne_list_to_list args) in
           infer env vars t _st
         end
     | (EMAbs(_,_)   , SUni(r)  ) -> r := Some _st; infer env vars e s
@@ -585,11 +589,7 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
     | (ELAbs([],_)  , SV       ) -> assert false
     | (ELAbs([x],t) , SV       ) ->
         let (x,ao) = x in
-        let ao =
-          match ao with
-          | None   -> None
-          | Some a -> Some (to_prop (unsugar env vars a _sp))
-        in
+        let ao = map_opt (fun a -> to_prop (unsugar env vars a _sp)) ao in
         let fn xx =
           let xx = (x.pos, Box(V, vari x.pos xx)) in
           let vars = M.add x.elt xx vars in
@@ -628,7 +628,23 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
         let t = to_term (unsugar env vars t _st) in
         let u = to_term (unsugar env vars u _st) in
         Box(T, appl e.pos t u)
-    | (EMAbs(args,t), ST       ) -> assert false (* TODO *)
+    | (EMAbs(args,t), ST       ) ->
+        begin
+          match args with
+          | ((x,ao), []   ) ->
+              let fn a = to_prop (unsugar env vars a _sp) in
+              let ao = map_opt fn ao in
+              let fn xx =
+                let xx = (x.pos, Box(S, vari x.pos xx)) in
+                let vars = M.add x.elt xx vars in
+                to_term (unsugar env vars t _st)
+              in
+              Box(T, mabs e.pos ao x fn)
+          | (x     , y::xs) ->
+              let t = build_pos e.pos (EMAbs((y,xs),t)) in
+              let t = build_pos e.pos (EMAbs((x,[]),t)) in
+              unsugar env vars t _st
+        end
     | (EName(s,t)   , ST       ) ->
         let s = to_stac (unsugar env vars s _ss) in
         let t = to_term (unsugar env vars t _st) in
