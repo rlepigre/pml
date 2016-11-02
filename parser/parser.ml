@@ -154,10 +154,10 @@ let parser expr (m : mode) =
   (* Term (lambda abstraction) *)
   | _fun_ args:fun_arg+ arrow t:(expr (`Trm`F))
       when m = `Trm`F
-      -> in_pos _loc (ELAbs(args,t))
+      -> in_pos _loc (ELAbs((List.hd args, List.tl args),t))
   | "λ" args:fun_arg+ "." t:(expr (`Trm`F))
       when m = `Trm`F
-      -> in_pos _loc (ELAbs(args,t))
+      -> in_pos _loc (ELAbs((List.hd args, List.tl args),t))
   (* Term (constructor) *)
   | c:luid "[" t:(expr (`Trm`F))? "]"
       when m = `Trm`A 
@@ -283,4 +283,3 @@ and sort_arg =
 let parse_file =
   let open Decap in
   handle_exception (parse_file (parser toplevel*) blank)
-

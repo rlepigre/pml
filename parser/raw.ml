@@ -112,7 +112,7 @@ and raw_ex' =
   | ERest of raw_ex option * (raw_ex * bool * raw_ex)
   | EDPrj of raw_ex * strloc
 
-  | ELAbs of (strloc * raw_ex option) list * raw_ex
+  | ELAbs of (strloc * raw_ex option) ne_list * raw_ex
   | ECons of strloc * (raw_ex * flag) option
   | EReco of (strloc * raw_ex * flag) list
   | EScis
@@ -141,16 +141,18 @@ let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
                          print_raw_sort s print e
     | EHOAp(e,f)    -> Printf.fprintf ch "EHOAp(%a,%a)" print e print f
     | EFunc(a,b)    -> Printf.fprintf ch "EFunc(%a,%a)" print a print b
-    | EProd(l)      -> Printf.fprintf ch "EProd(...)" (* TODO *)
+    | EProd(l)      -> Printf.fprintf ch "EProd([%a])"
+                         (Print.print_list aux "; ") l
     | EUnit         -> Printf.fprintf ch "EUnit"
-    | EDSum(l)      -> Printf.fprintf ch "EDSum(...)" (* TODO *)
+    | EDSum(l)      -> Printf.fprintf ch "EDSum([%a])"
+                         (Print.print_list aux "; ") l
     | EUniv(x,s,a)  -> Printf.fprintf ch "EUniv(%S,%a,%a)" x.elt
                          print_raw_sort s print a
     | EExis(x,s,a)  -> Printf.fprintf ch "EExis(%S,%a,%a)" x.elt
                          print_raw_sort s print a
     | EFixM(o,x,a)  -> Printf.fprintf ch "EFixM(...)" (* TODO *)
     | EFixN(o,x,a)  -> Printf.fprintf ch "EFixN(...)" (* TODO *)
-    | EMemb(t,a)    -> Printf.fprintf ch "EMemb(%a,%a" print t print a
+    | EMemb(t,a)    -> Printf.fprintf ch "EMemb(%a,%a)" print t print a
     | ERest(a,eq)   -> Printf.fprintf ch "ERest(...)" (* TODO *)
     | EDPrj(t,x)    -> Printf.fprintf ch "EDPrj(%a,%S)" print t x.elt
     | ELAbs(args,t) -> Printf.fprintf ch "ELAbs(..., %a)" print t (* TODO *)
@@ -171,6 +173,7 @@ let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
     | EFram(t,s)    -> Printf.fprintf ch "EFram(%a,%a)" print t print s
     | EConv         -> Printf.fprintf ch "EConv"
     | ESucc(o)      -> Printf.fprintf ch "ESucc(%a)" print o
+  and aux ch (l,e) = Printf.fprintf ch "(%S, %a)" l.elt print e
   in print ch e
 
 exception Unbound_variable of string * Pos.pos option
@@ -312,7 +315,7 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
             end;
             M.add x.elt (x.pos, _sv) vs
           in
-          let vars = List.fold_left fn vars args in
+          let vars = List.fold_left fn vars (ne_list_to_list args) in
           infer env vars t _st
         end
     | (ELAbs(_,_)   , SUni(r)  ) -> r := Some _sv; infer env vars e s
@@ -586,17 +589,23 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
         let t = to_term (unsugar env vars t _st) in
         Box(P, dprj e.pos t x)
     (* Values. *)
-    | (ELAbs([],_)  , SV       ) -> assert false
-    | (ELAbs([x],t) , SV       ) ->
-        let (x,ao) = x in
-        let ao = map_opt (fun a -> to_prop (unsugar env vars a _sp)) ao in
-        let fn xx =
-          let xx = (x.pos, Box(V, vari x.pos xx)) in
-          let vars = M.add x.elt xx vars in
-          to_term (unsugar env vars t _st)
-        in
-        Box(V, labs e.pos ao x fn)
-    | (ELAbs(x::v,t), SV       ) -> assert false (* TODO *)
+    | (ELAbs(args,t), SV       ) ->
+        begin
+          match args with
+          | ((x,ao), []   ) ->
+              let fn a = to_prop (unsugar env vars a _sp) in
+              let ao = map_opt fn ao in
+              let fn xx =
+                let xx = (x.pos, Box(V, vari x.pos xx)) in
+                let vars = M.add x.elt xx vars in
+                to_term (unsugar env vars t _st)
+              in
+              Box(V, labs e.pos ao x fn)
+          | (x     , y::xs) ->
+              let t = build_pos e.pos (ELAbs((y,xs),t)) in
+              let t = build_pos e.pos (ELAbs((x,[]),t)) in
+              unsugar env vars t _sv
+        end
     | (ECons(c,vo)  , SV       ) ->
         let v =
           match vo with
