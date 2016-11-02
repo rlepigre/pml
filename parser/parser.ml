@@ -90,7 +90,7 @@ let parser expr (m : mode) =
       -> in_pos _loc (EHOFn(x,s,e))
 
   (* Proposition (variable and higher-order application) *)
-  | id:llid args:{"(" (lsep "," (expr `Any)) "}"}?[[]]
+  | id:llid args:{"(" (lsep "," (expr `Any)) ")"}?[[]]
       when m = `Prp`A
       -> in_pos _loc (EVari(id, args)) 
   (* Proposition (implication) *)
@@ -106,7 +106,7 @@ let parser expr (m : mode) =
       when m = `Prp`A || m = `Trm`A
       -> in_pos _loc EUnit
   (* Proposition (disjoint sum) *)
-  | "[" fs:(lsep ";" (parser l:llid "of" a:(expr (`Prp`F)))) "]"
+  | "[" fs:(lsep ";" (parser l:luid _:_of_ a:(expr (`Prp`F)))) "]"
       when m = `Prp`A
       -> in_pos _loc (EDSum(fs))
   (* Proposition (universal quantification) *)

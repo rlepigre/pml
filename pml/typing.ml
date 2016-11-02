@@ -168,6 +168,8 @@ type typ_rule =
 and  sub_rule =
   | Sub_Equal
   | Sub_Func   of sub_proof * sub_proof
+  | Sub_Prod   of sub_proof list
+  | Sub_DSum   of sub_proof list
   | Sub_Univ_l of sub_proof
   | Sub_Univ_r of sub_proof
 
@@ -189,7 +191,11 @@ let rec get_lam : type a. string -> a sort -> term -> prop -> a ex * prop =
         end
     | _         -> unexpected "Expected ∀ type..."
 
-
+let sugar_proj : popt -> tbox -> strloc -> tbox =
+  fun pos t l ->
+    let f x = proj pos (v_vari None x) l in
+    let u = valu pos (labs pos None (Pos.none "x") f) in
+    appl pos u t
 
 let rec subtype : ctxt -> term -> prop -> prop -> ctxt * sub_proof =
   fun ctx t a b ->
@@ -210,6 +216,32 @@ let rec subtype : ctxt -> term -> prop -> prop -> ctxt * sub_proof =
           let (ctx, p1) = subtype ctx wit a2 a1 in
           let (ctx, p2) = subtype ctx (Pos.none (Appl(t, wit))) b1 b2 in
           (ctx, Sub_Func(p1,p2))
+      (* Product (record) types. *)
+      | (Prod(fs1)  , Prod(fs2)  ) ->
+          let check_field l (p,a2) (ctx,ps) =
+            let a1 =
+              try snd (M.find l fs1) with Not_found ->
+              subtype_error p ("Product clash on label " ^ l ^ "...")
+            in
+            let t = unbox (sugar_proj None (box t) (Pos.none l)) in
+            let (ctx, p) = subtype ctx t a1 a2 in
+            (ctx, p::ps)
+          in
+          let (ctx, ps) = M.fold check_field fs2 (ctx,[]) in
+          (ctx, Sub_Prod(ps))
+      (* Disjoint sum types. *)
+      | (DSum(cs1)  , DSum(cs2)  ) ->
+          let check_variant c (p,a1) (ctx,ps) =
+            let a2 =
+              try snd (M.find c cs2) with Not_found ->
+              subtype_error p ("Sum clash on constructor " ^ c ^ "...")
+            in
+            let t = t in (* FIXME *)
+            let (ctx, p) = subtype ctx t a1 a2 in
+            (ctx, p::ps)
+          in
+          let (ctx, ps) = M.fold check_variant cs1 (ctx,[]) in
+          (ctx, Sub_DSum(ps))
       (* Universal quantification on the right. *)
       | (_          , Univ(s,f)  ) ->
           let (ctx, p) = subtype ctx t a (lsubst f (UWit(s,t,f))) in
