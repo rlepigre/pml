@@ -191,12 +191,6 @@ let rec get_lam : type a. string -> a sort -> term -> prop -> a ex * prop =
         end
     | _         -> unexpected "Expected ∀ type..."
 
-let sugar_proj : popt -> tbox -> strloc -> tbox =
-  fun pos t l ->
-    let f x = proj pos (v_vari None x) l in
-    let u = valu pos (labs pos None (Pos.none "x") f) in
-    appl pos u t
-
 let rec subtype : ctxt -> term -> prop -> prop -> ctxt * sub_proof =
   fun ctx t a b ->
     Printf.printf "Showing: %a ∈ %a ⊆ %a\n%!"

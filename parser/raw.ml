@@ -634,8 +634,13 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
         let t = to_term (unsugar env vars t _st) in
         Box(T, name e.pos s t)
     | (EProj(v,r,l) , ST       ) ->
-        let v = to_valu (unsugar env vars v _sv) in
-        Box(T, proj e.pos v l) (* FIXME sugar when term *)
+        begin
+          match !r with
+          | `V -> let v = to_valu (unsugar env vars v _sv) in
+                  Box(T, proj e.pos v l)
+          | `T -> let t = to_term (unsugar env vars v _st) in
+                  Box(T, sugar_proj e.pos t l)
+        end
     | (ECase(v,r,l) , ST       ) ->
         begin
           match !r with
