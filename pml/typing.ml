@@ -37,6 +37,8 @@ let eq_opt : type a. (a -> a -> bool) -> a option -> a option -> bool =
     | (_     , _     ) -> false
 
 let eq_expr : type a. a ex loc -> a ex loc -> bool = fun e1 e2 ->
+  Printf.printf "Trying to show: %a = %a\n%!"
+    Print.print_ex e1 Print.print_ex e2;
   let c = ref (-1) in
   let new_itag : type a. unit -> a ex = fun () -> incr c; ITag(!c) in
   let rec eq_expr : type a. a ex loc -> a ex loc -> bool = fun e1 e2 ->
@@ -145,7 +147,7 @@ let eq_expr : type a. a ex loc -> a ex loc -> bool = fun e1 e2 ->
                    eq_expr (lsubst b1 t) (lsubst b2 t) && eq_expr t1 t2
           | NEq -> false
         end
-    | (UVar(i1,_,_)  , UVar(i2,_,_)  ) -> i1 = i2
+    | (UVar(i1,_,r)  , UVar(i2,_,_)  ) -> if i1 <> i2 then r := Some e2; true
     | (UVar(_ ,_,r)  , _             ) -> r := Some e2; true
     | (_             , UVar(_ ,_,r)  ) -> r := Some e1; true
     | _                                -> false
@@ -166,6 +168,8 @@ type typ_rule =
 and  sub_rule =
   | Sub_Equal
   | Sub_Func   of sub_proof * sub_proof
+  | Sub_Univ_l of sub_proof
+  | Sub_Univ_r of sub_proof
 
 and typ_proof = term * prop * typ_rule
 and sub_proof = term * prop * prop * sub_rule
@@ -197,19 +201,25 @@ let rec subtype : ctxt -> term -> prop -> prop -> ctxt * sub_proof =
       match (a.elt, b.elt) with
       (* Same types.  *)
       | _ when eq_expr a b         ->
-          Printf.printf "Ici. %a = %a\n%!" Print.print_ex a Print.print_ex b;
           (ctx, Sub_Equal)
       (* Arrow types. *)
       | (Func(a1,b1), Func(a2,b2)) ->
           let fn x = appl None (box t) (valu None (vari None x)) in
           let f = (None, unbox (vbind mk_free "x" fn)) in
           let wit = Pos.none (Valu(Pos.none (VWit(f,a2,b2)))) in
-          Printf.printf "Coucou 1\n%!";
           let (ctx, p1) = subtype ctx wit a2 a1 in
-          Printf.printf "Coucou 2\n%!";
           let (ctx, p2) = subtype ctx (Pos.none (Appl(t, wit))) b1 b2 in
-          Printf.printf "Coucou 3\n%!";
           (ctx, Sub_Func(p1,p2))
+      (* Universal quantification on the right. *)
+      | (_          , Univ(s,f)  ) ->
+          let (ctx, p) = subtype ctx t a (lsubst f (UWit(s,t,f))) in
+          (ctx, Sub_Univ_r(p))
+      (* Universal quantification on the left. *)
+      | (Univ(s,f)  , _          ) ->
+          let (ctx, u) = new_uvar ctx s in
+          let (ctx, p) = subtype ctx t (lsubst f u.elt) b in
+          (ctx, Sub_Univ_l(p))
+      (* TODO *)
       | _                          ->
           let open Print in
           Printf.printf "ERROR: %a ⊆ %a\n%!" print_ex a print_ex b;

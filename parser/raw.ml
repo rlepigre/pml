@@ -453,7 +453,9 @@ let rec sort_filter : type a b. a sort -> boxed -> a box =
   fun s (Box(k,e)) ->
     match Sorts.eq_sort k s with
     | Eq  -> e
-    | NEq -> assert false
+    | NEq -> Printf.printf "ERROR: %a ≠ %a\n%!"
+               Print.print_sort s Print.print_sort k;
+             assert false
 
 let to_valu : boxed -> v box = sort_filter V
 
