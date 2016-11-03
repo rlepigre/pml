@@ -160,6 +160,7 @@ type typ_rule =
   | Typ_TLam   of typ_proof
   | Typ_VWit   of sub_proof
   | Typ_DSum_i of sub_proof * typ_proof
+  | Typ_DSum_e of typ_proof * typ_proof list
   | Typ_Func_i of sub_proof * typ_proof
   | Typ_Func_e of typ_proof * typ_proof
   | Typ_Prod_i of sub_proof * typ_proof list
@@ -352,7 +353,20 @@ and type_term : ctxt -> term -> prop -> ctxt * typ_proof = fun ctx t c ->
         (ctx, Typ_Prod_e(p))
     (* Case analysis. *)
     | Case(v,m)   ->
-        assert false (* TODO *)
+        let fn d (p,_) (m, ctx) =
+          let (ctx, a) = new_uvar ctx P in
+          (M.add d (p,a) m, ctx)
+        in
+        let (ts, ctx) = M.fold fn m (M.empty, ctx) in
+        let (ctx, p) = type_valu ctx v (Pos.none (DSum(ts))) in
+        let check d (p,f) (ctx, ps) =
+          let (_,a) = M.find d ts in
+          let wit = VWit(f, a, c) in
+          let (ctx, p) = type_term ctx (lsubst f wit) c in
+          (ctx, p::ps)
+        in
+        let (ctx, ps) = M.fold check m (ctx, []) in
+        (ctx, Typ_DSum_e(p,List.rev ps))
     (* Fixpoint. *)
     | FixY(t,v)   ->
         assert false (* TODO *)

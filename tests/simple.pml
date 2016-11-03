@@ -18,8 +18,8 @@ val psnd_trm : ∀ (a : ο) ∀ (b : ο) {x : a; y : b} ⇒ b = λp.((λx.x) p).
 
 val none : ∀ (a : ο) a ⇒ [None of {} ; Some of a] = λx.Some[x]
 
-//val from_opt : ∀ (a : ο) [None of {} ; Some of a] ⇒ a ⇒ a =
-//  λxo.λd.case xo of | None[x] → d | Some[x] → x
+val from_opt : ∀ (a : ο) [None of {} ; Some of a] ⇒ a ⇒ a =
+  λxo.λd.case xo of | None[x] → d | Some[x] → x
     
 // Option type
 def option (a : ο) : ο = [None of {} ; Some of a]

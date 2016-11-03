@@ -1,7 +1,6 @@
 (** Abstract syntax tree. This module defined the internal representation
     of PML's programs and higher-order type. *)
 
-
 open Bindlib
 open Sorts
 open Pos
