@@ -516,7 +516,10 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
             in
             let rec build_app (Box(se,e)) args =
               match (se, args) with
-              | (F(sa,sb), a::args) -> assert false (* TODO *)
+              | (F(sa,sb), a::args) ->
+                  let sa' = sort_from_ast sa in
+                  let a = sort_filter sa (unsugar env vars a sa') in
+                  build_app (Box(sb, happ None sa e a)) args
               | (_       , []     ) -> Box(se,e)
               | (_       , _      ) -> assert false
             in

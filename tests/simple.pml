@@ -23,6 +23,6 @@ val none : ∀ (a : ο) a ⇒ [None of {} ; Some of a] = λx.Some[x]
     
 // Option type
 def option (a : ο) : ο = [None of {} ; Some of a]
-//val none : ∀ (a : ο) a ⇒ option(a) = λx.Some[x]
+val none : ∀ (a : ο) a ⇒ option(a) = λx.Some[x]
 
 
