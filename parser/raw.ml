@@ -506,27 +506,33 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
     Printf.printf "unsugar_expr s = %a\n%!" print_raw_sort s;
     *)
     match (e.elt, (sort_repr env s).elt) with
-    | (EVari(x,[])  , _        ) ->
+    | (EVari(x,args), _        ) ->
         begin
-          let Sort s = unsugar_sort env s in
           try
-            let Box(sx, ex) =
+            let box =
               try snd (M.find x.elt vars) with Not_found ->
               let Expr(sx, _, ex) = find_expr x.elt env in
               Box(sx,ex)
             in
-            match Sorts.eq_sort s sx with
-            | Eq  -> Box(s, sort_filter s (Box(sx,ex)))
+            let rec build_app (Box(se,e)) args =
+              match (se, args) with
+              | (F(sa,sb), a::args) -> assert false (* TODO *)
+              | (_       , []     ) -> Box(se,e)
+              | (_       , _      ) -> assert false
+            in
+            let Box(se,ex) = build_app box args in
+            let Sort s = unsugar_sort env s in
+            match Sorts.eq_sort s se with
+            | Eq  -> Box(s, sort_filter s (Box(se,ex)))
             | NEq ->
                 begin
-                  match (s, sx) with
+                  match (s, se) with
                   | (T, V) -> Box(T, valu e.pos ex)
                   | (_, _) -> assert false
                 end
           with Not_found ->
             assert false
         end
-    | (EVari(x,args), _        ) -> assert false (* TODO *)
     | (EHOFn(x,k,f) , SFun(a,b)) ->
         let Sort sa = unsugar_sort env a in
         let Sort sb = unsugar_sort env b in
