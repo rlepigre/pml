@@ -98,7 +98,6 @@ type raw_ex = raw_ex' loc
 and raw_ex' =
   | EVari of strloc * raw_ex list
   | EHOFn of strloc * raw_sort * raw_ex
-  | EHOAp of raw_ex * raw_ex
 
   | EFunc of raw_ex * raw_ex
   | EProd of (strloc * raw_ex) list
@@ -139,7 +138,6 @@ let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
                          (Print.print_list print "; ") args
     | EHOFn(x,s,e)  -> Printf.fprintf ch "EHOFn(%S,%a,%a)" x.elt
                          print_raw_sort s print e
-    | EHOAp(e,f)    -> Printf.fprintf ch "EHOAp(%a,%a)" print e print f
     | EFunc(a,b)    -> Printf.fprintf ch "EFunc(%a,%a)" print a print b
     | EProd(l)      -> Printf.fprintf ch "EProd([%a])"
                          (Print.print_list aux_ps "; ") l
@@ -207,6 +205,10 @@ exception Sort_clash of raw_ex * raw_sort
 let sort_clash : raw_ex -> raw_sort -> 'a =
   fun e s -> raise (Sort_clash(e,s))
 
+exception Too_many_args of strloc
+let too_many_args : strloc -> 'a =
+  fun s -> raise (Too_many_args(s))
+
 let rec eq_sort : env -> raw_sort -> raw_sort -> bool = fun env s1 s2 ->
   match ((sort_repr env s1).elt, (sort_repr env s2).elt) with
   | (SV         , SV         ) -> true
@@ -234,7 +236,7 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
     Printf.printf "infer_sort s = %a\n%!" print_raw_sort s;
     *)
     match (e.elt, (sort_repr env s).elt) with
-    | (EVari(x,[])  , _        ) ->
+    | (EVari(x,args), _        ) ->
         begin
           try
             let (p,sx) =
@@ -242,23 +244,25 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
               let Expr(k,e,_) = find_expr x.elt env in
               (e.pos, sort_from_ast k)
             in
+            let nb_args = List.length args in
+            let rec decompose acc nb s =
+              match (nb, s.elt) with
+              | (0, _        ) -> (List.rev acc, s)
+              | (n, SFun(a,b)) -> decompose (a::acc) (n-1) b
+              | (_, _        ) -> too_many_args x
+            in
+            let (ss, sx) = decompose [] nb_args sx in
+            let rec infer_args args ss =
+              match (args, ss) with
+              | ([]     , []   ) -> ()
+              | (a::args, s::ss) -> infer env vars a s; infer_args args ss
+              | _                -> assert false
+            in
+            infer_args args ss;
             let sx_is_v = unsugar_sort env sx = Sort V in
             let s_is_t  = unsugar_sort env s  = Sort T in
             if not (eq_sort env sx s) && not (sx_is_v && s_is_t) then
               sort_clash e s
-          with Not_found -> unbound_var x.elt x.pos
-        end
-    | (EVari(x,args), _        ) ->
-        begin
-          try
-            let (p,k) = M.find x.elt vars in
-            ignore (p,k);
-            assert false (* TODO *)
-          with Not_found ->
-          try
-            let Expr(k,_,_) = find_expr x.elt env in
-            let k = sort_from_ast k in
-            ignore k; assert false (* TODO *)
           with Not_found -> unbound_var x.elt x.pos
         end
     | (EHOFn(x,k,f) , SFun(a,b)) -> if not (eq_sort env k a) then
@@ -270,7 +274,6 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
                                     r := Some (Pos.none (SFun(a,b)));
                                     infer env vars e s
     | (EHOFn(_,_,_) , _        ) -> sort_clash e s
-    | (EHOAp(a,b)   , _        ) -> assert false (* TODO *)
     (* Propositions. *)
     | (EFunc(a,b)   , SP       ) -> infer env vars a _sp; infer env vars b _sp
     | (EFunc(_,_)   , SUni(r)  ) -> r := Some _sp; infer env vars e s
@@ -533,7 +536,6 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
           sort_filter sb (unsugar env vars f b)
         in
         Box(F(sa,sb), hfun e.pos x fn)
-    | (EHOAp(a,b)   , _        ) -> assert false (* TODO *)
     (* Propositions. *)
     | (EFunc(a,b)   , SP       ) ->
         let a = unsugar env vars a s in
