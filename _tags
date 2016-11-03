@@ -1,1 +1,2 @@
 "parser/parser.ml" : pp(pa_ocaml)
+true: annot, bin_annot
