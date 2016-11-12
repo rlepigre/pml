@@ -56,7 +56,7 @@ let union : pos option -> pos option -> pos option = fun p1 p2 ->
     the position of elements during parsing.
     @see <http://lama.univ-savoie.fr/decap/> DeCap *)
 let locate buf1 pos1 buf2 pos2 =
-  { fname      = Input.fname buf1
+  { fname      = Input.filename buf1
   ; start_line = Input.line_num buf1
   ; start_col  = (Input.utf8_col_num buf1 pos1) + 1
   ; end_line   = Input.line_num buf2
