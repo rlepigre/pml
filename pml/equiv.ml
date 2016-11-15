@@ -8,6 +8,10 @@ open Ast
     that are already in the graph. Given such a graph (or pool), one will be
     able to read back the representative of a term by following the edges. *)
 
+(** Exception raise when the pool contains a contradiction. *)
+exception Contradiction
+let bottom () = raise Contradiction
+
 (** Module for pointers on a value node of the graph. *)
 module VPtr =
   struct
@@ -229,6 +233,12 @@ let find : Ptr.t -> pool -> Ptr.t * pool = fun p po ->
   in
   (repr, {po with eq_map})
 
+let find_valu : VPtr.t -> pool -> VPtr.t * pool = fun p po ->
+  let (p, po) = find (Ptr.V_ptr p) po in
+  match p with
+  | Ptr.V_ptr p -> (p, po)
+  | Ptr.T_ptr _ -> assert false
+
 (** Obtain the canonical term / value pointed by a pointer. *)
 let rec canonical_term : TPtr.t -> pool -> term * pool = fun p po ->
   let (p, po) = find (Ptr.T_ptr p) po in
@@ -281,5 +291,139 @@ and     canonical_valu : VPtr.t -> pool -> valu * pool = fun p po ->
         | VN_UWit(w)     -> (let (t,b) = w in UWit(V,t,b), po)
         | VN_EWit(w)     -> (let (t,b) = w in EWit(V,t,b), po)
       in (Pos.none v, po)
+
+(** Normalisation function. *)
+let rec normalise : TPtr.t -> pool -> Ptr.t * pool = fun p po ->
+  let (p, po) = find (Ptr.T_ptr p) po in
+  match p with
+  | Ptr.V_ptr _  -> (p, po)
+  | Ptr.T_ptr pt ->
+      begin
+        match TPtrMap.find pt po.ts with
+        | TN_Vari(a)     -> (p, po)
+        | TN_Valu(pv)    -> find (Ptr.V_ptr pv) po
+        | TN_Appl(pt,pu) ->
+            begin
+              let (pt, po) = find (Ptr.T_ptr pt) po in
+              let (pu, po) = find (Ptr.T_ptr pu) po in
+              match (pt, pu) with
+              | (Ptr.V_ptr pf, Ptr.V_ptr pv) ->
+                  begin
+                    match VPtrMap.find pf po.vs with
+                    | VN_LAbs(b) ->
+                        begin
+                          let (v, po) = canonical_valu pv po in
+                          let t = lsubst b v.elt in
+                          let (tp, po) = add_term po t in
+                          normalise tp po
+                        end
+                    | _          -> (p, po)
+                  end
+              | (_           , _           ) -> (p, po)
+            end
+        | TN_MAbs(b)     -> (p, po) (* FIXME can do better. *)
+        | TN_Name(s,pt)  -> (p, po) (* FIXME can do better. *)
+        | TN_Proj(pv,l)  ->
+            begin
+              let (pv, po) = find_valu pv po in
+              match VPtrMap.find pv po.vs with
+              | VN_Reco(m) ->
+                  begin
+                    try find (Ptr.V_ptr (M.find l.elt m)) po
+                    with Not_found -> (p, po)
+                  end
+              | _          -> (p, po)
+            end
+        | TN_Case(pv,m)  ->
+            begin
+              let (pv, po) = find_valu pv po in
+              match VPtrMap.find pv po.vs with
+              | VN_Cons(c,pv) ->
+                  begin
+                    let (pv, po) = find_valu pv po in
+                    let (v, po) = canonical_valu pv po in
+                    let t = lsubst (M.find c.elt m) v.elt in
+                    let (tp, po) = add_term po t in
+                    normalise tp po
+                  end
+              | _            -> (p, po)
+            end
+        | TN_FixY(pt,pv) ->
+            begin
+              let (t, po) = canonical_term pt po in
+              let b = lbinder_from_fun "x" (fun x -> FixY(t, Pos.none x)) in
+              let (pf, po) = insert_v_node (VN_LAbs(b)) po in
+              let (pf, po) = insert_t_node (TN_Valu(pf)) po in
+              let (pap, po) = insert_t_node (TN_Appl(pf, pt)) po in
+              let (pu, po) = insert_t_node (TN_Valu(pv)) po in
+              let (pap, po) = insert_t_node (TN_Appl(pap, pu)) po in
+              normalise pap po
+            end
+        | TN_UWit(w)     -> (p, po)
+        | TN_EWit(w)     -> (p, po)
+      end
+
+(** Union operation. *)
+let join : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
+  { po with eq_map = PtrMap.add p1 p2 po.eq_map }
+
+let union : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
+  let (p1, po) = find p1 po in
+  let (p2, po) = find p2 po in
+  if p1 = p2 then po else
+  match (p1, p2) with
+  | (Ptr.T_ptr _  , Ptr.V_ptr _  ) -> join p1 p2 po
+  | (Ptr.V_ptr _  , Ptr.T_ptr _  ) -> join p2 p1 po
+  | (Ptr.T_ptr _  , Ptr.T_ptr _  ) -> join p1 p2 po (* arbitrary *)
+  | (Ptr.V_ptr vp1, Ptr.V_ptr vp2) ->
+      begin
+        let rec check_equiv vp1 vp2 po =
+          match (VPtrMap.find vp1 po.vs, VPtrMap.find vp2 po.vs) with
+          (* Immediate contradictions. *)
+          | (VN_LAbs(_)     , VN_Reco(_)     )
+          | (VN_LAbs(_)     , VN_Cons(_,_)   )
+          | (VN_Reco(_)     , VN_LAbs(_)     )
+          | (VN_Reco(_)     , VN_Cons(_,_)   )
+          | (VN_Cons(_,_)   , VN_Reco(_)     )
+          | (VN_Cons(_,_)   , VN_LAbs(_)     ) -> bottom ()
+          (* Constructors. *)
+          | (VN_Cons(c1,vp1), VN_Cons(c2,vp2)) ->
+              if c1.elt <> c2.elt then bottom ();
+              check_equiv vp1 vp2 po
+          (* Records. *)
+          | (VN_Reco(m1)    , VN_Reco(m2)    ) ->
+              let test vp1 vp2 = check_equiv vp1 vp2 po; true in
+              if not (M.equal test m1 m2) then bottom ()
+          (* No possible refutation. *)
+          | (_              , _              ) -> ()
+        in
+        match (VPtrMap.find vp1 po.vs, VPtrMap.find vp2 po.vs) with
+        (* Immediate contradictions. *)
+        | (VN_LAbs(_)     , VN_Reco(_)     )
+        | (VN_LAbs(_)     , VN_Cons(_,_)   )
+        | (VN_Reco(_)     , VN_LAbs(_)     )
+        | (VN_Reco(_)     , VN_Cons(_,_)   )
+        | (VN_Cons(_,_)   , VN_Reco(_)     )
+        | (VN_Cons(_,_)   , VN_LAbs(_)     ) -> bottom ()
+        (* Constructors. *)
+        | (VN_Cons(c1,vp1), VN_Cons(c2,vp2)) ->
+            if c1.elt <> c2.elt then bottom ();
+            check_equiv vp1 vp2 po;
+            join p1 p2 po (* arbitrary *)
+        (* Records. *)
+        | (VN_Reco(m1)    , VN_Reco(m2)    ) ->
+            let test vp1 vp2 = check_equiv vp1 vp2 po; true in
+            if not (M.equal test m1 m2) then bottom ();
+            join p1 p2 po (* arbitrary *)
+        (* Prefer real values as equivalence class representatives. *)
+        | (VN_LAbs(_)     , _              )
+        | (VN_Reco(_)     , _              )
+        | (VN_Cons(_,_)   , _              ) -> join p2 p1 po
+        | (_              , VN_LAbs(_)     )
+        | (_              , VN_Reco(_)     )
+        | (_              , VN_Cons(_,_)   ) -> join p1 p2 po
+        (* Arbitrary join otherwise. *)
+        | (_              , _              ) -> join p1 p2 po
+      end
 
 type eq_ctxt = unit

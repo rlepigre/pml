@@ -33,6 +33,9 @@ let lbinder_cmp : ('a, 'b) lbinder -> ('b loc -> 'c loc) -> ('a, 'c) lbinder =
 let lbinder_name : ('a, 'b) lbinder -> string =
   fun (_, b) -> binder_name b
 
+let lbinder_from_fun : string -> ('a -> 'b) -> ('a,'b) lbinder =
+  fun x f -> assert false
+
 (** {6 Main abstract syntax tree type} *)
 
 (** Type of (well-sorted) expressions. This is the core abstract syntax
