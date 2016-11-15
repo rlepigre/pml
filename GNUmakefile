@@ -6,9 +6,9 @@ all: depchecks pml pml_doc parser
 HAS_OCAMLFIND  := $(shell which ocamlfind 2> /dev/null)
 HAS_OCAMLBUILD := $(shell which ocamlbuild 2> /dev/null)
 
-# Check for the bindlib and decap library.
+# Check for the bindlib and earley library.
 HAS_BINDLIB    := $(shell ocamlfind query -format %p bindlib 2> /dev/null)
-HAS_DECAP      := $(shell ocamlfind query -format %p decap 2> /dev/null)
+HAS_DECAP      := $(shell ocamlfind query -format %p earley 2> /dev/null)
 
 .PHONY: depchecks
 depchecks:
@@ -22,7 +22,7 @@ ifndef HAS_BINDLIB
 	$(error "The bindlib library is required...")
 endif
 ifndef HAS_DECAP
-	$(error "The decap library is required...")
+	$(error "The earley library is required...")
 endif
 
 # Compilation of the pml.
@@ -33,13 +33,13 @@ pml_doc: pml/pml.docdir/index.html
 KERNELFILES := $(wildcard pml/*.ml) $(wildcard pml/*.ml)
 
 pml/pml.cmxa: $(KERNELFILES)
-	$(OCAMLBUILD) -package bindlib -package decap $@
+	$(OCAMLBUILD) -package bindlib -package earley $@
 
 pml/pml.cma: $(KERNELFILES)
-	$(OCAMLBUILD) -package bindlib -package decap $@
+	$(OCAMLBUILD) -package bindlib -package earley $@
 
 pml/pml.docdir/index.html: $(KERNELFILES)
-	$(OCAMLBUILD) -package bindlib -package decap $@
+	$(OCAMLBUILD) -package bindlib -package earley $@
 
 # Compilation of the parser.
 .PHONY: parser parser_doc
@@ -48,7 +48,7 @@ parser: parser/pml.byte
 PARSERFILES := $(wildcard parser/*.ml) $(wildcard parser/*.ml)
 
 parser/pml.byte: 
-	$(OCAMLBUILD) -I pml -package bindlib -package decap $@
+	$(OCAMLBUILD) -I pml -package bindlib -package earley,earley.str $@
 
 clean:
 	ocamlbuild -clean

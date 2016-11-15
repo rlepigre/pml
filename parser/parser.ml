@@ -19,9 +19,9 @@ module KW =
     let is_keyword : string -> bool = Hashtbl.mem keywords
 
     let check_not_keyword : string -> unit = fun s ->
-      if is_keyword s then Decap.error ()
+      if is_keyword s then Earley.give_up ()
 
-    let new_keyword : string -> unit Decap.grammar = fun s ->
+    let new_keyword : string -> unit Earley.grammar = fun s ->
       let ls = String.length s in
       if ls < 1 then raise (Invalid_argument "invalid keyword");
       if is_keyword s then raise (Invalid_argument "keyword already defied");
@@ -31,15 +31,15 @@ module KW =
         let pos = ref pos in
         for i = 0 to ls - 1 do
           let (c,str',pos') = Input.read !str !pos in
-          if c <> s.[i] then Decap.error ();
+          if c <> s.[i] then Earley.give_up ();
           str := str'; pos := pos'
         done;
         let (c,_,_) = Input.read !str !pos in
         match c with
-        | 'a'..'z' | 'A'..'Z' | '0'..'9' | '_' | '\'' -> Decap.error ()
+        | 'a'..'z' | 'A'..'Z' | '0'..'9' | '_' | '\'' -> Earley.give_up ()
         | _                                           -> ((), !str, !pos)
       in
-      Decap.black_box f (Charset.singleton s.[0]) false s
+      Earley.black_box f (Charset.singleton s.[0]) false s
   end
 
 let parser lid = id:''[a-z][a-zA-Z0-9_']*'' -> KW.check_not_keyword id; id
@@ -281,5 +281,5 @@ and sort_arg =
   | "(" id:llid ":" s:sort ")" -> (id, s)
 
 let parse_file =
-  let open Decap in
+  let open Earley in
   handle_exception (parse_file (parser toplevel*) blank)
