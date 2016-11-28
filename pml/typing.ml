@@ -165,6 +165,8 @@ type typ_rule =
   | Typ_Func_e of typ_proof * typ_proof
   | Typ_Prod_i of sub_proof * typ_proof list
   | Typ_Prod_e of typ_proof
+  | Typ_Name   of typ_proof * stk_proof
+  | Typ_Mu     of typ_proof
 
 and  stk_rule =
   | Stk_Push   of sub_proof * typ_proof * stk_proof
@@ -352,10 +354,20 @@ and type_term : ctxt -> term -> prop -> ctxt * typ_proof = fun ctx t c ->
         (ctx, Typ_Func_e(p1,p2))
     (* μ-abstraction. *)
     | MAbs(ao,b)  ->
-        assert false (* TODO *)
+        let (ctx, a) =
+          match ao with
+          | None   -> new_uvar ctx P
+          | Some a -> (ctx, a)
+        in
+        let t = lsubst b (SWit(b,c)) in
+        let (ctx, p) = type_term ctx t c in
+        (ctx, Typ_Mu(p))
     (* Named term. *)
     | Name(pi,t)  ->
-        assert false (* TODO *)
+        let (ctx, a) = new_uvar ctx P in
+        let (ctx, p1) = type_term ctx t a in
+        let (ctx, p2) = type_stac ctx pi a in
+        (ctx, Typ_Name(p1,p2))
     (* Projection. *)
     | Proj(v,l)   ->
         let c = Pos.none (Prod(M.singleton l.elt (None, c))) in
