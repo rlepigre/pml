@@ -22,12 +22,12 @@ type ctxt  =
 
 let empty_ctxt =
   { uvar_counter = 0
-  ; equations    = () }
+  ; equations    = empty_ctxt }
 
 let new_uvar : type a. ctxt -> a sort -> ctxt * a ex loc = fun ctx s ->
   let i = ctx.uvar_counter in
   let ctx = {ctx with uvar_counter = i+1} in
-  (ctx, Pos.none (UVar(i, s, ref None)))
+  (ctx, Pos.none (UVar(s, {uvar_key = i; uvar_val = ref None})))
 
 let eq_opt : type a. (a -> a -> bool) -> a option -> a option -> bool =
   fun cmp ao bo ->
@@ -147,9 +147,10 @@ let eq_expr : type a. a ex loc -> a ex loc -> bool = fun e1 e2 ->
                    eq_expr (lsubst b1 t) (lsubst b2 t) && eq_expr t1 t2
           | NEq -> false
         end
-    | (UVar(i1,_,r)  , UVar(i2,_,_)  ) -> if i1 <> i2 then r := Some e2; true
-    | (UVar(_ ,_,r)  , _             ) -> r := Some e2; true
-    | (_             , UVar(_ ,_,r)  ) -> r := Some e1; true
+    | (UVar(_,u1)    , UVar(_,u2)    ) -> if u1.uvar_key <> u2.uvar_key then
+                                            u1.uvar_val := Some e2; true
+    | (UVar(_,u1)    , _             ) -> u1.uvar_val := Some e2; true
+    | (_             , UVar(_,u2)    ) -> u2.uvar_val := Some e1; true
     | _                                -> false
   in eq_expr e1 e2
 

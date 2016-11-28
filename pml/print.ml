@@ -107,4 +107,4 @@ let rec print_ex : type a. out_channel -> a ex loc -> unit =
     | SWit(_,_)   -> output_string ch "εσ"
     | UWit(_,_,_) -> output_string ch "ε∀"
     | EWit(_,_,_) -> output_string ch "ε∃"
-    | UVar(i,_,_) -> Printf.fprintf ch "?%i" i
+    | UVar(_,uv)  -> Printf.fprintf ch "?%i" uv.uvar_key

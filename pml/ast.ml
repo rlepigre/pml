@@ -36,6 +36,11 @@ let lbinder_name : ('a, 'b) lbinder -> string =
 let lbinder_from_fun : string -> ('a -> 'b) -> ('a,'b) lbinder =
   fun x f -> assert false
 
+(** Unification variable type. *)
+type 'a uvar =
+  { uvar_key : int
+  ; uvar_val : 'a option ref }
+
 (** {6 Main abstract syntax tree type} *)
 
 (** Type of (well-sorted) expressions. This is the core abstract syntax
@@ -146,7 +151,7 @@ type _ ex =
   (** Universal quantifier witness (a.k.a. epsilon). *)
   | EWit : 'a sort * t ex loc * ('a ex, p ex) lbinder         -> 'a ex
   (** Existential quantifier witness (a.k.a. epsilon). *)
-  | UVar : int * 'a sort * 'a ex loc option ref               -> 'a ex
+  | UVar : 'a sort * 'a ex loc uvar                           -> 'a ex
   (** Unification variable. *)
   (* TODO add MuRec and NuRec *)
 

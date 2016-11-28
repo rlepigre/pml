@@ -11,3 +11,22 @@ let map_snd : ('a -> 'b) -> ('c * 'a) list -> ('c * 'b) list = fun f l ->
   List.map (fun (k, v) -> (k, f v)) l
 
 module M = Map.Make(String)
+
+
+
+module IntOrd =
+  struct
+    type t = int
+    let compare = compare
+  end
+module IntSet = Set.Make(IntOrd)
+module IntMap = Map.Make(IntOrd)
+
+module SetOrd =
+  struct
+    type t = IntSet.t
+    let compare = IntSet.compare
+  end
+module SetMap = Map.Make(SetOrd)
+
+

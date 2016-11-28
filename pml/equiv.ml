@@ -1,5 +1,6 @@
 open Bindlib
 open Sorts
+open Util
 open Pos
 open Ast
 
@@ -87,6 +88,13 @@ let empty_pool : pool =
   ; next   = 0
   ; eq_map = PtrMap.empty }
 
+(** Node search. *)
+let find_v_node : VPtr.t -> pool -> v_node = fun p po ->
+  VPtrMap.find p po.vs
+
+let find_t_node : TPtr.t -> pool -> t_node = fun p po ->
+  TPtrMap.find p po.ts
+
 (** Equality functions on nodes. *)
 let eq_v_nodes : v_node -> v_node -> bool = fun n1 n2 -> n1 == n2 ||
   match (n1, n2) with
@@ -163,7 +171,7 @@ let rec add_term : pool -> term -> TPtr.t * pool = fun po t ->
   | TLam(_,b)   -> add_term po (lsubst b Dumm)
   | UWit(_,t,b) -> insert_t_node (TN_UWit((t,b))) po
   | EWit(_,t,b) -> insert_t_node (TN_EWit((t,b))) po
-  | UVar(_,_,_) -> invalid_arg "unification variable in the pool"
+  | UVar(_,_)   -> invalid_arg "unification variable in the pool"
   | HApp(_,_,_) -> invalid_arg "higher-order application in the pool"
   | ITag _      -> invalid_arg "integer tags forbidden in the pool"
   | Dumm        -> invalid_arg "dummy terms forbidden in the pool"
@@ -186,7 +194,7 @@ and     add_valu : pool -> valu -> VPtr.t * pool = fun po v ->
   | VWit(f,a,b) -> insert_v_node (VN_VWit((f,a,b))) po
   | UWit(_,t,b) -> insert_v_node (VN_UWit((t,b))) po
   | EWit(_,t,b) -> insert_v_node (VN_EWit((t,b))) po
-  | UVar(_,_,_) -> invalid_arg "unification variable in the pool"
+  | UVar(_,_)   -> invalid_arg "unification variable in the pool"
   | HApp(_,_,_) -> invalid_arg "higher-order application in the pool"
   | ITag _      -> invalid_arg "integer tags forbidden in the pool"
   | Dumm        -> invalid_arg "dummy terms forbidden in the pool"
@@ -194,7 +202,7 @@ and     add_valu : pool -> valu -> VPtr.t * pool = fun po v ->
 (** Recovery of plain term / value. *)
 let rec to_term : TPtr.t -> pool -> term = fun p po ->
   let t =
-    match TPtrMap.find p po.ts with
+    match find_t_node p po with
     | TN_Vari(a)     -> Vari(a)
     | TN_Valu(pv)    -> Valu(to_valu pv po)
     | TN_Appl(pt,pu) -> Appl(to_term pt po, to_term pu po)
@@ -209,7 +217,7 @@ let rec to_term : TPtr.t -> pool -> term = fun p po ->
 
 and     to_valu : VPtr.t -> pool -> valu = fun p po ->
   let v =
-    match VPtrMap.find p po.vs with
+    match find_v_node p po with
     | VN_Vari(x)     -> Vari(x)
     | VN_LAbs(b)     -> LAbs(None, b)
     | VN_Cons(c,pv)  -> Cons(c, to_valu pv po)
@@ -426,4 +434,24 @@ let union : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
         | (_              , _              ) -> join p1 p2 po
       end
 
-type eq_ctxt = unit
+(* Main module interface. *)
+type equiv   = term * term
+type inequiv = term * term
+
+type eq_ctxt =
+  { pool : pool }
+
+let empty_ctxt : eq_ctxt =
+  { pool = empty_pool }
+
+(* Adds an equivalence to a context, producing a bigger context. The
+   exception [Contradiction] is raised when expected. *)
+let add_equiv : equiv -> eq_ctxt -> eq_ctxt = fun (t,u) ctx ->
+  if t == u then ctx else
+  assert false
+
+(* Adds an inequivalence to a context, producing a bigger context. The
+   exception [Contradiction] is raised when expected. *)
+let add_inequiv : inequiv -> eq_ctxt -> eq_ctxt = fun (t,u) ctx ->
+  if t == u then raise Contradiction else
+  assert false
