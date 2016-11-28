@@ -262,9 +262,16 @@ let tlam : type a. popt -> strloc -> a sort -> (a var -> tbox) -> tbox =
     box_apply (fun b -> {elt = TLam(s, (x.pos, b)); pos}) b
 
 (** Syntactic sugar for the projection of a term. *)
-let sugar_proj : popt -> tbox -> strloc -> tbox =
+let t_proj : popt -> tbox -> strloc -> tbox =
   fun pos t l ->
     let f x = proj pos (v_vari None x) l in
+    let u = valu pos (labs pos None (Pos.none "x") f) in
+    appl pos u t
+
+(** Syntactic sugar for the case analysis on a term. *)
+let t_case : popt -> tbox -> (popt * strloc * (vvar -> tbox)) M.t -> tbox =
+  fun pos t m ->
+    let f x = case pos (vari None x) m in
     let u = valu pos (labs pos None (Pos.none "x") f) in
     appl pos u t
 

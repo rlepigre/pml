@@ -686,43 +686,28 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
           | `V -> let v = to_valu (unsugar env vars v _sv) in
                   Box(T, proj e.pos v l)
           | `T -> let t = to_term (unsugar env vars v _st) in
-                  Box(T, sugar_proj e.pos t l)
+                  Box(T, t_proj e.pos t l)
         end
     | (ECase(v,r,l) , ST       ) ->
         begin
+          let fn (c, (x, ao), t) = 
+            let f xx =
+              let xx = (x.pos, Box(V, vari x.pos xx)) in
+              let vars = M.add x.elt xx vars in
+              to_term (unsugar env vars t _st)
+            in
+            (c.elt, (c.pos, x, f))
+          in
+          let gn m (k,v) =
+            if M.mem k m then assert false;
+            M.add k v m
+          in
+          let m = List.fold_left gn M.empty (List.map fn l) in
           match !r with
           | `V -> let v = to_valu (unsugar env vars v _sv) in
-                  let fn (c, (x, ao), t) = 
-                    let f xx =
-                      let xx = (x.pos, Box(V, vari x.pos xx)) in
-                      let vars = M.add x.elt xx vars in
-                      to_term (unsugar env vars t _st)
-                    in
-                    (c.elt, (c.pos, x, f))
-                  in
-                  let gn m (k,v) =
-                    if M.mem k m then assert false;
-                    M.add k v m
-                  in
-                  let m = List.fold_left gn M.empty (List.map fn l) in
                   Box(T, case e.pos v m)          
           | `T -> let t = to_term (unsugar env vars v _st) in
-                  let fn (c, (x, ao), t) = 
-                    let f xx =
-                      let xx = (x.pos, Box(V, vari x.pos xx)) in
-                      let vars = M.add x.elt xx vars in
-                      to_term (unsugar env vars t _st)
-                    in
-                    (c.elt, (c.pos, x, f))
-                  in
-                  let gn m (k,v) =
-                    if M.mem k m then assert false;
-                    M.add k v m
-                  in
-                  let m = List.fold_left gn M.empty (List.map fn l) in
-                  let f xx = case e.pos (vari None xx) m in
-                  let lcs = labs e.pos None (Pos.none "x") f in
-                  Box(T, appl e.pos (valu e.pos lcs) t)
+                  Box(T, t_case e.pos t m)
         end
     | (EFixY(t)     , SV       ) ->
         let t = to_term (unsugar env vars t _st) in

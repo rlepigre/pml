@@ -218,7 +218,7 @@ let rec subtype : ctxt -> term -> prop -> prop -> ctxt * sub_proof =
               try snd (M.find l fs1) with Not_found ->
               subtype_error p ("Product clash on label " ^ l ^ "...")
             in
-            let t = unbox (sugar_proj None (box t) (Pos.none l)) in
+            let t = unbox (t_proj None (box t) (Pos.none l)) in
             let (ctx, p) = subtype ctx t a1 a2 in
             (ctx, p::ps)
           in
@@ -231,7 +231,11 @@ let rec subtype : ctxt -> term -> prop -> prop -> ctxt * sub_proof =
               try snd (M.find c cs2) with Not_found ->
               subtype_error p ("Sum clash on constructor " ^ c ^ "...")
             in
-            let t = t in (* FIXME *)
+            let t =
+              let f x = valu None (vari None x) in
+              let id = (None, Pos.none "x", f) in
+              unbox (t_case None (box t) (M.singleton c id))
+            in
             let (ctx, p) = subtype ctx t a1 a2 in
             (ctx, p::ps)
           in
