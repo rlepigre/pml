@@ -12,8 +12,6 @@ let map_snd : ('a -> 'b) -> ('c * 'a) list -> ('c * 'b) list = fun f l ->
 
 module M = Map.Make(String)
 
-
-
 module IntOrd =
   struct
     type t = int
@@ -28,5 +26,3 @@ module SetOrd =
     let compare = IntSet.compare
   end
 module SetMap = Map.Make(SetOrd)
-
-
