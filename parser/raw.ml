@@ -109,7 +109,6 @@ and raw_ex' =
   | EFixN of raw_ex * strloc * raw_ex
   | EMemb of raw_ex * raw_ex
   | ERest of raw_ex option * (raw_ex * bool * raw_ex)
-  | EDPrj of raw_ex * strloc
 
   | ELAbs of (strloc * raw_ex option) ne_list * raw_ex
   | ECons of strloc * (raw_ex * flag) option
@@ -154,7 +153,6 @@ let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
                          print o x.elt print a
     | EMemb(t,a)    -> Printf.fprintf ch "EMemb(%a,%a)" print t print a
     | ERest(a,eq)   -> Printf.fprintf ch "ERest(%a,%a)" aux_opt a aux_eq eq
-    | EDPrj(t,x)    -> Printf.fprintf ch "EDPrj(%a,%S)" print t x.elt
     | ELAbs(args,t) -> Printf.fprintf ch "ELAbs([%a],%a)"
                          (Print.print_list aux_arg "; ")
                          (ne_list_to_list args) print t
@@ -322,9 +320,6 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
         end
     | (ERest(_,_)   , SUni(r)  ) -> r := Some _sp; infer env vars e s
     | (ERest(_,_)   , _        ) -> sort_clash e s
-    | (EDPrj(t,x)   , SP       ) -> infer env vars t _st
-    | (EDPrj(_,_)   , SUni(r)  ) -> r := Some _sp; infer env vars e s
-    | (EDPrj(_,_)   , _        ) -> sort_clash e s
     (* Terms / Values. *)
     | (ELAbs(args,t), SV       )
     | (ELAbs(args,t), ST       ) ->
@@ -615,9 +610,6 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
         let t = to_term (unsugar env vars t _st) in
         let u = to_term (unsugar env vars u _st) in
         Box(P, rest e.pos a (t,b,u))
-    | (EDPrj(t,x)   , SP       ) ->
-        let t = to_term (unsugar env vars t _st) in
-        Box(P, dprj e.pos t x)
     (* Values. *)
     | (ELAbs(args,t), SV       ) ->
         begin

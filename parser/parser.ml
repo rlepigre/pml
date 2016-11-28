@@ -133,10 +133,6 @@ let parser expr (m : mode) =
   | a:(expr (`Prp`A)) "|" t:(expr (`Trm`A)) b:equiv u:(expr (`Trm`A))
       when m = `Prp`A
       -> in_pos _loc (ERest(Some a,(t,b,u)))
-  (* Proposition (dot projection) *)
-  | t:(expr (`Trm`A)) "." x:llid
-      when m = `Prp`A
-      -> in_pos _loc (EDPrj(t,x))
   (* Proposition (parentheses) *)
   | "(" (expr (`Prp`F)) ")"
       when m = `Prp`A

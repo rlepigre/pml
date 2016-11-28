@@ -94,7 +94,6 @@ let rec print_ex : type a. out_channel -> a ex loc -> unit =
     | Fram(t,s)   -> Printf.fprintf ch "[%a] %a" print_ex t print_ex s
     | Conv        -> output_string ch "∞"
     | Succ(o)     -> Printf.fprintf ch "%a+1" print_ex o
-    | DPrj(t,x)   -> Printf.fprintf ch "(%a).%s" print_ex t x.elt
     | VTyp(v,a)   -> Printf.fprintf ch "(%a : %a)" print_ex v print_ex a
     | TTyp(t,a)   -> Printf.fprintf ch "(%a : %a)" print_ex t print_ex a
     | VLam(_,b)   -> let (x,t) = unbind mk_free (snd b) in

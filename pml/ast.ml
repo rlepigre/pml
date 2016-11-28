@@ -126,8 +126,6 @@ type _ ex =
 
   (* Type annotations. *)
 
-  | DPrj : t ex loc * string loc                              -> p ex
-  (** Dot projection. *)
   | VTyp : v ex loc * p ex loc                                -> v ex
   (** Type coercion on a term. *)
   | TTyp : t ex loc * p ex loc                                -> t ex
@@ -327,9 +325,6 @@ let rest : popt -> pbox -> (tbox * bool * tbox) -> pbox =
   fun pos a (t,b,u) ->
     let e = box_apply2 (fun t u -> (t,b,u)) t u in
     box_apply2 (fun a e -> {elt = Rest(a,e); pos}) a e
-
-let dprj : popt -> tbox -> strloc -> pbox =
-  fun pos t x -> box_apply (fun t -> {elt = DPrj(t,x); pos}) t
 
 (** {5 Ordinal constructors} *)
 

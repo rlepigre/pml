@@ -108,7 +108,6 @@ let eq_expr : type a. a ex loc -> a ex loc -> bool = fun e1 e2 ->
     | (Fram(t1,s1)   , Fram(t2,s2)   ) -> eq_expr t1 t2 && eq_expr s1 s2
     | (Conv          , Conv          ) -> true
     | (Succ(o1)      , Succ(o2)      ) -> eq_expr o1 o2
-    | (DPrj(t1,x1)   , DPrj(t2,x2)   ) -> x1.elt = x2.elt && eq_expr t1 t2
     | (VTyp(v1,a1)   , VTyp(v2,a2)   ) -> eq_expr v1 v2 && eq_expr a1 a2
     | (TTyp(t1,a1)   , TTyp(t2,a2)   ) -> eq_expr t1 t2 && eq_expr a1 a2
     | (VLam(s1,b1)   , VLam(s2,b2)   ) ->
