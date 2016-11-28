@@ -166,6 +166,11 @@ type typ_rule =
   | Typ_Prod_i of sub_proof * typ_proof list
   | Typ_Prod_e of typ_proof
 
+and  stk_rule =
+  | Stk_Push   of sub_proof * typ_proof * stk_proof
+  | Stk_Fram   of typ_proof * stk_proof
+  | Stk_SWit   of sub_proof
+
 and  sub_rule =
   | Sub_Equal
   | Sub_Func   of sub_proof * sub_proof
@@ -175,6 +180,7 @@ and  sub_rule =
   | Sub_Univ_r of sub_proof
 
 and typ_proof = term * prop * typ_rule
+and stk_proof = stac * prop * stk_rule
 and sub_proof = term * prop * prop * sub_rule
 
 
@@ -394,6 +400,45 @@ and type_term : ctxt -> term -> prop -> ctxt * typ_proof = fun ctx t c ->
     | ITag(_)     -> unexpected "Tag during typing..."
   in
   (ctx, (t, c, r))
+
+and type_stac : ctxt -> stac -> prop -> ctxt * stk_proof = fun ctx s c ->
+  Printf.printf "Showing: stk %a : %a\n%!" Print.print_ex s Print.print_ex c;
+  let (ctx, r) =
+    match (Norm.whnf s).elt with
+    | Push(v,pi)  ->
+        let (ctx, a) = new_uvar ctx P in
+        let (ctx, b) = new_uvar ctx P in
+        let wit =
+          let f = lbinder_from_fun "x" (fun x -> Valu(Pos.none x)) in
+          Pos.none (Valu(Pos.none (VWit(f, a, b))))
+        in
+        let (ctx, p1) = subtype ctx wit (Pos.none (Func(a,b))) c in
+        let (ctx, p2) = type_valu ctx v a in
+        let (ctx, p3) = type_stac ctx pi b in
+        (ctx, Stk_Push(p1,p2,p3))
+    | Fram(t,pi)  ->
+        let (ctx, a) = new_uvar ctx P in
+        let (ctx, p1) = type_term ctx t (Pos.none (Func(c,a))) in
+        let (ctx, p2) = type_stac ctx pi a in
+        (ctx, Stk_Fram(p1,p2))
+    | SWit(_,a)   ->
+        let wit =
+          let f = lbinder_from_fun "x" (fun x -> Valu(Pos.none x)) in
+          Pos.none (Valu(Pos.none (VWit(f, a, c))))
+        in
+        let (ctx, p) = subtype ctx wit a c in
+        (ctx, Stk_SWit(p))
+    (* Constructors that cannot appear in user-defined stacks. *)
+    | Epsi        -> unexpected "Empty stack during typing..."
+    | UWit(_,_,_) -> unexpected "∀-witness during typing..."
+    | EWit(_,_,_) -> unexpected "∃-witness during typing..."
+    | UVar(_)     -> unexpected "unification variable during typing..."
+    | Vari(_)     -> unexpected "Free variable during typing..."
+    | HApp(_)     -> unexpected "Higher-order application during typing..."
+    | Dumm        -> unexpected "Dummy value during typing..."
+    | ITag(_)     -> unexpected "Tag during typing..."
+  in
+  (ctx, (s, c, r))
 
 let type_check : term -> prop option -> typ_proof = fun t ao -> 
   let ctx = empty_ctxt in

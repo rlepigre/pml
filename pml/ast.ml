@@ -34,7 +34,7 @@ let lbinder_name : ('a, 'b) lbinder -> string =
   fun (_, b) -> binder_name b
 
 let lbinder_from_fun : string -> ('a -> 'b) -> ('a,'b) lbinder =
-  fun x f -> assert false
+  fun x f -> (None, binder_from_fun x (fun x -> Pos.none (f x)))
 
 (** Unification variable type. *)
 type 'a uvar =
