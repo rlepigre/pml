@@ -29,6 +29,10 @@ let new_uvar : type a. ctxt -> a sort -> ctxt * a ex loc = fun ctx s ->
   let ctx = {ctx with uvar_counter = i+1} in
   (ctx, Pos.none (UVar(s, {uvar_key = i; uvar_val = ref None})))
 
+let uvar_set : type a. a ex loc uvar -> a ex loc -> unit = fun u e ->
+  Printf.printf "Setting ?%i ← %a\n%!" u.uvar_key Print.print_ex e;
+  u.uvar_val := Some e
+
 let eq_opt : type a. (a -> a -> bool) -> a option -> a option -> bool =
   fun cmp ao bo ->
     match (ao, bo) with
@@ -147,9 +151,9 @@ let eq_expr : type a. a ex loc -> a ex loc -> bool = fun e1 e2 ->
           | NEq -> false
         end
     | (UVar(_,u1)    , UVar(_,u2)    ) -> if u1.uvar_key <> u2.uvar_key then
-                                            u1.uvar_val := Some e2; true
-    | (UVar(_,u1)    , _             ) -> u1.uvar_val := Some e2; true
-    | (_             , UVar(_,u2)    ) -> u2.uvar_val := Some e1; true
+                                            uvar_set u1 e2; true
+    | (UVar(_,u1)    , _             ) -> uvar_set u1 e2; true
+    | (_             , UVar(_,u2)    ) -> uvar_set u2 e1; true
     | _                                -> false
   in eq_expr e1 e2
 

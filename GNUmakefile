@@ -8,7 +8,7 @@ HAS_OCAMLBUILD := $(shell which ocamlbuild 2> /dev/null)
 
 # Check for the bindlib and earley library.
 HAS_BINDLIB    := $(shell ocamlfind query -format %p bindlib 2> /dev/null)
-HAS_DECAP      := $(shell ocamlfind query -format %p earley 2> /dev/null)
+HAS_EARLEY     := $(shell ocamlfind query -format %p earley 2> /dev/null)
 
 .PHONY: depchecks
 depchecks:
@@ -21,7 +21,7 @@ endif
 ifndef HAS_BINDLIB
 	$(error "The bindlib library is required...")
 endif
-ifndef HAS_DECAP
+ifndef HAS_EARLEY
 	$(error "The earley library is required...")
 endif
 
