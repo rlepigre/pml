@@ -36,6 +36,11 @@ let rec print_sort : type a. out_channel -> a sort -> unit = fun ch s ->
               else
                 Printf.fprintf ch "%a → %a" print_sort a print_sort b
 
+let is_arrow : prop -> bool = fun a ->
+  match a.elt with
+  | Func(_,_) -> true
+  | _         -> false
+
 let rec print_ex : type a. out_channel -> a ex loc -> unit =
   fun ch e ->
     let e = Norm.whnf e in
@@ -44,7 +49,8 @@ let rec print_ex : type a. out_channel -> a ex loc -> unit =
     | HFun(b)     -> let (x,t) = unbind mk_free (snd b) in
                      Printf.fprintf ch "(%s ↦ %a)" (name_of x) print_ex t
     | HApp(_,f,a) -> Printf.fprintf ch "%a(%a)" print_ex f print_ex a
-    | Func(a,b)   -> Printf.fprintf ch "%a ⇒ %a" print_ex a print_ex b
+    | Func(a,b)   -> let (l,r) = if is_arrow a then ("(",")") else ("","") in
+                     Printf.fprintf ch "%s%a%s ⇒ %a" l print_ex a r print_ex b
     | Prod(m)     -> let pelt ch (l,(_,a)) =
                        Printf.fprintf ch "%s : %a" l print_ex a
                      in Printf.fprintf ch "{%a}" (print_map pelt "; ") m
@@ -67,8 +73,13 @@ let rec print_ex : type a. out_channel -> a ex loc -> unit =
                        Printf.fprintf ch "%a %s %a" print_ex t sym print_ex u
                      in Printf.fprintf ch "%a | %a" print_ex a print_eq e
     | LAbs(ao,b)  -> let (x,t) = unbind mk_free (snd b) in
-                     Printf.fprintf ch "λ%s.%a" (name_of x) print_ex t
-                     (* TODO print ao *)
+                     begin
+                       match ao with
+                       | None   -> Printf.fprintf ch "λ%s.%a"
+                                     (name_of x) print_ex t
+                       | Some a -> Printf.fprintf ch "λ(%s:%a).%a"
+                                   (name_of x) print_ex a print_ex t
+                     end
     | Cons(c,v)   -> Printf.fprintf ch "%s[%a]" c.elt print_ex v
     | Reco(m)     -> let pelt ch (l,(_,a)) =
                        Printf.fprintf ch "%s = %a" l print_ex a
@@ -77,8 +88,13 @@ let rec print_ex : type a. out_channel -> a ex loc -> unit =
     | Valu(v)     -> print_ex ch v
     | Appl(t,u)   -> Printf.fprintf ch "(%a) %a" print_ex t print_ex u
     | MAbs(ao,b)  -> let (x,t) = unbind mk_free (snd b) in
-                     Printf.fprintf ch "μ%s.%a" (name_of x) print_ex t
-                     (* TODO print ao *)
+                     begin
+                       match ao with
+                       | None   -> Printf.fprintf ch "μ%s.%a"
+                                     (name_of x) print_ex t
+                       | Some a -> Printf.fprintf ch "μ(%s:%a).%a"
+                                     (name_of x) print_ex a print_ex t
+                     end
     | Name(s,t)   -> Printf.fprintf ch "[%a]%a" print_ex s print_ex t
     | Proj(v,l)   -> Printf.fprintf ch "%a.%s" print_ex v l.elt
     | Case(v,m)   -> let pelt ch (c, (_, (_,b))) =

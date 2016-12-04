@@ -40,6 +40,7 @@ let empty_ctxt =
 let new_uvar : type a. ctxt -> a sort -> ctxt * a ex loc = fun ctx s ->
   let i = ctx.uvar_counter in
   let ctx = {ctx with uvar_counter = i+1} in
+  log_uni "?%i : %a" i Print.print_sort s;
   (ctx, Pos.none (UVar(s, {uvar_key = i; uvar_val = ref None})))
 
 let uvar_set : type a. a ex loc uvar -> a ex loc -> unit = fun u e ->
@@ -54,7 +55,7 @@ let eq_opt : type a. (a -> a -> bool) -> a option -> a option -> bool =
     | (_     , _     ) -> false
 
 let eq_expr : type a. a ex loc -> a ex loc -> bool = fun e1 e2 ->
-  log_equ "Showing: %a = %a" Print.print_ex e1 Print.print_ex e2;
+  log_equ "%a = %a" Print.print_ex e1 Print.print_ex e2;
   let c = ref (-1) in
   let new_itag : type a. unit -> a ex = fun () -> incr c; ITag(!c) in
   let rec eq_expr : type a. a ex loc -> a ex loc -> bool = fun e1 e2 ->
@@ -218,7 +219,7 @@ let rec get_lam : type a. string -> a sort -> term -> prop -> a ex * prop =
 
 let rec subtype : ctxt -> term -> prop -> prop -> ctxt * sub_proof =
   fun ctx t a b ->
-    log_sub "Showing: %a ∈ %a ⊆ %a"
+    log_sub "%a ∈ %a ⊆ %a"
       Print.print_ex t Print.print_ex a Print.print_ex b;
     let a = Norm.whnf a in
     let b = Norm.whnf b in
@@ -285,7 +286,7 @@ let rec subtype : ctxt -> term -> prop -> prop -> ctxt * sub_proof =
 and type_valu : ctxt -> valu -> prop -> ctxt * typ_proof = fun ctx v c ->
   let v = Norm.whnf v in
   let t = build_pos v.pos (Valu(v)) in
-  log_typ "Showing (val): %a : %a" Print.print_ex v Print.print_ex c;
+  log_typ "(val) %a : %a" Print.print_ex v Print.print_ex c;
   let (ctx, r) =
     match v.elt with
     (* λ-abstraction. *)
@@ -356,7 +357,7 @@ and type_valu : ctxt -> valu -> prop -> ctxt * typ_proof = fun ctx v c ->
   (ctx, (build_pos v.pos (Valu(v)), c, r))
 
 and type_term : ctxt -> term -> prop -> ctxt * typ_proof = fun ctx t c ->
-  log_typ "Showing (trm): %a : %a" Print.print_ex t Print.print_ex c;
+  log_typ "(trm) %a : %a" Print.print_ex t Print.print_ex c;
   let (ctx, r) =
     match (Norm.whnf t).elt with
     (* Value. *)
@@ -430,7 +431,7 @@ and type_term : ctxt -> term -> prop -> ctxt * typ_proof = fun ctx t c ->
   (ctx, (t, c, r))
 
 and type_stac : ctxt -> stac -> prop -> ctxt * stk_proof = fun ctx s c ->
-  log_typ "Showing (stk): %a : %a" Print.print_ex s Print.print_ex c;
+  log_typ "(stk) %a : %a" Print.print_ex s Print.print_ex c;
   let (ctx, r) =
     match (Norm.whnf s).elt with
     | Push(v,pi)  ->
