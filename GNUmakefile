@@ -77,10 +77,10 @@ parser/parser.cma: $(KERNELFILES)
 pml2: pml2/main.native pml2/main.byte
 
 pml2/main.native:
-	$(OCAMLBUILD) -package bindlib,earley,earley.str $@
+	$(OCAMLBUILD) -package unix,bindlib,earley,earley.str $@
 
 pml2/main.byte:
-	$(OCAMLBUILD) -package bindlib,earley,earley.str $@
+	$(OCAMLBUILD) -package unix,bindlib,earley,earley.str $@
 
 # Cleaning targets.
 clean:

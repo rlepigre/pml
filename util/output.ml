@@ -27,23 +27,23 @@ let cya fmt = "\027[36m" ^^ fmt ^^ "\027[0m"
 (* Printing function for a warning message. *)
 let wrn_msg : 'a printer =
   fun fmt ->
-    let fmt = "[WRN] " ^^ fmt ^^ "\n%!" in
+    let fmt = "[WRN] " ^^ fmt in
     let fmt = if isatty stderr then yel fmt else fmt in
-    Printf.eprintf fmt
+    Printf.eprintf (fmt ^^ "\n%!")
 
 (* Printing function for an error message. *)
 let err_msg : 'a printer =
   fun fmt ->
-    let fmt = "[ERR] " ^^ fmt ^^ "\n%!" in
+    let fmt = "[ERR] " ^^ fmt in
     let fmt = if isatty stderr then red fmt else fmt in
-    Printf.eprintf fmt
+    Printf.eprintf (fmt ^^ "\n%!")
 
 (* Printing function for a bug signaling message. *)
 let bug_msg : 'a printer =
   fun fmt ->
-    let fmt = "[BUG] " ^^ fmt ^^ "\n%!" in
+    let fmt = "[BUG] " ^^ fmt in
     let fmt = if isatty stderr then mag fmt else fmt in
-    Printf.eprintf fmt
+    Printf.eprintf (fmt ^^ "\n%!")
 
 module Log =
   struct
@@ -69,7 +69,7 @@ module Log =
     let log : ?tag:string -> 'a printer =
       fun ?(tag="log") fmt ->
         if String.length tag <> 3 then
-          wrn_msg "the tag is too long (Output.Log.log)\n%!";
+          wrn_msg "the tag is too long (Output.Log.log)";
         let tag = format_from_string (Printf.sprintf "[%s] " tag) in
         let tag = if isatty !log_channel then cya tag else tag in
         Printf.fprintf !log_channel (tag ^^ fmt ^^ "\n%!")
@@ -83,7 +83,7 @@ module Log =
     let enable : char -> unit =
       fun c ->
         if not (CSet.mem c !valid) then
-          wrn_msg "no registered log with key \'%c\' (Output.Log.enable)\n" c
+          wrn_msg "no registered log with key \'%c\' (Output.Log.enable)" c
         else
           enabled := CSet.add c !enabled
     
@@ -97,7 +97,7 @@ module Log =
         enabled := CSet.empty;
         String.iter enable str
 
-    type r_printer = { printer : 'a. 'a printer } 
+    type r_printer = { p : 'a. 'a printer } 
     
     let register : char -> string option -> string -> r_printer =
       fun key tag desc ->
@@ -110,8 +110,8 @@ module Log =
           | Some tag -> tag
         in
         if String.length tag <> 3 then
-          wrn_msg "the tag is too long (Output.Log.register)\n%!";
-        let printer fmt =
+          wrn_msg "the tag is too long (Output.Log.register)";
+        let p fmt =
           let tag = format_from_string (Printf.sprintf "[%s] " tag) in
           let tag = if isatty !log_channel then cya tag else tag in
           let fmt = tag ^^ fmt ^^ "\n%!" in
@@ -120,16 +120,22 @@ module Log =
           else
             Printf.ifprintf !log_channel fmt
         in
-        { printer }
+        { p }
 
-    (* Register a new log function. *)
-    let register : char -> string option -> string -> 'a printer =
-      fun key tag desc -> (register key tag desc).printer
-    
     (* Show the list of the registered logs. *)
     let print_opts : ?prefix:string -> out_channel -> unit =
       fun ?(prefix="") oc ->
         if CSet.is_empty !valid then
-          wrn_msg "no log function registered (Log.print_opts)\n%!";
+          wrn_msg "no log function registered (Log.print_opts)";
         CMap.iter (Printf.fprintf oc "%s%c: %s\n%!" prefix) !descr
+ 
+    (* Show the list of the registered logs. *)
+    let opts_to_string : string -> string =
+      fun prefix ->
+        if CSet.is_empty !valid then
+          wrn_msg "no log function registered (Log.opts_to_string)";
+        let l = CMap.bindings !descr in
+        let fn (k,d) = Printf.sprintf "%s%c: %s" prefix k d in
+        let l = List.map fn l in
+        String.concat "\n" l
 end

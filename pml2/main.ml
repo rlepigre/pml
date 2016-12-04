@@ -4,18 +4,19 @@ open Parser
 open Pos
 open Raw
 open Typing
+open Output
 
 let interpret : Env.env -> Raw.toplevel -> Env.env = fun env top ->
   match top with
   | Sort_def(id,s) ->
       let open Env in
       let Sort s = unsugar_sort env s in
-      Printf.printf "sort %s ≔ %a\n%!" id.elt Print.print_sort s;
+      out "sort %s ≔ %a\n%!" id.elt Print.print_sort s;
       add_sort id.elt s env
   | Expr_def(id,s,e) ->
       let open Env in
       let Box(s,e) = unsugar_expr env e s in
-      Printf.printf "expr %s : %a ≔ %a\n%!" id.elt
+      out "expr %s : %a ≔ %a\n%!" id.elt
         Print.print_sort s Print.print_ex (Bindlib.unbox e);
       add_expr id.elt s e env
   | Valu_def(id,ao,t) ->
@@ -29,32 +30,78 @@ let interpret : Env.env -> Raw.toplevel -> Env.env = fun env top ->
       let prf = type_check t ao in
       ignore prf; env (* TODO *)
 
-let red fmt = "\027[31m" ^^ fmt ^^ "\027[0m"
+(* Command line argument parsing. *)
+let files =
+  let files = ref [] in
 
-let ast =
-  if Array.length Sys.argv <> 2 then
-    begin
-      Printf.eprintf "Usage: %s <file.pml>\n%!" Sys.argv.(0);
-      exit 1
-    end;
-  try Parser.parse_file Sys.argv.(1) with
-  | Sys_error(_) ->
+  let anon_fun fn = files := fn :: !files in
+  let usage_msg =
+    Printf.sprintf "Usage: %s [args] [f1.pml] ... [fn.pml]" Sys.argv.(0)
+  in
+
+  let r_spec = ref [] in
+  let help f =
+    let act () = raise (Arg.Help (Arg.usage_string !r_spec usage_msg)) in
+    (f, Arg.Unit(act), " Show this usage message.")
+  in
+
+  let spec =
+    [ ( "--log-file"
+      , Arg.String(Log.with_file)
+      , "file Write logs to the provided file." )
+    ; ( "--log"
+      , Arg.String(Log.set_enabled)
+      , Printf.sprintf "str Enable the provided logs. Available options:\n%s."
+          (Log.opts_to_string ((String.make 20 ' ') ^ "- ")) )
+    ] @ List.map help ["--help" ; "-help" ; "-h" ]
+  in
+  let spec = Arg.align spec in
+  r_spec := spec;
+
+  (* Run checks on files. *)
+  Arg.parse spec anon_fun usage_msg;
+  let files = List.rev !files in
+
+  let check_ext fn =
+    if not (Filename.check_suffix fn ".pml") then
       begin
-        Printf.eprintf ((red "File %s does not exist.") ^^ "\n%!")
-          Sys.argv.(1);
+        err_msg "File \"%s\" does not have the \".pml\" extension." fn;
         exit 1
       end
+  in
+  List.iter check_ext files;
+  let check_exists fn =
+    if not (Sys.file_exists fn) then
+      begin
+        err_msg "File \"%s\" does not exist." fn;
+        exit 1
+      end;
+    if Sys.is_directory fn then
+      begin
+        err_msg "\"%s\" is not a file, but a directory." fn;
+        exit 1
+      end
+  in
+  List.iter check_exists files;
+  files
 
-let _ =
-  try List.fold_left interpret Env.empty ast with
+(* Handling the files. *)
+let handle_file env fn =
+  try
+    let ast = Parser.parse_file fn in
+    List.fold_left interpret env ast 
+  with
   | Unbound_sort(s, None  ) ->
       begin
-        Printf.eprintf (red "Unbound sort %s.\n%!") s;
+        err_msg "Unbound sort %s." s;
         exit 1
       end
   | Unbound_sort(s, Some p) ->
       begin
-        Printf.eprintf ((red "Unbound sort %s") ^^ " (%a).\n%!") s
-          Pos.print_pos p;
+        err_msg "Unbound sort %s (%a)." s Pos.print_pos p;
         exit 1
       end
+
+let _ =
+  List.fold_left handle_file Env.empty files
+

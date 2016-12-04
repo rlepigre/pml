@@ -45,13 +45,17 @@ module Log :
         the message automatically, and that the buffer is flushed. *)
     val log : ?tag:string -> 'a printer
 
+    (** Type of a printer wrapped in a record. This type is useful  to  work
+        around value restriction... *)
+    type r_printer = { p : 'a. 'a printer } 
+    
     (** [register key tag descr] registers a new logging function associated
         to a character [key], an optional three character [tag] and a descr-
         iption message [descr]. Logs written using the returned function are
         only printed to the log if the [key] has been enabled. Note  that  a
         newline character is append to the message automatically,  and  that
         the buffer is flushed when using the produced log function. *)
-    val register : char -> string option -> string -> 'a printer
+    val register : char -> string option -> string -> r_printer
 
     (** [enable c] enables the log function associated to the key [c]. *)
     val enable : char -> unit
@@ -64,7 +68,12 @@ module Log :
     val set_enabled : string -> unit
 
     (** [print_opts ~prefix och] prints on the output channel [och] a  short
-        summary of all the registered log functions (andtheir  keys).  Each
+        summary of all the registered log functions (and their  keys).  Each
         line of this list is preceeded with an optional [prefix]. *)
     val print_opts : ?prefix:string -> out_channel -> unit
+
+    (** [opts_to_string prefix] build a string containing a short summary of
+        all the registered log functions (and their keys). Each line of this
+        list is preceeded with the given [prefix]. *)
+    val opts_to_string : string -> string
   end
