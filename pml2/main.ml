@@ -11,13 +11,13 @@ let interpret : Env.env -> Raw.toplevel -> Env.env = fun env top ->
   | Sort_def(id,s) ->
       let open Env in
       let Sort s = unsugar_sort env s in
-      out "sort %s ≔ %a\n%!" id.elt Print.print_sort s;
+      out "sort %s ≔ %a\n%!" id.elt Print.sort s;
       add_sort id.elt s env
   | Expr_def(id,s,e) ->
       let open Env in
       let Box(s,e) = unsugar_expr env e s in
-      out "expr %s : %a ≔ %a\n%!" id.elt
-        Print.print_sort s Print.print_ex (Bindlib.unbox e);
+      let ee = Bindlib.unbox e in
+      out "expr %s : %a ≔ %a\n%!" id.elt Print.sort s Print.ex ee;
       add_expr id.elt s e env
   | Valu_def(id,ao,t) ->
       let open Env in

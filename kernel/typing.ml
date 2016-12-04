@@ -5,6 +5,7 @@ open Ast
 open Equiv
 open Output
 
+(* Exceptions to be used in case of failure. *)
 exception Type_error of pos option * string
 let type_error : pos option -> string -> 'a =
   fun pos msg -> raise (Type_error(pos, msg))
@@ -17,6 +18,7 @@ exception Unexpected_error of string
 let unexpected : string -> 'a =
   fun msg -> raise (Unexpected_error(msg))
 
+(* Log functions registration. *)
 let log_sub = Log.register 's' (Some "sub") "subtyping informations"
 let log_sub = Log.(log_sub.p)
 
@@ -44,7 +46,8 @@ let new_uvar : type a. ctxt -> a sort -> ctxt * a ex loc = fun ctx s ->
   (ctx, Pos.none (UVar(s, {uvar_key = i; uvar_val = ref None})))
 
 let uvar_set : type a. a ex loc uvar -> a ex loc -> unit = fun u e ->
-  log_uni "?%i ← %a" u.uvar_key Print.print_ex e;
+  log_uni "?%i ← %a" u.uvar_key Print.ex e;
+  assert(!(u.uvar_val) = None);
   u.uvar_val := Some e
 
 let eq_opt : type a. (a -> a -> bool) -> a option -> a option -> bool =
@@ -55,7 +58,7 @@ let eq_opt : type a. (a -> a -> bool) -> a option -> a option -> bool =
     | (_     , _     ) -> false
 
 let eq_expr : type a. a ex loc -> a ex loc -> bool = fun e1 e2 ->
-  log_equ "%a = %a" Print.print_ex e1 Print.print_ex e2;
+  log_equ "%a = %a" Print.ex e1 Print.ex e2;
   let c = ref (-1) in
   let new_itag : type a. unit -> a ex = fun () -> incr c; ITag(!c) in
   let rec eq_expr : type a. a ex loc -> a ex loc -> bool = fun e1 e2 ->
@@ -219,8 +222,7 @@ let rec get_lam : type a. string -> a sort -> term -> prop -> a ex * prop =
 
 let rec subtype : ctxt -> term -> prop -> prop -> ctxt * sub_proof =
   fun ctx t a b ->
-    log_sub "%a ∈ %a ⊆ %a"
-      Print.print_ex t Print.print_ex a Print.print_ex b;
+    log_sub "%a ∈ %a ⊆ %a" Print.ex t Print.ex a Print.ex b;
     let a = Norm.whnf a in
     let b = Norm.whnf b in
     let (ctx, r) =
@@ -277,16 +279,16 @@ let rec subtype : ctxt -> term -> prop -> prop -> ctxt * sub_proof =
           (ctx, Sub_Univ_l(p))
       (* TODO *)
       | _                          ->
-          let open Print in
-          Printf.printf "ERROR: %a ⊆ %a\n%!" print_ex a print_ex b;
-          assert false
+          err_msg "cannot show %a ∈ %a ⊆ %a\n%!"
+            Print.ex t Print.ex a Print.ex b;
+          exit 1
     in
     (ctx, (t, a, b, r))
 
 and type_valu : ctxt -> valu -> prop -> ctxt * typ_proof = fun ctx v c ->
   let v = Norm.whnf v in
   let t = build_pos v.pos (Valu(v)) in
-  log_typ "(val) %a : %a" Print.print_ex v Print.print_ex c;
+  log_typ "(val) %a : %a" Print.ex v Print.ex c;
   let (ctx, r) =
     match v.elt with
     (* λ-abstraction. *)
@@ -357,7 +359,7 @@ and type_valu : ctxt -> valu -> prop -> ctxt * typ_proof = fun ctx v c ->
   (ctx, (build_pos v.pos (Valu(v)), c, r))
 
 and type_term : ctxt -> term -> prop -> ctxt * typ_proof = fun ctx t c ->
-  log_typ "(trm) %a : %a" Print.print_ex t Print.print_ex c;
+  log_typ "(trm) %a : %a" Print.ex t Print.ex c;
   let (ctx, r) =
     match (Norm.whnf t).elt with
     (* Value. *)
@@ -431,7 +433,7 @@ and type_term : ctxt -> term -> prop -> ctxt * typ_proof = fun ctx t c ->
   (ctx, (t, c, r))
 
 and type_stac : ctxt -> stac -> prop -> ctxt * stk_proof = fun ctx s c ->
-  log_typ "(stk) %a : %a" Print.print_ex s Print.print_ex c;
+  log_typ "(stk) %a : %a" Print.ex s Print.ex c;
   let (ctx, r) =
     match (Norm.whnf s).elt with
     | Push(v,pi)  ->
