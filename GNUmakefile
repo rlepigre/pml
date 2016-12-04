@@ -1,6 +1,9 @@
 OCAMLBUILD := ocamlbuild -docflags -hide-warnings -use-ocamlfind -r
 
-all: depchecks pml pml_doc parser
+all: depchecks kernel util parser pml2 doc
+
+.PHONY: doc
+doc: kernel_doc util_doc
 
 # Check for ocamlfind and ocamlbuild on the system.
 HAS_OCAMLFIND  := $(shell which ocamlfind 2> /dev/null)
@@ -25,33 +28,63 @@ ifndef HAS_EARLEY
 	$(error "The earley library is required...")
 endif
 
-# Compilation of the pml.
-.PHONY: pml pml_doc
-pml: pml/pml.cmxa pml/pml.cma
-pml_doc: pml/pml.docdir/index.html
+# Compilation of the util modules.
+.PHONY: util util_doc
+util: util/util.cmxa util/util.cma
+util_doc: util/util.docdir/index.html
 
-KERNELFILES := $(wildcard pml/*.ml) $(wildcard pml/*.ml)
+UTILFILES := $(wildcard util/*.ml) $(wildcard util/*.mli)
 
-pml/pml.cmxa: $(KERNELFILES)
-	$(OCAMLBUILD) -package bindlib -package earley $@
+util/util.cmxa: $(UTILFILES)
+	$(OCAMLBUILD) -package unix $@
 
-pml/pml.cma: $(KERNELFILES)
-	$(OCAMLBUILD) -package bindlib -package earley $@
+util/util.cma: $(UTILFILES)
+	$(OCAMLBUILD) -package unix $@
 
-pml/pml.docdir/index.html: $(KERNELFILES)
-	$(OCAMLBUILD) -package bindlib -package earley $@
+util/util.docdir/index.html: $(UTILFILES)
+	$(OCAMLBUILD) -package bindlib -package unix $@
+
+# Compilation of the kernel.
+.PHONY: kernel kernel_doc
+kernel: kernel/kernel.cmxa kernel/kernel.cma
+kernel_doc: kernel/kernel.docdir/index.html
+
+KERNELFILES := $(wildcard kernel/*.ml) $(wildcard kernel/*.mli)
+
+kernel/kernel.cmxa: $(KERNELFILES)
+	$(OCAMLBUILD) -package bindlib,earley $@
+
+kernel/kernel.cma: $(KERNELFILES)
+	$(OCAMLBUILD) -package bindlib,earley $@
+
+kernel/kernel.docdir/index.html: $(KERNELFILES)
+	$(OCAMLBUILD) -package bindlib,earley $@
 
 # Compilation of the parser.
-.PHONY: parser parser_doc
-parser: parser/pml.byte
+.PHONY: parser
+parser: parser/parser.cma parser/parser.cmxa
 
-PARSERFILES := $(wildcard parser/*.ml) $(wildcard parser/*.ml)
+PARSERFILES := $(wildcard parser/*.ml) $(wildcard parser/*.mli)
 
-parser/pml.byte: 
-	$(OCAMLBUILD) -I pml -package bindlib -package earley,earley.str $@
+parser/parser.cmxa: $(KERNELFILES)
+	$(OCAMLBUILD) -package bindlib,earley,earley.str $@
 
+parser/parser.cma: $(KERNELFILES)
+	$(OCAMLBUILD) -package bindlib,earley,earley.str $@
+
+# Compilation of PML2.
+.PHONY:pml2
+pml2: pml2/main.native pml2/main.byte
+
+pml2/main.native:
+	$(OCAMLBUILD) -package bindlib,earley,earley.str $@
+
+pml2/main.byte:
+	$(OCAMLBUILD) -package bindlib,earley,earley.str $@
+
+# Cleaning targets.
 clean:
 	ocamlbuild -clean
 
 distclean: clean
-	rm -f *~ pml/*~ parser/*~ editors/*~ tests/*~
+	rm -f *~ pml2/*~ kernel/*~ parser/*~ editor/*~ doc/*~ test/*~ util/*~

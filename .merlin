@@ -1,5 +1,9 @@
-S pml
+S pml2
+S kernel
 S parser
-B _build/pml
+S util
+B _build/pml2
+B _build/kernel
 B _build/parser
-PKG earley bindlib
+B _build/util
+PKG unix earley bindlib
