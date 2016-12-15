@@ -471,11 +471,11 @@ and type_stac : ctxt -> stac -> prop -> ctxt * stk_proof = fun ctx s c ->
   in
   (ctx, (s, c, r))
 
-let type_check : term -> prop option -> typ_proof = fun t ao -> 
+let type_check : term -> prop option -> prop * typ_proof = fun t ao ->
   let ctx = empty_ctxt in
-  let (ctx, a) = 
+  let (ctx, a) =
     match ao with
     | None   -> new_uvar ctx P
     | Some a -> (ctx, a)
   in
-  snd (type_term ctx t a)
+  (Norm.whnf a, snd (type_term ctx t a))

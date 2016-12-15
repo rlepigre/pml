@@ -27,7 +27,8 @@ let interpret : Env.env -> Raw.toplevel -> Env.env = fun env top ->
         | Some a -> Some(unbox (to_prop (unsugar_expr env a _sp)))
       in
       let t = unbox (to_term (unsugar_expr env t _st)) in
-      let prf = type_check t ao in
+      let (a, prf) = type_check t ao in
+      out "val %s : %a\n%!" id.elt Print.ex a;
       ignore prf; env (* TODO *)
 
 (* Command line argument parsing. *)
