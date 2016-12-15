@@ -23,8 +23,8 @@ let rec whnf : type a. a ex loc -> a ex loc = fun exp ->
       begin
         let e = whnf e and f = whnf f in
         match (e.elt, f.elt) with
-        | (HFun(b), f) -> whnf (lsubst b f)
-        | (_      , _) -> {exp with elt = HApp(s, e, f)}
+        | (HFun(_,_,b), f) -> whnf (lsubst b f)
+        | (_          , _) -> {exp with elt = HApp(s, e, f)}
       end
   (* Unfolding of a unification variable. *)
   | UVar(_, {uvar_val = {contents = Some exp}}) -> whnf exp

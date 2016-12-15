@@ -539,7 +539,7 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
           let vars = M.add x.elt xk vars in
           sort_filter sb (unsugar env vars f b)
         in
-        Box(F(sa,sb), hfun e.pos x fn)
+        Box(F(sa,sb), hfun e.pos sa sb x fn)
     (* Propositions. *)
     | (EFunc(a,b)   , SP       ) ->
         let a = unsugar env vars a s in

@@ -45,26 +45,21 @@ let new_uvar : type a. ctxt -> a sort -> ctxt * a ex loc = fun ctx s ->
   log_uni "?%i : %a" i Print.print_sort s;
   (ctx, Pos.none (UVar(s, {uvar_key = i; uvar_val = ref None})))
 
-let uvar_set : type a. a ex loc uvar -> a ex loc -> unit = fun u e ->
+let uvar_set : type a. a uvar -> a ex loc -> unit = fun u e ->
   log_uni "?%i ← %a" u.uvar_key Print.ex e;
   assert(!(u.uvar_val) = None);
   u.uvar_val := Some e
 
-let eq_opt : type a. (a -> a -> bool) -> a option -> a option -> bool =
-  fun cmp ao bo ->
-    match (ao, bo) with
-    | (None  , None  ) -> true
-    | (Some a, Some b) -> cmp a b
-    | (_     , _     ) -> false
+let uvar_eq : type a. a uvar -> a uvar -> bool =
+  fun u v -> u.uvar_key == v.uvar_key
 
-
-type uvar_fun = { f : 'a. 'a sort -> 'a ex loc uvar -> unit }
+type uvar_fun = { f : 'a. 'a sort -> 'a uvar -> unit }
 
 let rec uvar_iter : type a. uvar_fun -> a ex loc -> unit = fun f e ->
   let uvar_iter_eq f (t,_,u) = uvar_iter f t; uvar_iter f u in
   match (Norm.whnf e).elt with
   | Vari(_)     -> ()
-  | HFun(b)     -> uvar_iter f (lsubst b Dumm)
+  | HFun(_,_,b) -> uvar_iter f (lsubst b Dumm)
   | HApp(_,a,b) -> uvar_iter f a; uvar_iter f b
   | Func(a,b)   -> uvar_iter f a; uvar_iter f b
   | Prod(m)     -> M.iter (fun _ (_,a) -> uvar_iter f a) m
@@ -104,16 +99,19 @@ let rec uvar_iter : type a. uvar_fun -> a ex loc -> unit = fun f e ->
   | EWit(_,t,b) -> uvar_iter f t; uvar_iter f (lsubst b Dumm)
   | UVar(s,u)   -> f.f s u
 
-type s_elt = U : 'a sort * 'a ex loc uvar -> s_elt
+type s_elt = U : 'a sort * 'a uvar -> s_elt
 
 let uvars : type a. a ex loc -> s_elt list = fun e ->
   let uvars = ref [] in
-  uvar_iter { f = (fun s u -> uvars := (U(s,u)) :: !uvars) } e;
-  !uvars
+  let f s u =
+    let p (U(_,v)) = v.uvar_key == u.uvar_key in
+    if not (List.exists p !uvars) then uvars := (U(s,u)) :: !uvars
+  in
+  uvar_iter {f} e; !uvars
 
-let uvar_occurs : type a b. a ex loc uvar -> b ex loc -> bool = fun u e ->
-  let fn = { f = (fun _ v -> if v.uvar_key == u.uvar_key then raise Exit) } in
-  try uvar_iter fn e; false with Exit -> true
+let uvar_occurs : type a b. a uvar -> b ex loc -> bool = fun u e ->
+  let f _ v = if v.uvar_key == u.uvar_key then raise Exit in
+  try uvar_iter {f} e; false with Exit -> true
 
 let eq_expr : type a. a ex loc -> a ex loc -> bool = fun e1 e2 ->
   log_equ "%a = %a" Print.ex e1 Print.ex e2;
@@ -123,7 +121,7 @@ let eq_expr : type a. a ex loc -> a ex loc -> bool = fun e1 e2 ->
     match ((Norm.whnf e1).elt, (Norm.whnf e2).elt) with
     | (Vari(x1)      , Vari(x2)      ) ->
         Bindlib.eq_variables x1 x2
-    | (HFun(b1)      , HFun(b2)      ) ->
+    | (HFun(_,_,b1)  , HFun(_,_,b2)  ) ->
         let t = new_itag () in
         eq_expr (lsubst b1 t) (lsubst b2 t)
     | (HApp(s1,f1,a1), HApp(s2,f2,a2)) ->
@@ -163,7 +161,7 @@ let eq_expr : type a. a ex loc -> a ex loc -> bool = fun e1 e2 ->
         b1 = b2 && eq_expr a1 a2 && eq_expr t1 t2 && eq_expr u1 u2
     | (LAbs(ao1,b1)  , LAbs(ao2,b2)  ) ->
         let t = new_itag () in
-        eq_opt eq_expr ao1 ao2 && eq_expr (lsubst b1 t) (lsubst b2 t)
+        Option.equal eq_expr ao1 ao2 && eq_expr (lsubst b1 t) (lsubst b2 t)
     | (Cons(c1,v1)   , Cons(c2,v2)   ) -> c1.elt = c2.elt && eq_expr v1 v2
     | (Reco(m1)      , Reco(m2)      ) ->
         M.equal (fun (_,v1) (_,v2) -> eq_expr v1 v2) m1 m2
@@ -172,7 +170,7 @@ let eq_expr : type a. a ex loc -> a ex loc -> bool = fun e1 e2 ->
     | (Appl(t1,u1)   , Appl(t2,u2)   ) -> eq_expr t1 t2 && eq_expr u1 u2
     | (MAbs(ao1,b1)  , MAbs(ao2,b2)  ) ->
         let t = new_itag () in
-        eq_opt eq_expr ao1 ao2 && eq_expr (lsubst b1 t) (lsubst b2 t)
+        Option.equal eq_expr ao1 ao2 && eq_expr (lsubst b1 t) (lsubst b2 t)
     | (Name(s1,t1)   , Name(s2,t2)   ) -> eq_expr s1 s2 && eq_expr t1 t2
     | (Proj(v1,l1)   , Proj(v2,l2)   ) -> l1.elt = l2.elt && eq_expr v1 v2
     | (Case(v1,m1)   , Case(v2,m2)   ) ->
@@ -271,7 +269,7 @@ and sub_proof = term * prop * prop * sub_rule
 let rec get_lam : type a. string -> a sort -> term -> prop -> a ex * prop =
   fun x s t c ->
     match (Norm.whnf c).elt with
-    | Univ(k,f) when lbinder_name f <> x ->
+    | Univ(k,f) when (lbinder_name f).elt <> x ->
         unexpected "Name missmatch between Λ and ∀..."
     | Univ(k,f) ->
         begin
@@ -401,7 +399,7 @@ and type_valu : ctxt -> valu -> prop -> ctxt * typ_proof = fun ctx v c ->
         (ctx, Typ_VTyp(p1,p2))
     (* Type abstraction. *)
     | VLam(s,b)   ->
-        let (w, c) = get_lam (lbinder_name b) s t c in
+        let (w, c) = get_lam (lbinder_name b).elt s t c in
         let (ctx, p) = type_valu ctx (lsubst b w) c in
         (ctx, Typ_VLam(p))
     (* Witness. *)
@@ -479,7 +477,7 @@ and type_term : ctxt -> term -> prop -> ctxt * typ_proof = fun ctx t c ->
         (ctx, Typ_TTyp(p1,p2))
     (* Type abstraction. *)
     | TLam(s,b)   ->
-        let (w, c) = get_lam (lbinder_name b) s t c in
+        let (w, c) = get_lam (lbinder_name b).elt s t c in
         let (ctx, p) = type_term ctx (lsubst b w) c in
         (ctx, Typ_TLam(p))
     (* Constructors that cannot appear in user-defined terms. *)
@@ -532,6 +530,84 @@ and type_stac : ctxt -> stac -> prop -> ctxt * stk_proof = fun ctx s c ->
   in
   (ctx, (s, c, r))
 
+(*
+let bind_uvar : type a. a sort -> a uvar -> prop -> (a ex, p ex) lbinder =
+  fun s u e ->
+    let rec fn : type a b. a sort -> a uvar -> b ex loc -> a ex bindbox -> b box =
+      fun s u e x ->
+        let e = Norm.whnf e in
+        match e.elt with
+        | Vari(x)     -> vari None x
+        | HApp(_,a,b) -> happ e.pos s (fn s u a x) (fn s u b x)
+        | UVar(t,v)   ->
+            begin
+              match eq_sort s t with
+              | Eq  -> if uvar_eq u v then box_apply Pos.none x else box e
+              | NEq -> box e
+            end
+        | _       -> assert false
+    in
+    (None, unbox (bind mk_free "#x" (fn s u e)))
+*)
+
+let bind_uvar : type a. a sort -> a uvar -> prop -> (a ex, p ex) lbinder =
+  let rec fn : type a b. a sort -> b sort -> a uvar -> b ex loc -> a ex bindbox -> b box =
+    fun sa sb uv e x ->
+      let e = Norm.whnf e in
+      match e.elt with
+      | Vari(x)     -> vari None x
+      | HFun(s,t,b) -> hfun e.pos s t (lbinder_name b)
+                         (fun y -> fn sa t uv (lsubst b (mk_free y)) x)
+      | HApp(s,a,b) -> happ e.pos s (fn sa (F(s,sb)) uv a x) (fn sa s uv b x)
+      | Func(a,b)   -> func e.pos (fn sa P uv a x) (fn sa P uv b x)
+      | Prod(m)     -> box e (* TODO *)
+      | DSum(m)     -> box e (* TODO *)
+      | Univ(s,b)   -> univ e.pos (lbinder_name b) s
+                         (fun y -> fn sa sb uv (lsubst b (mk_free y)) x)
+      | Exis(s,b)   -> exis e.pos (lbinder_name b) s
+                         (fun y -> fn sa sb uv (lsubst b (mk_free y)) x)
+      | FixM(o,b)   -> box e (* TODO *)
+      | FixN(o,b)   -> box e (* TODO *)
+      | Memb(t,a)   -> box e (* TODO *)
+      | Rest(a,eq)  -> box e (* TODO *)
+      | LAbs(_,b)   -> box e (* TODO *)
+      | Cons(_,v)   -> box e (* TODO *)
+      | Reco(m)     -> box e (* TODO *)
+      | Scis        -> scis e.pos
+      | Valu(v)     -> valu e.pos (fn sa V uv v x)
+      | Appl(t,u)   -> appl e.pos (fn sa T uv t x) (fn sa T uv u x)
+      | MAbs(_,b)   -> box e (* TODO *)
+      | Name(s,t)   -> box e (* TODO *)
+      | Proj(v,_)   -> box e (* TODO *)
+      | Case(v,m)   -> box e (* TODO *)
+      | FixY(t,v)   -> fixy e.pos (fn sa T uv t x) (fn sa V uv v x)
+      | Epsi        -> box e
+      | Push(v,s)   -> push e.pos (fn sa V uv v x) (fn sa S uv s x)
+      | Fram(t,s)   -> fram e.pos (fn sa T uv t x) (fn sa S uv s x)
+      | Conv        -> box e
+      | Succ(o)     -> succ e.pos (fn sa O uv o x)
+      | VTyp(v,_)   -> box e (* TODO *)
+      | TTyp(t,_)   -> box e (* TODO *)
+      | VLam(_,b)   -> box e (* TODO *)
+      | TLam(_,b)   -> box e (* TODO *)
+      | ITag(_)     -> box e
+      | Dumm        -> box e
+      | VWit(b,a,c) -> box e (* TODO *)
+      | SWit(b,a)   -> box e (* TODO *)
+      | UWit(s,t,b) -> uwit e.pos (fn sa T uv t x) (lbinder_name b) s
+                         (fun y -> fn sa P uv (lsubst b (mk_free y)) x)
+      | EWit(s,t,b) -> ewit e.pos (fn sa T uv t x) (lbinder_name b) s
+                         (fun y -> fn sa P uv (lsubst b (mk_free y)) x)
+
+      | UVar(t,v)   ->
+          begin
+            match eq_sort sa t with
+            | Eq  -> if uvar_eq uv v then box_apply Pos.none x else box e
+            | NEq -> box e
+          end
+  in
+  fun s uv e -> (None, unbox (bind mk_free "X0" (fn s P uv e)))
+
 let type_check : term -> prop option -> prop * typ_proof = fun t ao ->
   let ctx = empty_ctxt in
   let (ctx, a) =
@@ -539,4 +615,7 @@ let type_check : term -> prop option -> prop * typ_proof = fun t ao ->
     | None   -> new_uvar ctx P
     | Some a -> (ctx, a)
   in
-  (Norm.whnf a, snd (type_term ctx t a))
+  let (ctx, prf) = type_term ctx t a in
+  let bind_uvar a (U(s,u)) = Pos.none (Univ(s, bind_uvar s u a)) in
+  let a = List.fold_left bind_uvar a (uvars a) in
+  (Norm.whnf a, prf)

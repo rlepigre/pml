@@ -1,9 +1,11 @@
 OCAMLBUILD := ocamlbuild -docflags -hide-warnings -use-ocamlfind -r
 
-all: depchecks kernel util parser pml2 doc
+all: pml2
 
-.PHONY: doc
-doc: kernel_doc util_doc
+.PHONY: libs libs_byte doc
+doc: depchecks kernel_doc util_doc
+libs: depchecks kernel util parser
+libs_byte: depchecks kernel_byte util_byte parser_byte
 
 # Check for ocamlfind and ocamlbuild on the system.
 HAS_OCAMLFIND  := $(shell which ocamlfind 2> /dev/null)
@@ -29,8 +31,9 @@ ifndef HAS_EARLEY
 endif
 
 # Compilation of the util modules.
-.PHONY: util util_doc
-util: util/util.cmxa util/util.cma
+.PHONY: util util_byte util_doc
+util: util/util.cmxa
+util_byte: util/util.cma
 util_doc: util/util.docdir/index.html
 
 UTILFILES := $(wildcard util/*.ml) $(wildcard util/*.mli)
@@ -45,8 +48,9 @@ util/util.docdir/index.html: $(UTILFILES)
 	$(OCAMLBUILD) -package bindlib -package unix $@
 
 # Compilation of the kernel.
-.PHONY: kernel kernel_doc
-kernel: kernel/kernel.cmxa kernel/kernel.cma
+.PHONY: kernel kernel_byte kernel_doc
+kernel: kernel/kernel.cmxa
+kernel_byte: kernel/kernel.cma
 kernel_doc: kernel/kernel.docdir/index.html
 
 KERNELFILES := $(wildcard kernel/*.ml) $(wildcard kernel/*.mli)
@@ -61,8 +65,9 @@ kernel/kernel.docdir/index.html: $(KERNELFILES)
 	$(OCAMLBUILD) -package bindlib,earley $@
 
 # Compilation of the parser.
-.PHONY: parser
-parser: parser/parser.cma parser/parser.cmxa
+.PHONY: parser parser_byte
+parser: parser/parser.cmxa
+parser_byte: parser/parser.cma
 
 PARSERFILES := $(wildcard parser/*.ml) $(wildcard parser/*.mli)
 
@@ -73,8 +78,9 @@ parser/parser.cma: $(KERNELFILES)
 	$(OCAMLBUILD) -package bindlib,earley,earley.str $@
 
 # Compilation of PML2.
-.PHONY:pml2
-pml2: pml2/main.native pml2/main.byte
+.PHONY: pml2 pml2_byte
+pml2: pml2/main.native
+pml2_byte: pml2/main.byte
 
 pml2/main.native:
 	$(OCAMLBUILD) -package unix,bindlib,earley,earley.str $@

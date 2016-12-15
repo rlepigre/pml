@@ -41,7 +41,7 @@ let rec print_ex : type a. a ex loc printer = fun ch e ->
   let is_arrow a = match a.elt with Func(_,_) -> true | _ -> false in
   match e.elt with
   | Vari(x)     -> output_string ch (name_of x)
-  | HFun(b)     -> let (x,t) = unbind mk_free (snd b) in
+  | HFun(_,_,b) -> let (x,t) = unbind mk_free (snd b) in
                    Printf.fprintf ch "(%s ↦ %a)" (name_of x) print_ex t
   | HApp(_,f,a) -> Printf.fprintf ch "%a(%a)" print_ex f print_ex a
   | Func(a,b)   -> let (l,r) = if is_arrow a then ("(",")") else ("","") in

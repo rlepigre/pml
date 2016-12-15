@@ -30,16 +30,11 @@ let lsubst : ('a, 'b) lbinder -> 'a -> 'b loc =
 let lbinder_cmp : ('a, 'b) lbinder -> ('b loc -> 'c loc) -> ('a, 'c) lbinder =
   fun (p, b) f -> (p, binder_compose_right b f)
 
-let lbinder_name : ('a, 'b) lbinder -> string =
-  fun (_, b) -> binder_name b
+let lbinder_name : ('a, 'b) lbinder -> strloc =
+  fun (p, b) -> build_pos p (binder_name b)
 
 let lbinder_from_fun : string -> ('a -> 'b) -> ('a,'b) lbinder =
   fun x f -> (None, binder_from_fun x (fun x -> Pos.none (f x)))
-
-(** Unification variable type. *)
-type 'a uvar =
-  { uvar_key : int
-  ; uvar_val : 'a option ref }
 
 (** {6 Main abstract syntax tree type} *)
 
@@ -54,7 +49,7 @@ type _ ex =
 
   (* Higher order stuff. *)
 
-  | HFun : ('a ex, 'b ex) lbinder                             -> ('a -> 'b) ex
+  | HFun : 'a sort * 'b sort * ('a ex, 'b ex) lbinder         -> ('a -> 'b) ex
   (** Higher-order function (e.g. parametric type). *)
   | HApp : 'a sort * ('a -> 'b) ex loc * 'a ex loc            -> 'b ex
   (** Corresponding higher-order application. *)
@@ -149,9 +144,14 @@ type _ ex =
   (** Universal quantifier witness (a.k.a. epsilon). *)
   | EWit : 'a sort * t ex loc * ('a ex, p ex) lbinder         -> 'a ex
   (** Existential quantifier witness (a.k.a. epsilon). *)
-  | UVar : 'a sort * 'a ex loc uvar                           -> 'a ex
+  | UVar : 'a sort * 'a uvar                                  -> 'a ex
   (** Unification variable. *)
   (* TODO add MuRec and NuRec *)
+
+(** Unification variable type. *)
+and 'a uvar =
+  { uvar_key : int
+  ; uvar_val : 'a ex loc option ref }
 
 type ordi = o ex loc (** Type of ordinals. *)
 type prop = p ex loc (** Type of types.    *)
@@ -185,10 +185,11 @@ let mk_free : 'a var -> 'a ex =
 let vari : type a. popt -> a var -> a ex loc bindbox =
   fun pos x -> box_apply (fun x -> {elt = x; pos}) (box_of_var x)
 
-let hfun : type a b. popt -> strloc -> (a var -> b box) -> (a -> b) box =
-  fun pos x f ->
+let hfun : type a b. popt -> a sort -> b sort -> strloc -> (a var -> b box)
+             -> (a -> b) box =
+  fun pos sa sb x f ->
     let b = vbind mk_free x.elt f in
-    box_apply (fun b -> {elt = HFun((x.pos, b)); pos}) b
+    box_apply (fun b -> {elt = HFun(sa, sb, (x.pos, b)); pos}) b
 
 let happ : type a b. popt -> a sort -> (a -> b) box -> a box -> b box =
   fun pos s -> box_apply2 (fun f a -> {elt = HApp(s,f,a); pos})
@@ -347,3 +348,13 @@ let succ : popt -> obox -> obox =
 
 let dumm : 'a ex loc =
   {elt = Dumm; pos = None}
+
+let uwit : type a. popt -> tbox -> strloc -> a sort -> (a var -> pbox) -> a box =
+  fun pos t x s f ->
+    let b = vbind mk_free x.elt f in
+    box_apply2 (fun t b -> {elt = UWit(s, t, (x.pos, b)); pos}) t b
+
+let ewit : type a. popt -> tbox -> strloc -> a sort -> (a var -> pbox) -> a box =
+  fun pos t x s f ->
+    let b = vbind mk_free x.elt f in
+    box_apply2 (fun t b -> {elt = EWit(s, t, (x.pos, b)); pos}) t b
