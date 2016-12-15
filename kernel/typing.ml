@@ -530,28 +530,9 @@ and type_stac : ctxt -> stac -> prop -> ctxt * stk_proof = fun ctx s c ->
   in
   (ctx, (s, c, r))
 
-(*
 let bind_uvar : type a. a sort -> a uvar -> prop -> (a ex, p ex) lbinder =
-  fun s u e ->
-    let rec fn : type a b. a sort -> a uvar -> b ex loc -> a ex bindbox -> b box =
-      fun s u e x ->
-        let e = Norm.whnf e in
-        match e.elt with
-        | Vari(x)     -> vari None x
-        | HApp(_,a,b) -> happ e.pos s (fn s u a x) (fn s u b x)
-        | UVar(t,v)   ->
-            begin
-              match eq_sort s t with
-              | Eq  -> if uvar_eq u v then box_apply Pos.none x else box e
-              | NEq -> box e
-            end
-        | _       -> assert false
-    in
-    (None, unbox (bind mk_free "#x" (fn s u e)))
-*)
-
-let bind_uvar : type a. a sort -> a uvar -> prop -> (a ex, p ex) lbinder =
-  let rec fn : type a b. a sort -> b sort -> a uvar -> b ex loc -> a ex bindbox -> b box =
+  let rec fn : type a b. a sort -> b sort -> a uvar -> b ex loc
+               -> a ex bindbox -> b box =
     fun sa sb uv e x ->
       let e = Norm.whnf e in
       match e.elt with
@@ -560,40 +541,61 @@ let bind_uvar : type a. a sort -> a uvar -> prop -> (a ex, p ex) lbinder =
                          (fun y -> fn sa t uv (lsubst b (mk_free y)) x)
       | HApp(s,a,b) -> happ e.pos s (fn sa (F(s,sb)) uv a x) (fn sa s uv b x)
       | Func(a,b)   -> func e.pos (fn sa P uv a x) (fn sa P uv b x)
-      | Prod(m)     -> box e (* TODO *)
-      | DSum(m)     -> box e (* TODO *)
+      | Prod(m)     -> let gn (l,a) = (l, fn sa P uv a x) in
+                       prod e.pos (M.map gn m)
+      | DSum(m)     -> let gn (c,a) = (c, fn sa P uv a x) in
+                       dsum e.pos (M.map gn m)
       | Univ(s,b)   -> univ e.pos (lbinder_name b) s
                          (fun y -> fn sa sb uv (lsubst b (mk_free y)) x)
       | Exis(s,b)   -> exis e.pos (lbinder_name b) s
                          (fun y -> fn sa sb uv (lsubst b (mk_free y)) x)
-      | FixM(o,b)   -> box e (* TODO *)
-      | FixN(o,b)   -> box e (* TODO *)
-      | Memb(t,a)   -> box e (* TODO *)
-      | Rest(a,eq)  -> box e (* TODO *)
-      | LAbs(_,b)   -> box e (* TODO *)
-      | Cons(_,v)   -> box e (* TODO *)
-      | Reco(m)     -> box e (* TODO *)
+      | FixM(o,b)   -> fixm e.pos (fn sa O uv o x) (lbinder_name b)
+                         (fun y -> fn sa P uv (lsubst b (mk_free y)) x)
+      | FixN(o,b)   -> fixm e.pos (fn sa O uv o x) (lbinder_name b)
+                         (fun y -> fn sa P uv (lsubst b (mk_free y)) x)
+      | Memb(t,a)   -> memb e.pos (fn sa T uv t x) (fn sa P uv a x)
+      | Rest(a,eq)  -> let (t,b,u) = eq in
+                       rest e.pos (fn sa P uv a x)
+                         ((fn sa T uv t x, b, fn sa T uv u x))
+      | LAbs(ao,b)  -> labs e.pos (Option.map (fun a -> fn sa P uv a x) ao)
+                         (lbinder_name b)
+                         (fun y -> fn sa T uv (lsubst b (mk_free y)) x)
+      | Cons(c,v)   -> cons e.pos c (fn sa V uv v x)
+      | Reco(m)     -> let gn (l,v) = (l, fn sa V uv v x) in
+                       reco e.pos (M.map gn m)
       | Scis        -> scis e.pos
       | Valu(v)     -> valu e.pos (fn sa V uv v x)
       | Appl(t,u)   -> appl e.pos (fn sa T uv t x) (fn sa T uv u x)
-      | MAbs(_,b)   -> box e (* TODO *)
-      | Name(s,t)   -> box e (* TODO *)
-      | Proj(v,_)   -> box e (* TODO *)
-      | Case(v,m)   -> box e (* TODO *)
+      | MAbs(ao,b)  -> mabs e.pos (Option.map (fun a -> fn sa P uv a x) ao)
+                         (lbinder_name b)
+                         (fun y -> fn sa T uv (lsubst b (mk_free y)) x)
+      | Name(s,t)   -> name e.pos (fn sa S uv s x) (fn sa T uv t x)
+      | Proj(v,l)   -> proj e.pos (fn sa V uv v x) l
+      | Case(v,m)   -> let gn (p,b) =
+                         let f y = fn sa T uv (lsubst b (mk_free y)) x in
+                         (p, lbinder_name b, f)
+                       in
+                       case e.pos (fn sa V uv v x) (M.map gn m)
       | FixY(t,v)   -> fixy e.pos (fn sa T uv t x) (fn sa V uv v x)
       | Epsi        -> box e
       | Push(v,s)   -> push e.pos (fn sa V uv v x) (fn sa S uv s x)
       | Fram(t,s)   -> fram e.pos (fn sa T uv t x) (fn sa S uv s x)
       | Conv        -> box e
       | Succ(o)     -> succ e.pos (fn sa O uv o x)
-      | VTyp(v,_)   -> box e (* TODO *)
-      | TTyp(t,_)   -> box e (* TODO *)
-      | VLam(_,b)   -> box e (* TODO *)
-      | TLam(_,b)   -> box e (* TODO *)
+      | VTyp(v,a)   -> vtyp e.pos (fn sa V uv v x) (fn sa P uv a x)
+      | TTyp(t,a)   -> ttyp e.pos (fn sa T uv t x) (fn sa P uv a x)
+      | VLam(s,b)   -> vlam e.pos (lbinder_name b) s
+                         (fun y -> fn sa V uv (lsubst b (mk_free y)) x)
+      | TLam(s,b)   -> tlam e.pos (lbinder_name b) s
+                         (fun y -> fn sa T uv (lsubst b (mk_free y)) x)
       | ITag(_)     -> box e
       | Dumm        -> box e
-      | VWit(b,a,c) -> box e (* TODO *)
-      | SWit(b,a)   -> box e (* TODO *)
+      | VWit(b,a,c) -> vwit e.pos (lbinder_name b)
+                         (fun y -> fn sa T uv (lsubst b (mk_free y)) x)
+                         (fn sa P uv a x) (fn sa P uv c x)
+      | SWit(b,a)   -> swit e.pos (lbinder_name b)
+                         (fun y -> fn sa T uv (lsubst b (mk_free y)) x)
+                         (fn sa P uv a x)
       | UWit(s,t,b) -> uwit e.pos (fn sa T uv t x) (lbinder_name b) s
                          (fun y -> fn sa P uv (lsubst b (mk_free y)) x)
       | EWit(s,t,b) -> ewit e.pos (fn sa T uv t x) (lbinder_name b) s

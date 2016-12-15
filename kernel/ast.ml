@@ -358,3 +358,13 @@ let ewit : type a. popt -> tbox -> strloc -> a sort -> (a var -> pbox) -> a box 
   fun pos t x s f ->
     let b = vbind mk_free x.elt f in
     box_apply2 (fun t b -> {elt = EWit(s, t, (x.pos, b)); pos}) t b
+
+let vwit : popt -> strloc -> (vvar -> tbox) -> pbox -> pbox -> vbox =
+  fun pos x f a c ->
+    let b = vbind mk_free x.elt f in
+    box_apply3 (fun b a c -> {elt = VWit((x.pos, b),a,c); pos}) b a c
+
+let swit : popt -> strloc -> (svar -> tbox) -> pbox -> sbox =
+  fun pos x f a ->
+    let b = vbind mk_free x.elt f in
+    box_apply2 (fun b a -> {elt = SWit((x.pos, b),a); pos}) b a
