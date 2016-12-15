@@ -57,6 +57,64 @@ let eq_opt : type a. (a -> a -> bool) -> a option -> a option -> bool =
     | (Some a, Some b) -> cmp a b
     | (_     , _     ) -> false
 
+
+type uvar_fun = { f : 'a. 'a sort -> 'a ex loc uvar -> unit }
+
+let rec uvar_iter : type a. uvar_fun -> a ex loc -> unit = fun f e ->
+  let uvar_iter_eq f (t,_,u) = uvar_iter f t; uvar_iter f u in
+  match (Norm.whnf e).elt with
+  | Vari(_)     -> ()
+  | HFun(b)     -> uvar_iter f (lsubst b Dumm)
+  | HApp(_,a,b) -> uvar_iter f a; uvar_iter f b
+  | Func(a,b)   -> uvar_iter f a; uvar_iter f b
+  | Prod(m)     -> M.iter (fun _ (_,a) -> uvar_iter f a) m
+  | DSum(m)     -> M.iter (fun _ (_,a) -> uvar_iter f a) m
+  | Univ(_,b)   -> uvar_iter f (lsubst b Dumm)
+  | Exis(_,b)   -> uvar_iter f (lsubst b Dumm)
+  | FixM(o,b)   -> uvar_iter f o; uvar_iter f (lsubst b Dumm)
+  | FixN(o,b)   -> uvar_iter f o; uvar_iter f (lsubst b Dumm)
+  | Memb(t,a)   -> uvar_iter f t; uvar_iter f a
+  | Rest(a,eq)  -> uvar_iter f a; uvar_iter_eq f eq
+  | LAbs(_,b)   -> uvar_iter f (lsubst b Dumm) (* NOTE type ignored *)
+  | Cons(_,v)   -> uvar_iter f v
+  | Reco(m)     -> M.iter (fun _ (_,a) -> uvar_iter f a) m
+  | Scis        -> ()
+  | Valu(v)     -> uvar_iter f v
+  | Appl(t,u)   -> uvar_iter f t; uvar_iter f u
+  | MAbs(_,b)   -> uvar_iter f (lsubst b Dumm) (* NOTE type ignored *)
+  | Name(s,t)   -> uvar_iter f s; uvar_iter f t
+  | Proj(v,_)   -> uvar_iter f v
+  | Case(v,m)   -> let fn _ (_,b) = uvar_iter f (lsubst b Dumm) in
+                   uvar_iter f v; M.iter fn m
+  | FixY(t,v)   -> uvar_iter f t; uvar_iter f v
+  | Epsi        -> ()
+  | Push(v,s)   -> uvar_iter f v; uvar_iter f s
+  | Fram(t,s)   -> uvar_iter f t; uvar_iter f s
+  | Conv        -> ()
+  | Succ(o)     -> uvar_iter f o
+  | VTyp(v,_)   -> uvar_iter f v (* NOTE type ignored *)
+  | TTyp(t,_)   -> uvar_iter f t (* NOTE type ignored *)
+  | VLam(_,b)   -> uvar_iter f (lsubst b Dumm)
+  | TLam(_,b)   -> uvar_iter f (lsubst b Dumm)
+  | ITag(_)     -> ()
+  | Dumm        -> ()
+  | VWit(b,a,c) -> uvar_iter f (lsubst b Dumm); uvar_iter f a; uvar_iter f c
+  | SWit(b,a)   -> uvar_iter f (lsubst b Dumm); uvar_iter f a
+  | UWit(_,t,b) -> uvar_iter f t; uvar_iter f (lsubst b Dumm)
+  | EWit(_,t,b) -> uvar_iter f t; uvar_iter f (lsubst b Dumm)
+  | UVar(s,u)   -> f.f s u
+
+type s_elt = U : 'a sort * 'a ex loc uvar -> s_elt
+
+let uvars : type a. a ex loc -> s_elt list = fun e ->
+  let uvars = ref [] in
+  uvar_iter { f = (fun s u -> uvars := (U(s,u)) :: !uvars) } e;
+  !uvars
+
+let uvar_occurs : type a b. a ex loc uvar -> b ex loc -> bool = fun u e ->
+  let fn = { f = (fun _ v -> if v.uvar_key == u.uvar_key then raise Exit) } in
+  try uvar_iter fn e; false with Exit -> true
+
 let eq_expr : type a. a ex loc -> a ex loc -> bool = fun e1 e2 ->
   log_equ "%a = %a" Print.ex e1 Print.ex e2;
   let c = ref (-1) in
@@ -166,10 +224,13 @@ let eq_expr : type a. a ex loc -> a ex loc -> bool = fun e1 e2 ->
                    eq_expr (lsubst b1 t) (lsubst b2 t) && eq_expr t1 t2
           | NEq -> false
         end
-    | (UVar(_,u1)    , UVar(_,u2)    ) -> if u1.uvar_key <> u2.uvar_key then
-                                            uvar_set u1 e2; true
-    | (UVar(_,u1)    , _             ) -> uvar_set u1 e2; true
-    | (_             , UVar(_,u2)    ) -> uvar_set u2 e1; true
+    | (UVar(_,u1)    , UVar(_,u2)    ) ->
+        if u1.uvar_key <> u2.uvar_key then uvar_set u1 e2;
+        true
+    | (UVar(_,u1)    , _             ) ->
+        if uvar_occurs u1 e2 then false else (uvar_set u1 e2; true)
+    | (_             , UVar(_,u2)    ) ->
+        if uvar_occurs u2 e1 then false else (uvar_set u2 e1; true)
     | _                                -> false
   in eq_expr e1 e2
 
