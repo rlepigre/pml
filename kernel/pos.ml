@@ -92,3 +92,22 @@ let short_pos_to_string : pos -> string =
     using a shorter format that [print_pos oc pos]. *)
 let print_short_pos : out_channel -> pos -> unit =
   fun ch p -> output_string ch (short_pos_to_string p)
+
+open Bindlib
+
+(** Type of a (bindlib) binder with support for positions.
+    @see <https://www.lama.univ-savoie.fr/~raffalli/bindlib.html> bindlib *)
+type (-'a, +'b) lbinder = pos option * ('a, 'b loc) binder
+(** The optional position refers to the bound variable. *)
+
+(** Substitution function. *)
+let lsubst : ('a, 'b) lbinder -> 'a -> 'b loc =
+  fun (_,b) t -> subst b t
+
+let lbinder_name : ('a, 'b) lbinder -> strloc =
+  fun (p, b) -> build_pos p (binder_name b)
+
+let lbinder_from_fun : string -> ('a -> 'b) -> ('a,'b) lbinder =
+  fun x f -> (None, binder_from_fun x (fun x -> none (f x)))
+
+

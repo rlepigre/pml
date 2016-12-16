@@ -18,24 +18,6 @@ module M =
       fun f m -> lift_box (map f m)
   end
 
-(** Type of a (bindlib) binder with support for positions.
-    @see <https://www.lama.univ-savoie.fr/~raffalli/bindlib.html> bindlib *)
-type (-'a, +'b) lbinder = pos option * ('a, 'b loc) binder
-(** The optional position refers to the bound variable. *)
-
-(** Substitution function. *)
-let lsubst : ('a, 'b) lbinder -> 'a -> 'b loc =
-  fun (_,b) t -> subst b t
-
-let lbinder_cmp : ('a, 'b) lbinder -> ('b loc -> 'c loc) -> ('a, 'c) lbinder =
-  fun (p, b) f -> (p, binder_compose_right b f)
-
-let lbinder_name : ('a, 'b) lbinder -> strloc =
-  fun (p, b) -> build_pos p (binder_name b)
-
-let lbinder_from_fun : string -> ('a -> 'b) -> ('a,'b) lbinder =
-  fun x f -> (None, binder_from_fun x (fun x -> Pos.none (f x)))
-
 (** {6 Main abstract syntax tree type} *)
 
 (** Type of (well-sorted) expressions. This is the core abstract syntax
@@ -349,12 +331,14 @@ let succ : popt -> obox -> obox =
 let dumm : 'a ex loc =
   {elt = Dumm; pos = None}
 
-let uwit : type a. popt -> tbox -> strloc -> a sort -> (a var -> pbox) -> a box =
+let uwit : type a. popt -> tbox -> strloc -> a sort -> (a var -> pbox)
+             -> a box =
   fun pos t x s f ->
     let b = vbind mk_free x.elt f in
     box_apply2 (fun t b -> {elt = UWit(s, t, (x.pos, b)); pos}) t b
 
-let ewit : type a. popt -> tbox -> strloc -> a sort -> (a var -> pbox) -> a box =
+let ewit : type a. popt -> tbox -> strloc -> a sort -> (a var -> pbox)
+             -> a box =
   fun pos t x s f ->
     let b = vbind mk_free x.elt f in
     box_apply2 (fun t b -> {elt = EWit(s, t, (x.pos, b)); pos}) t b
