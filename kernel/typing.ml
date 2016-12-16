@@ -600,7 +600,6 @@ let bind_uvar : type a. a sort -> a uvar -> prop -> (a ex, p ex) lbinder =
                          (fun y -> fn sa P uv (lsubst b (mk_free y)) x)
       | EWit(s,t,b) -> ewit e.pos (fn sa T uv t x) (lbinder_name b) s
                          (fun y -> fn sa P uv (lsubst b (mk_free y)) x)
-
       | UVar(t,v)   ->
           begin
             match eq_sort sa t with
