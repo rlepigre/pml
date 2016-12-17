@@ -59,27 +59,29 @@ let rec uvar_iter : type a. uvar_fun -> a ex loc -> unit = fun f e ->
   let uvar_iter_eq f (t,_,u) = uvar_iter f t; uvar_iter f u in
   match (Norm.whnf e).elt with
   | Vari(_)     -> ()
-  | HFun(_,_,b) -> uvar_iter f (lsubst b Dumm)
+  | HFun(_,_,b) -> uvar_iter f (bndr_subst b Dumm)
   | HApp(_,a,b) -> uvar_iter f a; uvar_iter f b
   | Func(a,b)   -> uvar_iter f a; uvar_iter f b
   | Prod(m)     -> M.iter (fun _ (_,a) -> uvar_iter f a) m
   | DSum(m)     -> M.iter (fun _ (_,a) -> uvar_iter f a) m
-  | Univ(_,b)   -> uvar_iter f (lsubst b Dumm)
-  | Exis(_,b)   -> uvar_iter f (lsubst b Dumm)
-  | FixM(o,b)   -> uvar_iter f o; uvar_iter f (lsubst b Dumm)
-  | FixN(o,b)   -> uvar_iter f o; uvar_iter f (lsubst b Dumm)
+  | Univ(_,b)   -> uvar_iter f (bndr_subst b Dumm)
+  | Exis(_,b)   -> uvar_iter f (bndr_subst b Dumm)
+  | FixM(o,b)   -> uvar_iter f o; uvar_iter f (bndr_subst b Dumm)
+  | FixN(o,b)   -> uvar_iter f o; uvar_iter f (bndr_subst b Dumm)
   | Memb(t,a)   -> uvar_iter f t; uvar_iter f a
   | Rest(a,eq)  -> uvar_iter f a; uvar_iter_eq f eq
-  | LAbs(_,b)   -> uvar_iter f (lsubst b Dumm) (* NOTE type ignored *)
+  (* NOTE type annotation ignored. *)
+  | LAbs(_,b)   -> uvar_iter f (bndr_subst b Dumm)
   | Cons(_,v)   -> uvar_iter f v
   | Reco(m)     -> M.iter (fun _ (_,a) -> uvar_iter f a) m
   | Scis        -> ()
   | Valu(v)     -> uvar_iter f v
   | Appl(t,u)   -> uvar_iter f t; uvar_iter f u
-  | MAbs(_,b)   -> uvar_iter f (lsubst b Dumm) (* NOTE type ignored *)
+  (* NOTE type annotation ignored. *)
+  | MAbs(_,b)   -> uvar_iter f (bndr_subst b Dumm)
   | Name(s,t)   -> uvar_iter f s; uvar_iter f t
   | Proj(v,_)   -> uvar_iter f v
-  | Case(v,m)   -> let fn _ (_,b) = uvar_iter f (lsubst b Dumm) in
+  | Case(v,m)   -> let fn _ (_,b) = uvar_iter f (bndr_subst b Dumm) in
                    uvar_iter f v; M.iter fn m
   | FixY(t,v)   -> uvar_iter f t; uvar_iter f v
   | Epsi        -> ()
@@ -87,16 +89,18 @@ let rec uvar_iter : type a. uvar_fun -> a ex loc -> unit = fun f e ->
   | Fram(t,s)   -> uvar_iter f t; uvar_iter f s
   | Conv        -> ()
   | Succ(o)     -> uvar_iter f o
-  | VTyp(v,_)   -> uvar_iter f v (* NOTE type ignored *)
-  | TTyp(t,_)   -> uvar_iter f t (* NOTE type ignored *)
-  | VLam(_,b)   -> uvar_iter f (lsubst b Dumm)
-  | TLam(_,b)   -> uvar_iter f (lsubst b Dumm)
+  (* NOTE type annotations ignored. *)
+  | VTyp(v,_)   -> uvar_iter f v
+  | TTyp(t,_)   -> uvar_iter f t
+  | VLam(_,b)   -> uvar_iter f (bndr_subst b Dumm)
+  | TLam(_,b)   -> uvar_iter f (bndr_subst b Dumm)
   | ITag(_)     -> ()
   | Dumm        -> ()
-  | VWit(b,a,c) -> uvar_iter f (lsubst b Dumm); uvar_iter f a; uvar_iter f c
-  | SWit(b,a)   -> uvar_iter f (lsubst b Dumm); uvar_iter f a
-  | UWit(_,t,b) -> uvar_iter f t; uvar_iter f (lsubst b Dumm)
-  | EWit(_,t,b) -> uvar_iter f t; uvar_iter f (lsubst b Dumm)
+  | VWit(b,a,c) -> uvar_iter f (bndr_subst b Dumm);
+                   uvar_iter f a; uvar_iter f c
+  | SWit(b,a)   -> uvar_iter f (bndr_subst b Dumm); uvar_iter f a
+  | UWit(_,t,b) -> uvar_iter f t; uvar_iter f (bndr_subst b Dumm)
+  | EWit(_,t,b) -> uvar_iter f t; uvar_iter f (bndr_subst b Dumm)
   | UVar(s,u)   -> f.f s u
 
 type s_elt = U : 'a sort * 'a uvar -> s_elt
@@ -123,7 +127,7 @@ let eq_expr : type a. a ex loc -> a ex loc -> bool = fun e1 e2 ->
         Bindlib.eq_variables x1 x2
     | (HFun(_,_,b1)  , HFun(_,_,b2)  ) ->
         let t = new_itag () in
-        eq_expr (lsubst b1 t) (lsubst b2 t)
+        eq_expr (bndr_subst b1 t) (bndr_subst b2 t)
     | (HApp(s1,f1,a1), HApp(s2,f2,a2)) ->
         begin
           match eq_sort s1 s2 with
@@ -139,43 +143,43 @@ let eq_expr : type a. a ex loc -> a ex loc -> bool = fun e1 e2 ->
         begin
           match eq_sort s1 s2 with
           | Eq  -> let t = new_itag () in
-                   eq_expr (lsubst b1 t) (lsubst b2 t)
+                   eq_expr (bndr_subst b1 t) (bndr_subst b2 t)
           | NEq -> false
         end
     | (Exis(s1,b1)   , Exis(s2,b2)   ) ->
         begin
           match eq_sort s1 s2 with
           | Eq  -> let t = new_itag () in
-                   eq_expr (lsubst b1 t) (lsubst b2 t)
+                   eq_expr (bndr_subst b1 t) (bndr_subst b2 t)
           | NEq -> false
         end
     | (FixM(o1,b1)   , FixM(o2,b2)   ) ->
         let t = new_itag () in
-        eq_expr o1 o2 && eq_expr (lsubst b1 t) (lsubst b2 t)
+        eq_expr o1 o2 && eq_expr (bndr_subst b1 t) (bndr_subst b2 t)
     | (FixN(o1,b1)   , FixN(o2,b2)   ) ->
         let t = new_itag () in
-        eq_expr o1 o2 && eq_expr (lsubst b1 t) (lsubst b2 t)
+        eq_expr o1 o2 && eq_expr (bndr_subst b1 t) (bndr_subst b2 t)
     | (Memb(t1,a1)   , Memb(t2,a2)   ) -> eq_expr t1 t2 && eq_expr a1 a2
     | (Rest(a1,eq1)  , Rest(a2,eq2)  ) ->
         let (t1,b1,u1) = eq1 and (t2,b2,u2) = eq2 in
         b1 = b2 && eq_expr a1 a2 && eq_expr t1 t2 && eq_expr u1 u2
-    | (LAbs(ao1,b1)  , LAbs(ao2,b2)  ) ->
-        let t = new_itag () in
-        Option.equal eq_expr ao1 ao2 && eq_expr (lsubst b1 t) (lsubst b2 t)
+    (* NOTE type annotation ignored. *)
+    | (LAbs(_,b1)    , LAbs(_,b2)    ) ->
+        let t = new_itag () in eq_expr (bndr_subst b1 t) (bndr_subst b2 t)
     | (Cons(c1,v1)   , Cons(c2,v2)   ) -> c1.elt = c2.elt && eq_expr v1 v2
     | (Reco(m1)      , Reco(m2)      ) ->
         M.equal (fun (_,v1) (_,v2) -> eq_expr v1 v2) m1 m2
     | (Scis          , Scis          ) -> true
     | (Valu(v1)      , Valu(v2)      ) -> eq_expr v1 v2
     | (Appl(t1,u1)   , Appl(t2,u2)   ) -> eq_expr t1 t2 && eq_expr u1 u2
-    | (MAbs(ao1,b1)  , MAbs(ao2,b2)  ) ->
-        let t = new_itag () in
-        Option.equal eq_expr ao1 ao2 && eq_expr (lsubst b1 t) (lsubst b2 t)
+    (* NOTE type annotation ignored. *)
+    | (MAbs(_,b1)    , MAbs(_,b2)    ) ->
+        let t = new_itag () in eq_expr (bndr_subst b1 t) (bndr_subst b2 t)
     | (Name(s1,t1)   , Name(s2,t2)   ) -> eq_expr s1 s2 && eq_expr t1 t2
     | (Proj(v1,l1)   , Proj(v2,l2)   ) -> l1.elt = l2.elt && eq_expr v1 v2
     | (Case(v1,m1)   , Case(v2,m2)   ) ->
         let cmp (_,b1) (_,b2) =
-          let t = new_itag () in eq_expr (lsubst b1 t) (lsubst b2 t)
+          let t = new_itag () in eq_expr (bndr_subst b1 t) (bndr_subst b2 t)
         in
         eq_expr v1 v2 && M.equal cmp m1 m2
     | (FixY(t1,v1)   , FixY(t2,v2)   ) -> eq_expr t1 t2 && eq_expr v1 v2
@@ -184,42 +188,36 @@ let eq_expr : type a. a ex loc -> a ex loc -> bool = fun e1 e2 ->
     | (Fram(t1,s1)   , Fram(t2,s2)   ) -> eq_expr t1 t2 && eq_expr s1 s2
     | (Conv          , Conv          ) -> true
     | (Succ(o1)      , Succ(o2)      ) -> eq_expr o1 o2
-    | (VTyp(v1,a1)   , VTyp(v2,a2)   ) -> eq_expr v1 v2 && eq_expr a1 a2
-    | (TTyp(t1,a1)   , TTyp(t2,a2)   ) -> eq_expr t1 t2 && eq_expr a1 a2
-    | (VLam(s1,b1)   , VLam(s2,b2)   ) ->
-        begin
-          match eq_sort s1 s2 with
-          | Eq  -> let t = new_itag () in
-                   eq_expr (lsubst b1 t) (lsubst b2 t)
-          | NEq -> false
-        end
-    | (TLam(s1,b1)   , TLam(s2,b2)   ) ->
-        begin
-          match eq_sort s1 s2 with
-          | Eq  -> let t = new_itag () in
-                   eq_expr (lsubst b1 t) (lsubst b2 t)
-          | NEq -> false
-        end
+    (* NOTE type annotations ignored. *)
+    | (VTyp(v1,_)    , _             ) -> eq_expr v1 e2
+    | (_             , VTyp(v2,_)    ) -> eq_expr e1 v2
+    | (TTyp(t1,_)    , _             ) -> eq_expr t1 e2
+    | (_             , TTyp(t2,_)    ) -> eq_expr e1 t2
+    | (VLam(_,b1)    , _             ) -> eq_expr (bndr_subst b1 Dumm) e2
+    | (_             , VLam(_,b2)    ) -> eq_expr e1 (bndr_subst b2 Dumm)
+    | (TLam(_,b1)    , _             ) -> eq_expr (bndr_subst b1 Dumm) e2
+    | (_             , TLam(_,b2)    ) -> eq_expr e1 (bndr_subst b2 Dumm)
     | (ITag(i1)      , ITag(i2)      ) -> i1 = i2
-    | (Dumm          , Dumm          ) -> false (* Should not be compared *)
+    (* NOTE should not be compare dummy expressions. *)
+    | (Dumm          , Dumm          ) -> false
     | (VWit(f1,a1,b1), VWit(f2,a2,b2)) ->
         let t = new_itag () in
-        eq_expr (lsubst f1 t) (lsubst f2 t) && eq_expr a1 a2 && eq_expr b1 b2
+        eq_expr (bndr_subst f1 t) (bndr_subst f2 t) && eq_expr a1 a2 && eq_expr b1 b2
     | (SWit(f1,a1)   , SWit(f2,a2)   ) ->
         let t = new_itag () in
-        eq_expr (lsubst f1 t) (lsubst f2 t) && eq_expr a1 a2
+        eq_expr (bndr_subst f1 t) (bndr_subst f2 t) && eq_expr a1 a2
     | (UWit(s1,t1,b1), UWit(s2,t2,b2)) ->
         begin
           match eq_sort s1 s2 with
           | Eq  -> let t = new_itag () in
-                   eq_expr (lsubst b1 t) (lsubst b2 t) && eq_expr t1 t2
+                   eq_expr (bndr_subst b1 t) (bndr_subst b2 t) && eq_expr t1 t2
           | NEq -> false
         end
     | (EWit(s1,t1,b1), EWit(s2,t2,b2)) ->
         begin
           match eq_sort s1 s2 with
           | Eq  -> let t = new_itag () in
-                   eq_expr (lsubst b1 t) (lsubst b2 t) && eq_expr t1 t2
+                   eq_expr (bndr_subst b1 t) (bndr_subst b2 t) && eq_expr t1 t2
           | NEq -> false
         end
     | (UVar(_,u1)    , UVar(_,u2)    ) ->
@@ -269,12 +267,12 @@ and sub_proof = term * prop * prop * sub_rule
 let rec get_lam : type a. string -> a sort -> term -> prop -> a ex * prop =
   fun x s t c ->
     match (Norm.whnf c).elt with
-    | Univ(k,f) when (lbinder_name f).elt <> x ->
+    | Univ(k,f) when (bndr_name f).elt <> x ->
         unexpected "Name missmatch between Λ and ∀..."
     | Univ(k,f) ->
         begin
           match eq_sort s k with
-          | Eq  -> let wit = UWit(k,t,f) in (wit, lsubst f wit)
+          | Eq  -> let wit = UWit(k,t,f) in (wit, bndr_subst f wit)
           | NEq -> unexpected "Sort missmatch between Λ and ∀..."
         end
     | _         -> unexpected "Expected ∀ type..."
@@ -329,12 +327,12 @@ let rec subtype : ctxt -> term -> prop -> prop -> ctxt * sub_proof =
           (ctx, Sub_DSum(ps))
       (* Universal quantification on the right. *)
       | (_          , Univ(s,f)  ) ->
-          let (ctx, p) = subtype ctx t a (lsubst f (UWit(s,t,f))) in
+          let (ctx, p) = subtype ctx t a (bndr_subst f (UWit(s,t,f))) in
           (ctx, Sub_Univ_r(p))
       (* Universal quantification on the left. *)
       | (Univ(s,f)  , _          ) ->
           let (ctx, u) = new_uvar ctx s in
-          let (ctx, p) = subtype ctx t (lsubst f u.elt) b in
+          let (ctx, p) = subtype ctx t (bndr_subst f u.elt) b in
           (ctx, Sub_Univ_l(p))
       (* TODO *)
       | _                          ->
@@ -362,7 +360,7 @@ and type_valu : ctxt -> valu -> prop -> ctxt * typ_proof = fun ctx v c ->
         (* TODO NuRec ? *)
         let (ctx, p1) = subtype ctx t c' c in
         let wit = VWit(f, a, b) in
-        let (ctx, p2) = type_term ctx (lsubst f wit) b in
+        let (ctx, p2) = type_term ctx (bndr_subst f wit) b in
         (ctx, Typ_Func_i(p1,p2))
     (* Constructor. *)
     | Cons(d,v)   ->
@@ -399,8 +397,8 @@ and type_valu : ctxt -> valu -> prop -> ctxt * typ_proof = fun ctx v c ->
         (ctx, Typ_VTyp(p1,p2))
     (* Type abstraction. *)
     | VLam(s,b)   ->
-        let (w, c) = get_lam (lbinder_name b).elt s t c in
-        let (ctx, p) = type_valu ctx (lsubst b w) c in
+        let (w, c) = get_lam (bndr_name b).elt s t c in
+        let (ctx, p) = type_valu ctx (bndr_subst b w) c in
         (ctx, Typ_VLam(p))
     (* Witness. *)
     | VWit(_,a,_) ->
@@ -437,7 +435,7 @@ and type_term : ctxt -> term -> prop -> ctxt * typ_proof = fun ctx t c ->
           | None   -> new_uvar ctx P
           | Some a -> (ctx, a)
         in
-        let t = lsubst b (SWit(b,c)) in
+        let t = bndr_subst b (SWit(b,c)) in
         let (ctx, p) = type_term ctx t c in
         (ctx, Typ_Mu(p))
     (* Named term. *)
@@ -462,7 +460,7 @@ and type_term : ctxt -> term -> prop -> ctxt * typ_proof = fun ctx t c ->
         let check d (p,f) (ctx, ps) =
           let (_,a) = M.find d ts in
           let wit = VWit(f, a, c) in
-          let (ctx, p) = type_term ctx (lsubst f wit) c in
+          let (ctx, p) = type_term ctx (bndr_subst f wit) c in
           (ctx, p::ps)
         in
         let (ctx, ps) = M.fold check m (ctx, []) in
@@ -477,8 +475,8 @@ and type_term : ctxt -> term -> prop -> ctxt * typ_proof = fun ctx t c ->
         (ctx, Typ_TTyp(p1,p2))
     (* Type abstraction. *)
     | TLam(s,b)   ->
-        let (w, c) = get_lam (lbinder_name b).elt s t c in
-        let (ctx, p) = type_term ctx (lsubst b w) c in
+        let (w, c) = get_lam (bndr_name b).elt s t c in
+        let (ctx, p) = type_term ctx (bndr_subst b w) c in
         (ctx, Typ_TLam(p))
     (* Constructors that cannot appear in user-defined terms. *)
     | UWit(_,_,_) -> unexpected "∀-witness during typing..."
@@ -499,7 +497,7 @@ and type_stac : ctxt -> stac -> prop -> ctxt * stk_proof = fun ctx s c ->
         let (ctx, a) = new_uvar ctx P in
         let (ctx, b) = new_uvar ctx P in
         let wit =
-          let f = lbinder_from_fun "x" (fun x -> Valu(Pos.none x)) in
+          let f = bndr_from_fun "x" (fun x -> Valu(Pos.none x)) in
           Pos.none (Valu(Pos.none (VWit(f, a, b))))
         in
         let (ctx, p1) = subtype ctx wit (Pos.none (Func(a,b))) c in
@@ -513,7 +511,7 @@ and type_stac : ctxt -> stac -> prop -> ctxt * stk_proof = fun ctx s c ->
         (ctx, Stk_Fram(p1,p2))
     | SWit(_,a)   ->
         let wit =
-          let f = lbinder_from_fun "x" (fun x -> Valu(Pos.none x)) in
+          let f = bndr_from_fun "x" (fun x -> Valu(Pos.none x)) in
           Pos.none (Valu(Pos.none (VWit(f, a, c))))
         in
         let (ctx, p) = subtype ctx wit a c in
@@ -530,36 +528,36 @@ and type_stac : ctxt -> stac -> prop -> ctxt * stk_proof = fun ctx s c ->
   in
   (ctx, (s, c, r))
 
-let bind_uvar : type a. a sort -> a uvar -> prop -> (a ex, p ex) lbinder =
+let bind_uvar : type a. a sort -> a uvar -> prop -> (a, p) bndr =
   let rec fn : type a b. a sort -> b sort -> a uvar -> b ex loc
                -> a ex bindbox -> b box =
     fun sa sb uv e x ->
       let e = Norm.whnf e in
       match e.elt with
       | Vari(x)     -> vari None x
-      | HFun(s,t,b) -> hfun e.pos s t (lbinder_name b)
-                         (fun y -> fn sa t uv (lsubst b (mk_free y)) x)
+      | HFun(s,t,b) -> hfun e.pos s t (bndr_name b)
+                         (fun y -> fn sa t uv (bndr_subst b (mk_free y)) x)
       | HApp(s,a,b) -> happ e.pos s (fn sa (F(s,sb)) uv a x) (fn sa s uv b x)
       | Func(a,b)   -> func e.pos (fn sa P uv a x) (fn sa P uv b x)
       | Prod(m)     -> let gn (l,a) = (l, fn sa P uv a x) in
                        prod e.pos (M.map gn m)
       | DSum(m)     -> let gn (c,a) = (c, fn sa P uv a x) in
                        dsum e.pos (M.map gn m)
-      | Univ(s,b)   -> univ e.pos (lbinder_name b) s
-                         (fun y -> fn sa sb uv (lsubst b (mk_free y)) x)
-      | Exis(s,b)   -> exis e.pos (lbinder_name b) s
-                         (fun y -> fn sa sb uv (lsubst b (mk_free y)) x)
-      | FixM(o,b)   -> fixm e.pos (fn sa O uv o x) (lbinder_name b)
-                         (fun y -> fn sa P uv (lsubst b (mk_free y)) x)
-      | FixN(o,b)   -> fixm e.pos (fn sa O uv o x) (lbinder_name b)
-                         (fun y -> fn sa P uv (lsubst b (mk_free y)) x)
+      | Univ(s,b)   -> univ e.pos (bndr_name b) s
+                         (fun y -> fn sa sb uv (bndr_subst b (mk_free y)) x)
+      | Exis(s,b)   -> exis e.pos (bndr_name b) s
+                         (fun y -> fn sa sb uv (bndr_subst b (mk_free y)) x)
+      | FixM(o,b)   -> fixm e.pos (fn sa O uv o x) (bndr_name b)
+                         (fun y -> fn sa P uv (bndr_subst b (mk_free y)) x)
+      | FixN(o,b)   -> fixm e.pos (fn sa O uv o x) (bndr_name b)
+                         (fun y -> fn sa P uv (bndr_subst b (mk_free y)) x)
       | Memb(t,a)   -> memb e.pos (fn sa T uv t x) (fn sa P uv a x)
       | Rest(a,eq)  -> let (t,b,u) = eq in
                        rest e.pos (fn sa P uv a x)
                          ((fn sa T uv t x, b, fn sa T uv u x))
       | LAbs(ao,b)  -> labs e.pos (Option.map (fun a -> fn sa P uv a x) ao)
-                         (lbinder_name b)
-                         (fun y -> fn sa T uv (lsubst b (mk_free y)) x)
+                         (bndr_name b)
+                         (fun y -> fn sa T uv (bndr_subst b (mk_free y)) x)
       | Cons(c,v)   -> cons e.pos c (fn sa V uv v x)
       | Reco(m)     -> let gn (l,v) = (l, fn sa V uv v x) in
                        reco e.pos (M.map gn m)
@@ -567,13 +565,13 @@ let bind_uvar : type a. a sort -> a uvar -> prop -> (a ex, p ex) lbinder =
       | Valu(v)     -> valu e.pos (fn sa V uv v x)
       | Appl(t,u)   -> appl e.pos (fn sa T uv t x) (fn sa T uv u x)
       | MAbs(ao,b)  -> mabs e.pos (Option.map (fun a -> fn sa P uv a x) ao)
-                         (lbinder_name b)
-                         (fun y -> fn sa T uv (lsubst b (mk_free y)) x)
+                         (bndr_name b)
+                         (fun y -> fn sa T uv (bndr_subst b (mk_free y)) x)
       | Name(s,t)   -> name e.pos (fn sa S uv s x) (fn sa T uv t x)
       | Proj(v,l)   -> proj e.pos (fn sa V uv v x) l
       | Case(v,m)   -> let gn (p,b) =
-                         let f y = fn sa T uv (lsubst b (mk_free y)) x in
-                         (p, lbinder_name b, f)
+                         let f y = fn sa T uv (bndr_subst b (mk_free y)) x in
+                         (p, bndr_name b, f)
                        in
                        case e.pos (fn sa V uv v x) (M.map gn m)
       | FixY(t,v)   -> fixy e.pos (fn sa T uv t x) (fn sa V uv v x)
@@ -584,22 +582,22 @@ let bind_uvar : type a. a sort -> a uvar -> prop -> (a ex, p ex) lbinder =
       | Succ(o)     -> succ e.pos (fn sa O uv o x)
       | VTyp(v,a)   -> vtyp e.pos (fn sa V uv v x) (fn sa P uv a x)
       | TTyp(t,a)   -> ttyp e.pos (fn sa T uv t x) (fn sa P uv a x)
-      | VLam(s,b)   -> vlam e.pos (lbinder_name b) s
-                         (fun y -> fn sa V uv (lsubst b (mk_free y)) x)
-      | TLam(s,b)   -> tlam e.pos (lbinder_name b) s
-                         (fun y -> fn sa T uv (lsubst b (mk_free y)) x)
+      | VLam(s,b)   -> vlam e.pos (bndr_name b) s
+                         (fun y -> fn sa V uv (bndr_subst b (mk_free y)) x)
+      | TLam(s,b)   -> tlam e.pos (bndr_name b) s
+                         (fun y -> fn sa T uv (bndr_subst b (mk_free y)) x)
       | ITag(_)     -> box e
       | Dumm        -> box e
-      | VWit(b,a,c) -> vwit e.pos (lbinder_name b)
-                         (fun y -> fn sa T uv (lsubst b (mk_free y)) x)
+      | VWit(b,a,c) -> vwit e.pos (bndr_name b)
+                         (fun y -> fn sa T uv (bndr_subst b (mk_free y)) x)
                          (fn sa P uv a x) (fn sa P uv c x)
-      | SWit(b,a)   -> swit e.pos (lbinder_name b)
-                         (fun y -> fn sa T uv (lsubst b (mk_free y)) x)
+      | SWit(b,a)   -> swit e.pos (bndr_name b)
+                         (fun y -> fn sa T uv (bndr_subst b (mk_free y)) x)
                          (fn sa P uv a x)
-      | UWit(s,t,b) -> uwit e.pos (fn sa T uv t x) (lbinder_name b) s
-                         (fun y -> fn sa P uv (lsubst b (mk_free y)) x)
-      | EWit(s,t,b) -> ewit e.pos (fn sa T uv t x) (lbinder_name b) s
-                         (fun y -> fn sa P uv (lsubst b (mk_free y)) x)
+      | UWit(s,t,b) -> uwit e.pos (fn sa T uv t x) (bndr_name b) s
+                         (fun y -> fn sa P uv (bndr_subst b (mk_free y)) x)
+      | EWit(s,t,b) -> ewit e.pos (fn sa T uv t x) (bndr_name b) s
+                         (fun y -> fn sa P uv (bndr_subst b (mk_free y)) x)
       | UVar(t,v)   ->
           begin
             match eq_sort sa t with

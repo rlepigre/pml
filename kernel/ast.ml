@@ -1,5 +1,5 @@
-(** Abstract syntax tree. This module defined the internal representation
-    of PML's programs and higher-order type. *)
+(** Abstract syntax tree. This module defined the internal representation of
+    PML's programs and higher-order type. *)
 
 open Bindlib
 open Sorts
@@ -20,144 +20,174 @@ module M =
 
 (** {6 Main abstract syntax tree type} *)
 
-(** Type of (well-sorted) expressions. This is the core abstract syntax
-    representation of our language. Everything is unified as a single GADT
-    to allow for higher-order types. *)
+(** Type of (well-sorted) expressions, which is the core PML abstract syntax
+    representation. Everything is unified as a single GADT as  the  language
+    provides higher-order types. *)
 type _ ex =
   (* Variables. *)
 
-  | Vari : 'a ex variable                                     -> 'a ex
+  | Vari : 'a var                                  -> 'a ex
   (** Variables (of some sort). *)
 
   (* Higher order stuff. *)
 
-  | HFun : 'a sort * 'b sort * ('a ex, 'b ex) lbinder         -> ('a -> 'b) ex
-  (** Higher-order function (e.g. parametric type). *)
-  | HApp : 'a sort * ('a -> 'b) ex loc * 'a ex loc            -> 'b ex
+  | HFun : 'a sort * 'b sort * ('a, 'b) bndr       -> ('a -> 'b) ex
+  (** Higher-order function. *)
+  | HApp : 'a sort * ('a -> 'b) ex loc * 'a ex loc -> 'b ex
   (** Corresponding higher-order application. *)
 
   (* Proposition constructors. *)
 
-  | Func : p ex loc * p ex loc                                -> p ex
+  | Func : p ex loc * p ex loc                     -> p  ex
   (** Arrow type. *)
-  | Prod : (pos option * p ex loc) M.t                        -> p ex
+  | Prod : (pos option * p ex loc) M.t             -> p  ex
   (** Product (or record) type. *)
-  | DSum : (pos option * p ex loc) M.t                        -> p ex
+  | DSum : (pos option * p ex loc) M.t             -> p  ex
   (** Disjoint sum type. *)
-  | Univ : 'a sort * ('a ex, p ex) lbinder                    -> p ex
-  (** Universal quantification (e.g. polymorphism). *)
-  | Exis : 'a sort * ('a ex, p ex) lbinder                    -> p ex
-  (** Existential quantification (e.g. type abstraction). *)
-  | FixM : o ex loc * (p ex, p ex) lbinder                    -> p ex
+  | Univ : 'a sort * ('a, p) bndr                  -> p  ex
+  (** Universal quantification. *)
+  | Exis : 'a sort * ('a, p) bndr                  -> p  ex
+  (** Existential quantification. *)
+  | FixM : o ex loc * (p, p) bndr                  -> p  ex
   (** Inductive type with an ordinal size. *)
-  | FixN : o ex loc * (p ex, p ex) lbinder                    -> p ex
+  | FixN : o ex loc * (p, p) bndr                  -> p  ex
   (** Coinductive type with an ordinal size. *)
-  | Memb : t ex loc * p ex loc                                -> p ex
+  | Memb : t ex loc * p ex loc                     -> p  ex
   (** Membership type. *)
-  | Rest : p ex loc * (t ex loc * bool * t ex loc)            -> p ex
+  | Rest : p ex loc * (t ex loc * bool * t ex loc) -> p  ex
   (** Restriction type. *)
 
   (* Value constructors. *)
 
-  | LAbs : p ex loc option * (v ex, t ex) lbinder             -> v ex
+  | LAbs : p ex loc option * (v, t) bndr           -> v  ex
   (** Lambda abstraction. *)
-  | Cons : M.key loc * v ex loc                               -> v ex
+  | Cons : M.key loc * v ex loc                    -> v  ex
   (** Constructor with exactly one argument. *)
-  | Reco : (pos option * v ex loc) M.t                        -> v ex
-  (** Record (i.e. tuple with named fields). *)
-  | Scis :                                                       v ex
+  | Reco : (popt * v ex loc) M.t                   -> v  ex
+  (** Record. *)
+  | Scis :                                            v  ex
   (** PML scisors. *)
 
   (* Term constructors. *)
 
-  | Valu : v ex loc                                           -> t ex
+  | Valu : v ex loc                                -> t  ex
   (** Value as a term. *)
-  | Appl : t ex loc * t ex loc                                -> t ex
+  | Appl : t ex loc * t ex loc                     -> t  ex
   (** Application. *)
-  | MAbs : p ex loc option * (s ex, t ex) lbinder             -> t ex
+  | MAbs : p ex loc option * (s, t) bndr           -> t  ex
   (** Mu abstraction. *)
-  | Name : s ex loc * t ex loc                                -> t ex
+  | Name : s ex loc * t ex loc                     -> t  ex
   (** Named term. *)
-  | Proj : v ex loc * M.key loc                               -> t ex
+  | Proj : v ex loc * M.key loc                    -> t  ex
   (** Record projection. *)
-  | Case : v ex loc * (pos option * (v ex, t ex) lbinder) M.t -> t ex 
+  | Case : v ex loc * (popt * (v, t) bndr) M.t     -> t  ex 
   (** Case analysis. *)
-  | FixY : t ex loc * v ex loc                                -> t ex
+  | FixY : t ex loc * v ex loc                     -> t  ex
   (** Fixpoint combinator. *)
 
   (* Stack constructors. *)
 
-  | Epsi :                                                       s ex
+  | Epsi :                                            s  ex
   (** Empty stack. *)
-  | Push : v ex loc * s ex loc                                -> s ex
+  | Push : v ex loc * s ex loc                     -> s  ex
   (** Value pushed on a stack. *)
-  | Fram : t ex loc * s ex loc                                -> s ex
+  | Fram : t ex loc * s ex loc                     -> s  ex
   (** Stack frame. *)
 
   (* Ordinal constructors. *)
 
-  | Conv :                                                       o ex
+  | Conv :                                            o  ex
   (** Maximal ordinal. *)
-  | Succ : o ex loc                                           -> o ex
+  | Succ : o ex loc                                -> o  ex
   (** Successor of an ordinal. *)
 
   (* Type annotations. *)
 
-  | VTyp : v ex loc * p ex loc                                -> v ex
+  | VTyp : v ex loc * p ex loc                     -> v  ex
   (** Type coercion on a term. *)
-  | TTyp : t ex loc * p ex loc                                -> t ex
+  | TTyp : t ex loc * p ex loc                     -> t  ex
   (** Type coercion on a term. *)
-  | VLam : 'a sort * ('a ex, v ex) lbinder                    -> v ex
+  | VLam : 'a sort * ('a, v) bndr                  -> v  ex
   (** Type abstraction on a value. *)
-  | TLam : 'a sort * ('a ex, t ex) lbinder                    -> t ex
+  | TLam : 'a sort * ('a, t) bndr                  -> t  ex
   (** Type abstraction on a term. *)
 
   (* Special constructors. *)
 
-  | ITag : int                                                -> 'a ex
+  | ITag : int                                     -> 'a ex
   (** Integer tag (usuful for comparision). *)
-  | Dumm :                                                       'a ex
+  | Dumm :                                            'a ex
   (** Dummy constructor.*)
-  | VWit : (v ex, t ex) lbinder * p ex loc * p ex loc         -> v ex
-  (** Value witness (a.k.a. epsilon). *)
-  | SWit : (s ex, t ex) lbinder * p ex loc                    -> s ex
-  (** Stack witness (a.k.a. epsilon). *)
-  | UWit : 'a sort * t ex loc * ('a ex, p ex) lbinder         -> 'a ex
-  (** Universal quantifier witness (a.k.a. epsilon). *)
-  | EWit : 'a sort * t ex loc * ('a ex, p ex) lbinder         -> 'a ex
-  (** Existential quantifier witness (a.k.a. epsilon). *)
-  | UVar : 'a sort * 'a uvar                                  -> 'a ex
+  | VWit : (v, t) bndr * p ex loc * p ex loc       -> v  ex
+  (** Value witness. *)
+  | SWit : (s, t) bndr * p ex loc                  -> s  ex
+  (** Stack witness. *)
+  | UWit : 'a sort * t ex loc * ('a, p) bndr       -> 'a ex
+  (** Universal quantifier witness. *)
+  | EWit : 'a sort * t ex loc * ('a, p) bndr       -> 'a ex
+  (** Existential quantifier witness. *)
+  | UVar : 'a sort * 'a uvar                       -> 'a ex
   (** Unification variable. *)
   (* TODO add MuRec and NuRec *)
 
-(** Unification variable type. *)
+(** Type of unification variables. *)
 and 'a uvar =
   { uvar_key : int
   ; uvar_val : 'a ex loc option ref }
 
-type ordi = o ex loc (** Type of ordinals. *)
-type prop = p ex loc (** Type of types.    *)
+(** {6 Types and functions related to binders and variables.} *)
+
+(** Type of a (bindlib) variable.
+    @see <https://www.lama.univ-savoie.fr/~raffalli/bindlib.html> bindlib *)
+and 'a var = 'a ex variable
+
+(** Type of a (bindlib) binder with support for positions.
+    @see <https://www.lama.univ-savoie.fr/~raffalli/bindlib.html> bindlib *)
+and ('a, 'b) bndr = popt * ('a ex, 'b ex loc) binder
+
+(** Type of an expression in a (bindlib) bindbox.
+    @see <https://www.lama.univ-savoie.fr/~raffalli/bindlib.html> bindlib *)
+type 'a box = 'a ex loc bindbox
+
+(** Binder substitution function. *)
+let bndr_subst : ('a, 'b) bndr -> 'a ex -> 'b ex loc =
+  fun (_,b) t -> subst b t
+
+(** Obtain the name of a bound variable in the form of a located string. The
+    position corresponds to the variable in binding position. *)
+let bndr_name : ('a, 'b) bndr -> strloc =
+  fun (p, b) -> build_pos p (binder_name b)
+
+(** [bndr_from_fun x f] builds a binder using [x] as a name  for  the  bound
+    variable, and the function [f] as a definition. *)
+let bndr_from_fun : string -> ('a ex -> 'b ex) -> ('a,'b) bndr =
+  fun x f -> (None, binder_from_fun x (fun x -> none (f x)))
+
+(** {6 Types for the syntactic element of base sorts} *)
+
 type valu = v ex loc (** Type of values.   *)
 type term = t ex loc (** Type of terms.    *)
 type stac = s ex loc (** Type of stacks.   *)
+type prop = p ex loc (** Type of types.    *)
+type ordi = o ex loc (** Type of ordinals. *)
+
+(** {5 Bindlib variable types for expressions of base sort} *)
+
+type vvar = v var    (** Value   variable type. *)
+type tvar = t var    (** Term    variable type. *)
+type svar = s var    (** Stack   variable type. *)
+type pvar = p var    (** Type    variable type. *)
+type ovar = o var    (** Ordinal variable type. *)
+
+(** {5 Bindlib bindboxes containing expressions of base sort} *)
+
+type vbox = v box    (** Value   bindbox type. *)
+type tbox = t box    (** Term    bindbox type. *)
+type sbox = s box    (** Stack   bindbox type. *)
+type pbox = p box    (** Type    bindbox type. *)
+type obox = o box    (** Ordinal bindbox type. *)
 
 (** {6 Smart constructors} *)
-
-type popt = pos option
-type 'a var = 'a ex variable
-type 'a box = 'a ex loc bindbox
-
-type vvar = v var
-type tvar = t var
-type svar = s var
-type pvar = p var
-type ovar = o var
-
-type vbox = v box
-type tbox = t box
-type sbox = s box
-type pbox = p box
-type obox = o box
 
 let mk_free : 'a var -> 'a ex =
   fun x -> Vari(x)

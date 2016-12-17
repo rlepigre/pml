@@ -50,28 +50,28 @@ type eq_map = Ptr.t PtrMap.t
 
 (** Type of a value node. *)
 type v_node =
-  | VN_Vari of v ex variable
-  | VN_LAbs of (v ex, t ex) lbinder
+  | VN_Vari of v var
+  | VN_LAbs of (v, t) bndr
   | VN_Cons of M.key loc * VPtr.t
   | VN_Reco of VPtr.t M.t
   | VN_Scis
-  | VN_VWit of ((v ex, t ex) lbinder * p ex loc * p ex loc)
-  | VN_UWit of (t ex loc * (v ex, p ex) lbinder)
-  | VN_EWit of (t ex loc * (v ex, p ex) lbinder)
+  | VN_VWit of ((v, t) bndr * p ex loc * p ex loc)
+  | VN_UWit of (t ex loc * (v, p) bndr)
+  | VN_EWit of (t ex loc * (v, p) bndr)
 type v_map = v_node VPtrMap.t
 
 (** Type of a term node. *)
 type t_node =
-  | TN_Vari of t ex variable
+  | TN_Vari of t var
   | TN_Valu of VPtr.t
   | TN_Appl of TPtr.t * TPtr.t
-  | TN_MAbs of (s ex, t ex) lbinder
+  | TN_MAbs of (s, t) bndr
   | TN_Name of s ex loc * TPtr.t
   | TN_Proj of VPtr.t * M.key loc
-  | TN_Case of VPtr.t * (v ex, t ex) lbinder M.t
+  | TN_Case of VPtr.t * (v, t) bndr M.t
   | TN_FixY of TPtr.t * VPtr.t
-  | TN_UWit of (t ex loc * (t ex, p ex) lbinder)
-  | TN_EWit of (t ex loc * (t ex, p ex) lbinder)
+  | TN_UWit of (t ex loc * (t, p) bndr)
+  | TN_EWit of (t ex loc * (t, p) bndr)
 type t_map = t_node TPtrMap.t
 
 (** Type of a pool. *)
@@ -168,7 +168,7 @@ let rec add_term : pool -> term -> TPtr.t * pool = fun po t ->
                    let (pv, po) = add_valu po v in
                    insert_t_node (TN_FixY(pt,pv)) po
   | TTyp(t,_)   -> add_term po t
-  | TLam(_,b)   -> add_term po (lsubst b Dumm)
+  | TLam(_,b)   -> add_term po (bndr_subst b Dumm)
   | UWit(_,t,b) -> insert_t_node (TN_UWit((t,b))) po
   | EWit(_,t,b) -> insert_t_node (TN_EWit((t,b))) po
   | UVar(_,_)   -> invalid_arg "unification variable in the pool"
@@ -190,7 +190,7 @@ and     add_valu : pool -> valu -> VPtr.t * pool = fun po v ->
                    insert_v_node (VN_Reco(m)) po
   | Scis        -> insert_v_node VN_Scis po
   | VTyp(v,_)   -> add_valu po v
-  | VLam(_,b)   -> add_valu po (lsubst b Dumm)
+  | VLam(_,b)   -> add_valu po (bndr_subst b Dumm)
   | VWit(f,a,b) -> insert_v_node (VN_VWit((f,a,b))) po
   | UWit(_,t,b) -> insert_v_node (VN_UWit((t,b))) po
   | EWit(_,t,b) -> insert_v_node (VN_EWit((t,b))) po
@@ -321,7 +321,7 @@ let rec normalise : TPtr.t -> pool -> Ptr.t * pool = fun p po ->
                     | VN_LAbs(b) ->
                         begin
                           let (v, po) = canonical_valu pv po in
-                          let t = lsubst b v.elt in
+                          let t = bndr_subst b v.elt in
                           let (tp, po) = add_term po t in
                           normalise tp po
                         end
@@ -350,7 +350,7 @@ let rec normalise : TPtr.t -> pool -> Ptr.t * pool = fun p po ->
                   begin
                     let (pv, po) = find_valu pv po in
                     let (v, po) = canonical_valu pv po in
-                    let t = lsubst (M.find c.elt m) v.elt in
+                    let t = bndr_subst (M.find c.elt m) v.elt in
                     let (tp, po) = add_term po t in
                     normalise tp po
                   end
@@ -359,7 +359,7 @@ let rec normalise : TPtr.t -> pool -> Ptr.t * pool = fun p po ->
         | TN_FixY(pt,pv) ->
             begin
               let (t, po) = canonical_term pt po in
-              let b = lbinder_from_fun "x" (fun x -> FixY(t, Pos.none x)) in
+              let b = bndr_from_fun "x" (fun x -> FixY(t, Pos.none x)) in
               let (pf, po) = insert_v_node (VN_LAbs(b)) po in
               let (pf, po) = insert_t_node (TN_Valu(pf)) po in
               let (pap, po) = insert_t_node (TN_Appl(pf, pt)) po in

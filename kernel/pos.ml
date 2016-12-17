@@ -13,18 +13,21 @@ type pos =
   ; end_col    : int    (** Column number (utf8) of the ending point.   *)
   }
 
+(** Convenient short name for an optional position. *)
+type popt = pos option
+
 (** Type constructor extending a type (e.g. an element of an abstract syntax
     tree) with a source code position. *)
 type 'a loc =
-  { elt : 'a            (** The element that is being localised.        *)
-  ; pos : pos option    (** Position of the element in the source code. *)
+  { elt : 'a   (** The element that is being localised.        *)
+  ; pos : popt (** Position of the element in the source code. *)
   }
 
 (** Localised string type (widely used). *)
 type strloc = string loc
 
 (** [build_pos pos elt] associates the position [pos] to [elt]. *)
-let build_pos : pos option -> 'a -> 'a loc =
+let build_pos : popt -> 'a -> 'a loc =
   fun pos elt -> { elt ; pos }
 
 (** [in_pos pos elt] associates the position [pos] to [elt]. *)
@@ -44,7 +47,7 @@ let merge : pos -> pos -> pos = fun p1 p2 ->
                     let end_col   = max p1.start_col p2.start_col in
                     {p1 with start_col ; end_col}
 
-let union : pos option -> pos option -> pos option = fun p1 p2 ->
+let union : popt -> popt -> popt = fun p1 p2 ->
   match (p1, p2) with
   | (None   , None   ) -> None
   | (Some _ , None   ) -> p1
@@ -92,22 +95,3 @@ let short_pos_to_string : pos -> string =
     using a shorter format that [print_pos oc pos]. *)
 let print_short_pos : out_channel -> pos -> unit =
   fun ch p -> output_string ch (short_pos_to_string p)
-
-open Bindlib
-
-(** Type of a (bindlib) binder with support for positions.
-    @see <https://www.lama.univ-savoie.fr/~raffalli/bindlib.html> bindlib *)
-type (-'a, +'b) lbinder = pos option * ('a, 'b loc) binder
-(** The optional position refers to the bound variable. *)
-
-(** Substitution function. *)
-let lsubst : ('a, 'b) lbinder -> 'a -> 'b loc =
-  fun (_,b) t -> subst b t
-
-let lbinder_name : ('a, 'b) lbinder -> strloc =
-  fun (p, b) -> build_pos p (binder_name b)
-
-let lbinder_from_fun : string -> ('a -> 'b) -> ('a,'b) lbinder =
-  fun x f -> (None, binder_from_fun x (fun x -> none (f x)))
-
-
