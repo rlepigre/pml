@@ -82,11 +82,20 @@ parser/parser.cma: $(KERNELFILES)
 pml2: pml2/main.native
 pml2_byte: pml2/main.byte
 
+main.byte: pml2/main.byte
+main.native: pml2/main.native
+
 pml2/main.native:
 	$(OCAMLBUILD) -package unix,bindlib,earley,earley.str $@
 
 pml2/main.byte:
 	$(OCAMLBUILD) -package unix,bindlib,earley,earley.str $@
+
+# Test target.
+.PHONY: test
+TEST_FILES = $(wildcard test/*.pml)
+test: main.native $(TEST_FILES)
+	./$^
 
 # Cleaning targets.
 clean:
