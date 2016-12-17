@@ -1,6 +1,5 @@
 open Bindlib
 open Pos
-open Util
 open Ast
 
 type e_valu =
@@ -101,13 +100,13 @@ let rec valu_erasure : valu -> e_vbox = fun v ->
   | HApp(_)   -> erasure_error "not a normalisation value (value)"
   | LAbs(_,b) -> let f x =
                    let x = copy_var x (name_of x) mk_free in
-                   term_erasure (lsubst b (free_of x))
+                   term_erasure (bndr_subst b (free_of x))
                  in vlabs (binder_name (snd b)) f
   | Cons(c,v) -> vcons c.elt (valu_erasure v)
   | Reco(m)   -> vreco (M.map (fun (_,v) -> valu_erasure v) m)
   | Scis      -> vscis
   | VTyp(v,_) -> valu_erasure v
-  | VLam(_,f) -> valu_erasure (lsubst f Dumm)
+  | VLam(_,f) -> valu_erasure (bndr_subst f Dumm)
   | ITag(_)   -> erasure_error "a tag cannot be erased (value)"
   | Dumm      -> erasure_error "a dummy value cannot be erased (value)"
   | VWit(_)   -> erasure_error "a witness cannot be erased (value)"
@@ -124,19 +123,19 @@ and     term_erasure : term -> e_tbox = fun t ->
   | Appl(t,u) -> tappl (term_erasure t) (term_erasure u)
   | MAbs(_,b) -> let f x =
                    let x = copy_var x (name_of x) mk_free in
-                   term_erasure (lsubst b (free_of x))
+                   term_erasure (bndr_subst b (free_of x))
                  in tmabs (binder_name (snd b)) f
   | Name(s,t) -> tname (stac_erasure s) (term_erasure t)
   | Proj(v,l) -> tproj (valu_erasure v) l.elt
   | Case(v,m) -> let f (_,b) =
                    let f x =
                      let x = copy_var x (name_of x) mk_free in
-                     term_erasure (lsubst b (free_of x))
+                     term_erasure (bndr_subst b (free_of x))
                    in (binder_name (snd b), f)
                  in tcase (valu_erasure v) (M.map f m)
   | FixY(t,v) -> tfixy (term_erasure t) (valu_erasure v)
   | TTyp(t,_) -> term_erasure t
-  | TLam(_,f) -> term_erasure (lsubst f Dumm)
+  | TLam(_,f) -> term_erasure (bndr_subst f Dumm)
   | ITag(_)   -> erasure_error "a tag cannot be erased (term)"
   | Dumm      -> erasure_error "a dummy value cannot be erased (term)"
   | UWit(_)   -> erasure_error "a witness cannot be erased (term)"

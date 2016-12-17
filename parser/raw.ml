@@ -4,7 +4,6 @@
 
 open Bindlib
 open Sorts
-open Util
 open Pos
 open Ast
 open Env
@@ -616,7 +615,7 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
           match args with
           | ((x,ao), []   ) ->
               let fn a = to_prop (unsugar env vars a _sp) in
-              let ao = map_opt fn ao in
+              let ao = Option.map fn ao in
               let fn xx =
                 let xx = (x.pos, Box(V, vari x.pos xx)) in
                 let vars = M.add x.elt xx vars in
@@ -664,7 +663,7 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
           match args with
           | ((x,ao), []   ) ->
               let fn a = to_prop (unsugar env vars a _sp) in
-              let ao = map_opt fn ao in
+              let ao = Option.map fn ao in
               let fn xx =
                 let xx = (x.pos, Box(S, vari x.pos xx)) in
                 let vars = M.add x.elt xx vars in

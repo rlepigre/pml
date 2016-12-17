@@ -157,7 +157,7 @@ let parser expr (m : mode) =
   (* Term (constructor) *)
   | c:luid "[" t:(expr (`Trm`F))? "]"
       when m = `Trm`A 
-      -> in_pos _loc (ECons(c, Util.map_opt (fun t -> (t, ref `T)) t))
+      -> in_pos _loc (ECons(c, Option.map (fun t -> (t, ref `T)) t))
   (* Term (record) *)
   | "{" fs:(lsep_ne ";" (parser l:llid "=" a:(expr (`Trm`F)))) "}"
       when m = `Trm`A

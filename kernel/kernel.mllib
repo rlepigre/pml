@@ -1,6 +1,7 @@
-Util
-Pos
 Ast
-Norm
+Equiv
 Eval
+Norm
 Print
+Sorts
+Typing

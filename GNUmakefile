@@ -39,13 +39,13 @@ util_doc: util/util.docdir/index.html
 UTILFILES := $(wildcard util/*.ml) $(wildcard util/*.mli)
 
 util/util.cmxa: $(UTILFILES)
-	$(OCAMLBUILD) -package unix $@
+	$(OCAMLBUILD) -package unix,earley $@
 
 util/util.cma: $(UTILFILES)
-	$(OCAMLBUILD) -package unix $@
+	$(OCAMLBUILD) -package unix,earley $@
 
 util/util.docdir/index.html: $(UTILFILES)
-	$(OCAMLBUILD) -package bindlib -package unix $@
+	$(OCAMLBUILD) -package bindlib -package unix,earley $@
 
 # Compilation of the kernel.
 .PHONY: kernel kernel_byte kernel_doc

@@ -1,6 +1,5 @@
 open Bindlib
 open Sorts
-open Util
 open Pos
 open Ast
 
