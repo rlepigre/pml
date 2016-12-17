@@ -7,3 +7,5 @@ val cpl = λx.λy.λp.p x y
 val cpl = λx.λy.{x = x; y = y}
 
 // val delta = λx.x x
+
+val pierce = λx.μa.x λy.[a]y
