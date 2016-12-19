@@ -458,4 +458,6 @@ let add_inequiv : inequiv -> eq_ctxt -> eq_ctxt = fun (t,u) ctx ->
 
 (* Test whether a term is equivalent to a value or not. *)
 let is_value : term -> eq_ctxt -> bool = fun t ctx ->
-  false (* TODO *)
+  match (Norm.whnf t).elt with
+  | Valu(_) -> true
+  | _       -> false (* TODO *)

@@ -46,6 +46,8 @@ let add_equation : (term * bool * term) -> ctxt -> ctxt = fun (t,eq,u) ctx ->
   let equations = fn (t,u) ctx.equations in
   {ctx with equations}
 
+let neg_equation (t,eq,u) = (t, not eq, u)
+
 let new_uvar : type a. ctxt -> a sort -> ctxt * a ex loc = fun ctx s ->
   let i = ctx.uvar_counter in
   let ctx = {ctx with uvar_counter = i+1} in
@@ -348,26 +350,52 @@ let rec subtype : ctxt -> term -> prop -> prop -> ctxt * sub_proof =
           (ctx, Sub_Univ_l(p))
       (* Membership on the left. *)
       | (Memb(u,a)  , _          ) ->
-          (* FIXME capture Contradiction *)
-          let ctx = add_equation (t,true,u) ctx in
-          let (ctx, p) = subtype ctx t a b in
-          (ctx, Sub_Memb_l(p))
+          begin
+            try
+              let ctx = add_equation (t,true,u) ctx in
+              let (ctx, p) = subtype ctx t a b in
+              (ctx, Sub_Memb_l(p))
+            with Contradiction ->
+              assert false (* FIXME Nothing to do, finish the proof. *)
+          end
       (* Membership on the right. *)
       | (_          , Memb(u,b)  ) ->
-          let ctx = add_equation (t,true,u) ctx in
-          let (ctx, p) = subtype ctx t a b in
-          (ctx, Sub_Memb_r(p))
+          begin
+            try
+              let _ = add_equation (t,false,u) ctx in
+              assert false (* FIXME error. *)
+            with Contradiction ->
+              let ctx =
+                try add_equation (t,true,u) ctx
+                with Contradiction -> assert false (* unexpected. *)
+              in
+              let (ctx, p) = subtype ctx t a b in
+              (ctx, Sub_Memb_r(p))
+          end
       (* Restriction on the left. *)
       | (Rest(a,eq) , _          ) ->
-          (* FIXME capture Contradiction *)
-          let ctx = add_equation eq ctx in
-          let (ctx, p) = subtype ctx t a b in
-          (ctx, Sub_Rest_l(p))
+          begin
+            try
+              let ctx = add_equation eq ctx in
+              let (ctx, p) = subtype ctx t a b in
+              (ctx, Sub_Rest_l(p))
+            with Contradiction ->
+              assert false (* FIXME Nothing to do, finish the proof. *)
+          end
       (* Restriction on the right. *)
       | (_          , Rest(b,eq) ) ->
-          let ctx = add_equation eq ctx in
-          let (ctx, p) = subtype ctx t a b in
-          (ctx, Sub_Rest_r(p))
+          begin
+            try
+              let _ = add_equation (neg_equation eq) ctx in
+              assert false (* FIXME error. *)
+            with Contradiction ->
+              let ctx =
+                try add_equation eq ctx
+                with Contradiction -> assert false (* unexpected. *)
+              in
+              let (ctx, p) = subtype ctx t a b in
+              (ctx, Sub_Rest_r(p))
+          end
       (* TODO *)
       | _                          ->
           err_msg "cannot show %a ∈ %a ⊆ %a\n%!"
