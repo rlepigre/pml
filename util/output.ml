@@ -1,6 +1,6 @@
-(** A very simple module providing colorfull output facilities for logs  (or
-    log file), warnings and errors. Support is provided for integration with
-    command line arguments parsing. *)
+(** Colorful outputs / logs. A very simple module providing colorfull output
+    utilities for logs (or log file), warnings and errors. Integration  with
+    command line arguments parsing is made easy. *)
 
 (* Type of a printf-like function. *)
 type 'a printer = ('a, out_channel, unit) format -> 'a

@@ -1,3 +1,5 @@
+(** Evaluation in an abstract machine. *)
+
 open Bindlib
 open Pos
 open Ast

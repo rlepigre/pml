@@ -1,4 +1,4 @@
-(** A module for the [option] type that should probably be provided  by  the
+(** A module for the [option] type. It should probably be  provided  by  the
     standard library. *)
 
 (* type 'a option = None | Some of 'a *)

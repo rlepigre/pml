@@ -1,6 +1,7 @@
-(** This module provides alternative functions for updating references
-    (that is, terms of type ['a ref]) and enables the restoration of a
-    previously saved state by "undoing" the updates. *)
+(** Timed references (with rollback). This module provides alternative
+    functions for updating references (terms of type ['a ref]) and  it
+    enables the restoration of a previously saved state  by  "undoing"
+    the updates. *)
 
 module Time :
 (** [Time] submodule allows to [save] the current time and [rollback]

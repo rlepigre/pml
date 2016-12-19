@@ -1,12 +1,13 @@
+(** Equivalence decision procedure. During decision of equivalence, terms are
+    stored in a graph (shared among all knonwn terms). Maximal sharing is
+    attained by never inserting nodes that are already in the graph. Given
+    such a graph (or pool), one will be able to read back the representative
+    of a term by following the edges. *)
+
 open Bindlib
 open Sorts
 open Pos
 open Ast
-
-(** During decision of equivalence, terms are stored in a graph (shared among
-    all knonwn terms). Maximal sharing is attained by never inserting nodes
-    that are already in the graph. Given such a graph (or pool), one will be
-    able to read back the representative of a term by following the edges. *)
 
 (** Exception raise when the pool contains a contradiction. *)
 exception Contradiction
