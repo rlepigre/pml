@@ -41,6 +41,11 @@ let empty_ctxt =
   { uvar_counter = 0
   ; equations    = empty_ctxt }
 
+let add_equation : (term * bool * term) -> ctxt -> ctxt = fun (t,eq,u) ctx ->
+  let fn = if eq then add_equiv else add_inequiv in
+  let equations = fn (t,u) ctx.equations in
+  {ctx with equations}
+
 let new_uvar : type a. ctxt -> a sort -> ctxt * a ex loc = fun ctx s ->
   let i = ctx.uvar_counter in
   let ctx = {ctx with uvar_counter = i+1} in
@@ -242,6 +247,7 @@ type typ_rule =
   | Typ_DSum_e of typ_proof * typ_proof list
   | Typ_Func_i of sub_proof * typ_proof
   | Typ_Func_e of typ_proof * typ_proof
+  | Typ_Func_s of typ_proof * typ_proof
   | Typ_Prod_i of sub_proof * typ_proof list
   | Typ_Prod_e of typ_proof
   | Typ_Name   of typ_proof * stk_proof
@@ -259,6 +265,10 @@ and  sub_rule =
   | Sub_DSum   of sub_proof list
   | Sub_Univ_l of sub_proof
   | Sub_Univ_r of sub_proof
+  | Sub_Rest_l of sub_proof
+  | Sub_Rest_r of sub_proof
+  | Sub_Memb_l of sub_proof
+  | Sub_Memb_r of sub_proof
 
 and typ_proof = term * prop * typ_rule
 and stk_proof = stac * prop * stk_rule
@@ -336,6 +346,28 @@ let rec subtype : ctxt -> term -> prop -> prop -> ctxt * sub_proof =
           let (ctx, u) = new_uvar ctx s in
           let (ctx, p) = subtype ctx t (bndr_subst f u.elt) b in
           (ctx, Sub_Univ_l(p))
+      (* Membership on the left. *)
+      | (Memb(u,a)  , _          ) ->
+          (* FIXME capture Contradiction *)
+          let ctx = add_equation (t,true,u) ctx in
+          let (ctx, p) = subtype ctx t a b in
+          (ctx, Sub_Memb_l(p))
+      (* Membership on the right. *)
+      | (_          , Memb(u,b)  ) ->
+          let ctx = add_equation (t,true,u) ctx in
+          let (ctx, p) = subtype ctx t a b in
+          (ctx, Sub_Memb_r(p))
+      (* Restriction on the left. *)
+      | (Rest(a,eq) , _          ) ->
+          (* FIXME capture Contradiction *)
+          let ctx = add_equation eq ctx in
+          let (ctx, p) = subtype ctx t a b in
+          (ctx, Sub_Rest_l(p))
+      (* Restriction on the right. *)
+      | (_          , Rest(b,eq) ) ->
+          let ctx = add_equation eq ctx in
+          let (ctx, p) = subtype ctx t a b in
+          (ctx, Sub_Rest_r(p))
       (* TODO *)
       | _                          ->
           err_msg "cannot show %a ∈ %a ⊆ %a\n%!"
@@ -424,6 +456,13 @@ and type_term : ctxt -> term -> prop -> ctxt * typ_proof = fun ctx t c ->
     (* Value. *)
     | Valu(v)     ->
         let (ctx, (_, _, r)) = type_valu ctx v c in (ctx, r)
+    (* Strong application. *)
+    | Appl(t,u)   when is_value u ctx.equations ->
+        let (ctx, a) = new_uvar ctx P in
+        let ae = Pos.none (Memb(u, a)) in
+        let (ctx, p1) = type_term ctx t (Pos.none (Func(ae,c))) in
+        let (ctx, p2) = type_term ctx u a in
+        (ctx, Typ_Func_s(p1,p2))
     (* Application. *)
     | Appl(t,u)   ->
         let (ctx, a) = new_uvar ctx P in
