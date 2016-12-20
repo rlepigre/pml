@@ -8,6 +8,11 @@ open Bindlib
 open Sorts
 open Pos
 open Ast
+open Output
+
+(* Log function registration. *)
+let log_edp = Log.register 'd' (Some "dec") "equivalence decision procedure"
+let log_edp = Log.(log_edp.p)
 
 (** Exception raise when the pool contains a contradiction. *)
 exception Contradiction
@@ -446,18 +451,33 @@ let empty_ctxt : eq_ctxt =
 
 (* Adds an equivalence to a context, producing a bigger context. The
    exception [Contradiction] is raised when expected. *)
-let add_equiv : equiv -> eq_ctxt -> eq_ctxt = fun (t,u) ctx ->
-  if t == u then ctx else
-  assert false
+let add_equiv : equiv -> eq_ctxt -> eq_ctxt = fun (t,u) {pool} ->
+  log_edp "inserting %a = %a" Print.print_ex t Print.print_ex u;
+  if t == u then {pool} else
+  let (pt, pool) = add_term pool t in
+  let (pu, pool) = add_term pool u in
+  let (pt, pool) = normalise pt pool in
+  let (pu, pool) = normalise pu pool in
+  let pool = union pt pu pool in
+  {pool}
 
 (* Adds an inequivalence to a context, producing a bigger context. The
    exception [Contradiction] is raised when expected. *)
-let add_inequiv : inequiv -> eq_ctxt -> eq_ctxt = fun (t,u) ctx ->
+let add_inequiv : inequiv -> eq_ctxt -> eq_ctxt = fun (t,u) {pool} ->
+  log_edp "inserting %a ≠ %a" Print.print_ex t Print.print_ex u;
   if t == u then raise Contradiction else
-  assert false
+  let (pt, pool) = add_term pool t in
+  let (pu, pool) = add_term pool u in
+  let (pt, pool) = normalise pt pool in
+  let (pu, pool) = normalise pu pool in
+  if Ptr.compare pt pu = 0 then raise Contradiction;
+  {pool} (* TODO store clauses ? *)
 
 (* Test whether a term is equivalent to a value or not. *)
-let is_value : term -> eq_ctxt -> bool = fun t ctx ->
-  match (Norm.whnf t).elt with
-  | Valu(_) -> true
-  | _       -> false (* TODO *)
+let is_value : term -> eq_ctxt -> bool * eq_ctxt = fun t {pool} ->
+  let (pt, pool) = add_term pool t in
+  let (pt, pool) = normalise pt pool in
+  let res = match pt with Ptr.V_ptr(_) -> true | Ptr.T_ptr(_) -> false in
+  log_edp "%a is%s a value" Print.print_ex t (if res then "" else " not");
+  (res, {pool})
+

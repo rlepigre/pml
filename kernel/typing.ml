@@ -232,6 +232,9 @@ let eq_expr : type a. a ex loc -> a ex loc -> bool = fun e1 e2 ->
     | (UVar(_,u1)    , UVar(_,u2)    ) ->
         if u1.uvar_key <> u2.uvar_key then uvar_set u1 e2;
         true
+    (* FIXME experimental. *)
+    | (UVar(_,u1)    , Func({elt = Memb(t,a)}, b)) when uvar_occurs u1 t ->
+        eq_expr e1 (Pos.none (Func(a,b)))
     | (UVar(_,u1)    , _             ) ->
         if uvar_occurs u1 e2 then false else (uvar_set u1 e2; true)
     | (_             , UVar(_,u2)    ) ->
@@ -484,19 +487,20 @@ and type_term : ctxt -> term -> prop -> ctxt * typ_proof = fun ctx t c ->
     (* Value. *)
     | Valu(v)     ->
         let (ctx, (_, _, r)) = type_valu ctx v c in (ctx, r)
-    (* Strong application. *)
-    | Appl(t,u)   when is_value u ctx.equations ->
-        let (ctx, a) = new_uvar ctx P in
-        let ae = Pos.none (Memb(u, a)) in
-        let (ctx, p1) = type_term ctx t (Pos.none (Func(ae,c))) in
-        let (ctx, p2) = type_term ctx u a in
-        (ctx, Typ_Func_s(p1,p2))
-    (* Application. *)
+    (* Application or strong application. *)
     | Appl(t,u)   ->
+        let (is_val, equations) = is_value u ctx.equations in
+        let ctx = {ctx with equations} in
         let (ctx, a) = new_uvar ctx P in
-        let (ctx, p1) = type_term ctx t (Pos.none (Func(a,c))) in
-        let (ctx, p2) = type_term ctx u a in
-        (ctx, Typ_Func_e(p1,p2))
+        if is_val then
+          let ae = Pos.none (Memb(u, a)) in
+          let (ctx, p1) = type_term ctx t (Pos.none (Func(ae,c))) in
+          let (ctx, p2) = type_term ctx u a in
+          (ctx, Typ_Func_s(p1,p2))
+        else
+          let (ctx, p1) = type_term ctx t (Pos.none (Func(a,c))) in
+          let (ctx, p2) = type_term ctx u a in
+          (ctx, Typ_Func_e(p1,p2))
     (* μ-abstraction. *)
     | MAbs(ao,b)  ->
         let (ctx, a) =

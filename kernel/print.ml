@@ -38,6 +38,8 @@ let rec print_sort : type a. a sort printer = fun ch s ->
               else
                 Printf.fprintf ch "%a → %a" print_sort a print_sort b
 
+let print_eps = ref true
+
 let rec print_ex : type a. a ex loc printer = fun ch e ->
   let e = Norm.whnf e in
   let is_arrow a = match a.elt with Func(_,_) -> true | _ -> false in
@@ -115,7 +117,11 @@ let rec print_ex : type a. a ex loc printer = fun ch e ->
                    Printf.fprintf ch "Λ%s.%a" (name_of x) print_ex t
   | ITag(i)     -> Printf.fprintf ch "#%i" i
   | Dumm        -> output_string ch "∅"
-  | VWit(_,_,_) -> output_string ch "ει"
+  | VWit(f,a,b) -> if !print_eps then
+                     let (x,t) = unbind mk_free (snd f) in
+                     Printf.fprintf ch "ει(%s|%a∈%a∉%a)" (name_of x)
+                       print_ex t print_ex a print_ex b
+                   else output_string ch "ει"
   | SWit(_,_)   -> output_string ch "εσ"
   | UWit(_,_,_) -> output_string ch "ε∀"
   | EWit(_,_,_) -> output_string ch "ε∃"
