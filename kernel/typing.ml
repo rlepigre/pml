@@ -43,13 +43,6 @@ let new_uvar : type a. ctxt -> a sort -> ctxt * a ex loc = fun ctx s ->
   log_uni "?%i : %a" i Print.print_sort s;
   (ctx, Pos.none (UVar(s, {uvar_key = i; uvar_val = ref None})))
 
-let add_equation : (term * bool * term) -> ctxt -> ctxt = fun (t,eq,u) ctx ->
-  let fn = if eq then add_equiv else add_inequiv in
-  let equations = fn (t,u) ctx.equations in
-  {ctx with equations}
-
-let neg_equation (t,eq,u) = (t, not eq, u)
-
 type typ_rule =
   | Typ_VTyp   of sub_proof * typ_proof
   | Typ_TTyp   of sub_proof * typ_proof
