@@ -43,6 +43,7 @@ let print_eps = ref true
 let rec print_ex : type a. a ex loc printer = fun ch e ->
   let e = Norm.whnf e in
   let is_arrow a = match a.elt with Func(_,_) -> true | _ -> false in
+  let is_unit a = match a.elt with Prod(m) -> M.is_empty m | _ -> false in
   match e.elt with
   | Vari(x)     -> output_string ch (name_of x)
   | HFun(_,_,b) -> let (x,t) = unbind mk_free (snd b) in
@@ -70,7 +71,9 @@ let rec print_ex : type a. a ex loc printer = fun ch e ->
   | Rest(a,e)   -> let print_eq ch (t,b,u) =
                      let sym = if b then "=" else "≠" in
                      Printf.fprintf ch "%a %s %a" print_ex t sym print_ex u
-                   in Printf.fprintf ch "%a | %a" print_ex a print_eq e
+                   in
+                   if is_unit a then print_eq ch e
+                   else Printf.fprintf ch "%a | %a" print_ex a print_eq e
   | LAbs(ao,b)  -> let (x,t) = unbind mk_free (snd b) in
                    begin
                      match ao with
