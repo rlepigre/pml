@@ -104,5 +104,14 @@ let handle_file env fn =
       end
 
 let _ =
-  List.fold_left handle_file Env.empty files
-
+  try ignore (List.fold_left handle_file Env.empty files) with
+  | Typing.Subtype_error(p,msg) ->
+      begin
+        match p with
+        | None   -> err_msg "Subtype error: %s." msg
+        | Some p -> err_msg "Subtype error in %s." (pos_to_string p);
+                    err_msg "Message: %s." msg
+      end
+  | Equiv.Equiv_error(msg)      ->
+      err_msg "Equation error: %s." msg
+  | e -> err_msg "Uncaught exception [%s]." (Printexc.to_string e)

@@ -78,9 +78,9 @@ and  sub_rule =
   | Sub_DSum   of sub_proof list
   | Sub_Univ_l of sub_proof
   | Sub_Univ_r of sub_proof
-  | Sub_Rest_l of sub_proof
+  | Sub_Rest_l of sub_proof option (* None means contradictory context. *)
   | Sub_Rest_r of sub_proof
-  | Sub_Memb_l of sub_proof
+  | Sub_Memb_l of sub_proof option (* None means contradictory context. *)
   | Sub_Memb_r of sub_proof
 
 and typ_proof = term * prop * typ_rule
@@ -163,51 +163,31 @@ let rec subtype : ctxt -> term -> prop -> prop -> ctxt * sub_proof =
       | (Memb(u,a)  , _          ) ->
           begin
             try
-              let ctx = add_equation (t,true,u) ctx in
-              let (ctx, p) = subtype ctx t a b in
-              (ctx, Sub_Memb_l(p))
-            with Contradiction ->
-              assert false (* FIXME Nothing to do, finish the proof. *)
+              let equations = learn ctx.equations (t,true,u) in
+              let (ctx, p) = subtype {ctx with equations} t a b in
+              (ctx, Sub_Memb_l(Some p))
+            with Contradiction -> (ctx, Sub_Memb_l(None))
           end
       (* Membership on the right. *)
       | (_          , Memb(u,b)  ) ->
-          begin
-            try
-              let _ = add_equation (t,false,u) ctx in
-              assert false (* FIXME error. *)
-            with Contradiction ->
-              let ctx =
-                try add_equation (t,true,u) ctx
-                with Contradiction -> assert false (* unexpected. *)
-              in
-              let (ctx, p) = subtype ctx t a b in
-              (ctx, Sub_Memb_r(p))
-          end
+          let equations = prove ctx.equations (t,true,u) in
+          let (ctx, p) = subtype {ctx with equations} t a b in
+          (ctx, Sub_Memb_r(p))
       (* Restriction on the left. *)
       | (Rest(a,eq) , _          ) ->
           begin
             try
-              let ctx = add_equation eq ctx in
-              let (ctx, p) = subtype ctx t a b in
-              (ctx, Sub_Rest_l(p))
-            with Contradiction ->
-              assert false (* FIXME Nothing to do, finish the proof. *)
+              let equations = learn ctx.equations eq in
+              let (ctx, p) = subtype {ctx with equations} t a b in
+              (ctx, Sub_Rest_l(Some p))
+            with Contradiction -> (ctx, Sub_Rest_l(None))
           end
       (* Restriction on the right. *)
       | (_          , Rest(b,eq) ) ->
-          begin
-            try
-              let _ = add_equation (neg_equation eq) ctx in
-              assert false (* FIXME error. *)
-            with Contradiction ->
-              let ctx =
-                try add_equation eq ctx
-                with Contradiction -> assert false (* unexpected. *)
-              in
-              let (ctx, p) = subtype ctx t a b in
-              (ctx, Sub_Rest_r(p))
-          end
-      (* TODO *)
+          let equations = prove ctx.equations eq in
+          let (ctx, p) = subtype {ctx with equations} t a b in
+          (ctx, Sub_Rest_r(p))
+      (* No rule apply. *)
       | _                          ->
           err_msg "cannot show %a ∈ %a ⊆ %a\n%!"
             Print.ex t Print.ex a Print.ex b;

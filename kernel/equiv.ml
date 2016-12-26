@@ -440,15 +440,15 @@ let union : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
         | (_              , _              ) -> join p1 p2 po
       end
 
-(* Main module interface. *)
-type equiv   = term * term
-type inequiv = term * term
-
+(* Equational context type. *)
 type eq_ctxt =
   { pool : pool }
 
 let empty_ctxt : eq_ctxt =
   { pool = empty_pool }
+
+type equiv   = term * term
+type inequiv = term * term
 
 (* Adds an equivalence to a context, producing a bigger context. The
    exception [Contradiction] is raised when expected. *)
@@ -474,6 +474,12 @@ let add_inequiv : inequiv -> eq_ctxt -> eq_ctxt = fun (t,u) {pool} ->
   if Ptr.compare pt pu = 0 then raise Contradiction;
   {pool} (* TODO store clauses ? *)
 
+(* Main module interface. *)
+
+exception Equiv_error of string
+let equiv_error : string -> 'a =
+  fun msg -> raise (Equiv_error msg)
+
 (* Test whether a term is equivalent to a value or not. *)
 let is_value : term -> eq_ctxt -> bool * eq_ctxt = fun t {pool} ->
   let (pt, pool) = add_term pool t in
@@ -482,3 +488,28 @@ let is_value : term -> eq_ctxt -> bool * eq_ctxt = fun t {pool} ->
   log_edp "%a is%s a value" Print.print_ex t (if res then "" else " not");
   (res, {pool})
 
+type relation = term * bool * term (* true means equivalent *)
+
+let learn : eq_ctxt -> relation -> eq_ctxt = fun ctx (t,b,u) ->
+  let sym = if b then "=" else "≠" in
+  log_edp "learning %a %s %a" Print.print_ex t sym Print.print_ex u;
+  try
+    let ctx = (if b then add_equiv else add_inequiv) (t,u) ctx in
+    log_edp "learned  %a %s %a" Print.print_ex t sym Print.print_ex u;
+    ctx
+  with Contradiction ->
+    log_edp "contradiction in the context";
+    raise Contradiction
+
+let prove : eq_ctxt -> relation -> eq_ctxt = fun ctx (t,b,u) ->
+  let sym = if b then "=" else "≠" in
+  log_edp "proving  %a %s %a" Print.print_ex t sym Print.print_ex u;
+  try
+    ignore ((if b then add_inequiv else add_equiv) (t,u) ctx);
+    equiv_error "failed to prove an equational relation"
+  with Contradiction -> 
+    log_edp "proved   %a %s %a" Print.print_ex t sym Print.print_ex u;
+    let ctx =
+      try learn ctx (t,b,u)
+      with Contradiction -> assert false (* unexpected. *)
+    in ctx
