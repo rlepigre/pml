@@ -9,6 +9,7 @@ open Sorts
 open Pos
 open Ast
 open Output
+open Compare
 
 (* Log function registration. *)
 let log_edp = Log.register 'd' (Some "dec") "equivalence decision procedure"
@@ -453,7 +454,7 @@ let empty_ctxt : eq_ctxt =
    exception [Contradiction] is raised when expected. *)
 let add_equiv : equiv -> eq_ctxt -> eq_ctxt = fun (t,u) {pool} ->
   log_edp "inserting %a = %a" Print.print_ex t Print.print_ex u;
-  if t == u then {pool} else
+  if t == u || eq_expr t u then {pool} else
   let (pt, pool) = add_term pool t in
   let (pu, pool) = add_term pool u in
   let (pt, pool) = normalise pt pool in
@@ -465,7 +466,7 @@ let add_equiv : equiv -> eq_ctxt -> eq_ctxt = fun (t,u) {pool} ->
    exception [Contradiction] is raised when expected. *)
 let add_inequiv : inequiv -> eq_ctxt -> eq_ctxt = fun (t,u) {pool} ->
   log_edp "inserting %a ≠ %a" Print.print_ex t Print.print_ex u;
-  if t == u then raise Contradiction else
+  if t == u || eq_expr t u then raise Contradiction else
   let (pt, pool) = add_term pool t in
   let (pu, pool) = add_term pool u in
   let (pt, pool) = normalise pt pool in
