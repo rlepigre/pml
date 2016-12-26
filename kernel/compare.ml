@@ -7,7 +7,7 @@ open Ast
 open Output
 
 (* Log functions registration. *)
-let log_equ = Log.register 'e' (Some "equ") "equality informations"
+let log_equ = Log.register 'c' (Some "cmp") "comparing informations"
 let log_equ = Log.(log_equ.p)
 
 let log_uni = Log.register 'u' (Some "uni") "unification informations"

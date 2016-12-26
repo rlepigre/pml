@@ -12,7 +12,7 @@ open Output
 open Compare
 
 (* Log function registration. *)
-let log_edp = Log.register 'd' (Some "dec") "equivalence decision procedure"
+let log_edp = Log.register 'e' (Some "equ") "equivalence decision procedure"
 let log_edp = Log.(log_edp.p)
 
 (** Exception raise when the pool contains a contradiction. *)
@@ -506,6 +506,7 @@ let prove : eq_ctxt -> relation -> eq_ctxt = fun ctx (t,b,u) ->
   log_edp "proving  %a %s %a" Print.print_ex t sym Print.print_ex u;
   try
     ignore ((if b then add_inequiv else add_equiv) (t,u) ctx);
+    log_edp "failed to prove %a %s %a" Print.print_ex t sym Print.print_ex u;
     equiv_error "failed to prove an equational relation"
   with Contradiction -> 
     log_edp "proved   %a %s %a" Print.print_ex t sym Print.print_ex u;

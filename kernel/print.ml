@@ -38,7 +38,7 @@ let rec print_sort : type a. a sort printer = fun ch s ->
               else
                 Printf.fprintf ch "%a → %a" print_sort a print_sort b
 
-let print_eps = ref true
+let print_eps = ref false
 
 let rec print_ex : type a. a ex loc printer = fun ch e ->
   let e = Norm.whnf e in
@@ -125,9 +125,21 @@ let rec print_ex : type a. a ex loc printer = fun ch e ->
                      Printf.fprintf ch "ει(%s|%a∈%a∉%a)" (name_of x)
                        print_ex t print_ex a print_ex b
                    else output_string ch "ει"
-  | SWit(_,_)   -> output_string ch "εσ"
-  | UWit(_,_,_) -> output_string ch "ε∀"
-  | EWit(_,_,_) -> output_string ch "ε∃"
+  | SWit(f,b)   -> if !print_eps then
+                     let (a,t) = unbind mk_free (snd f) in
+                     Printf.fprintf ch "εσ(%s|%a∉%a)" (name_of a)
+                       print_ex t print_ex b
+                   else output_string ch "εσ"
+  | UWit(s,t,f) -> if !print_eps then
+                     let (x,a) = unbind mk_free (snd f) in
+                     Printf.fprintf ch "ε∀(%s:%a|%a∉%a)" (name_of x)
+                       print_sort s print_ex t print_ex a
+                   else output_string ch "ε∀"
+  | EWit(s,t,f) -> if !print_eps then
+                     let (x,a) = unbind mk_free (snd f) in
+                     Printf.fprintf ch "ε∃(%s:%a|%a∈%a)" (name_of x)
+                       print_sort s print_ex t print_ex a
+                   else output_string ch "ε∃"
   | UVar(_,uv)  -> Printf.fprintf ch "?%i" uv.uvar_key
 
 (* Short names for printing functions. *)
