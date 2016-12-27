@@ -229,7 +229,10 @@ let rec add_term : pool -> term -> TPtr.t * pool = fun po t ->
   | Valu(v)     -> let (pv, po) = add_valu po v in
                    let (pp, po) = insert_t_node (TN_Valu(pv)) po in
                    let po = add_parent_v_node pv (Ptr.T_ptr pp) po in
-                   (pp, po)
+                   let eq_map =
+                     PtrMap.add (Ptr.T_ptr pp) (Ptr.V_ptr pv) po.eq_map
+                   in
+                   (pp, {po with eq_map})
   | Appl(t,u)   -> let (pt, po) = add_term po t in
                    let (pu, po) = add_term po u in
                    let (pp, po) = insert_t_node (TN_Appl(pt,pu)) po in
@@ -465,6 +468,12 @@ let rec normalise : TPtr.t -> pool -> Ptr.t * pool = fun p po ->
         | TN_EWit(w)     -> (p, po)
       end
 
+(** Obtain the parents of a pointed node. *)
+let parents : Ptr.t -> pool -> Ptr.t list = fun p po ->
+  match p with
+  | Ptr.V_ptr vp -> fst (find_v_node vp po)
+  | Ptr.T_ptr tp -> fst (find_t_node tp po)
+
 (** Union operation. *)
 let join : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
   { po with eq_map = PtrMap.add p1 p2 po.eq_map }
@@ -480,7 +489,9 @@ let union : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
   | (Ptr.V_ptr vp1, Ptr.V_ptr vp2) ->
       begin
         let rec check_equiv vp1 vp2 po =
-          match (snd (VPtrMap.find vp1 po.vs), snd (VPtrMap.find vp2 po.vs)) with
+          let (_,n1) = VPtrMap.find vp1 po.vs in
+          let (_,n2) = VPtrMap.find vp2 po.vs in
+          match (n1, n2) with
           (* Immediate contradictions. *)
           | (VN_LAbs(_)     , VN_Reco(_)     )
           | (VN_LAbs(_)     , VN_Cons(_,_)   )
@@ -499,7 +510,9 @@ let union : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
           (* No possible refutation. *)
           | (_              , _              ) -> ()
         in
-        match (snd (VPtrMap.find vp1 po.vs), snd (VPtrMap.find vp2 po.vs)) with
+        let (_,n1) = VPtrMap.find vp1 po.vs in
+        let (_,n2) = VPtrMap.find vp2 po.vs in
+        match (n1, n2) with
         (* Immediate contradictions. *)
         | (VN_LAbs(_)     , VN_Reco(_)     )
         | (VN_LAbs(_)     , VN_Cons(_,_)   )
