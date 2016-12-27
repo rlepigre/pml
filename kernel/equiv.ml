@@ -554,26 +554,46 @@ type inequiv = term * term
 (* Adds an equivalence to a context, producing a bigger context. The
    exception [Contradiction] is raised when expected. *)
 let add_equiv : equiv -> eq_ctxt -> eq_ctxt = fun (t,u) {pool} ->
-  log_edp "inserting %a = %a" Print.print_ex t Print.print_ex u;
-  if t == u || eq_expr t u then {pool} else
+  log_edp "inserting %a = %a in context\n%a" Print.print_ex t
+    Print.print_ex u (print_pool "        ") pool;
+  if t == u || eq_expr t u then
+    begin
+      log_edp "trivial proof";
+      {pool}
+    end
+  else
   let (pt, pool) = add_term pool t in
   let (pu, pool) = add_term pool u in
   let (pt, pool) = normalise pt pool in
   let (pu, pool) = normalise pu pool in
   let pool = union pt pu pool in
+  log_edp "obtaining the context\n%a" (print_pool "        ") pool;
   {pool}
 
 (* Adds an inequivalence to a context, producing a bigger context. The
    exception [Contradiction] is raised when expected. *)
 let add_inequiv : inequiv -> eq_ctxt -> eq_ctxt = fun (t,u) {pool} ->
-  log_edp "inserting %a ≠ %a" Print.print_ex t Print.print_ex u;
-  if t == u || eq_expr t u then raise Contradiction else
+  log_edp "inserting %a ≠ %a in context\n%a" Print.print_ex t
+    Print.print_ex u (print_pool "        ") pool;
+  if t == u || eq_expr t u then
+    begin
+      log_edp "immediate contradiction";
+      raise Contradiction
+    end;
   let (pt, pool) = add_term pool t in
   let (pu, pool) = add_term pool u in
+  log_edp "after insertion of %a and %a\n%a" TPtr.print pt TPtr.print pu
+    (print_pool "        ") pool;
   let (pt, pool) = normalise pt pool in
   let (pu, pool) = normalise pu pool in
-  if Ptr.compare pt pu = 0 then raise Contradiction;
-  {pool} (* TODO store clauses ? *)
+  log_edp "after normalisation (%a and %a)\n%a" Ptr.print pt Ptr.print pu
+    (print_pool "        ") pool;
+  if Ptr.compare pt pu = 0 then
+    begin
+      log_edp "contradiction found";
+      raise Contradiction
+    end;
+  {pool} (* TODO store clauses *)
 
 (* Main module interface. *)
 
