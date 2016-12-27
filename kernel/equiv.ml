@@ -170,9 +170,11 @@ let eq_v_nodes : v_node -> v_node -> bool = fun n1 n2 -> n1 == n2 ||
   | (VN_Cons(c1,p1), VN_Cons(c2,p2)) -> c1.elt = c2.elt && p1 = p2
   | (VN_Reco(m1)   , VN_Reco(m2)   ) -> M.equal (=) m1 m2
   | (VN_Scis       , VN_Scis       ) -> true
-  | (VN_VWit(w1)   , VN_VWit(w2)   ) -> w1 == w2
-  | (VN_UWit(w1)   , VN_UWit(w2)   ) -> w1 == w2
-  | (VN_EWit(w1)   , VN_EWit(w2)   ) -> w1 == w2
+  | (VN_VWit(w1)   , VN_VWit(w2)   ) -> let (f1,a1,b1) = w1 in
+                                        let (f2,a2,b2) = w2 in
+                                        f1 == f2 && a1 == a2 && b1 == b2
+  | (VN_UWit(t1,b1), VN_UWit(t2,b2)) -> t1 == t2 && b1 == b2
+  | (VN_EWit(t1,b1), VN_EWit(t2,b2)) -> t1 == t2 && b1 == b2
   | (_             , _             ) -> false
 
 let eq_t_nodes : t_node -> t_node -> bool = fun n1 n2 -> n1 == n2 ||
@@ -186,9 +188,9 @@ let eq_t_nodes : t_node -> t_node -> bool = fun n1 n2 -> n1 == n2 ||
   | (TN_Proj(p1,l1)  , TN_Proj(p2,l2)  ) -> p1 = p2 && l1.elt = l2.elt
   | (TN_Case(p1,m1)  , TN_Case(p2,m2)  ) -> p1 = p2 && M.equal (==) m1 m2
   | (TN_FixY(p11,p12), TN_FixY(p21,p22)) -> p11 = p21 && p12 = p22
-  | (TN_UWit(w1)     , TN_UWit(w2)     ) -> w1 == w2
-  | (TN_EWit(w1)     , TN_UWit(w2)     ) -> w1 == w2
-  | (_             , _             ) -> false
+  | (TN_UWit(t1,b1)  , TN_UWit(t2,b2)  ) -> t1 == t2 && b1 == b2
+  | (TN_EWit(t1,b1)  , TN_EWit(t2,b2)  ) -> t1 == t2 && b1 == b2
+  | (_               , _               ) -> false
 
 (** Insertion function for nodes. *)
 exception FoundV of VPtr.t
