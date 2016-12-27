@@ -143,7 +143,7 @@ let print_pool : string -> out_channel -> pool -> unit = fun prefix ch po ->
     Printf.fprintf ch "%s  %a\t→ %a\n" prefix Ptr.print p1 Ptr.print p2
   in
   PtrMap.iter fn eq_map;
-  Printf.fprintf ch "%s#####################\n" prefix
+  Printf.fprintf ch "%s#####################" prefix
 
 (** Initial, empty pool. *)
 let empty_pool : pool =
