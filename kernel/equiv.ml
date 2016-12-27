@@ -24,6 +24,7 @@ module VPtr =
   struct
     type t = V of int
     let compare (V i) (V j) = i - j
+    let print ch (V i) = Printf.fprintf ch "%i" i
   end
 module VPtrMap = Map.Make(VPtr)
 
@@ -32,6 +33,7 @@ module TPtr =
   struct
     type t = T of int
     let compare (T i) (T j) = i - j
+    let print ch (T i) = Printf.fprintf ch "%i" i
   end
 module TPtrMap = Map.Make(TPtr)
 
@@ -48,6 +50,11 @@ module Ptr =
       | (T_ptr _ , V_ptr _ ) -> 1
       | (V_ptr p1, V_ptr p2) -> VPtr.compare p1 p2
       | (T_ptr p1, T_ptr p2) -> TPtr.compare p1 p2
+
+    let print ch p =
+      match p with
+      | V_ptr p -> VPtr.print ch p
+      | T_ptr p -> TPtr.print ch p
   end
 module PtrMap  = Map.Make(Ptr)
 
@@ -80,12 +87,63 @@ type t_node =
   | TN_EWit of (t ex loc * (t, p) bndr)
 type t_map = t_node TPtrMap.t
 
+(** Printing function for value nodes. *)
+let print_v_node : out_channel -> v_node -> unit = fun ch n ->
+  let prnt = Printf.fprintf in
+  match n with
+  | VN_Vari(x)     -> prnt ch "VN_Vari(%s)" (name_of x)
+  | VN_LAbs(b)     -> prnt ch "VN_LAbs(...)"
+  | VN_Cons(c,pv)  -> prnt ch "VN_Cons(%S,%a)" c.elt VPtr.print pv
+  | VN_Reco(m)     -> let pelt ch (k, p) = prnt ch "%S=%a" k VPtr.print p in
+                      prnt ch "VN_Reco(%a)" (Print.print_map pelt ":") m
+  | VN_Scis        -> prnt ch "VN_Scis"
+  | VN_VWit(w)     -> prnt ch "VN_VWit(...)"
+  | VN_UWit(w)     -> prnt ch "VN_UWit(...)"
+  | VN_EWit(w)     -> prnt ch "VN_EWit(...)"
+
+(** Printing function for term nodes. *)
+let print_t_node : out_channel -> t_node -> unit = fun ch n ->
+  let prnt = Printf.fprintf in
+  match n with
+  | TN_Vari(a)     -> prnt ch "TN_Vari(%s)" (name_of a)
+  | TN_Valu(pv)    -> prnt ch "TN_Valu(%a)" VPtr.print pv
+  | TN_Appl(pt,pu) -> prnt ch "TN_Appl(%a,%a)" TPtr.print pt TPtr.print pu
+  | TN_MAbs(b)     -> prnt ch "TN_MAbs(...)"
+  | TN_Name(s,pt)  -> prnt ch "TN_Name(...)"
+  | TN_Proj(pv,l)  -> prnt ch "TN_Proj(%a,%S)" VPtr.print pv  l.elt
+  | TN_Case(pv,m)  -> let pelt ch (k, b) = prnt ch "%S → ..." k in
+                      let pmap = Print.print_map pelt "|" in
+                      prnt ch "TN_Case(%a|%a)" VPtr.print pv pmap m
+  | TN_FixY(pt,pv) -> prnt ch "TN_FixY(%a,%a)" TPtr.print pt VPtr.print pv
+  | TN_UWit(w)     -> prnt ch "TN_UWit(...)"
+  | TN_EWit(w)     -> prnt ch "TN_EWit(...)"
+
 (** Type of a pool. *)
 type pool =
   { vs     : v_map
   ; ts     : t_map
   ; next   : int
   ; eq_map : eq_map }
+
+(** Printing a pool (useful for debugging. *)
+let print_pool : string -> out_channel -> pool -> unit = fun prefix ch po ->
+  let {vs ; ts ; eq_map } = po in
+  Printf.fprintf ch "%s#### Value nodes ####\n" prefix;
+  let fn k n =
+    Printf.fprintf ch "%s  %a\t→ %a\n" prefix VPtr.print k print_v_node n
+  in
+  VPtrMap.iter fn vs;
+  Printf.fprintf ch "%s#### Term nodes  ####\n" prefix;
+  let fn k n =
+    Printf.fprintf ch "%s  %a\t→ %a\n" prefix TPtr.print k print_t_node n
+  in
+  TPtrMap.iter fn ts;
+  Printf.fprintf ch "%s#### Links       ####\n" prefix;
+  let fn p1 p2 =
+    Printf.fprintf ch "%s  %a\t→ %a\n" prefix Ptr.print p1 Ptr.print p2
+  in
+  PtrMap.iter fn eq_map;
+  Printf.fprintf ch "%s#####################\n" prefix
 
 (** Initial, empty pool. *)
 let empty_pool : pool =
@@ -503,7 +561,8 @@ let learn : eq_ctxt -> relation -> eq_ctxt = fun ctx (t,b,u) ->
 
 let prove : eq_ctxt -> relation -> eq_ctxt = fun ctx (t,b,u) ->
   let sym = if b then "=" else "≠" in
-  log_edp "proving  %a %s %a" Print.print_ex t sym Print.print_ex u;
+  log_edp "proving  %a %s %a in context\n%a" Print.print_ex t sym
+    Print.print_ex u (print_pool "        ") ctx.pool;
   try
     ignore ((if b then add_inequiv else add_equiv) (t,u) ctx);
     log_edp "failed to prove %a %s %a" Print.print_ex t sym Print.print_ex u;
