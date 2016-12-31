@@ -124,22 +124,22 @@ let rec print_ex : type a. a ex loc printer = fun ch e ->
                      let (x,t) = unbind mk_free (snd f) in
                      Printf.fprintf ch "ει(%s|%a∈%a∉%a)" (name_of x)
                        print_ex t print_ex a print_ex b
-                   else output_string ch "ει"
+                   else Printf.fprintf ch "ει%s" (bndr_name f).elt
   | SWit(f,b)   -> if !print_eps then
                      let (a,t) = unbind mk_free (snd f) in
                      Printf.fprintf ch "εσ(%s|%a∉%a)" (name_of a)
                        print_ex t print_ex b
-                   else output_string ch "εσ"
+                   else Printf.fprintf ch "εσ%s" (bndr_name f).elt
   | UWit(s,t,f) -> if !print_eps then
                      let (x,a) = unbind mk_free (snd f) in
                      Printf.fprintf ch "ε∀(%s:%a|%a∉%a)" (name_of x)
                        print_sort s print_ex t print_ex a
-                   else output_string ch "ε∀"
+                   else Printf.fprintf ch "ε∀%s" (bndr_name f).elt
   | EWit(s,t,f) -> if !print_eps then
                      let (x,a) = unbind mk_free (snd f) in
                      Printf.fprintf ch "ε∃(%s:%a|%a∈%a)" (name_of x)
                        print_sort s print_ex t print_ex a
-                   else output_string ch "ε∃"
+                   else Printf.fprintf ch "ε∃%s" (bndr_name f).elt
   | UVar(_,uv)  -> Printf.fprintf ch "?%i" uv.uvar_key
 
 (* Short names for printing functions. *)

@@ -80,7 +80,14 @@ and typ_proof = term * prop * typ_rule
 and stk_proof = stac * prop * stk_rule
 and sub_proof = term * prop * prop * sub_rule
 
-
+let rec learn_equivalences : ctxt -> term -> prop -> ctxt = fun ctx wit a ->
+  match (Norm.whnf a).elt with
+  | Memb(t,a)  -> let equations = learn ctx.equations (wit, true, t) in
+                  learn_equivalences {ctx with equations} wit a
+  | Rest(a,eq) -> let equations = learn ctx.equations eq in
+                  learn_equivalences {ctx with equations} wit a
+  | Prod(fs)   -> ctx (* TODO *)
+  | _          -> ctx
 
 let rec get_lam : type a. string -> a sort -> term -> prop -> a ex * prop =
   fun x s t c ->
@@ -206,6 +213,8 @@ and type_valu : ctxt -> valu -> prop -> ctxt * typ_proof = fun ctx v c ->
         (* TODO NuRec ? *)
         let (ctx, p1) = subtype ctx t c' c in
         let wit = VWit(f, a, b) in
+        (* Learn the equivalence that are valid in the witness. *)
+        let ctx = learn_equivalences ctx (Pos.none (Valu(Pos.none wit))) a in
         let (ctx, p2) = type_term ctx (bndr_subst f wit) b in
         (ctx, Typ_Func_i(p1,p2))
     (* Constructor. *)
