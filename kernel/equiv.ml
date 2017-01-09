@@ -125,8 +125,12 @@ type pool =
   ; next   : int
   ; eq_map : eq_map }
 
+let is_empty : pool -> bool =
+  fun {vs; ts} -> VPtrMap.is_empty vs && TPtrMap.is_empty ts
+
 (** Printing a pool (useful for debugging. *)
 let print_pool : string -> out_channel -> pool -> unit = fun prefix ch po ->
+  if is_empty po then Printf.fprintf ch "%sEMPTY" prefix else
   let {vs ; ts ; eq_map } = po in
   Printf.fprintf ch "%s#### Value nodes ####\n" prefix;
   let fn k (ps, n) =
