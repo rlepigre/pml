@@ -90,7 +90,7 @@ let parser expr (m : mode) =
       -> in_pos _loc (EHOFn(x,s,e))
 
   (* Proposition (variable and higher-order application) *)
-  | id:llid args:{"(" (lsep "," (expr `Any)) ")"}?[[]]
+  | id:llid args:{"<" (lsep "," (expr `Any)) ">"}?[[]]
       when m = `Prp`A
       -> in_pos _loc (EVari(id, args)) 
   (* Proposition (implication) *)
@@ -144,7 +144,7 @@ let parser expr (m : mode) =
       when m = `Any
 
   (* Term (variable and higher-order application) *)
-  | id:llid args:{"(" (lsep "," (expr `Any)) "}"}?[[]]
+  | id:llid args:{"<" (lsep "," (expr `Any)) ">"}?[[]]
       when m = `Trm`A
       -> in_pos _loc (EVari(id, args)) 
   (* Term (lambda abstraction) *)
@@ -217,7 +217,7 @@ let parser expr (m : mode) =
       when m = `Any
 
   (* Stack (variable and higher-order application) *)
-  | id:llid args:{"(" (lsep "," (expr `Any)) "}"}?[[]]
+  | id:llid args:{"<" (lsep "," (expr `Any)) ">"}?[[]]
       when m = `Stk
       -> in_pos _loc (EVari(id, args)) 
   (* Stack (empty) *)
@@ -237,7 +237,7 @@ let parser expr (m : mode) =
       when m = `Any
 
   (* Ordinal (variable and higher-order application) *)
-  | id:llid args:{"(" (lsep "," (expr `Any)) "}"}?[[]]
+  | id:llid args:{"<" (lsep "," (expr `Any)) ">"}?[[]]
       when m = `Ord
       -> in_pos _loc (EVari(id, args)) 
   (* Ordinal (infinite) *)
