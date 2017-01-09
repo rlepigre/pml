@@ -132,24 +132,24 @@ let is_empty : pool -> bool =
 let print_pool : string -> out_channel -> pool -> unit = fun prefix ch po ->
   if is_empty po then Printf.fprintf ch "%sEMPTY" prefix else
   let {vs ; ts ; eq_map } = po in
-  Printf.fprintf ch "%s#### Value nodes ####\n" prefix;
+  Printf.fprintf ch "%s#### Nodes ####\n" prefix;
   let fn k (ps, n) =
     Printf.fprintf ch "%s  %a\t→ %a\t← [%a]\n" prefix VPtr.print k
       print_v_node n (Print.print_list Ptr.print ",") ps
   in
   VPtrMap.iter fn vs;
-  Printf.fprintf ch "%s#### Term nodes  ####\n" prefix;
+  Printf.fprintf ch "%s---------------\n" prefix;
   let fn k (ps, n) =
     Printf.fprintf ch "%s  %a\t→ %a\t← [%a]\n" prefix TPtr.print k
       print_t_node n (Print.print_list Ptr.print ",") ps
   in
   TPtrMap.iter fn ts;
-  Printf.fprintf ch "%s#### Links       ####\n" prefix;
+  Printf.fprintf ch "%s#### Links ####\n" prefix;
   let fn p1 p2 =
     Printf.fprintf ch "%s  %a\t→ %a\n" prefix Ptr.print p1 Ptr.print p2
   in
   PtrMap.iter fn eq_map;
-  Printf.fprintf ch "%s#####################" prefix
+  Printf.fprintf ch "%s###############" prefix
 
 (** Initial, empty pool. *)
 let empty_pool : pool =
@@ -588,12 +588,11 @@ let add_inequiv : inequiv -> eq_ctxt -> eq_ctxt = fun (t,u) {pool} ->
     end;
   let (pt, pool) = add_term pool t in
   let (pu, pool) = add_term pool u in
-  log_edp "after insertion of %a and %a\n%a" TPtr.print pt TPtr.print pu
-    (print_pool "        ") pool;
+  log_edp "insertion at %a and %a" TPtr.print pt TPtr.print pu;
   let (pt, pool) = normalise pt pool in
   let (pu, pool) = normalise pu pool in
-  log_edp "after normalisation (%a and %a)\n%a" Ptr.print pt Ptr.print pu
-    (print_pool "        ") pool;
+  log_edp "normalisation to %a and %a" Ptr.print pt Ptr.print pu;
+  log_edp "obtained context:\n%a" (print_pool "        ") pool;
   if Ptr.compare pt pu = 0 then
     begin
       log_edp "contradiction found";
@@ -630,8 +629,7 @@ let learn : eq_ctxt -> relation -> eq_ctxt = fun ctx (t,b,u) ->
 
 let prove : eq_ctxt -> relation -> eq_ctxt = fun ctx (t,b,u) ->
   let sym = if b then "=" else "≠" in
-  log_edp "proving  %a %s %a in context\n%a" Print.print_ex t sym
-    Print.print_ex u (print_pool "        ") ctx.pool;
+  log_edp "proving  %a %s %a" Print.print_ex t sym Print.print_ex u;
   try
     ignore ((if b then add_inequiv else add_equiv) (t,u) ctx);
     log_edp "failed to prove %a %s %a" Print.print_ex t sym Print.print_ex u;
