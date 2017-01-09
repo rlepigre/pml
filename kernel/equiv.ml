@@ -547,6 +547,42 @@ let union : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
         | (_              , _              ) -> join p1 p2 po
       end
 
+let is_equal : pool -> Ptr.t -> Ptr.t -> bool = fun po p1 p2 ->
+  if Ptr.compare p1 p2 = 0 then true else
+  let (p1, po) = find p1 po in
+  let (p2, po) = find p2 po in
+  if Ptr.compare p1 p2 = 0 then true else
+  match (p1, p2) with
+  | (Ptr.T_ptr _  , Ptr.V_ptr _  ) -> false
+  | (Ptr.V_ptr _  , Ptr.T_ptr _  ) -> false
+  | (Ptr.T_ptr _  , Ptr.T_ptr _  ) -> false
+  | (Ptr.V_ptr vp1, Ptr.V_ptr vp2) ->
+      begin
+        let rec is_equal vp1 vp2 po =
+          let (p1, po) = find (Ptr.V_ptr vp1) po in
+          let (p2, po) = find (Ptr.V_ptr vp2) po in
+          let (vp1, vp2) =
+            match (p1, p2) with
+            | (Ptr.V_ptr vp1, Ptr.V_ptr vp2) -> (vp1, vp2)
+            | (_            , _            ) -> assert false
+          in
+          if VPtr.compare vp1 vp2 = 0 then true else
+          let (_,n1) = VPtrMap.find vp1 po.vs in
+          let (_,n2) = VPtrMap.find vp2 po.vs in
+          match (n1, n2) with
+          (* Constructors. *)
+          | (VN_Cons(c1,vp1), VN_Cons(c2,vp2)) ->
+              c1.elt = c2.elt && is_equal vp1 vp2 po
+          (* Records. *)
+          | (VN_Reco(m1)    , VN_Reco(m2)    ) ->
+              M.equal (fun vp1 vp2 -> is_equal vp1 vp2 po) m1 m2
+          (* Impossible to tell. *)
+          | (_              , _              ) ->
+              false
+        in
+        is_equal vp1 vp2 po
+      end
+
 (* Equational context type. *)
 type eq_ctxt =
   { pool : pool }
@@ -593,7 +629,7 @@ let add_inequiv : inequiv -> eq_ctxt -> eq_ctxt = fun (t,u) {pool} ->
   let (pu, pool) = normalise pu pool in
   log_edp "normalisation to %a and %a" Ptr.print pt Ptr.print pu;
   log_edp "obtained context:\n%a" (print_pool "        ") pool;
-  if Ptr.compare pt pu = 0 then
+  if is_equal pool pt pu then
     begin
       log_edp "contradiction found";
       raise Contradiction

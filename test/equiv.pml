@@ -21,5 +21,5 @@ val tran_t3 : ∀ (a : τ) ∀ (b : τ) ∀ (c : τ) a ≡ b ⇒ b ≡ c ⇒ a �
 
 val cons_neq : ∀ (x : ι) ∀ (y : ι) C[x] ≠ D[y] = {}
 
-//val cons_eq  : ∀ (x : ι) ∀ (y : ι) x ≡ y ⇒ C[x] ≡ C[y] = λx.{}
-//val cons_eq2 : ∀ (x : ι) ∀ (y : ι) x ≡ y ⇒ C[x] ≡ C[y] = λx.x
+val cons_eq  : ∀ (x : ι) ∀ (y : ι) x ≡ y ⇒ C[x] ≡ C[y] = λx.{}
+val cons_eq2 : ∀ (x : ι) ∀ (y : ι) x ≡ y ⇒ C[x] ≡ C[y] = λx.x
