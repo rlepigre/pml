@@ -23,3 +23,5 @@ val cons_neq : ∀ (x : ι) ∀ (y : ι) C[x] ≠ D[y] = {}
 
 val cons_eq  : ∀ (x : ι) ∀ (y : ι) x ≡ y ⇒ C[x] ≡ C[y] = λx.{}
 val cons_eq2 : ∀ (x : ι) ∀ (y : ι) x ≡ y ⇒ C[x] ≡ C[y] = λx.x
+
+val id_eq : ∀ (x : ι) ∀ (y : ι) ((λx.x) y) ≡ y = {}
