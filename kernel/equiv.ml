@@ -93,13 +93,13 @@ let print_v_node : out_channel -> v_node -> unit = fun ch n ->
   match n with
   | VN_Vari(x)     -> prnt ch "VN_Vari(%s)" (name_of x)
   | VN_LAbs(b)     -> prnt ch "VN_LAbs(...)"
-  | VN_Cons(c,pv)  -> prnt ch "VN_Cons(%S,%a)" c.elt VPtr.print pv
+  | VN_Cons(c,pv)  -> prnt ch "VN_Cons(%s,%a)" c.elt VPtr.print pv
   | VN_Reco(m)     -> let pelt ch (k, p) = prnt ch "%S=%a" k VPtr.print p in
                       prnt ch "VN_Reco(%a)" (Print.print_map pelt ":") m
   | VN_Scis        -> prnt ch "VN_Scis"
-  | VN_VWit(w)     -> prnt ch "VN_VWit(...)"
-  | VN_UWit(w)     -> prnt ch "VN_UWit(...)"
-  | VN_EWit(w)     -> prnt ch "VN_EWit(...)"
+  | VN_VWit(b,_,_) -> prnt ch "VN_VWit(ει%s)" (bndr_name b).elt
+  | VN_UWit(_,b)   -> prnt ch "VN_UWit(ε∀%s)" (bndr_name b).elt
+  | VN_EWit(_,b)   -> prnt ch "VN_EWit(ε∃%s)" (bndr_name b).elt
 
 (** Printing function for term nodes. *)
 let print_t_node : out_channel -> t_node -> unit = fun ch n ->
@@ -109,14 +109,14 @@ let print_t_node : out_channel -> t_node -> unit = fun ch n ->
   | TN_Valu(pv)    -> prnt ch "TN_Valu(%a)" VPtr.print pv
   | TN_Appl(pt,pu) -> prnt ch "TN_Appl(%a,%a)" TPtr.print pt TPtr.print pu
   | TN_MAbs(b)     -> prnt ch "TN_MAbs(...)"
-  | TN_Name(s,pt)  -> prnt ch "TN_Name(...)"
-  | TN_Proj(pv,l)  -> prnt ch "TN_Proj(%a,%S)" VPtr.print pv  l.elt
+  | TN_Name(s,pt)  -> prnt ch "TN_Name(%a,%a)" Print.print_ex s TPtr.print pt
+  | TN_Proj(pv,l)  -> prnt ch "TN_Proj(%a,%s)" VPtr.print pv  l.elt
   | TN_Case(pv,m)  -> let pelt ch (k, b) = prnt ch "%S → ..." k in
                       let pmap = Print.print_map pelt "|" in
                       prnt ch "TN_Case(%a|%a)" VPtr.print pv pmap m
   | TN_FixY(pt,pv) -> prnt ch "TN_FixY(%a,%a)" TPtr.print pt VPtr.print pv
-  | TN_UWit(w)     -> prnt ch "TN_UWit(...)"
-  | TN_EWit(w)     -> prnt ch "TN_EWit(...)"
+  | TN_UWit(_,b)   -> prnt ch "TN_UWit(ε∀%s)" (bndr_name b).elt
+  | TN_EWit(_,b)   -> prnt ch "TN_EWit(ε∃%s)" (bndr_name b).elt
 
 (** Type of a pool. *)
 type pool =
