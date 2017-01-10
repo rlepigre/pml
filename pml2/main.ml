@@ -5,6 +5,7 @@ open Pos
 open Raw
 open Typing
 open Output
+open Eval
 
 let interpret : Env.env -> Raw.toplevel -> Env.env = fun env top ->
   match top with
@@ -18,7 +19,7 @@ let interpret : Env.env -> Raw.toplevel -> Env.env = fun env top ->
       let Box(s,e) = unsugar_expr env e s in
       let ee = Bindlib.unbox e in
       out "expr %s : %a ≔ %a\n%!" id.elt Print.sort s Print.ex ee;
-      add_expr id.elt s e env
+      add_expr id s e env
   | Valu_def(id,ao,t) ->
       let open Env in
       let ao =
@@ -29,7 +30,8 @@ let interpret : Env.env -> Raw.toplevel -> Env.env = fun env top ->
       let t = unbox (to_term (unsugar_expr env t _st)) in
       let (a, prf) = type_check t ao in
       out "val %s : %a\n%!" id.elt Print.ex a;
-      ignore prf; env (* TODO *)
+      ignore prf;
+      add_value id.elt t a env
 
 (* Command line argument parsing. *)
 let files =

@@ -285,6 +285,7 @@ let rec add_term : pool -> term -> TPtr.t * pool = fun po t ->
   | UWit(_,t,b) -> insert_t_node (TN_UWit((t,b))) po
   | EWit(_,t,b) -> insert_t_node (TN_EWit((t,b))) po
   | HApp(s,f,a) -> insert_t_node (TN_HApp(HO_Appl(s,f,a))) po
+  | HDef(_,d)   -> add_term po d.expr_def
   | UVar(_,_)   -> invalid_arg "unification variable in the pool"
   | ITag _      -> invalid_arg "integer tags forbidden in the pool"
   | Dumm        -> invalid_arg "dummy terms forbidden in the pool"
@@ -313,6 +314,7 @@ and     add_valu : pool -> valu -> VPtr.t * pool = fun po v ->
   | UWit(_,t,b) -> insert_v_node (VN_UWit((t,b))) po
   | EWit(_,t,b) -> insert_v_node (VN_EWit((t,b))) po
   | HApp(s,f,a) -> insert_v_node (VN_HApp(HO_Appl(s,f,a))) po
+  | HDef(_,d)   -> add_valu po d.expr_def
   | UVar(_,_)   -> invalid_arg "unification variable in the pool"
   | ITag _      -> invalid_arg "integer tags forbidden in the pool"
   | Dumm        -> invalid_arg "dummy terms forbidden in the pool"

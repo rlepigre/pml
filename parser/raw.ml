@@ -238,8 +238,8 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
           try
             let (p,sx) =
               try M.find x.elt vars with Not_found ->
-              let Expr(k,e,_) = find_expr x.elt env in
-              (e.pos, sort_from_ast k)
+              let Expr(k,d) = find_expr x.elt env in
+              (d.expr_def.pos, sort_from_ast k)
             in
             let nb_args = List.length args in
             let rec decompose acc nb s =
@@ -260,7 +260,11 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
             let s_is_t  = unsugar_sort env s  = Sort T in
             if not (eq_sort env sx s) && not (sx_is_v && s_is_t) then
               sort_clash e s
-          with Not_found -> unbound_var x.elt x.pos
+          with Not_found ->
+            try
+              ignore (find_value x.elt env);
+            with Not_found ->
+              unbound_var x.elt x.pos
         end
     | (EHOFn(x,k,f) , SFun(a,b)) -> if not (eq_sort env k a) then
                                       sort_clash e s;
@@ -505,8 +509,8 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
           try
             let box =
               try snd (M.find x.elt vars) with Not_found ->
-              let Expr(sx, _, ex) = find_expr x.elt env in
-              Box(sx,ex)
+              let Expr(sx, d) = find_expr x.elt env in
+              Box(sx, box (build_pos x.pos (HDef(sx,d))))
             in
             let rec build_app (Box(se,e)) args =
               match (se, args) with
@@ -528,7 +532,8 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
                   | (_, _) -> assert false
                 end
           with Not_found ->
-            assert false
+            let _ = find_value x.elt env in
+            assert false (* FIXME *)
         end
     | (EHOFn(x,k,f) , SFun(a,b)) ->
         let Sort sa = unsugar_sort env a in

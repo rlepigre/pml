@@ -31,6 +31,7 @@ let rec uvar_iter : type a. uvar_fun -> a ex loc -> unit = fun f e ->
   | Vari(_)     -> ()
   | HFun(_,_,b) -> uvar_iter f (bndr_subst b Dumm)
   | HApp(_,a,b) -> uvar_iter f a; uvar_iter f b
+  | HDef(_)     -> () (* NOTE no unification variable in definition. *)
   | Func(a,b)   -> uvar_iter f a; uvar_iter f b
   | Prod(m)     -> M.iter (fun _ (_,a) -> uvar_iter f a) m
   | DSum(m)     -> M.iter (fun _ (_,a) -> uvar_iter f a) m
@@ -105,6 +106,8 @@ let eq_expr : type a. a ex loc -> a ex loc -> bool = fun e1 e2 ->
           | Eq  -> eq_expr f1 f2 && eq_expr a1 a2
           | NEq -> false
         end
+    | (HDef(_,d)     , _             ) -> eq_expr d.expr_def e2
+    | (_             , HDef(_,d)     ) -> eq_expr e1 d.expr_def
     | (Func(a1,b1)   , Func(a2,b2)   ) -> eq_expr a1 a2 && eq_expr b1 b2
     | (DSum(m1)      , DSum(m2)      ) ->
         M.equal (fun (_,a1) (_,a2) -> eq_expr a1 a2) m1 m2

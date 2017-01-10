@@ -35,6 +35,8 @@ type _ ex =
   (** Higher-order function. *)
   | HApp : 'a sort * ('a -> 'b) ex loc * 'a ex loc -> 'b ex
   (** Corresponding higher-order application. *)
+  | HDef : 'a sort * 'a expr                       -> 'a ex
+  (** Definition of an expression. *)
 
   (* Proposition constructors. *)
 
@@ -130,6 +132,11 @@ type _ ex =
   (** Unification variable. *)
   (* TODO add MuRec and NuRec *)
 
+and 'a expr =
+  { expr_name : strloc
+  ; expr_def  : 'a ex loc
+  ; expr_box  : 'a box }
+
 (** Type of unification variables. *)
 and 'a uvar =
   { uvar_key : int
@@ -147,7 +154,7 @@ and ('a, 'b) bndr = popt * ('a ex, 'b ex loc) binder
 
 (** Type of an expression in a (bindlib) bindbox.
     @see <https://www.lama.univ-savoie.fr/~raffalli/bindlib.html> bindlib *)
-type 'a box = 'a ex loc bindbox
+and 'a box = 'a ex loc bindbox
 
 (** Binder substitution function. *)
 let bndr_subst : ('a, 'b) bndr -> 'a ex -> 'b ex loc =

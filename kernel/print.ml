@@ -41,7 +41,7 @@ let rec print_sort : type a. a sort printer = fun ch s ->
 let print_eps = ref false
 
 let rec print_ex : type a. a ex loc printer = fun ch e ->
-  let e = Norm.whnf e in
+  let e = Norm.repr e in
   let is_arrow a = match a.elt with Func(_,_) -> true | _ -> false in
   let is_unit a = match a.elt with Prod(m) -> M.is_empty m | _ -> false in
   match e.elt with
@@ -49,6 +49,7 @@ let rec print_ex : type a. a ex loc printer = fun ch e ->
   | HFun(_,_,b) -> let (x,t) = unbind mk_free (snd b) in
                    Printf.fprintf ch "(%s ↦ %a)" (name_of x) print_ex t
   | HApp(_,f,a) -> Printf.fprintf ch "%a<%a>" print_ex f print_ex a
+  | HDef(_,d)   -> output_string ch d.expr_name.elt
   | Func(a,b)   -> let (l,r) = if is_arrow a then ("(",")") else ("","") in
                    Printf.fprintf ch "%s%a%s ⇒ %a" l print_ex a r print_ex b
   | Prod(m)     -> let pelt ch (l,(_,a)) =

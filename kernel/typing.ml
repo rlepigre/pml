@@ -112,6 +112,11 @@ let rec subtype : ctxt -> term -> prop -> prop -> ctxt * sub_proof =
       (* Same types.  *)
       | _ when eq_expr a b         ->
           (ctx, Sub_Equal)
+      (* Unfolding of definitions. *)
+      | (HDef(_,d)  , _          ) ->
+          let (ctx, (_, _, _, r)) = subtype ctx t d.expr_def b in (ctx, r)
+      | (_          , HDef(_,d)  ) ->
+          let (ctx, (_, _, _, r)) = subtype ctx t a d.expr_def in (ctx, r)
       (* Arrow types. *)
       | (Func(a1,b1), Func(a2,b2)) ->
           let fn x = appl None (box t) (valu None (vari None x)) in
@@ -259,6 +264,9 @@ and type_valu : ctxt -> valu -> prop -> ctxt * typ_proof = fun ctx v c ->
     | VWit(_,a,_) ->
         let (ctx, p) = subtype ctx t a c in
         (ctx, Typ_VWit(p))
+    (* Definition. *)
+    | HDef(_,d)   ->
+        let (ctx, (_, _, r)) = type_valu ctx d.expr_def c in (ctx, r)
     (* Constructors that cannot appear in user-defined terms. *)
     | UWit(_,_,_) -> unexpected "∀-witness during typing..."
     | EWit(_,_,_) -> unexpected "∃-witness during typing..."
@@ -341,6 +349,9 @@ and type_term : ctxt -> term -> prop -> ctxt * typ_proof = fun ctx t c ->
         let (w, c) = get_lam (bndr_name b).elt s t c in
         let (ctx, p) = type_term ctx (bndr_subst b w) c in
         (ctx, Typ_TLam(p))
+    (* Definition. *)
+    | HDef(_,d)   ->
+        let (ctx, (_, _, r)) = type_term ctx d.expr_def c in (ctx, r)
     (* Constructors that cannot appear in user-defined terms. *)
     | UWit(_,_,_) -> unexpected "∀-witness during typing..."
     | EWit(_,_,_) -> unexpected "∃-witness during typing..."
@@ -379,6 +390,9 @@ and type_stac : ctxt -> stac -> prop -> ctxt * stk_proof = fun ctx s c ->
         in
         let (ctx, p) = subtype ctx wit a c in
         (ctx, Stk_SWit(p))
+    (* Definition. *)
+    | HDef(_,d)   ->
+        let (ctx, (_, _, r)) = type_stac ctx d.expr_def c in (ctx, r)
     (* Constructors that cannot appear in user-defined stacks. *)
     | Epsi        -> unexpected "Empty stack during typing..."
     | UWit(_,_,_) -> unexpected "∀-witness during typing..."
@@ -401,6 +415,7 @@ let bind_uvar : type a. a sort -> a uvar -> prop -> (a, p) bndr =
       | HFun(s,t,b) -> hfun e.pos s t (bndr_name b)
                          (fun y -> fn sa t uv (bndr_subst b (mk_free y)) x)
       | HApp(s,a,b) -> happ e.pos s (fn sa (F(s,sb)) uv a x) (fn sa s uv b x)
+      | HDef(_,_)   -> box e (* NOTE no unification variables in defs. *)
       | Func(a,b)   -> func e.pos (fn sa P uv a x) (fn sa P uv b x)
       | Prod(m)     -> let gn (l,a) = (l, fn sa P uv a x) in
                        prod e.pos (M.map gn m)

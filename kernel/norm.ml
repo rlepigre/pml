@@ -24,6 +24,7 @@ let rec whnf : type a. a ex loc -> a ex loc = fun exp ->
         let e = whnf e and f = whnf f in
         match (e.elt, f.elt) with
         | (HFun(_,_,b), f) -> whnf (bndr_subst b f)
+        | (HDef(_,d)  , _) -> whnf {exp with elt = HApp(s, d.expr_def, f)}
         | (_          , _) -> {exp with elt = HApp(s, e, f)}
       end
   (* Unfolding of a unification variable. *)
