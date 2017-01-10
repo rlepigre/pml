@@ -242,6 +242,7 @@ and type_valu : ctxt -> valu -> prop -> ctxt * typ_proof = fun ctx v c ->
         (* TODO NuRec ? *)
         let (ctx, p1) = subtype ctx t c' c in
         let fn l (p, v) (ctx, ps) =
+          log_typ "Checking case %s." l;
           let (_,a) = M.find l pm in
           let (ctx,p) = type_valu ctx v a in
           (ctx, p::ps)
@@ -334,6 +335,8 @@ and type_term : ctxt -> term -> prop -> ctxt * typ_proof = fun ctx t c ->
         let (ts, ctx) = M.fold fn m (M.empty, ctx) in
         let (ctx, p) = type_valu ctx v (Pos.none (DSum(ts))) in
         let check d (p,f) (ctx, ps) =
+          log_typ "Checking case %s." d;
+          (* TODO learn equation. *)
           let (_,a) = M.find d ts in
           let wit = VWit(f, a, c) in
           let (ctx, p) = type_term ctx (bndr_subst f wit) c in

@@ -11,6 +11,9 @@ val map : ∀ (a : ο) ∀ (b : ο) (a ⇒ b) ⇒ option<a> ⇒ option<b> =
     | None[x] → None[x]
     | Some[e] → (λx.Some[x]) (f e)
 
+
+
+
 val map : ∀ (a : ο) ∀ (b : ο) (a ⇒ b) ⇒ option<a> ⇒ option<b> =
   fun f eo →
     case eo of

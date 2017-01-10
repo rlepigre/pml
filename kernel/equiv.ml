@@ -308,7 +308,7 @@ and     add_valu : pool -> valu -> VPtr.t * pool = fun po v ->
                    let po = M.fold fn m po in
                    (pp, po)
   | Scis        -> insert_v_node VN_Scis po
-  | VDef(d)     -> assert false (* TODO *)
+  | VDef(d)     -> add_valu po (Erase.to_valu d.value_eval)
   | VTyp(v,_)   -> add_valu po v
   | VLam(_,b)   -> add_valu po (bndr_subst b Dumm)
   | VWit(f,a,b) -> insert_v_node (VN_VWit((f,a,b))) po

@@ -85,3 +85,52 @@ let term_erasure : term -> e_term =
 
 let stac_erasure : stac -> e_stac =
   fun s -> unbox (stac_erasure s)
+
+(* Conversion of erased expression to expression. *)
+
+(** Evaluation in an abstract machine. *)
+let rec to_valu : e_valu -> vbox = fun v ->
+  match v with
+  | VVari(x)   -> vari None (copy_var x (name_of x) mk_free)
+  | VLAbs(b)   -> let f x =
+                    let x = copy_var x (name_of x) mk_vvari in
+                    to_term (subst b (free_of x))
+                  in labs None None (Pos.none (binder_name b)) f
+  | VCons(c,v) -> cons None (Pos.none c) (to_valu v)
+  | VReco(m)   -> reco None (M.map (fun v -> (None, to_valu v)) m)
+  | VScis      -> scis None
+
+and to_term : e_term -> tbox = fun t ->
+  match t with
+  | TVari(a)   -> vari None (copy_var a (name_of a) mk_free)
+  | TValu(v)   -> valu None (to_valu v)
+  | TAppl(t,u) -> appl None (to_term t) (to_term u)
+  | TMAbs(b)   -> let f x =
+                    let x = copy_var x (name_of x) mk_svari in
+                    to_term (subst b (free_of x))
+                  in mabs None None (Pos.none (binder_name b)) f
+  | TName(s,t) -> name None (to_stac s) (to_term t)
+  | TProj(v,l) -> proj None (to_valu v) (Pos.none l)
+  | TCase(v,m) -> let f b =
+                    let f x =
+                      let x = copy_var x (name_of x) mk_vvari in
+                      to_term (subst b (free_of x))
+                    in (None, Pos.none (binder_name b), f)
+                  in case None (to_valu v) (M.map f m)
+  | TFixY(t,v) -> fixy None (to_term t) (to_valu v)
+
+and to_stac : e_stac -> sbox = fun s ->
+  match s with
+  | SVari(a)   -> vari None (copy_var a (name_of a) mk_free)
+  | SEpsi      -> epsi None
+  | SPush(v,s) -> push None (to_valu v) (to_stac s)
+  | SFram(t,s) -> fram None (to_term t) (to_stac s)
+
+let to_valu : e_valu -> valu =
+  fun v -> unbox (to_valu v)
+
+let to_term : e_term -> term =
+  fun t -> unbox (to_term t)
+
+let to_stac : e_stac -> stac =
+  fun s -> unbox (to_stac s)
