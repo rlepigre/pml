@@ -15,13 +15,13 @@ val not : bool ⇒ bool =
     | T[x] → fls
 
 val or : bool ⇒ bool ⇒ bool =
-  fun b1 b2 →
+  fun b1 → fun b2 →
     case b1 of
     | F[x] → b2
     | T[x] → tru
 
 val and : bool ⇒ bool ⇒ bool =
-  fun b1 b2 →
+  fun b1 → fun b2 →
     case b1 of
     | F[x] → fls
     | T[x] → b2

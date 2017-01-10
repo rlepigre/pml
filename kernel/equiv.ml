@@ -67,7 +67,6 @@ type _ ho_appl =
 
 (** Type of a value node. *)
 type v_node =
-  | VN_Vari of v var
   | VN_LAbs of (v, t) bndr
   | VN_Cons of M.key loc * VPtr.t
   | VN_Reco of VPtr.t M.t
@@ -80,7 +79,6 @@ type v_map = (Ptr.t list * v_node) VPtrMap.t
 
 (** Type of a term node. *)
 type t_node =
-  | TN_Vari of t var
   | TN_Valu of VPtr.t
   | TN_Appl of TPtr.t * TPtr.t
   | TN_MAbs of (s, t) bndr
@@ -98,7 +96,6 @@ let print_v_node : out_channel -> v_node -> unit = fun ch n ->
   let prnt = Printf.fprintf in
   let pex = Print.print_ex in
   match n with
-  | VN_Vari(x)     -> prnt ch "VN_Vari(%s)" (name_of x)
   | VN_LAbs(b)     -> prnt ch "VN_LAbs(%a)" pex (Pos.none (LAbs(None,b)))
   | VN_Cons(c,pv)  -> prnt ch "VN_Cons(%s,%a)" c.elt VPtr.print pv
   | VN_Reco(m)     -> let pelt ch (k, p) = prnt ch "%S=%a" k VPtr.print p in
@@ -115,7 +112,6 @@ let print_t_node : out_channel -> t_node -> unit = fun ch n ->
   let prnt = Printf.fprintf in
   let pex = Print.print_ex in
   match n with
-  | TN_Vari(a)     -> prnt ch "TN_Vari(%s)" (name_of a)
   | TN_Valu(pv)    -> prnt ch "TN_Valu(%a)" VPtr.print pv
   | TN_Appl(pt,pu) -> prnt ch "TN_Appl(%a,%a)" TPtr.print pt TPtr.print pu
   | TN_MAbs(b)     -> prnt ch "TN_MAbs(%a)" pex (Pos.none (MAbs(None,b)))
@@ -184,7 +180,6 @@ let find_t_node : TPtr.t -> pool -> Ptr.t list * t_node = fun p po ->
 let eq_v_nodes : v_node -> v_node -> bool = fun n1 n2 -> n1 == n2 ||
   match (n1, n2) with
   (* FIXME can do better than physical equality on binders / witnesses. *)
-  | (VN_Vari(x1)   , VN_Vari(x2)   ) -> eq_variables x1 x2
   | (VN_LAbs(b1)   , VN_LAbs(b2)   ) -> b1 == b2
   | (VN_Cons(c1,p1), VN_Cons(c2,p2)) -> c1.elt = c2.elt && p1 = p2
   | (VN_Reco(m1)   , VN_Reco(m2)   ) -> M.equal (=) m1 m2
@@ -199,7 +194,6 @@ let eq_v_nodes : v_node -> v_node -> bool = fun n1 n2 -> n1 == n2 ||
 let eq_t_nodes : t_node -> t_node -> bool = fun n1 n2 -> n1 == n2 ||
   match (n1, n2) with
   (* FIXME can do better than physical equality on binders / witnesses. *)
-  | (TN_Vari(a1)     , TN_Vari(a2)     ) -> eq_variables a1 a2
   | (TN_Valu(p1)     , TN_Valu(p2)     ) -> p1 = p2
   | (TN_Appl(p11,p12), TN_Appl(p21,p22)) -> p11 = p21 && p12 = p22
   | (TN_MAbs(b1)     , TN_MAbs(b2)     ) -> b1 == b2
@@ -246,7 +240,6 @@ let add_parent_t_node : TPtr.t -> Ptr.t -> pool -> pool = fun pt pp po ->
 (** Insertion of actual terms and values to the pool. *)
 let rec add_term : pool -> term -> TPtr.t * pool = fun po t ->
   match (Norm.whnf t).elt with
-  | Vari(a)     -> insert_t_node (TN_Vari(a)) po
   | Valu(v)     -> let (pv, po) = add_valu po v in
                    let (pp, po) = insert_t_node (TN_Valu(pv)) po in
                    let po = add_parent_v_node pv (Ptr.T_ptr pp) po in
@@ -286,13 +279,13 @@ let rec add_term : pool -> term -> TPtr.t * pool = fun po t ->
   | EWit(_,t,b) -> insert_t_node (TN_EWit((t,b))) po
   | HApp(s,f,a) -> insert_t_node (TN_HApp(HO_Appl(s,f,a))) po
   | HDef(_,d)   -> add_term po d.expr_def
+  | Vari(_)     -> invalid_arg "free variable in the pool"
   | UVar(_,_)   -> invalid_arg "unification variable in the pool"
   | ITag _      -> invalid_arg "integer tags forbidden in the pool"
   | Dumm        -> invalid_arg "dummy terms forbidden in the pool"
 
 and     add_valu : pool -> valu -> VPtr.t * pool = fun po v ->
   match (Norm.whnf v).elt with
-  | Vari(x)     -> insert_v_node (VN_Vari(x)) po
   | LAbs(_,b)   -> insert_v_node (VN_LAbs(b)) po
   | Cons(c,v)   -> let (pv, po) = add_valu po v in
                    let (pp, po) = insert_v_node (VN_Cons(c,pv)) po in
@@ -316,6 +309,7 @@ and     add_valu : pool -> valu -> VPtr.t * pool = fun po v ->
   | EWit(_,t,b) -> insert_v_node (VN_EWit((t,b))) po
   | HApp(s,f,a) -> insert_v_node (VN_HApp(HO_Appl(s,f,a))) po
   | HDef(_,d)   -> add_valu po d.expr_def
+  | Vari(_)     -> invalid_arg "free variable in the pool"
   | UVar(_,_)   -> invalid_arg "unification variable in the pool"
   | ITag _      -> invalid_arg "integer tags forbidden in the pool"
   | Dumm        -> invalid_arg "dummy terms forbidden in the pool"
@@ -324,7 +318,6 @@ and     add_valu : pool -> valu -> VPtr.t * pool = fun po v ->
 let rec to_term : TPtr.t -> pool -> term = fun p po ->
   let t =
     match snd (find_t_node p po) with
-    | TN_Vari(a)     -> Vari(a)
     | TN_Valu(pv)    -> Valu(to_valu pv po)
     | TN_Appl(pt,pu) -> Appl(to_term pt po, to_term pu po)
     | TN_MAbs(b)     -> MAbs(None, b)
@@ -340,7 +333,6 @@ let rec to_term : TPtr.t -> pool -> term = fun p po ->
 and     to_valu : VPtr.t -> pool -> valu = fun p po ->
   let v =
     match snd (find_v_node p po) with
-    | VN_Vari(x)     -> Vari(x)
     | VN_LAbs(b)     -> LAbs(None, b)
     | VN_Cons(c,pv)  -> Cons(c, to_valu pv po)
     | VN_Reco(m)     -> Reco(M.map (fun vp -> (None, to_valu vp po)) m)
@@ -377,7 +369,6 @@ let rec canonical_term : TPtr.t -> pool -> term * pool = fun p po ->
   | Ptr.T_ptr(p) ->
       let (t, po) =
         match snd (TPtrMap.find p po.ts) with
-        | TN_Vari(a)     -> (Vari(a), po)
         | TN_Valu(pv)    -> let (v, po) = canonical_valu pv po in
                             (Valu(v), po)
         | TN_Appl(pt,pu) -> let (t, po) = canonical_term pt po in
@@ -408,7 +399,6 @@ and     canonical_valu : VPtr.t -> pool -> valu * pool = fun p po ->
   | Ptr.V_ptr(p) ->
       let (v, po) =
         match snd (VPtrMap.find p po.vs) with
-        | VN_Vari(x)     -> (Vari(x), po)
         | VN_LAbs(b)     -> (LAbs(None, b), po)
         | VN_Cons(c,pv)  -> let (v, po) = canonical_valu pv po in
                             (Cons(c,v), po)
@@ -431,28 +421,39 @@ let canonical : Ptr.t -> pool -> term * pool = fun p po ->
   | Ptr.V_ptr p -> let (v, po) = canonical_valu p po in
                    (Pos.none (Valu v), po)
 
+let err_msg = log_edp
+
 (** Normalisation function. *)
 let rec normalise : TPtr.t -> pool -> Ptr.t * pool = fun p po ->
+  err_msg "  Normalising %a" TPtr.print p;
   let (p, po) = find (Ptr.T_ptr p) po in
+  err_msg "  Found %a" Ptr.print p;
+  let res =
   match p with
   | Ptr.V_ptr _  -> (p, po)
   | Ptr.T_ptr pt ->
       begin
         match snd (TPtrMap.find pt po.ts) with
-        | TN_Vari(a)     -> (p, po)
         | TN_Valu(pv)    -> find (Ptr.V_ptr pv) po
         | TN_Appl(pt,pu) ->
             begin
-              let (pt, po) = find (Ptr.T_ptr pt) po in
-              let (pu, po) = find (Ptr.T_ptr pu) po in
+              err_msg "Function.";
+              let (pt, po) = normalise pt po in
+              err_msg "Argument.";
+              let (pu, po) = normalise pu po in
+              err_msg "OK: %a %a" Ptr.print pt Ptr.print pu;
               match (pt, pu) with
               | (Ptr.V_ptr pf, Ptr.V_ptr pv) ->
                   begin
+                    err_msg "Can apply!";
                     match snd (VPtrMap.find pf po.vs) with
                     | VN_LAbs(b) ->
                         begin
                           let (v, po) = canonical_valu pv po in
+                          err_msg "  v = %a" Print.print_ex v;
+                          err_msg "  f = %a" Print.print_ex (Pos.none (LAbs(None, b)));
                           let t = bndr_subst b v.elt in
+                          err_msg "  => %a" Print.print_ex t;
                           let (tp, po) = add_term po t in
                           normalise tp po
                         end
@@ -502,6 +503,8 @@ let rec normalise : TPtr.t -> pool -> Ptr.t * pool = fun p po ->
         | TN_EWit(_)     -> (p, po)
         | TN_HApp(_)     -> (p, po)
       end
+  in
+  err_msg " *Obtained %a" Ptr.print (fst res); res
 
 (** Obtain the parents of a pointed node. *)
 let parents : Ptr.t -> pool -> Ptr.t list = fun p po ->
@@ -627,6 +630,7 @@ let add_inequiv : inequiv -> eq_ctxt -> eq_ctxt = fun (t,u) {pool} ->
   let (pt, pool) = add_term pool t in
   let (pu, pool) = add_term pool u in
   log_edp "insertion at %a and %a" TPtr.print pt TPtr.print pu;
+  log_edp "obtained context:\n%a" (print_pool "        ") pool;
   let (pt, pool) = normalise pt pool in
   let (pu, pool) = normalise pu pool in
   log_edp "normalisation to %a and %a" Ptr.print pt Ptr.print pu;

@@ -1,12 +1,16 @@
 (** Parser level abstract syntax tree. This module defines the low level AST
     for the language. *)
 
-
 open Bindlib
 open Sorts
 open Pos
 open Ast
 open Env
+open Output
+
+(* Log function registration. *)
+let log_par = Log.register 'p' (Some "par") "syntax analysis"
+let log_par = Log.(log_par.p)
 
 type raw_sort = raw_sort' loc
 and raw_sort' =
@@ -217,21 +221,12 @@ let rec eq_sort : env -> raw_sort -> raw_sort -> bool = fun env s1 s2 ->
   | (SUni(r1)   , SUni(r2)   ) -> r1 == r2
   | (SUni(r)    , _          ) -> r := Some s2; true
   | (_          , SUni(r)    ) -> r := Some s1; true
-  | (_          , _          ) ->
-      (*
-      let Sort s1 = unsugar_sort env s1 in
-      let Sort s2 = unsugar_sort env s2 in
-      Printf.printf "%a ≠ %a\n%!" Print.print_sort s1 Print.print_sort s2;
-      *)
-      false
+  | (_          , _          ) -> false
 
 let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
   let open Timed in
   let rec infer env vars e s =
-    (*
-    Printf.printf "infer_sort e = %a\n%!" print_raw_expr e;
-    Printf.printf "infer_sort s = %a\n%!" print_raw_sort s;
-    *)
+    log_par "infer %a : %a" print_raw_expr e print_raw_sort s;
     match (e.elt, (sort_repr env s).elt) with
     | (EVari(x,args), _        ) ->
         begin
@@ -499,10 +494,7 @@ let to_ordi : boxed -> o box = sort_filter O
 let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
   infer_sorts env e s;
   let rec unsugar env vars e s =
-    (*
-    Printf.printf "unsugar_expr e = %a\n%!" print_raw_expr e;
-    Printf.printf "unsugar_expr s = %a\n%!" print_raw_sort s;
-    *)
+    log_par "unsug %a : %a" print_raw_expr e print_raw_sort s;
     match (e.elt, (sort_repr env s).elt) with
     | (EVari(x,args), _        ) ->
         begin

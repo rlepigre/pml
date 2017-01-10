@@ -336,11 +336,15 @@ and type_term : ctxt -> term -> prop -> ctxt * typ_proof = fun ctx t c ->
         let (ctx, p) = type_valu ctx v (Pos.none (DSum(ts))) in
         let check d (p,f) (ctx, ps) =
           log_typ "Checking case %s." d;
-          (* TODO learn equation. *)
           let (_,a) = M.find d ts in
           let wit = VWit(f, a, c) in
-          let (ctx, p) = type_term ctx (bndr_subst f wit) c in
-          (ctx, p::ps)
+          let eq =
+            let wit = Valu (Pos.none (Cons(Pos.none d, Pos.none wit))) in
+            (Pos.none (Valu v), true, Pos.none wit)
+          in
+          let ctx' = {ctx with equations = learn ctx.equations eq} in
+          let (ctx', p) = type_term ctx' (bndr_subst f wit) c in
+          ({ctx' with equations = ctx.equations}, p::ps)
         in
         let (ctx, ps) = M.fold check m (ctx, []) in
         (ctx, Typ_DSum_e(p,List.rev ps))
