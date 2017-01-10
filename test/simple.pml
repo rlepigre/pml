@@ -15,8 +15,3 @@ val psnd : ∀ (a : ο) ∀ (b : ο) {x : a; y : b} ⇒ b = λp.p.y
 
 // Projection of a term
 val psnd_trm : ∀ (a : ο) ∀ (b : ο) {x : a; y : b} ⇒ b = λp.((λx.x) p).y
-
-val none : ∀ (a : ο) a ⇒ [None of {} ; Some of a] = λx.Some[x]
-
-val from_opt : ∀ (a : ο) [None of {} ; Some of a] ⇒ a ⇒ a =
-  λxo.λd.case xo of | None[x] → d | Some[x] → x

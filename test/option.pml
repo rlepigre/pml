@@ -16,3 +16,9 @@ val map : ∀ (a : ο) ∀ (b : ο) (a ⇒ b) ⇒ option<a> ⇒ option<b> =
 //    case eo of
 //    | None[x] → None[x]
 //    | Some[e] → some (f e)
+
+val from_opt : ∀ (a : ο) option<a> ⇒ a ⇒ a =
+  fun eo d →
+    case eo of
+    | None[x] → d
+    | Some[v] → v
