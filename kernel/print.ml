@@ -48,7 +48,7 @@ let rec print_ex : type a. a ex loc printer = fun ch e ->
   | Vari(x)     -> output_string ch (name_of x)
   | HFun(_,_,b) -> let (x,t) = unbind mk_free (snd b) in
                    Printf.fprintf ch "(%s ↦ %a)" (name_of x) print_ex t
-  | HApp(_,f,a) -> Printf.fprintf ch "%a(%a)" print_ex f print_ex a
+  | HApp(_,f,a) -> Printf.fprintf ch "%a<%a>" print_ex f print_ex a
   | Func(a,b)   -> let (l,r) = if is_arrow a then ("(",")") else ("","") in
                    Printf.fprintf ch "%s%a%s ⇒ %a" l print_ex a r print_ex b
   | Prod(m)     -> let pelt ch (l,(_,a)) =
