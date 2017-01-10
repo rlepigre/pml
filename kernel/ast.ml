@@ -3,20 +3,10 @@
 
 open Bindlib
 open Sorts
+open Eval
 open Pos
 
-(** Module for Maps with [string] keys. *)
-module StrMap = Map.Make(String)
-module M =
-  struct
-    include StrMap
-
-    let lift_box : 'a bindbox t -> 'a t bindbox =
-      fun m -> let module B = Lift(StrMap) in B.f m
-
-    let map_box : ('b -> 'a bindbox) -> 'b t -> 'a t bindbox =
-      fun f m -> lift_box (map f m)
-  end
+module M = Strmap
 
 (** {6 Main abstract syntax tree type} *)
 
@@ -69,6 +59,8 @@ type _ ex =
   (** Record. *)
   | Scis :                                            v  ex
   (** PML scisors. *)
+  | VDef : value                                   -> v  ex
+  (** Definition of a value. *)
 
   (* Term constructors. *)
 
@@ -134,8 +126,13 @@ type _ ex =
 
 and 'a expr =
   { expr_name : strloc
-  ; expr_def  : 'a ex loc
-  ; expr_box  : 'a box }
+  ; expr_def  : 'a ex loc }
+
+and value =
+  { value_name : strloc
+  ; value_orig : t ex loc
+  ; value_type : p ex loc
+  ; value_eval : e_valu }
 
 (** Type of unification variables. *)
 and 'a uvar =

@@ -46,6 +46,7 @@ let rec uvar_iter : type a. uvar_fun -> a ex loc -> unit = fun f e ->
   | Cons(_,v)   -> uvar_iter f v
   | Reco(m)     -> M.iter (fun _ (_,a) -> uvar_iter f a) m
   | Scis        -> ()
+  | VDef(_)     -> () (* NOTE no unification variable in definition. *)
   | Valu(v)     -> uvar_iter f v
   | Appl(t,u)   -> uvar_iter f t; uvar_iter f u
   (* NOTE type annotation ignored. *)
@@ -144,6 +145,7 @@ let eq_expr : type a. a ex loc -> a ex loc -> bool = fun e1 e2 ->
     | (Reco(m1)      , Reco(m2)      ) ->
         M.equal (fun (_,v1) (_,v2) -> eq_expr v1 v2) m1 m2
     | (Scis          , Scis          ) -> true
+    | (VDef(d1)      , VDef(d2)      ) -> d1 == d2 (* FIXME ? *)
     | (Valu(v1)      , Valu(v2)      ) -> eq_expr v1 v2
     | (Appl(t1,u1)   , Appl(t2,u2)   ) -> eq_expr t1 t2 && eq_expr u1 u2
     (* NOTE type annotation ignored. *)

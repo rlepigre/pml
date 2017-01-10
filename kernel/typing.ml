@@ -49,6 +49,7 @@ type typ_rule =
   | Typ_VLam   of typ_proof
   | Typ_TLam   of typ_proof
   | Typ_VWit   of sub_proof
+  | Typ_VDef   of value * sub_proof
   | Typ_DSum_i of sub_proof * typ_proof
   | Typ_DSum_e of typ_proof * typ_proof list
   | Typ_Func_i of sub_proof * typ_proof
@@ -267,6 +268,10 @@ and type_valu : ctxt -> valu -> prop -> ctxt * typ_proof = fun ctx v c ->
     (* Definition. *)
     | HDef(_,d)   ->
         let (ctx, (_, _, r)) = type_valu ctx d.expr_def c in (ctx, r)
+    (* Value definition. *)
+    | VDef(d)     ->
+        let (ctx, p) = subtype ctx t d.value_type c in
+        (ctx, Typ_VDef(d,p))
     (* Constructors that cannot appear in user-defined terms. *)
     | UWit(_,_,_) -> unexpected "∀-witness during typing..."
     | EWit(_,_,_) -> unexpected "∃-witness during typing..."
@@ -440,6 +445,7 @@ let bind_uvar : type a. a sort -> a uvar -> prop -> (a, p) bndr =
       | Reco(m)     -> let gn (l,v) = (l, fn sa V uv v x) in
                        reco e.pos (M.map gn m)
       | Scis        -> scis e.pos
+      | VDef(_)     -> box e (* NOTE no unification variables in defs. *)
       | Valu(v)     -> valu e.pos (fn sa V uv v x)
       | Appl(t,u)   -> appl e.pos (fn sa T uv t x) (fn sa T uv u x)
       | MAbs(ao,b)  -> mabs e.pos (Option.map (fun a -> fn sa P uv a x) ao)

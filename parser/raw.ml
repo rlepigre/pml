@@ -532,8 +532,9 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
                   | (_, _) -> assert false
                 end
           with Not_found ->
-            let _ = find_value x.elt env in
-            assert false (* FIXME *)
+            let d = find_value x.elt env in
+            if args <> [] then assert false; (* FIXME *)
+            Box(V, box (build_pos x.pos (VDef(d))))
         end
     | (EHOFn(x,k,f) , SFun(a,b)) ->
         let Sort sa = unsugar_sort env a in

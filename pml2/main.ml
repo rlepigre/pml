@@ -31,7 +31,7 @@ let interpret : Env.env -> Raw.toplevel -> Env.env = fun env top ->
       let (a, prf) = type_check t ao in
       out "val %s : %a\n%!" id.elt Print.ex a;
       ignore prf;
-      add_value id.elt t a env
+      add_value id t a (Eval.eval (Erase.term_erasure t)) env
 
 (* Command line argument parsing. *)
 let files =
