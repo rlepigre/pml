@@ -167,7 +167,7 @@ let parser expr (m : mode) =
       when m = `Trm`A
       -> in_pos _loc EScis
   (* Term (application) *)
-  | t:(expr (`Trm`Ap)) u:(expr (`Trm`F)) $ (* NOTE greedy seems required. *)
+  | t:(expr (`Trm`Ap)) u:(expr (`Trm`A))
       when m = `Trm`Ap
       -> in_pos _loc (EAppl(t,u))
   (* Term (mu abstraction) *)

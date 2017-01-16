@@ -95,6 +95,7 @@ let files =
 
 (* Handling the files. *)
 let handle_file env fn =
+  out "[%s]\n" fn;
   try
     let ast = Parser.parse_file fn in
     List.fold_left interpret env ast 

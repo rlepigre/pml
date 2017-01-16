@@ -29,3 +29,5 @@ def mua : τ = μa b.λx.x
 def mub : τ = μa b.[a]λx.x
 def muc : τ = μa b.λx.[b]x
 def mud : τ = μa b.[a]λx.[b]x
+
+def app3 (a : τ) (b : τ) (c : τ) = a b c

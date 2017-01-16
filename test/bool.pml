@@ -51,7 +51,7 @@ val eq_refl : ∀ (x : ι) x∈bool ⇒ ((eq x) x) ≡ tru =
     | T[x] → {}
 
 // Equivalence is commutative.
-val eq_comm : ∀ (x : ι) ∀ (y : ι) x∈bool ⇒ y∈bool ⇒ ((eq x) y) ≡((eq y) x) =
+val eq_comm : ∀ (x : ι) ∀ (y : ι) x∈bool ⇒ y∈bool ⇒ (eq x y) ≡((eq y) x) =
   fun b1 b2 →
     case b1 of
     | F[x] → (case b2 of | T[y] → {} | F[y] → {})
