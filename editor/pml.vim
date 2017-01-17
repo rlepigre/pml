@@ -22,6 +22,7 @@ syntax match   Keyword "Λ"
 syntax match   Keyword "[][{}()=<>,:.|]"
 syntax match   Keyword "⇒"
 syntax match   Keyword "→"
+syntax match   Keyword "∈"
 
 " Constructors
 syntax match Constant "\<\u\w*\>"

@@ -71,7 +71,9 @@ and  sub_rule =
   | Sub_Prod   of sub_proof list
   | Sub_DSum   of sub_proof list
   | Sub_Univ_l of sub_proof
+  | Sub_Exis_r of sub_proof
   | Sub_Univ_r of sub_proof
+  | Sub_Exis_l of sub_proof
   | Sub_Rest_l of sub_proof option (* None means contradictory context. *)
   | Sub_Rest_r of sub_proof
   | Sub_Memb_l of sub_proof option (* None means contradictory context. *)
@@ -160,11 +162,20 @@ let rec subtype : ctxt -> term -> prop -> prop -> ctxt * sub_proof =
       | (_          , Univ(s,f)  ) ->
           let (ctx, p) = subtype ctx t a (bndr_subst f (UWit(s,t,f))) in
           (ctx, Sub_Univ_r(p))
+      (* Existential quantification on the left. *)
+      | (Exis(s,f)  , _          ) ->
+          let (ctx, p) = subtype ctx t (bndr_subst f (EWit(s,t,f))) b in
+          (ctx, Sub_Exis_l(p))
       (* Universal quantification on the left. *)
       | (Univ(s,f)  , _          ) ->
           let (ctx, u) = new_uvar ctx s in
           let (ctx, p) = subtype ctx t (bndr_subst f u.elt) b in
           (ctx, Sub_Univ_l(p))
+      (* Existential quantification on the right. *)
+      | (_          , Exis(s,f)  ) ->
+          let (ctx, u) = new_uvar ctx s in
+          let (ctx, p) = subtype ctx t a (bndr_subst f u.elt) in
+          (ctx, Sub_Exis_r(p))
       (* Membership on the left. *)
       | (Memb(u,a)  , _          ) ->
           begin
