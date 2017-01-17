@@ -1,2 +1,2 @@
-val beta_eq : ∀ (f : ι → τ) ∀ (e : ι) ((λx.f<x>) e) ≡ f<e> = {}
+val beta_eq : ∀ f:ι→τ, ∀ e:ι, ((λx.f<x>) e) ≡ f<e> = {}
 

@@ -1,7 +1,7 @@
 def unit : ο = {}
 def null : ο = []
 def triv : ο = {} ⇒ []
-def blop = ∀ (x : ο) x
+def blop = ∀ x:ο, x
 def id = λx.x
 def stack = (λx.x) . ε
 def delta = λx.x x
@@ -20,9 +20,9 @@ def test2 : τ =
 
 def fixid : τ = fix (λx.x)
 
-def lamb_v : ι = Λ (a:ο) λx.x
+def lamb_v : ι = Λa:ο.λx.x
 
-def lamb_t : τ = Λ (a:ο) λx.x
+def lamb_t : τ = Λa:ο.λx.x
 
 def muI : τ = μa.[a]λx.x
 def mua : τ = μa b.λx.x
