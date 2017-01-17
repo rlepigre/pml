@@ -17,3 +17,7 @@ val unit : real_unit = {}
 
 // But any other record is not in this type.
 // val unit_bad : real_unit = {l = {}}
+
+// In fact we can prove that every value of [real_unit] is equivalent
+// to the empty record [{}].
+val canonical : ∀ x:ι, x∈real_unit ⇒ x ≡ {} = fun x → x
