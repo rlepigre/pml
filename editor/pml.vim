@@ -15,8 +15,18 @@ syn region Comment start="//" end="$" contains=Todo
 
 " Keywords
 syntax keyword Keyword sort def val fun save case of fix
-syntax match   Keyword "="
+syntax match   Keyword "λ"
+syntax match   Keyword "μ"
+syntax match   Keyword "ν"
+syntax match   Keyword "Λ"
+syntax match   Keyword "[][{}()=<>,:.|]"
+syntax match   Keyword "⇒"
+syntax match   Keyword "→"
 
+" Constructors
+syntax match Constant "\<\u\w*\>"
+
+" Sorts
 syntax match Type "ι"
 syntax match Type "<iota>"
 syntax match Type "<value>"
