@@ -100,7 +100,7 @@ let rec print_ex : type a. a ex loc printer = fun ch e ->
   | Scis        -> output_string ch "✂"
   | VDef(d)     -> output_string ch d.value_name.elt
   | Valu(v)     -> print_ex ch v
-  | Appl(t,u)   -> Printf.fprintf ch "(%a) %a" print_ex t print_ex u
+  | Appl(t,u)   -> Printf.fprintf ch "(%a) (%a)" print_ex t print_ex u
   | MAbs(ao,b)  -> let (x,t) = unbind mk_free (snd b) in
                    begin
                      match ao with
