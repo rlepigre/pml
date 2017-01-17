@@ -6,7 +6,7 @@ def id = λx.x
 def stack = (λx.x) . ε
 def delta = λx.x x
 def omega : τ = delta delta
-def arrow (a : ο) (b : ο) : ο = a ⇒ b
+def arrow<a:ο, b:ο> : ο = a ⇒ b
 
 def test1 : τ =
   case C[{}] of
@@ -30,4 +30,4 @@ def mub : τ = μa b.[a]λx.x
 def muc : τ = μa b.λx.[b]x
 def mud : τ = μa b.[a]λx.[b]x
 
-def app3 (a : τ) (b : τ) (c : τ) = a b c
+def app3<a:τ, b:τ, c:τ> = a b c

@@ -1,5 +1,5 @@
 // Option type
-def option (a : ο) : ο = [None of {} ; Some of a]
+def option<a:ο> : ο = [None of {} ; Some of a]
 
 // Smart constructors
 val none : ∀ a:ο, option<a> = None[]

@@ -263,7 +263,7 @@ let expr = expr `Any
 let parser toplevel =
   | _sort_ id:llid '=' s:sort
     -> Sort_def(id,s)
-  | _def_  id:llid args:sort_arg* s:{':' sort}? '=' e:expr
+  | _def_  id:llid args:sort_args s:{':' sort}? '=' e:expr
     -> let s = sort_from_opt s in
        let f (id,s) e = Pos.none (EHOFn(id,s,e)) in
        let e = List.fold_right f args e in
@@ -273,8 +273,11 @@ let parser toplevel =
   | _val_  id:llid ao:{':' expr}? '=' t:expr
     -> Valu_def(id, ao, t)
 and sort_arg =
-  | id:llid                    -> (id, new_sort_uvar ())
-  | "(" id:llid ":" s:sort ")" -> (id, s)
+  | id:llid            -> (id, new_sort_uvar ())
+  | id:llid ":" s:sort -> (id, s)
+and sort_args =
+  | EMPTY                            -> []
+  | '<' l:(lsep_ne "," sort_arg) '>' -> l
 
 let parse_file =
   let open Earley in
