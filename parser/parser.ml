@@ -110,13 +110,13 @@ let parser expr (m : mode) =
       when m = `Prp`A
       -> in_pos _loc (EDSum(fs))
   (* Proposition (universal quantification) *)
-  | "∀" x:llid ":" s:sort ',' a:(expr (`Prp`F))
+  | "∀" x:llid xs:llid* ':' s:sort ',' a:(expr (`Prp`F))
       when m = `Prp`F
-      -> in_pos _loc (EUniv(x,s,a))
+      -> in_pos _loc (EUniv((x,xs),s,a))
   (* Proposition (existential quantification) *)
-  | "∃" x:llid ":" s:sort ',' a:(expr (`Prp`F))
+  | "∃" x:llid xs:llid* ':' s:sort ',' a:(expr (`Prp`F))
       when m = `Prp`F
-      -> in_pos _loc (EExis(x,s,a))
+      -> in_pos _loc (EExis((x,xs),s,a))
   (* Proposition (least fixpoint) *)
   | "μ" o:(expr `Ord)?[none EConv] x:llid a:(expr (`Prp`F))
       when m = `Prp`F

@@ -106,8 +106,8 @@ and raw_ex' =
   | EProd of (strloc * raw_ex) list
   | EUnit (* Empty record as a type or a term *)
   | EDSum of (strloc * raw_ex) list
-  | EUniv of strloc * raw_sort * raw_ex
-  | EExis of strloc * raw_sort * raw_ex
+  | EUniv of strloc ne_list * raw_sort * raw_ex
+  | EExis of strloc ne_list * raw_sort * raw_ex
   | EFixM of raw_ex * strloc * raw_ex
   | EFixN of raw_ex * strloc * raw_ex
   | EMemb of raw_ex * raw_ex
@@ -146,9 +146,11 @@ let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
     | EUnit         -> Printf.fprintf ch "EUnit"
     | EDSum(l)      -> Printf.fprintf ch "EDSum([%a])"
                          (Print.print_list aux_ps "; ") l
-    | EUniv(x,s,a)  -> Printf.fprintf ch "EUniv(%S,%a,%a)" x.elt
+    | EUniv(xs,s,a) -> Printf.fprintf ch "EUniv([%a],%a,%a)"
+                         (Print.print_list aux_var ",") (ne_list_to_list xs)
                          print_raw_sort s print a
-    | EExis(x,s,a)  -> Printf.fprintf ch "EExis(%S,%a,%a)" x.elt
+    | EExis(xs,s,a) -> Printf.fprintf ch "EExis([%a],%a,%a)"
+                         (Print.print_list aux_var ",") (ne_list_to_list xs)
                          print_raw_sort s print a
     | EFixM(o,x,a)  -> Printf.fprintf ch "EFixM(%a,%S,%a)"
                          print o x.elt print a
@@ -182,6 +184,7 @@ let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
     | ESucc(o)      -> Printf.fprintf ch "ESucc(%a)" print o
   and aux_ps ch (l,e) = Printf.fprintf ch "(%S,%a)" l.elt print e
   and aux_rec ch (l,e,_) = Printf.fprintf ch "(%S,%a)" l.elt print e
+  and aux_var ch x = Printf.fprintf ch "%S" x.elt
   and aux_cons ch = function
     | None      -> Printf.fprintf ch "None"
     | Some(e,_) -> Printf.fprintf ch "Some(%a)" print e
@@ -288,8 +291,12 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
                                     infer env vars e s
     | (EDSum(_)     , _        )
     | (EProd(_)     , _        ) -> sort_clash e s
-    | (EUniv(x,k,e) , SP       )
-    | (EExis(x,k,e) , SP       ) -> let vars = M.add x.elt (x.pos, k) vars in
+    | (EUniv(xs,k,e), SP       )
+    | (EExis(xs,k,e), SP       ) -> let fn vars x =
+                                      M.add x.elt (x.pos, k) vars
+                                    in
+                                    let xs = ne_list_to_list xs in
+                                    let vars = List.fold_left fn vars xs in
                                     infer env vars e s
     | (EUniv(_,_,_) , SUni(r)  )
     | (EExis(_,_,_) , SUni(r)  ) -> r := Some _sp;
@@ -561,22 +568,34 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
         in
         let m = List.fold_left gn M.empty (List.map fn l) in
         Box(P, dsum e.pos m)
-    | (EUniv(x,k,e) , SP       ) ->
+    | (EUniv(xs,k,e), SP       ) ->
         let Sort k = unsugar_sort env k in
-        let fn xk : p box =
-          let xk = (x.pos, Box(k, vari x.pos xk)) in
-          let vars = M.add x.elt xk vars in
-          to_prop (unsugar env vars e _sp)
+        let xs = ne_list_to_list xs in
+        let rec build vars xs ex =
+          match xs with
+          | []    -> to_prop (unsugar env vars ex _sp)
+          | x::xs -> let fn xk : p box =
+                       let xk = (x.pos, Box(k, vari x.pos xk)) in
+                       let vars = M.add x.elt xk vars in
+                       build vars xs ex
+                     in
+                     univ ex.pos x k fn
         in
-        Box(P, univ e.pos x k fn)
-    | (EExis(x,k,e) , SP       ) ->
+        Box(P, build vars xs e)
+    | (EExis(xs,k,e), SP       ) ->
         let Sort k = unsugar_sort env k in
-        let fn xk : p box =
-          let xk = (x.pos, Box(k, vari x.pos xk)) in
-          let vars = M.add x.elt xk vars in
-          to_prop (unsugar env vars e _sp)
+        let xs = ne_list_to_list xs in
+        let rec build vars xs ex =
+          match xs with
+          | []    -> to_prop (unsugar env vars ex _sp)
+          | x::xs -> let fn xk : p box =
+                       let xk = (x.pos, Box(k, vari x.pos xk)) in
+                       let vars = M.add x.elt xk vars in
+                       build vars xs ex
+                     in
+                     exis ex.pos x k fn
         in
-        Box(P, exis e.pos x k fn)
+        Box(P, build vars xs e)
     | (EFixM(o,x,e) , SP       ) ->
         let o = to_ordi (unsugar env vars o _so) in
         let fn xo : pbox =
