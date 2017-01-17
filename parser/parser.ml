@@ -130,7 +130,7 @@ let parser expr (m : mode) =
       when m = `Prp`A
       -> in_pos _loc (EMemb(t,a))
   (* Proposition (restriction) *)
-  | a:{a:(expr (`Prp`A)) "|"}? t:(expr (`Trm`A)) b:equiv u:(expr (`Trm`A))
+  | a:{a:(expr (`Prp`A)) "|"}? t:(expr (`Trm`F)) b:equiv u:(expr (`Trm`F))
       when m = `Prp`A
       -> in_pos _loc (ERest(a,(t,b,u)))
   (* Proposition (parentheses) *)
