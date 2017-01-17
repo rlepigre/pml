@@ -76,13 +76,15 @@ let rec print_ex : type a. a ex loc printer = fun ch e ->
   | FixN(o,b)   -> let (x,a) = unbind mk_free (snd b) in
                    Printf.fprintf ch "ν(%a) %s.%a"
                      print_ex o (name_of x) print_ex a
-  | Memb(t,a)   -> Printf.fprintf ch "%a ∈ %a" print_ex t print_ex a
+  | Memb(t,a)   -> let (l,r) = if is_arrow a then ("(",")") else ("","") in
+                   Printf.fprintf ch "%a ∈ %s%a%s" print_ex t l print_ex a r
   | Rest(a,e)   -> let print_eq ch (t,b,u) =
                      let sym = if b then "=" else "≠" in
                      Printf.fprintf ch "%a %s %a" print_ex t sym print_ex u
                    in
-                   if is_unit a then print_eq ch e
-                   else Printf.fprintf ch "%a | %a" print_ex a print_eq e
+                   if is_unit a then print_eq ch e else
+                   let (l,r) = if is_arrow a then ("(",")") else ("","") in
+                   Printf.fprintf ch "%s%a%s | %a" l print_ex a r print_eq e
   | LAbs(ao,b)  -> let (x,t) = unbind mk_free (snd b) in
                    begin
                      match ao with
