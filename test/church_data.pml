@@ -14,9 +14,9 @@ def prod3<a:ο, b:ο, c:ο> : ο = ∀ x : ο, (a ⇒ b ⇒ c ⇒ x) ⇒ x
 val triple : ∀ a b c : ο, a ⇒ b ⇒ c ⇒ prod3<a,b,c> =
   λx.λy.λz.λp.p x y z
 
-val fst3 : ∀ a b c : ο, prod3<a,b,c> ⇒ a = λt.t (λx.λy.λz.x)
-val snd3 : ∀ a b c : ο, prod3<a,b,c> ⇒ b = λt.t (λx.λy.λz.y)
-val snd3 : ∀ a b c : ο, prod3<a,b,c> ⇒ c = λt.t (λx.λy.λz.z)
+val prj3_1 : ∀ a b c : ο, prod3<a,b,c> ⇒ a = λt.t (λx.λy.λz.x)
+val prj3_2 : ∀ a b c : ο, prod3<a,b,c> ⇒ b = λt.t (λx.λy.λz.y)
+val prj3_3 : ∀ a b c : ο, prod3<a,b,c> ⇒ c = λt.t (λx.λy.λz.z)
 
 
 // Church encoding of sum type (with two elements).
@@ -36,6 +36,17 @@ val inj2 : ∀ a b c : ο, b ⇒ sum3<a,b,c> = λx.λa.λb.λc.b x
 val inj3 : ∀ a b c : ο, c ⇒ sum3<a,b,c> = λx.λa.λb.λc.c x
 
 val match3 : ∀ a b c r : ο, sum3<a,b,c> ⇒ (a⇒r) ⇒ (b⇒r) ⇒ (c⇒r) ⇒ r = λx.x
+
+
+// Some proofs.
+val test1 : ∀ a b c : ι, prj3_1 (triple a b c) ≡ a = {}
+val test2 : ∀ a b c : ι, prj3_2 (triple a b c) ≡ b = {}
+val test3 : ∀ a b c : ι, prj3_3 (triple a b c) ≡ c = {}
+
+// NOTE: cannot yet prove such properties.
+// val test : ∀ a b c : ο, ∀ e : ι, e∈prod3<a,b,c> ⇒
+//            triple (prj3_1 e) (prj3_2 e) (prj3_3 e) ≡ e =
+//   fun x → {}
 
 
 // NOTE: inference does not work (for the program bellow) because of the
