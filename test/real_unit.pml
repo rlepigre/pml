@@ -21,3 +21,12 @@ val unit : real_unit = {}
 // In fact we can prove that every value of [real_unit] is equivalent
 // to the empty record [{}].
 val canonical : ∀ x:ι, x∈real_unit ⇒ x ≡ {} = fun x → x
+
+// More things
+def real_bool : ο = [T of real_unit ; F of real_unit]
+
+val is_realbool : ∀ x:ι, x∈real_bool ⇒ [L of x ≡ T[{}] ; R of x ≡ F[{}]] =
+  fun x →
+    case x of
+    | F[e] → R[e]
+    | T[e] → L[e]
