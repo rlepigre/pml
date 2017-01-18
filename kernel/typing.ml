@@ -59,6 +59,7 @@ type typ_rule =
   | Typ_Prod_e of typ_proof
   | Typ_Name   of typ_proof * stk_proof
   | Typ_Mu     of typ_proof
+  | Typ_Scis
 
 and  stk_rule =
   | Stk_Push   of sub_proof * typ_proof * stk_proof
@@ -353,9 +354,20 @@ and type_term : ctxt -> term -> prop -> ctxt * typ_proof = fun ctx t c ->
             let wit = Valu (Pos.none (Cons(Pos.none d, Pos.none wit))) in
             (Pos.none (Valu v), true, Pos.none wit)
           in
-          let ctx' = {ctx with equations = learn ctx.equations eq} in
-          let (ctx', p) = type_term ctx' (bndr_subst f wit) c in
-          ({ctx' with equations = ctx.equations}, p::ps)
+          let t = bndr_subst f wit in
+          try
+            let ctx' = {ctx with equations = learn ctx.equations eq} in
+            let (ctx', p) = type_term ctx' t c in
+            ({ctx' with equations = ctx.equations}, p::ps)
+          with Contradiction ->
+            if not (is_scis t) then
+              begin
+                match t.pos with
+                | None   -> Output.wrn_msg "unreachable code..."
+                | Some p -> Output.wrn_msg "unreachable code %a"
+                              Pos.print_short_pos p
+              end;
+            (ctx, (t,c,Typ_Scis)::ps)
         in
         let (ctx, ps) = M.fold check m (ctx, []) in
         (ctx, Typ_DSum_e(p,List.rev ps))

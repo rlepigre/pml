@@ -386,3 +386,12 @@ let swit : popt -> strloc -> (svar -> tbox) -> pbox -> sbox =
   fun pos x f a ->
     let b = vbind mk_free x.elt f in
     box_apply2 (fun b a -> {elt = SWit((x.pos, b),a); pos}) b a
+
+(** {5 useful functions} *)
+
+let rec is_scis : type a. a ex loc -> bool =
+  fun e ->
+    match e.elt with
+    | Scis    -> true
+    | Valu(v) -> is_scis v
+    | _       -> false
