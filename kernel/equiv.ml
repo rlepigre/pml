@@ -75,6 +75,7 @@ type v_node =
   | VN_UWit of (t ex loc * (v, p) bndr)
   | VN_EWit of (t ex loc * (v, p) bndr)
   | VN_HApp of v ho_appl
+  | VN_UVar of v uvar
 type v_map = (Ptr.t list * v_node) VPtrMap.t
 
 (** Type of a term node. *)
@@ -89,6 +90,7 @@ type t_node =
   | TN_UWit of (t ex loc * (t, p) bndr)
   | TN_EWit of (t ex loc * (t, p) bndr)
   | TN_HApp of t ho_appl
+  | TN_UVar of t uvar
 type t_map = (Ptr.t list * t_node) TPtrMap.t
 
 (** Printing function for value nodes. *)
@@ -106,6 +108,8 @@ let print_v_node : out_channel -> v_node -> unit = fun ch n ->
   | VN_EWit(_,b)   -> prnt ch "VN_EWit(ε∃%s)" (bndr_name b).elt
   | VN_HApp(e)     -> let HO_Appl(s,f,a) = e in
                       prnt ch "VN_HApp(%a)" pex (Pos.none (HApp(s,f,a)))
+  | VN_UVar(v)     -> prnt ch "VN_UVar(%a)" pex (Pos.none (UVar(V,v)))
+
 
 (** Printing function for term nodes. *)
 let print_t_node : out_channel -> t_node -> unit = fun ch n ->
@@ -128,6 +132,7 @@ let print_t_node : out_channel -> t_node -> unit = fun ch n ->
   | TN_HApp(e)     -> let HO_Appl(s,f,a) = e in
                       let e = Pos.none (HApp(s,f,a)) in
                       prnt ch "TN_HApp(%a)" Print.print_ex e
+  | TN_UVar(v)     -> prnt ch "TN_UVar(%a)" pex (Pos.none (UVar(T,v)))
 
 (** Type of a pool. *)
 type pool =
@@ -279,8 +284,8 @@ let rec add_term : pool -> term -> TPtr.t * pool = fun po t ->
   | EWit(_,t,b) -> insert_t_node (TN_EWit((t,b))) po
   | HApp(s,f,a) -> insert_t_node (TN_HApp(HO_Appl(s,f,a))) po
   | HDef(_,d)   -> add_term po d.expr_def
+  | UVar(_,v)   -> insert_t_node (TN_UVar(v)) po
   | Vari(_)     -> invalid_arg "free variable in the pool"
-  | UVar(_,_)   -> invalid_arg "unification variable in the pool"
   | ITag _      -> invalid_arg "integer tags forbidden in the pool"
   | Dumm        -> invalid_arg "dummy terms forbidden in the pool"
 
@@ -309,8 +314,8 @@ and     add_valu : pool -> valu -> VPtr.t * pool = fun po v ->
   | EWit(_,t,b) -> insert_v_node (VN_EWit((t,b))) po
   | HApp(s,f,a) -> insert_v_node (VN_HApp(HO_Appl(s,f,a))) po
   | HDef(_,d)   -> add_valu po d.expr_def
+  | UVar(_,v)   -> insert_v_node (VN_UVar(v)) po
   | Vari(_)     -> invalid_arg "free variable in the pool"
-  | UVar(_,_)   -> invalid_arg "unification variable in the pool"
   | ITag _      -> invalid_arg "integer tags forbidden in the pool"
   | Dumm        -> invalid_arg "dummy terms forbidden in the pool"
 
@@ -328,6 +333,7 @@ let rec to_term : TPtr.t -> pool -> term = fun p po ->
     | TN_UWit(w)     -> let (t,b) = w in UWit(T,t,b)
     | TN_EWit(w)     -> let (t,b) = w in EWit(T,t,b)
     | TN_HApp(e)     -> let HO_Appl(s,f,a) = e in HApp(s,f,a)
+    | TN_UVar(v)     -> UVar(T,v)
   in Pos.none t
 
 and     to_valu : VPtr.t -> pool -> valu = fun p po ->
@@ -341,6 +347,7 @@ and     to_valu : VPtr.t -> pool -> valu = fun p po ->
     | VN_UWit(w)     -> let (t,b) = w in UWit(V,t,b)
     | VN_EWit(w)     -> let (t,b) = w in EWit(V,t,b)
     | VN_HApp(e)     -> let HO_Appl(s,f,a) = e in HApp(s,f,a)
+    | VN_UVar(v)     -> UVar(V,v)
   in Pos.none v
 
 (** Find operation (with path contraction). *)
@@ -367,27 +374,36 @@ let rec canonical_term : TPtr.t -> pool -> term * pool = fun p po ->
   let (p, po) = find (Ptr.T_ptr p) po in
   match p with
   | Ptr.T_ptr(p) ->
-      let (t, po) =
+      begin
         match snd (TPtrMap.find p po.ts) with
         | TN_Valu(pv)    -> let (v, po) = canonical_valu pv po in
-                            (Valu(v), po)
+                            (Pos.none (Valu(v)), po)
         | TN_Appl(pt,pu) -> let (t, po) = canonical_term pt po in
                             let (u, po) = canonical_term pu po in
-                            (Appl(t,u), po)
-        | TN_MAbs(b)     -> (MAbs(None, b), po)
+                            (Pos.none (Appl(t,u)), po)
+        | TN_MAbs(b)     -> (Pos.none (MAbs(None, b)), po)
         | TN_Name(s,pt)  -> let (t, po) = canonical_term pt po in
-                            (Name(s,t), po)
+                            (Pos.none (Name(s,t)), po)
         | TN_Proj(pv,l)  -> let (v, po) = canonical_valu pv po in
-                            (Proj(v,l), po)
+                            (Pos.none (Proj(v,l)), po)
         | TN_Case(pv,m)  -> let (v, po) = canonical_valu pv po in
-                            (Case(v, M.map (fun b -> (None, b)) m), po)
+                            let t = Case(v, M.map (fun b -> (None, b)) m) in
+                            (Pos.none t, po)
         | TN_FixY(pt,pv) -> let (t, po) = canonical_term pt po in
                             let (v, po) = canonical_valu pv po in
-                            (FixY(t,v), po)
-        | TN_UWit(w)     -> (let (t,b) = w in UWit(T,t,b), po)
-        | TN_EWit(w)     -> (let (t,b) = w in EWit(T,t,b), po)
-        | TN_HApp(e)     -> (let HO_Appl(s,f,a) = e in HApp(s,f,a), po)
-      in (Pos.none t, po)
+                            (Pos.none (FixY(t,v)), po)
+        | TN_UWit(w)     -> let (t,b) = w in (Pos.none (UWit(T,t,b)), po)
+        | TN_EWit(w)     -> let (t,b) = w in (Pos.none (EWit(T,t,b)), po)
+        | TN_HApp(e)     -> let HO_Appl(s,f,a) = e in
+                            (Pos.none (HApp(s,f,a)), po)
+        | TN_UVar(v)     -> begin
+                              match !(v.uvar_val) with
+                              | None   -> (Pos.none (UVar(T,v)), po)
+                              | Some t ->
+                                  let (p, po) = add_term po t in
+                                  canonical_term p po
+                            end
+      end
   | Ptr.V_ptr(p) ->
       let (v, po) = canonical_valu p po in
       (Pos.none (Valu(v)), po)
@@ -397,23 +413,31 @@ and     canonical_valu : VPtr.t -> pool -> valu * pool = fun p po ->
   match p with
   | Ptr.T_ptr(p) -> assert false (* Should never happen. *)
   | Ptr.V_ptr(p) ->
-      let (v, po) =
+      begin
         match snd (VPtrMap.find p po.vs) with
-        | VN_LAbs(b)     -> (LAbs(None, b), po)
+        | VN_LAbs(b)     -> (Pos.none (LAbs(None, b)), po)
         | VN_Cons(c,pv)  -> let (v, po) = canonical_valu pv po in
-                            (Cons(c,v), po)
+                            (Pos.none (Cons(c,v)), po)
         | VN_Reco(m)     -> let fn l pv (m, po) =
                               let (v, po) = canonical_valu pv po in
                               (M.add l (None,v) m, po)
                             in
                             let (m, po) = M.fold fn m (M.empty, po) in
-                            (Reco(m), po)
-        | VN_Scis        -> (Scis, po)
-        | VN_VWit(w)     -> (let (f,a,b) = w in VWit(f,a,b), po)
-        | VN_UWit(w)     -> (let (t,b) = w in UWit(V,t,b), po)
-        | VN_EWit(w)     -> (let (t,b) = w in EWit(V,t,b), po)
-        | VN_HApp(e)     -> (let HO_Appl(s,f,a) = e in HApp(s,f,a), po)
-      in (Pos.none v, po)
+                            (Pos.none (Reco(m)), po)
+        | VN_Scis        -> (Pos.none Scis, po)
+        | VN_VWit(w)     -> let (f,a,b) = w in (Pos.none (VWit(f,a,b)), po)
+        | VN_UWit(w)     -> let (t,b) = w in (Pos.none (UWit(V,t,b)), po)
+        | VN_EWit(w)     -> let (t,b) = w in (Pos.none (EWit(V,t,b)), po)
+        | VN_HApp(e)     -> let HO_Appl(s,f,a) = e in
+                            (Pos.none (HApp(s,f,a)), po)
+        | VN_UVar(v)     -> begin
+                              match !(v.uvar_val) with
+                              | None   -> (Pos.none (UVar(V,v)), po)
+                              | Some w ->
+                                  let (p, po) = add_valu po w in
+                                  canonical_valu p po
+                            end
+      end
 
 let canonical : Ptr.t -> pool -> term * pool = fun p po ->
   match p with
@@ -502,6 +526,13 @@ let rec normalise : TPtr.t -> pool -> Ptr.t * pool = fun p po ->
         | TN_UWit(_)     -> (p, po)
         | TN_EWit(_)     -> (p, po)
         | TN_HApp(_)     -> (p, po)
+        | TN_UVar(v)     ->
+            begin
+              match !(v.uvar_val) with
+              | None   -> (p, po)
+              | Some t -> let (p, po) = add_term po t in
+                          normalise p po
+            end
       end
   in
   err_msg " *Obtained %a" Ptr.print (fst res); res
