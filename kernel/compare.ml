@@ -91,11 +91,14 @@ let uvar_occurs : type a b. a uvar -> b ex loc -> bool = fun u e ->
 
 (* Comparison function with unification variable instantiation. *)
 let eq_expr : type a. a ex loc -> a ex loc -> bool = fun e1 e2 ->
-  log_equ "%a = %a" Print.ex e1 Print.ex e2;
+  log_equ "trying to show %a = %a" Print.ex e1 Print.ex e2;
   let c = ref (-1) in
   let new_itag : type a. unit -> a ex = fun () -> incr c; ITag(!c) in
   let rec eq_expr : type a. a ex loc -> a ex loc -> bool = fun e1 e2 ->
-    match ((Norm.whnf e1).elt, (Norm.whnf e2).elt) with
+    let e1 = Norm.whnf e1 in
+    let e2 = Norm.whnf e2 in
+    log_equ "comparing %a and %a" Print.ex e1 Print.ex e2;
+    match (e1.elt, e2.elt) with
     | (Vari(x1)      , Vari(x2)      ) ->
         Bindlib.eq_variables x1 x2
     | (HFun(_,_,b1)  , HFun(_,_,b2)  ) ->
@@ -183,19 +186,11 @@ let eq_expr : type a. a ex loc -> a ex loc -> bool = fun e1 e2 ->
         let t = new_itag () in
         eq_expr (bndr_subst f1 t) (bndr_subst f2 t) && eq_expr a1 a2
     | (UWit(s1,t1,b1), UWit(s2,t2,b2)) ->
-        begin
-          match eq_sort s1 s2 with
-          | Eq  -> let t = new_itag () in
-                   eq_expr (bndr_subst b1 t) (bndr_subst b2 t) && eq_expr t1 t2
-          | NEq -> false
-        end
+        let t = new_itag () in
+        eq_expr (bndr_subst b1 t) (bndr_subst b2 t) && eq_expr t1 t2
     | (EWit(s1,t1,b1), EWit(s2,t2,b2)) ->
-        begin
-          match eq_sort s1 s2 with
-          | Eq  -> let t = new_itag () in
-                   eq_expr (bndr_subst b1 t) (bndr_subst b2 t) && eq_expr t1 t2
-          | NEq -> false
-        end
+        let t = new_itag () in
+        eq_expr (bndr_subst b1 t) (bndr_subst b2 t) && eq_expr t1 t2
     | (UVar(_,u1)    , UVar(_,u2)    ) ->
         if u1.uvar_key <> u2.uvar_key then uvar_set u1 e2;
         true
@@ -207,4 +202,8 @@ let eq_expr : type a. a ex loc -> a ex loc -> bool = fun e1 e2 ->
     | (_             , UVar(_,u2)    ) ->
         if uvar_occurs u2 e1 then false else (uvar_set u2 e1; true)
     | _                                -> false
-  in eq_expr e1 e2
+  in
+  let res = eq_expr e1 e2 in
+  log_equ "we have %a %s %a"
+    Print.ex e1 (if res then "=" else "≠") Print.ex e2;
+  res
