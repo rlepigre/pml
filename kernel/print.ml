@@ -38,7 +38,7 @@ let rec print_sort : type a. a sort printer = fun ch s ->
               else
                 Printf.fprintf ch "%a → %a" print_sort a print_sort b
 
-let print_eps = ref false
+let print_full = ref false
 
 let rec print_ex : type a. a ex loc printer = fun ch e ->
   let e = Norm.repr e in
@@ -99,7 +99,8 @@ let rec print_ex : type a. a ex loc printer = fun ch e ->
                    in Printf.fprintf ch "{%a}" (print_map pelt "; ") m
   | Scis        -> output_string ch "✂"
   | VDef(d)     -> output_string ch d.value_name.elt
-  | Valu(v)     -> Printf.fprintf ch "↑%a" print_ex v
+  | Valu(v)     -> if !print_full then output_string ch "↑";
+                   print_ex ch v
   | Appl(t,u)   -> Printf.fprintf ch "(%a) (%a)" print_ex t print_ex u
   | MAbs(ao,b)  -> let (x,t) = unbind mk_free (snd b) in
                    begin
@@ -132,22 +133,22 @@ let rec print_ex : type a. a ex loc printer = fun ch e ->
                    Printf.fprintf ch "Λ%s.%a" (name_of x) print_ex t
   | ITag(i)     -> Printf.fprintf ch "#%i" i
   | Dumm        -> output_string ch "∅"
-  | VWit(f,a,b) -> if !print_eps then
+  | VWit(f,a,b) -> if !print_full then
                      let (x,t) = unbind mk_free (snd f) in
                      Printf.fprintf ch "ει(%s|%a∈%a∉%a)" (name_of x)
                        print_ex t print_ex a print_ex b
                    else Printf.fprintf ch "ει%s" (bndr_name f).elt
-  | SWit(f,b)   -> if !print_eps then
+  | SWit(f,b)   -> if !print_full then
                      let (a,t) = unbind mk_free (snd f) in
                      Printf.fprintf ch "εσ(%s|%a∉%a)" (name_of a)
                        print_ex t print_ex b
                    else Printf.fprintf ch "εσ%s" (bndr_name f).elt
-  | UWit(s,t,f) -> if !print_eps then
+  | UWit(s,t,f) -> if !print_full then
                      let (x,a) = unbind mk_free (snd f) in
                      Printf.fprintf ch "ε∀(%s:%a|%a∉%a)" (name_of x)
                        print_sort s print_ex t print_ex a
                    else Printf.fprintf ch "ε∀%s" (bndr_name f).elt
-  | EWit(s,t,f) -> if !print_eps then
+  | EWit(s,t,f) -> if !print_full then
                      let (x,a) = unbind mk_free (snd f) in
                      Printf.fprintf ch "ε∃(%s:%a|%a∈%a)" (name_of x)
                        print_sort s print_ex t print_ex a

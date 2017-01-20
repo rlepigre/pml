@@ -58,9 +58,9 @@ let files =
       , Arg.String(Log.set_enabled)
       , Printf.sprintf "str Enable the provided logs. Available options:\n%s."
           (Log.opts_to_string ((String.make 20 ' ') ^ "- ")) )
-    ; ( "--full-witnesses"
-      , Arg.Set Print.print_eps
-      , " Display the definition of witnesses." )
+    ; ( "--full-terms"
+      , Arg.Set Print.print_full
+      , " Fully display terms (including the definition of witnesses)." )
     ] @ List.map help ["--help" ; "-help" ; "-h" ]
   in
   let spec = Arg.align spec in

@@ -56,6 +56,8 @@ let _save_ = KW.new_keyword "save"
 let _case_ = KW.new_keyword "case"
 let _of_   = KW.new_keyword "of"
 let _fix_  = KW.new_keyword "fix"
+let _let_  = KW.new_keyword "let"
+let _in_   = KW.new_keyword "in"
 
 let parser arrow = "→" | "->"
 let parser impl  = "⇒" | "=>"
@@ -170,6 +172,11 @@ let parser expr (m : mode) =
   | t:(expr (`Trm`Ap)) u:(expr (`Trm`A))
       when m = `Trm`Ap
       -> in_pos _loc (EAppl(t,u))
+  (* Let binding. *)
+  | _let_ id:llid '=' t:(expr (`Trm`F)) _in_ u:(expr (`Trm`F))
+      when m = `Trm`F
+      -> let f = ELAbs(((id, None), []), u) in
+         in_pos _loc (EAppl(Pos.none f, t))
   (* Term (mu abstraction) *)
   | _save_ args:fun_arg+ arrow t:(expr (`Trm`F))
       when m = `Trm`F

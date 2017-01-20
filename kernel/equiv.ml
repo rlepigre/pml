@@ -449,10 +449,7 @@ let err_msg = log_edp
 
 (** Normalisation function. *)
 let rec normalise : TPtr.t -> pool -> Ptr.t * pool = fun p po ->
-  err_msg "  Normalising %a" TPtr.print p;
   let (p, po) = find (Ptr.T_ptr p) po in
-  err_msg "  Found %a" Ptr.print p;
-  let res =
   match p with
   | Ptr.V_ptr _  -> (p, po)
   | Ptr.T_ptr pt ->
@@ -461,23 +458,16 @@ let rec normalise : TPtr.t -> pool -> Ptr.t * pool = fun p po ->
         | TN_Valu(pv)    -> find (Ptr.V_ptr pv) po
         | TN_Appl(pt,pu) ->
             begin
-              err_msg "Function.";
               let (pt, po) = normalise pt po in
-              err_msg "Argument.";
               let (pu, po) = normalise pu po in
-              err_msg "OK: %a %a" Ptr.print pt Ptr.print pu;
               match (pt, pu) with
               | (Ptr.V_ptr pf, Ptr.V_ptr pv) ->
                   begin
-                    err_msg "Can apply!";
                     match snd (VPtrMap.find pf po.vs) with
                     | VN_LAbs(b) ->
                         begin
                           let (v, po) = canonical_valu pv po in
-                          err_msg "  v = %a" Print.print_ex v;
-                          err_msg "  f = %a" Print.print_ex (Pos.none (LAbs(None, b)));
                           let t = bndr_subst b v.elt in
-                          err_msg "  => %a" Print.print_ex t;
                           let (tp, po) = add_term po t in
                           normalise tp po
                         end
@@ -534,8 +524,6 @@ let rec normalise : TPtr.t -> pool -> Ptr.t * pool = fun p po ->
                           normalise p po
             end
       end
-  in
-  err_msg " *Obtained %a" Ptr.print (fst res); res
 
 (** Obtain the parents of a pointed node. *)
 let parents : Ptr.t -> pool -> Ptr.t list = fun p po ->

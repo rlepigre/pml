@@ -97,7 +97,7 @@ let eq_expr : type a. a ex loc -> a ex loc -> bool = fun e1 e2 ->
   let rec eq_expr : type a. a ex loc -> a ex loc -> bool = fun e1 e2 ->
     let e1 = Norm.whnf e1 in
     let e2 = Norm.whnf e2 in
-    log_equ "comparing %a and %a" Print.ex e1 Print.ex e2;
+    (* log_equ "comparing %a and %a" Print.ex e1 Print.ex e2; *)
     match (e1.elt, e2.elt) with
     | (Vari(x1)      , Vari(x2)      ) ->
         Bindlib.eq_variables x1 x2
