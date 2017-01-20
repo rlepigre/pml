@@ -279,6 +279,16 @@ and sort_args =
   | EMPTY                            -> []
   | '<' l:(lsep_ne "," sort_arg) '>' -> l
 
-let parse_file =
+exception No_parse of pos * string option
+
+let parse_file fn =
   let open Earley in
-  handle_exception (parse_file (parser toplevel*) blank)
+  try parse_file (parser toplevel*) blank fn
+  with Parse_error(buf, pos, msgs) ->
+    let pos = Pos.locate buf pos buf pos in
+    let msg =
+      match msgs with
+      | []   -> None
+      | x::_ -> Some x
+    in
+    raise (No_parse(pos, msg))

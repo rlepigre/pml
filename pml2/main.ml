@@ -95,11 +95,21 @@ let files =
 
 (* Handling the files. *)
 let handle_file env fn =
-  out "[%s]\n" fn;
+  out "[%s]\n%!" fn;
   try
     let ast = Parser.parse_file fn in
     List.fold_left interpret env ast 
   with
+  | No_parse(p, None)       ->
+      begin
+        err_msg "No parse %a." Pos.print_pos p;
+        exit 1
+      end
+  | No_parse(p, Some msg)   ->
+      begin
+        err_msg "No parse %a (%s)." Pos.print_pos p msg;
+        exit 1
+      end
   | Unbound_sort(s, None  ) ->
       begin
         err_msg "Unbound sort %s." s;
