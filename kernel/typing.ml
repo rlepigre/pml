@@ -86,6 +86,7 @@ and sub_proof = term * prop * prop * sub_rule
 
 let rec learn_equivalences : ctxt -> term -> prop -> ctxt = fun ctx wit a ->
   match (Norm.whnf a).elt with
+  | HDef(_,e)  -> learn_equivalences ctx wit e.expr_def
   | Memb(t,a)  -> let equations = learn ctx.equations (wit, true, t) in
                   learn_equivalences {ctx with equations} wit a
   | Rest(a,eq) -> let equations = learn ctx.equations eq in
@@ -96,6 +97,7 @@ let rec learn_equivalences : ctxt -> term -> prop -> ctxt = fun ctx wit a ->
 let rec get_lam : type a. string -> a sort -> term -> prop -> a ex * prop =
   fun x s t c ->
     match (Norm.whnf c).elt with
+    | HDef(_,e) -> get_lam x s t e.expr_def
     | Univ(k,f) when (bndr_name f).elt <> x ->
         unexpected "Name missmatch between Λ and ∀..."
     | Univ(k,f) ->

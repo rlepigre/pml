@@ -100,7 +100,7 @@ let eq_expr : type a. a ex loc -> a ex loc -> bool = fun e1 e2 ->
     (* log_equ "comparing %a and %a" Print.ex e1 Print.ex e2; *)
     match (e1.elt, e2.elt) with
     | (Vari(x1)      , Vari(x2)      ) ->
-        Bindlib.eq_variables x1 x2
+        Bindlib.eq_vars x1 x2
     | (HFun(_,_,b1)  , HFun(_,_,b2)  ) ->
         let t = new_itag () in
         eq_expr (bndr_subst b1 t) (bndr_subst b2 t)

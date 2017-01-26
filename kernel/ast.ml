@@ -143,7 +143,7 @@ and 'a uvar =
 
 (** Type of a (bindlib) variable.
     @see <https://www.lama.univ-savoie.fr/~raffalli/bindlib.html> bindlib *)
-and 'a var = 'a ex variable
+and 'a var = 'a ex Bindlib.var
 
 (** Type of a (bindlib) binder with support for positions.
     @see <https://www.lama.univ-savoie.fr/~raffalli/bindlib.html> bindlib *)

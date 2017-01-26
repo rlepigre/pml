@@ -75,10 +75,10 @@ val eq_asso : ∀ x:ι, ∀ y:ι, ∀ z:ι, x∈bool ⇒ y∈bool ⇒ z∈bool �
               | T[y] → (case b3 of | T[z] → {} | F[z] → {})
               | F[y] → (case b3 of | T[z] → {} | F[z] → {}))
 
-val eq_comm3 : ∀ x:ι, ∀ y:ι, x∈bool ⇒ y∈bool ⇒ eq (eq x y) (eq y x) ≡ tru =
-  fun b1 b2 →
-    let p = eq_comm b1 b2 in
-    eq_refl (eq b1 b2)
+//val eq_comm3 : ∀ x:ι, ∀ y:ι, x∈bool ⇒ y∈bool ⇒ eq (eq x y) (eq y x) ≡ tru =
+//  fun b1 b2 →
+//    let p = eq_comm b1 b2 in
+//    eq_refl (eq b1 b2)
 
 //def sunit : ο = ∃ x:ι, (x ∈ {}) | x ≡ {} 
 //val unit : sunit = {}

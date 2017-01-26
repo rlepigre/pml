@@ -5,13 +5,13 @@ open Pos
 module M = Strmap
 
 type e_valu =
-  | VVari of e_valu variable
+  | VVari of e_valu var
   | VLAbs of (e_valu, e_term) binder
   | VCons of string * e_valu
   | VReco of e_valu M.t
   | VScis
 and  e_term =
-  | TVari of e_term variable
+  | TVari of e_term var
   | TValu of e_valu
   | TAppl of e_term * e_term
   | TMAbs of (e_stac, e_term) binder
@@ -20,26 +20,26 @@ and  e_term =
   | TCase of e_valu * (e_valu, e_term) binder M.t
   | TFixY of e_term * e_valu
 and  e_stac =
-  | SVari of e_stac variable
+  | SVari of e_stac var
   | SEpsi
   | SPush of e_valu * e_stac
   | SFram of e_term * e_stac
 
-type e_vvar = e_valu variable
-type e_tvar = e_term variable
-type e_svar = e_stac variable
+type e_vvar = e_valu var
+type e_tvar = e_term var
+type e_svar = e_stac var
 
 type e_vbox = e_valu bindbox
 type e_tbox = e_term bindbox
 type e_sbox = e_stac bindbox
 
-let mk_vvari : e_valu variable -> e_valu =
+let mk_vvari : e_valu var -> e_valu =
   fun x -> VVari(x)
 
-let mk_tvari : e_term variable -> e_term =
+let mk_tvari : e_term var -> e_term =
   fun x -> TVari(x)
 
-let mk_svari : e_stac variable -> e_stac =
+let mk_svari : e_stac var -> e_stac =
   fun x -> SVari(x)
 
 (* Smart constructors for values. *)
