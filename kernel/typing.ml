@@ -79,6 +79,7 @@ and  sub_rule =
   | Sub_Rest_r of sub_proof
   | Sub_Memb_l of sub_proof option (* None means contradictory context. *)
   | Sub_Memb_r of sub_proof
+  | Sub_Gene   of sub_proof
 
 and typ_proof = term * prop * typ_rule
 and stk_proof = stac * prop * stk_rule
@@ -93,6 +94,10 @@ let rec learn_equivalences : ctxt -> term -> prop -> ctxt = fun ctx wit a ->
                   learn_equivalences {ctx with equations} wit a
   | Prod(fs)   -> ctx (* TODO *)
   | _          -> ctx
+
+let term_is_value : term -> ctxt -> bool * ctxt = fun t ctx ->
+  let (is_val, equations) = is_value t ctx.equations in
+  (is_val, {ctx with equations})
 
 let rec get_lam : type a. string -> a sort -> term -> prop -> a ex * prop =
   fun x s t c ->
@@ -113,6 +118,7 @@ let rec subtype : ctxt -> term -> prop -> prop -> ctxt * sub_proof =
     log_sub "%a ∈ %a ⊆ %a" Print.ex t Print.ex a Print.ex b;
     let a = Norm.whnf a in
     let b = Norm.whnf b in
+    let (t_is_val, ctx) = term_is_value t ctx in
     let (ctx, r) =
       match (a.elt, b.elt) with
       (* Same types.  *)
@@ -124,7 +130,7 @@ let rec subtype : ctxt -> term -> prop -> prop -> ctxt * sub_proof =
       | (_          , HDef(_,d)  ) ->
           let (ctx, (_, _, _, r)) = subtype ctx t a d.expr_def in (ctx, r)
       (* Arrow types. *)
-      | (Func(a1,b1), Func(a2,b2)) ->
+      | (Func(a1,b1), Func(a2,b2)) when t_is_val ->
           let fn x = appl None (box t) (valu None (vari None x)) in
           let f = (None, unbox (vbind mk_free "x" fn)) in
           let wit = Pos.none (Valu(Pos.none (VWit(f,a2,b2)))) in
@@ -207,6 +213,14 @@ let rec subtype : ctxt -> term -> prop -> prop -> ctxt * sub_proof =
           let equations = prove ctx.equations eq in
           let (ctx, p) = subtype {ctx with equations} t a b in
           (ctx, Sub_Rest_r(p))
+      (* Fallback to general witness. *)
+      | (_          , _          ) when not t_is_val ->
+          let wit =
+            let f = bndr_from_fun "x" (fun x -> Valu(Pos.none x)) in
+            Pos.none (Valu(Pos.none (VWit(f, a, b))))
+          in
+          let (ctx, p) = subtype ctx wit a b in
+          (ctx, Sub_Gene(p))
       (* No rule apply. *)
       | _                          ->
           err_msg "cannot show %a ∈ %a ⊆ %a\n%!"
@@ -307,8 +321,7 @@ and type_term : ctxt -> term -> prop -> ctxt * typ_proof = fun ctx t c ->
         let (ctx, (_, _, r)) = type_valu ctx v c in (ctx, r)
     (* Application or strong application. *)
     | Appl(t,u)   ->
-        let (is_val, equations) = is_value u ctx.equations in
-        let ctx = {ctx with equations} in
+        let (is_val, ctx) = term_is_value u ctx in
         let (ctx, a) = new_uvar ctx P in
         if is_val then
           let ae = Pos.none (Memb(u, a)) in
@@ -425,7 +438,7 @@ and type_stac : ctxt -> stac -> prop -> ctxt * stk_proof = fun ctx s c ->
           let f = bndr_from_fun "x" (fun x -> Valu(Pos.none x)) in
           Pos.none (Valu(Pos.none (VWit(f, a, c))))
         in
-        let (ctx, p) = subtype ctx wit a c in
+        let (ctx, p) = subtype ctx wit c a in
         (ctx, Stk_SWit(p))
     (* Definition. *)
     | HDef(_,d)   ->
