@@ -138,7 +138,7 @@ let rec subtype : ctxt -> term -> prop -> prop -> ctxt * sub_proof =
           let (ctx, p2) = subtype ctx (Pos.none (Appl(t, wit))) b1 b2 in
           (ctx, Sub_Func(p1,p2))
       (* Product (record) types. *)
-      | (Prod(fs1)  , Prod(fs2)  ) ->
+      | (Prod(fs1)  , Prod(fs2)  ) when t_is_val ->
           let check_field l (p,a2) (ctx,ps) =
             let a1 =
               try snd (M.find l fs1) with Not_found ->
@@ -151,7 +151,7 @@ let rec subtype : ctxt -> term -> prop -> prop -> ctxt * sub_proof =
           let (ctx, ps) = M.fold check_field fs2 (ctx,[]) in
           (ctx, Sub_Prod(ps))
       (* Disjoint sum types. *)
-      | (DSum(cs1)  , DSum(cs2)  ) ->
+      | (DSum(cs1)  , DSum(cs2)  ) when t_is_val ->
           let check_variant c (p,a1) (ctx,ps) =
             let a2 =
               try snd (M.find c cs2) with Not_found ->
@@ -168,11 +168,11 @@ let rec subtype : ctxt -> term -> prop -> prop -> ctxt * sub_proof =
           let (ctx, ps) = M.fold check_variant cs1 (ctx,[]) in
           (ctx, Sub_DSum(ps))
       (* Universal quantification on the right. *)
-      | (_          , Univ(s,f)  ) ->
+      | (_          , Univ(s,f)  ) when t_is_val ->
           let (ctx, p) = subtype ctx t a (bndr_subst f (UWit(s,t,f))) in
           (ctx, Sub_Univ_r(p))
       (* Existential quantification on the left. *)
-      | (Exis(s,f)  , _          ) ->
+      | (Exis(s,f)  , _          ) when t_is_val ->
           let (ctx, p) = subtype ctx t (bndr_subst f (EWit(s,t,f))) b in
           (ctx, Sub_Exis_l(p))
       (* Universal quantification on the left. *)
@@ -186,7 +186,7 @@ let rec subtype : ctxt -> term -> prop -> prop -> ctxt * sub_proof =
           let (ctx, p) = subtype ctx t a (bndr_subst f u.elt) in
           (ctx, Sub_Exis_r(p))
       (* Membership on the left. *)
-      | (Memb(u,a)  , _          ) ->
+      | (Memb(u,a)  , _          ) when t_is_val ->
           begin
             try
               let equations = learn ctx.equations (t,true,u) in
@@ -195,7 +195,7 @@ let rec subtype : ctxt -> term -> prop -> prop -> ctxt * sub_proof =
             with Contradiction -> (ctx, Sub_Memb_l(None))
           end
       (* Membership on the right. *)
-      | (_          , Memb(u,b)  ) ->
+      | (_          , Memb(u,b)  ) when t_is_val ->
           let equations = prove ctx.equations (t,true,u) in
           let (ctx, p) = subtype {ctx with equations} t a b in
           (ctx, Sub_Memb_r(p))
