@@ -151,9 +151,10 @@ let rec print_ex : type a. a ex loc printer = fun ch e ->
                    else Printf.fprintf ch "ε∃%s" (bndr_name f).elt
   | UVar(_,uv)  -> Printf.fprintf ch "?%i" uv.uvar_key
 
-and print_cond ch (t,b,u) =
-  let sym = if b then "=" else "≠" in
-  Printf.fprintf ch "%a %s %a" print_ex t sym print_ex u
+and print_cond ch = function
+  | Equiv(t,b,u) -> let sym = if b then "=" else "≠" in
+                    Printf.fprintf ch "%a %s %a" print_ex t sym print_ex u
+  | Posit(o)     -> print_ex ch o
 
 
 (* Short names for printing functions. *)

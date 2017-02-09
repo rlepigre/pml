@@ -625,7 +625,7 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
         let (t,b,u) = eq in
         let t = to_term (unsugar env vars t _st) in
         let u = to_term (unsugar env vars u _st) in
-        Box(P, rest e.pos a (t,b,u))
+        Box(P, rest e.pos a (equiv t b u))
     (* Values. *)
     | (ELAbs(args,t), SV       ) ->
         begin

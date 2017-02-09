@@ -26,7 +26,11 @@ let uvar_eq : type a. a uvar -> a uvar -> bool =
 type uvar_fun = { f : 'a. 'a sort -> 'a uvar -> unit }
 
 let rec uvar_iter : type a. uvar_fun -> a ex loc -> unit = fun f e ->
-  let uvar_iter_eq f (t,_,u) = uvar_iter f t; uvar_iter f u in
+  let uvar_iter_cond f c =
+    match c with
+    | Equiv(t,_,u) -> uvar_iter f t; uvar_iter f u
+    | Posit(o)     -> uvar_iter f o
+  in
   match (Norm.whnf e).elt with
   | Vari(_)     -> ()
   | HFun(_,_,b) -> uvar_iter f (bndr_subst b Dumm)
@@ -40,8 +44,8 @@ let rec uvar_iter : type a. uvar_fun -> a ex loc -> unit = fun f e ->
   | FixM(o,b)   -> uvar_iter f o; uvar_iter f (bndr_subst b Dumm)
   | FixN(o,b)   -> uvar_iter f o; uvar_iter f (bndr_subst b Dumm)
   | Memb(t,a)   -> uvar_iter f t; uvar_iter f a
-  | Rest(a,eq)  -> uvar_iter f a; uvar_iter_eq f eq
-  | Impl(eq,a)  -> uvar_iter_eq f eq; uvar_iter f a
+  | Rest(a,c)   -> uvar_iter f a; uvar_iter_cond f c
+  | Impl(c,a)   -> uvar_iter_cond f c; uvar_iter f a
   (* NOTE type annotation ignored. *)
   | LAbs(_,b)   -> uvar_iter f (bndr_subst b Dumm)
   | Cons(_,v)   -> uvar_iter f v
@@ -139,9 +143,17 @@ let eq_expr : type a. a ex loc -> a ex loc -> bool = fun e1 e2 ->
         let t = new_itag () in
         eq_expr o1 o2 && eq_expr (bndr_subst b1 t) (bndr_subst b2 t)
     | (Memb(t1,a1)   , Memb(t2,a2)   ) -> eq_expr t1 t2 && eq_expr a1 a2
-    | (Rest(a1,eq1)  , Rest(a2,eq2)  ) ->
-        let (t1,b1,u1) = eq1 and (t2,b2,u2) = eq2 in
-        b1 = b2 && eq_expr a1 a2 && eq_expr t1 t2 && eq_expr u1 u2
+    | (Rest(a1,c1)   , Rest(a2,c2)   ) ->
+        eq_expr a1 a2 &&
+          begin
+            match (c1, c2) with
+            | (Equiv(t1,b1,u1), Equiv(t2,b2,u2)) ->
+                b1 = b2 && eq_expr t1 t2 && eq_expr u1 u2
+            | (Posit(o1)      , Posit(o2)      ) ->
+                eq_expr o1 o2
+            | (_              , _              ) ->
+                false
+          end
     (* NOTE type annotation ignored. *)
     | (LAbs(_,b1)    , LAbs(_,b2)    ) ->
         let t = new_itag () in eq_expr (bndr_subst b1 t) (bndr_subst b2 t)

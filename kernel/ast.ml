@@ -124,10 +124,12 @@ type _ ex =
   (** Existential quantifier witness. *)
   | UVar : 'a sort * 'a uvar                       -> 'a ex
   (** Unification variable. *)
-  (* TODO add MuRec and NuRec *)
 
 and cond =
-  t ex loc * bool * t ex loc
+  | Equiv of (t ex loc * bool * t ex loc)
+  (** Equivalence between terms. *)
+  | Posit of o ex loc
+  (** Positivity of the given ordinal. *)
 
 and 'a expr =
   { expr_name : strloc
@@ -195,6 +197,8 @@ type tbox = t box    (** Term    bindbox type. *)
 type sbox = s box    (** Stack   bindbox type. *)
 type pbox = p box    (** Type    bindbox type. *)
 type obox = o box    (** Ordinal bindbox type. *)
+
+type condbox = cond bindbox
 
 (** {6 Smart constructors} *)
 
@@ -350,15 +354,22 @@ let fixn : popt -> obox -> strloc -> (pvar -> pbox) -> pbox =
 let memb : popt -> tbox -> pbox -> pbox =
   fun pos -> box_apply2 (fun t a -> {elt = Memb(t,a); pos})
 
-let rest : popt -> pbox -> (tbox * bool * tbox) -> pbox =
-  fun pos a (t,b,u) ->
-    let e = box_apply2 (fun t u -> (t,b,u)) t u in
-    box_apply2 (fun a e -> {elt = Rest(a,e); pos}) a e
+let rest : popt -> pbox -> condbox -> pbox =
+  fun pos a c ->
+    box_apply2 (fun a c -> {elt = Rest(a,c); pos}) a c
 
-let impl : popt -> (tbox * bool * tbox) -> pbox -> pbox =
-  fun pos (t,b,u) a ->
-    let e = box_apply2 (fun t u -> (t,b,u)) t u in
-    box_apply2 (fun e a -> {elt = Impl(e,a); pos}) e a
+let impl : popt -> condbox -> pbox -> pbox =
+  fun pos c a ->
+    box_apply2 (fun c a -> {elt = Impl(c,a); pos}) c a
+
+(** {5 Condition constructors} *)
+
+let equiv : tbox -> bool -> tbox -> condbox =
+  fun t b u ->
+    box_apply2 (fun t u -> Equiv(t,b,u)) t u
+
+let posit : obox -> condbox =
+  box_apply (fun o -> Posit(o))
 
 (** {5 Ordinal constructors} *)
 

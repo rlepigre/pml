@@ -90,8 +90,13 @@ let rec learn_equivalences : ctxt -> term -> prop -> ctxt = fun ctx wit a ->
   | HDef(_,e)  -> learn_equivalences ctx wit e.expr_def
   | Memb(t,a)  -> let equations = learn ctx.equations (wit, true, t) in
                   learn_equivalences {ctx with equations} wit a
-  | Rest(a,eq) -> let equations = learn ctx.equations eq in
-                  learn_equivalences {ctx with equations} wit a
+  | Rest(a,c)  ->
+      begin
+        match c with
+        | Equiv(eq) -> let equations = learn ctx.equations eq in
+                       learn_equivalences {ctx with equations} wit a
+        | Posit(_)  -> ctx (* TODO *)
+      end
   | Prod(fs)   -> ctx (* TODO *)
   | _          -> ctx
 
@@ -200,19 +205,31 @@ let rec subtype : ctxt -> term -> prop -> prop -> ctxt * sub_proof =
           let (ctx, p) = subtype {ctx with equations} t a b in
           (ctx, Sub_Memb_r(p))
       (* Restriction on the left. *)
-      | (Rest(a,eq) , _          ) ->
+      | (Rest(a,c)  , _          ) ->
           begin
-            try
-              let equations = learn ctx.equations eq in
-              let (ctx, p) = subtype {ctx with equations} t a b in
-              (ctx, Sub_Rest_l(Some p))
-            with Contradiction -> (ctx, Sub_Rest_l(None))
+            match c with
+            | Equiv(eq) ->
+                begin
+                  try
+                    let equations = learn ctx.equations eq in
+                    let (ctx, p) = subtype {ctx with equations} t a b in
+                    (ctx, Sub_Rest_l(Some p))
+                  with Contradiction -> (ctx, Sub_Rest_l(None))
+                end
+            | Posit(o)  ->
+                assert false (* TODO *)
           end
       (* Restriction on the right. *)
-      | (_          , Rest(b,eq) ) ->
-          let equations = prove ctx.equations eq in
-          let (ctx, p) = subtype {ctx with equations} t a b in
-          (ctx, Sub_Rest_r(p))
+      | (_          , Rest(b,c)  ) ->
+          begin
+            match c with
+            | Equiv(eq) ->
+                let equations = prove ctx.equations eq in
+                let (ctx, p) = subtype {ctx with equations} t a b in
+                (ctx, Sub_Rest_r(p))
+            | Posit(o)  ->
+                assert false (* TODO *)
+          end
       (* Fallback to general witness. *)
       | (_          , _          ) when not t_is_val ->
           let wit =
@@ -480,13 +497,20 @@ let bind_uvar : type a. a sort -> a uvar -> prop -> (a, p) bndr =
       | FixN(o,b)   -> fixm e.pos (fn sa O uv o x) (bndr_name b)
                          (fun y -> fn sa P uv (bndr_subst b (mk_free y)) x)
       | Memb(t,a)   -> memb e.pos (fn sa T uv t x) (fn sa P uv a x)
-      | Rest(a,eq)  -> let (t,b,u) = eq in
-                       rest e.pos (fn sa P uv a x)
-                         ((fn sa T uv t x, b, fn sa T uv u x))
-      | Impl(eq,a)  -> let (t,b,u) = eq in
-                       impl e.pos
-                         ((fn sa T uv t x, b, fn sa T uv u x))
-                         (fn sa P uv a x)
+      | Rest(a,c)   -> let c = 
+                         match c with
+                         | Equiv(t,b,u) ->
+                             equiv (fn sa T uv t x) b (fn sa T uv u x)
+                         | Posit(o)     ->
+                             posit (fn sa O uv o x)
+                       in rest e.pos (fn sa P uv a x) c
+      | Impl(c,a)   -> let c = 
+                         match c with
+                         | Equiv(t,b,u) ->
+                             equiv (fn sa T uv t x) b (fn sa T uv u x)
+                         | Posit(o)     ->
+                             posit (fn sa O uv o x)
+                       in impl e.pos c (fn sa P uv a x)
       | LAbs(ao,b)  -> labs e.pos (Option.map (fun a -> fn sa P uv a x) ao)
                          (bndr_name b)
                          (fun y -> fn sa T uv (bndr_subst b (mk_free y)) x)
