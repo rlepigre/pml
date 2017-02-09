@@ -46,8 +46,10 @@ type _ ex =
   (** Coinductive type with an ordinal size. *)
   | Memb : t ex loc * p ex loc                     -> p  ex
   (** Membership type. *)
-  | Rest : p ex loc * (t ex loc * bool * t ex loc) -> p  ex
+  | Rest : p ex loc * cond                         -> p  ex
   (** Restriction type. *)
+  | Impl : cond * p ex loc                         -> p  ex
+  (** Conditional implication. *)
 
   (* Value constructors. *)
 
@@ -123,6 +125,9 @@ type _ ex =
   | UVar : 'a sort * 'a uvar                       -> 'a ex
   (** Unification variable. *)
   (* TODO add MuRec and NuRec *)
+
+and cond =
+  t ex loc * bool * t ex loc
 
 and 'a expr =
   { expr_name : strloc
@@ -349,6 +354,11 @@ let rest : popt -> pbox -> (tbox * bool * tbox) -> pbox =
   fun pos a (t,b,u) ->
     let e = box_apply2 (fun t u -> (t,b,u)) t u in
     box_apply2 (fun a e -> {elt = Rest(a,e); pos}) a e
+
+let impl : popt -> (tbox * bool * tbox) -> pbox -> pbox =
+  fun pos (t,b,u) a ->
+    let e = box_apply2 (fun t u -> (t,b,u)) t u in
+    box_apply2 (fun e a -> {elt = Impl(e,a); pos}) e a
 
 (** {5 Ordinal constructors} *)
 

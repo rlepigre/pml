@@ -483,6 +483,10 @@ let bind_uvar : type a. a sort -> a uvar -> prop -> (a, p) bndr =
       | Rest(a,eq)  -> let (t,b,u) = eq in
                        rest e.pos (fn sa P uv a x)
                          ((fn sa T uv t x, b, fn sa T uv u x))
+      | Impl(eq,a)  -> let (t,b,u) = eq in
+                       impl e.pos
+                         ((fn sa T uv t x, b, fn sa T uv u x))
+                         (fn sa P uv a x)
       | LAbs(ao,b)  -> labs e.pos (Option.map (fun a -> fn sa P uv a x) ao)
                          (bndr_name b)
                          (fun y -> fn sa T uv (bndr_subst b (mk_free y)) x)

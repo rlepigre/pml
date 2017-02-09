@@ -41,6 +41,7 @@ let rec uvar_iter : type a. uvar_fun -> a ex loc -> unit = fun f e ->
   | FixN(o,b)   -> uvar_iter f o; uvar_iter f (bndr_subst b Dumm)
   | Memb(t,a)   -> uvar_iter f t; uvar_iter f a
   | Rest(a,eq)  -> uvar_iter f a; uvar_iter_eq f eq
+  | Impl(eq,a)  -> uvar_iter_eq f eq; uvar_iter f a
   (* NOTE type annotation ignored. *)
   | LAbs(_,b)   -> uvar_iter f (bndr_subst b Dumm)
   | Cons(_,v)   -> uvar_iter f v

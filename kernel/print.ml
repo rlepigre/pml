@@ -32,8 +32,7 @@ let rec print_sort : type a. a sort printer = fun ch s ->
   | S      -> output_string ch "σ"
   | P      -> output_string ch "ο"
   | O      -> output_string ch "κ"
-  | F(a,b) -> let isfun = match a with F(_,_) -> true | _ -> false in
-              if isfun then
+  | F(a,b) -> if match a with F(_,_) -> true | _ -> false then
                 Printf.fprintf ch "(%a) → %a" print_sort a print_sort b
               else
                 Printf.fprintf ch "%a → %a" print_sort a print_sort b
@@ -78,13 +77,10 @@ let rec print_ex : type a. a ex loc printer = fun ch e ->
                      print_ex o (name_of x) print_ex a
   | Memb(t,a)   -> let (l,r) = if is_arrow a then ("(",")") else ("","") in
                    Printf.fprintf ch "%a ∈ %s%a%s" print_ex t l print_ex a r
-  | Rest(a,e)   -> let print_eq ch (t,b,u) =
-                     let sym = if b then "=" else "≠" in
-                     Printf.fprintf ch "%a %s %a" print_ex t sym print_ex u
-                   in
-                   if is_unit a then print_eq ch e else
+  | Rest(a,e)   -> if is_unit a then print_cond ch e else
                    let (l,r) = if is_arrow a then ("(",")") else ("","") in
-                   Printf.fprintf ch "%s%a%s | %a" l print_ex a r print_eq e
+                   Printf.fprintf ch "%s%a%s | %a" l print_ex a r print_cond e
+  | Impl(e,a)   -> Printf.fprintf ch "%a ↪ %a" print_cond e print_ex a
   | LAbs(ao,b)  -> let (x,t) = unbind mk_free (snd b) in
                    begin
                      match ao with
@@ -154,6 +150,11 @@ let rec print_ex : type a. a ex loc printer = fun ch e ->
                        print_sort s print_ex t print_ex a
                    else Printf.fprintf ch "ε∃%s" (bndr_name f).elt
   | UVar(_,uv)  -> Printf.fprintf ch "?%i" uv.uvar_key
+
+and print_cond ch (t,b,u) =
+  let sym = if b then "=" else "≠" in
+  Printf.fprintf ch "%a %s %a" print_ex t sym print_ex u
+
 
 (* Short names for printing functions. *)
 let sort = print_sort
