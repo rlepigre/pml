@@ -41,7 +41,15 @@ let print_full = ref false
 
 let rec print_ex : type a. a ex loc printer = fun ch e ->
   let e = Norm.repr e in
-  let is_arrow a = match a.elt with Func(_,_) -> true | _ -> false in
+  let rec is_arrow a =
+    match a.elt with
+    | Func(_,_) -> true
+    | Univ(_,_) -> true
+    | Exis(_,_) -> true
+    | FixM(_,_) -> true
+    | FixN(_,_) -> true
+    | _         -> false
+  in
   let is_unit a = match a.elt with Prod(m) -> M.is_empty m | _ -> false in
   match e.elt with
   | Vari(x)     -> output_string ch (name_of x)

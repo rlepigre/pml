@@ -113,7 +113,6 @@ let eq_expr : type a. a ex loc -> a ex loc -> bool = fun e1 e2 ->
         eq_expr (bndr_subst b1 t) (bndr_subst b2 t)
     | (HApp(s1,f1,a1), HApp(s2,f2,a2)) ->
         begin
-          Printf.printf "ICI\n%!";
           match eq_sort s1 s2 with
           | Eq  -> eq_expr f1 f2 && eq_expr a1 a2
           | NEq -> false
@@ -214,7 +213,6 @@ let eq_expr : type a. a ex loc -> a ex loc -> bool = fun e1 e2 ->
     | (UVar(_,u1)    , Func({elt = Memb(t,a)}, b)) when uvar_occurs u1 t ->
         eq_expr e1 (Pos.none (Func(a,b)))
     | (UVar(_,u1)    , _             ) ->
-        Printf.printf "Ici %a\n%!" Print.ex e2;
         if uvar_occurs u1 e2 then false else (uvar_set u1 e2; true)
     | (_             , UVar(_,u2)    ) ->
         if uvar_occurs u2 e1 then false else (uvar_set u2 e1; true)
