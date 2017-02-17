@@ -94,6 +94,8 @@ let uvar_occurs : type a b. a uvar -> b ex loc -> bool = fun u e ->
   let f _ v = if v.uvar_key == u.uvar_key then raise Exit in
   try uvar_iter {f} e; false with Exit -> true
 
+let full_eq = ref false
+
 (* Comparison function with unification variable instantiation. *)
 let eq_expr : type a. a ex loc -> a ex loc -> bool = fun e1 e2 ->
   log_equ "trying to show %a = %a" Print.ex e1 Print.ex e2;
@@ -102,7 +104,7 @@ let eq_expr : type a. a ex loc -> a ex loc -> bool = fun e1 e2 ->
   let rec eq_expr : type a. a ex loc -> a ex loc -> bool = fun e1 e2 ->
     let e1 = Norm.whnf e1 in
     let e2 = Norm.whnf e2 in
-    (* log_equ "comparing %a and %a" Print.ex e1 Print.ex e2; *)
+    if !full_eq then log_equ "comparing %a and %a" Print.ex e1 Print.ex e2;
     match (e1.elt, e2.elt) with
     | (Vari(x1)      , Vari(x2)      ) ->
         Bindlib.eq_vars x1 x2
@@ -111,6 +113,7 @@ let eq_expr : type a. a ex loc -> a ex loc -> bool = fun e1 e2 ->
         eq_expr (bndr_subst b1 t) (bndr_subst b2 t)
     | (HApp(s1,f1,a1), HApp(s2,f2,a2)) ->
         begin
+          Printf.printf "ICI\n%!";
           match eq_sort s1 s2 with
           | Eq  -> eq_expr f1 f2 && eq_expr a1 a2
           | NEq -> false
@@ -211,6 +214,7 @@ let eq_expr : type a. a ex loc -> a ex loc -> bool = fun e1 e2 ->
     | (UVar(_,u1)    , Func({elt = Memb(t,a)}, b)) when uvar_occurs u1 t ->
         eq_expr e1 (Pos.none (Func(a,b)))
     | (UVar(_,u1)    , _             ) ->
+        Printf.printf "Ici %a\n%!" Print.ex e2;
         if uvar_occurs u1 e2 then false else (uvar_set u1 e2; true)
     | (_             , UVar(_,u2)    ) ->
         if uvar_occurs u2 e1 then false else (uvar_set u2 e1; true)

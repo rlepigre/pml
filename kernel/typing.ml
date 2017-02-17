@@ -30,11 +30,13 @@ let log_typ = Log.(log_typ.p)
 
 type ctxt  =
   { uvar_counter : int
-  ; equations    : eq_ctxt }
+  ; equations    : eq_ctxt
+  ; positives    : ordi list }
 
 let empty_ctxt =
   { uvar_counter = 0
-  ; equations    = empty_ctxt }
+  ; equations    = empty_ctxt
+  ; positives    = [] }
 
 (* New unification variable of the given sort. *)
 let new_uvar : type a. ctxt -> a sort -> ctxt * a ex loc = fun ctx s ->

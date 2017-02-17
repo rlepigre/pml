@@ -61,6 +61,9 @@ let files =
     ; ( "--full-terms"
       , Arg.Set Print.print_full
       , " Fully display terms (including the definition of witnesses)." )
+    ; ( "--full-compare"
+      , Arg.Set Compare.full_eq
+      , " Show all the steps when comparing expressions.")
     ] @ List.map help ["--help" ; "-help" ; "-h" ]
   in
   let spec = Arg.align spec in
