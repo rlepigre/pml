@@ -207,7 +207,7 @@ let rec subtype : ctxt -> term -> prop -> prop -> ctxt * sub_proof =
           let (ctx, p) = subtype {ctx with equations} t a b in
           (ctx, Sub_Memb_r(p))
       (* Restriction on the left. *)
-      | (Rest(a,c)  , _          ) ->
+      | (Rest(a,c)  , _          ) when t_is_val ->
           begin
             match c with
             | Equiv(eq) ->
