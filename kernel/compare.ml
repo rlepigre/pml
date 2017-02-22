@@ -96,14 +96,15 @@ let uvar_occurs : type a b. a uvar -> b ex loc -> bool = fun u e ->
 
 let full_eq = ref false
 
-type r = {
-    eq_expr : 'a . 'a ex loc -> 'a ex loc -> bool;
-    eq_bndr : 'a 'b . ('a,'b) bndr -> ('a,'b) bndr -> bool }
+type eq_t =
+  { eq_expr : 'a . 'a ex loc -> 'a ex loc -> bool
+  ; eq_bndr : 'a 'b . ('a,'b) bndr -> ('a,'b) bndr -> bool }
 
 (* Comparison function with unification variable instantiation. *)
 let {eq_expr; eq_bndr} =
   let c = ref (-1) in
   let new_itag : type a. unit -> a ex = fun () -> incr c; ITag(!c) in
+
   let rec eq_expr : type a. a ex loc -> a ex loc -> bool = fun e1 e2 ->
     let e1 = Norm.whnf e1 in
     let e2 = Norm.whnf e2 in
@@ -201,14 +202,23 @@ let {eq_expr; eq_bndr} =
     | (_             , UVar(_,u2)    ) ->
         if uvar_occurs u2 e1 then false else (uvar_set u2 e1; true)
     | _                                -> false
+
   and eq_bndr : type a b. (a,b) bndr -> (a,b) bndr -> bool = fun b1 b2 ->
-    let t = new_itag () in eq_expr (bndr_subst b1 t) (bndr_subst b2 t)
+    let t = new_itag () in
+    eq_expr (bndr_subst b1 t) (bndr_subst b2 t)
   in
+
   let eq_expr : type a. a ex loc -> a ex loc -> bool = fun e1 e2 ->
+    c := -1; (* Reset. *)
     log_equ "trying to show %a = %a" Print.ex e1 Print.ex e2;
     let res = eq_expr e1 e2 in
     log_equ "we have %a %s %a"
             Print.ex e1 (if res then "=" else "≠") Print.ex e2;
     res
+  in
+
+  let eq_bndr : type a b. (a,b) bndr -> (a,b) bndr -> bool = fun b1 b2 ->
+    c := -1; (* Reset. *)
+    eq_bndr b1 b2
   in
   {eq_expr; eq_bndr}
