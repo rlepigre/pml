@@ -185,15 +185,15 @@ let find_t_node : TPtr.t -> pool -> Ptr.t list * t_node = fun p po ->
 let eq_v_nodes : v_node -> v_node -> bool = fun n1 n2 -> n1 == n2 ||
   match (n1, n2) with
   (* FIXME can do better than physical equality on binders / witnesses. *)
-  | (VN_LAbs(b1)   , VN_LAbs(b2)   ) -> b1 == b2
+  | (VN_LAbs(b1)   , VN_LAbs(b2)   ) -> eq_bndr b1 b2
   | (VN_Cons(c1,p1), VN_Cons(c2,p2)) -> c1.elt = c2.elt && p1 = p2
   | (VN_Reco(m1)   , VN_Reco(m2)   ) -> M.equal (=) m1 m2
   | (VN_Scis       , VN_Scis       ) -> true
   | (VN_VWit(w1)   , VN_VWit(w2)   ) -> let (f1,a1,b1) = w1 in
                                         let (f2,a2,b2) = w2 in
-                                        f1 == f2 && a1 == a2 && b1 == b2
-  | (VN_UWit(t1,b1), VN_UWit(t2,b2)) -> t1 == t2 && b1 == b2
-  | (VN_EWit(t1,b1), VN_EWit(t2,b2)) -> t1 == t2 && b1 == b2
+                                        eq_bndr f1 f2 && eq_expr a1 a2 && eq_expr b1 b2
+  | (VN_UWit(t1,b1), VN_UWit(t2,b2)) -> eq_expr t1 t2 && eq_bndr b1 b2
+  | (VN_EWit(t1,b1), VN_EWit(t2,b2)) -> eq_expr t1 t2 && eq_bndr b1 b2
   | (_             , _             ) -> false
 
 let eq_t_nodes : t_node -> t_node -> bool = fun n1 n2 -> n1 == n2 ||
@@ -201,13 +201,13 @@ let eq_t_nodes : t_node -> t_node -> bool = fun n1 n2 -> n1 == n2 ||
   (* FIXME can do better than physical equality on binders / witnesses. *)
   | (TN_Valu(p1)     , TN_Valu(p2)     ) -> p1 = p2
   | (TN_Appl(p11,p12), TN_Appl(p21,p22)) -> p11 = p21 && p12 = p22
-  | (TN_MAbs(b1)     , TN_MAbs(b2)     ) -> b1 == b2
-  | (TN_Name(s1,p1)  , TN_Name(s2,p2)  ) -> s1 == s2 && p1 = p2
+  | (TN_MAbs(b1)     , TN_MAbs(b2)     ) -> eq_bndr b1 b2
+  | (TN_Name(s1,p1)  , TN_Name(s2,p2)  ) -> eq_expr s1 s2 && p1 = p2
   | (TN_Proj(p1,l1)  , TN_Proj(p2,l2)  ) -> p1 = p2 && l1.elt = l2.elt
-  | (TN_Case(p1,m1)  , TN_Case(p2,m2)  ) -> p1 = p2 && M.equal (==) m1 m2
+  | (TN_Case(p1,m1)  , TN_Case(p2,m2)  ) -> p1 = p2 && M.equal eq_bndr m1 m2
   | (TN_FixY(p11,p12), TN_FixY(p21,p22)) -> p11 = p21 && p12 = p22
-  | (TN_UWit(t1,b1)  , TN_UWit(t2,b2)  ) -> t1 == t2 && b1 == b2
-  | (TN_EWit(t1,b1)  , TN_EWit(t2,b2)  ) -> t1 == t2 && b1 == b2
+  | (TN_UWit(t1,b1)  , TN_UWit(t2,b2)  ) -> eq_expr t1 t2 && eq_bndr b1 b2
+  | (TN_EWit(t1,b1)  , TN_EWit(t2,b2)  ) -> eq_expr t1 t2 && eq_bndr b1 b2
   | (_               , _               ) -> false
 
 (** Insertion function for nodes. *)
@@ -299,7 +299,7 @@ and     add_valu : pool -> valu -> VPtr.t * pool = fun po v ->
   | Reco(m)     -> let fn l (_, v) (m, po) =
                      let (pv, po) = add_valu po v in
                      (M.add l pv m, po)
-                   in                
+                   in
                    let (m, po) = M.fold fn m (M.empty, po) in
                    let (pp, po) = insert_v_node (VN_Reco(m)) po in
                    let fn _ pv po = add_parent_v_node pv (Ptr.V_ptr pp) po in
@@ -460,6 +460,10 @@ let rec normalise : TPtr.t -> pool -> Ptr.t * pool = fun p po ->
             begin
               let (pt, po) = normalise pt po in
               let (pu, po) = normalise pu po in
+              let to_ptr pt po = match pt with
+                | Ptr.V_ptr pv -> insert_t_node (TN_Valu(pv)) po
+                | Ptr.T_ptr pt -> (pt, po)
+              in
               match (pt, pu) with
               | (Ptr.V_ptr pf, Ptr.V_ptr pv) ->
                   begin
@@ -471,9 +475,18 @@ let rec normalise : TPtr.t -> pool -> Ptr.t * pool = fun p po ->
                           let (tp, po) = add_term po t in
                           normalise tp po
                         end
-                    | _          -> (p, po)
+                    | _          ->
+                       let (pt, po) = to_ptr pt po in
+                       let (pu, po) = to_ptr pu po in
+                       let (pt, po) = insert_t_node (TN_Appl(pt,pu)) po in
+                       (Ptr.T_ptr pt, po)
                   end
-              | (_           , _           ) -> (p, po)
+              | (_           , _           ) ->
+                 let (pt, po) = to_ptr pt po in
+                 let (pu, po) = to_ptr pu po in
+                 let (pt, po) = insert_t_node (TN_Appl(pt,pu)) po in
+                 (Ptr.T_ptr pt, po)
+
             end
         | TN_MAbs(b)     -> (p, po) (* FIXME can do better. *)
         | TN_Name(s,pt)  -> (p, po) (* FIXME can do better. *)
@@ -630,9 +643,12 @@ let add_equiv : equiv -> eq_ctxt -> eq_ctxt = fun (t,u) {pool} ->
   else
   let (pt, pool) = add_term pool t in
   let (pu, pool) = add_term pool u in
+  log_edp "insertion at %a and %a" TPtr.print pt TPtr.print pu;
+  log_edp "obtaining the context\n%a" (print_pool "        ") pool;
   let (pt, pool) = normalise pt pool in
   let (pu, pool) = normalise pu pool in
   let pool = union pt pu pool in
+  log_edp "normalisation to %a and %a + union" Ptr.print pt Ptr.print pu;
   log_edp "obtaining the context\n%a" (print_pool "        ") pool;
   {pool}
 
@@ -695,7 +711,7 @@ let prove : eq_ctxt -> relation -> eq_ctxt = fun ctx (t,b,u) ->
     ignore ((if b then add_inequiv else add_equiv) (t,u) ctx);
     log_edp "failed to prove %a %s %a" Print.print_ex t sym Print.print_ex u;
     equiv_error "failed to prove an equational relation"
-  with Contradiction -> 
+  with Contradiction ->
     log_edp "proved   %a %s %a" Print.print_ex t sym Print.print_ex u;
     let ctx =
       try learn ctx (t,b,u)

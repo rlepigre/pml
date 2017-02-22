@@ -96,9 +96,12 @@ let uvar_occurs : type a b. a uvar -> b ex loc -> bool = fun u e ->
 
 let full_eq = ref false
 
+type r = {
+    eq_expr : 'a . 'a ex loc -> 'a ex loc -> bool;
+    eq_bndr : 'a 'b . ('a,'b) bndr -> ('a,'b) bndr -> bool }
+
 (* Comparison function with unification variable instantiation. *)
-let eq_expr : type a. a ex loc -> a ex loc -> bool = fun e1 e2 ->
-  log_equ "trying to show %a = %a" Print.ex e1 Print.ex e2;
+let {eq_expr; eq_bndr} =
   let c = ref (-1) in
   let new_itag : type a. unit -> a ex = fun () -> incr c; ITag(!c) in
   let rec eq_expr : type a. a ex loc -> a ex loc -> bool = fun e1 e2 ->
@@ -108,9 +111,7 @@ let eq_expr : type a. a ex loc -> a ex loc -> bool = fun e1 e2 ->
     match (e1.elt, e2.elt) with
     | (Vari(x1)      , Vari(x2)      ) ->
         Bindlib.eq_vars x1 x2
-    | (HFun(_,_,b1)  , HFun(_,_,b2)  ) ->
-        let t = new_itag () in
-        eq_expr (bndr_subst b1 t) (bndr_subst b2 t)
+    | (HFun(_,_,b1)  , HFun(_,_,b2)  ) -> eq_bndr b1 b2
     | (HApp(s1,f1,a1), HApp(s2,f2,a2)) ->
         begin
           match eq_sort s1 s2 with
@@ -127,23 +128,17 @@ let eq_expr : type a. a ex loc -> a ex loc -> bool = fun e1 e2 ->
     | (Univ(s1,b1)   , Univ(s2,b2)   ) ->
         begin
           match eq_sort s1 s2 with
-          | Eq  -> let t = new_itag () in
-                   eq_expr (bndr_subst b1 t) (bndr_subst b2 t)
+          | Eq  -> eq_bndr b1 b2
           | NEq -> false
         end
     | (Exis(s1,b1)   , Exis(s2,b2)   ) ->
         begin
           match eq_sort s1 s2 with
-          | Eq  -> let t = new_itag () in
-                   eq_expr (bndr_subst b1 t) (bndr_subst b2 t)
+          | Eq  -> eq_bndr b1 b2
           | NEq -> false
         end
-    | (FixM(o1,b1)   , FixM(o2,b2)   ) ->
-        let t = new_itag () in
-        eq_expr o1 o2 && eq_expr (bndr_subst b1 t) (bndr_subst b2 t)
-    | (FixN(o1,b1)   , FixN(o2,b2)   ) ->
-        let t = new_itag () in
-        eq_expr o1 o2 && eq_expr (bndr_subst b1 t) (bndr_subst b2 t)
+    | (FixM(o1,b1)   , FixM(o2,b2)   ) -> eq_expr o1 o2 && eq_bndr b1 b2
+    | (FixN(o1,b1)   , FixN(o2,b2)   ) -> eq_expr o1 o2 && eq_bndr b1 b2
     | (Memb(t1,a1)   , Memb(t2,a2)   ) -> eq_expr t1 t2 && eq_expr a1 a2
     | (Rest(a1,c1)   , Rest(a2,c2)   ) ->
         eq_expr a1 a2 &&
@@ -157,8 +152,7 @@ let eq_expr : type a. a ex loc -> a ex loc -> bool = fun e1 e2 ->
                 false
           end
     (* NOTE type annotation ignored. *)
-    | (LAbs(_,b1)    , LAbs(_,b2)    ) ->
-        let t = new_itag () in eq_expr (bndr_subst b1 t) (bndr_subst b2 t)
+    | (LAbs(_,b1)    , LAbs(_,b2)    ) -> eq_bndr b1 b2
     | (Cons(c1,v1)   , Cons(c2,v2)   ) -> c1.elt = c2.elt && eq_expr v1 v2
     | (Reco(m1)      , Reco(m2)      ) ->
         M.equal (fun (_,v1) (_,v2) -> eq_expr v1 v2) m1 m2
@@ -167,14 +161,11 @@ let eq_expr : type a. a ex loc -> a ex loc -> bool = fun e1 e2 ->
     | (Valu(v1)      , Valu(v2)      ) -> eq_expr v1 v2
     | (Appl(t1,u1)   , Appl(t2,u2)   ) -> eq_expr t1 t2 && eq_expr u1 u2
     (* NOTE type annotation ignored. *)
-    | (MAbs(_,b1)    , MAbs(_,b2)    ) ->
-        let t = new_itag () in eq_expr (bndr_subst b1 t) (bndr_subst b2 t)
+    | (MAbs(_,b1)    , MAbs(_,b2)    ) -> eq_bndr b1 b2
     | (Name(s1,t1)   , Name(s2,t2)   ) -> eq_expr s1 s2 && eq_expr t1 t2
     | (Proj(v1,l1)   , Proj(v2,l2)   ) -> l1.elt = l2.elt && eq_expr v1 v2
     | (Case(v1,m1)   , Case(v2,m2)   ) ->
-        let cmp (_,b1) (_,b2) =
-          let t = new_itag () in eq_expr (bndr_subst b1 t) (bndr_subst b2 t)
-        in
+        let cmp (_,b1) (_,b2) = eq_bndr b1 b2 in
         eq_expr v1 v2 && M.equal cmp m1 m2
     | (FixY(t1,v1)   , FixY(t2,v2)   ) -> eq_expr t1 t2 && eq_expr v1 v2
     | (Epsi          , Epsi          ) -> true
@@ -195,17 +186,10 @@ let eq_expr : type a. a ex loc -> a ex loc -> bool = fun e1 e2 ->
     (* NOTE should not be compare dummy expressions. *)
     | (Dumm          , Dumm          ) -> false
     | (VWit(f1,a1,b1), VWit(f2,a2,b2)) ->
-        let t = new_itag () in
-        eq_expr (bndr_subst f1 t) (bndr_subst f2 t) && eq_expr a1 a2 && eq_expr b1 b2
-    | (SWit(f1,a1)   , SWit(f2,a2)   ) ->
-        let t = new_itag () in
-        eq_expr (bndr_subst f1 t) (bndr_subst f2 t) && eq_expr a1 a2
-    | (UWit(s1,t1,b1), UWit(s2,t2,b2)) ->
-        let t = new_itag () in
-        eq_expr (bndr_subst b1 t) (bndr_subst b2 t) && eq_expr t1 t2
-    | (EWit(s1,t1,b1), EWit(s2,t2,b2)) ->
-        let t = new_itag () in
-        eq_expr (bndr_subst b1 t) (bndr_subst b2 t) && eq_expr t1 t2
+        eq_bndr f1 f2 && eq_expr a1 a2 && eq_expr b1 b2
+    | (SWit(f1,a1)   , SWit(f2,a2)   ) -> eq_bndr f1 f2 && eq_expr a1 a2
+    | (UWit(_,t1,b1) , UWit(_,t2,b2) ) -> eq_bndr b1 b2 && eq_expr t1 t2
+    | (EWit(s1,t1,b1), EWit(s2,t2,b2)) -> eq_bndr b1 b2 && eq_expr t1 t2
     | (UVar(_,u1)    , UVar(_,u2)    ) ->
         if u1.uvar_key <> u2.uvar_key then uvar_set u1 e2;
         true
@@ -217,8 +201,14 @@ let eq_expr : type a. a ex loc -> a ex loc -> bool = fun e1 e2 ->
     | (_             , UVar(_,u2)    ) ->
         if uvar_occurs u2 e1 then false else (uvar_set u2 e1; true)
     | _                                -> false
+  and eq_bndr : type a b. (a,b) bndr -> (a,b) bndr -> bool = fun b1 b2 ->
+    let t = new_itag () in eq_expr (bndr_subst b1 t) (bndr_subst b2 t)
   in
-  let res = eq_expr e1 e2 in
-  log_equ "we have %a %s %a"
-    Print.ex e1 (if res then "=" else "≠") Print.ex e2;
-  res
+  let eq_expr : type a. a ex loc -> a ex loc -> bool = fun e1 e2 ->
+    log_equ "trying to show %a = %a" Print.ex e1 Print.ex e2;
+    let res = eq_expr e1 e2 in
+    log_equ "we have %a %s %a"
+            Print.ex e1 (if res then "=" else "≠") Print.ex e2;
+    res
+  in
+  {eq_expr; eq_bndr}

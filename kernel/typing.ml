@@ -128,6 +128,15 @@ let rec subtype : ctxt -> term -> prop -> prop -> ctxt * sub_proof =
     let (t_is_val, ctx) = term_is_value t ctx in
     let (ctx, r) =
       match (a.elt, b.elt) with
+      (* Membership on the left. *)
+      | (Memb(u,a)  , _          ) when t_is_val ->
+          begin
+            try
+              let equations = learn ctx.equations (t,true,u) in
+              let (ctx, p) = subtype {ctx with equations} t a b in
+              (ctx, Sub_Memb_l(Some p))
+            with Contradiction -> (ctx, Sub_Memb_l(None))
+          end
       (* Same types.  *)
       | _ when eq_expr a b         ->
           (ctx, Sub_Equal)
@@ -192,15 +201,6 @@ let rec subtype : ctxt -> term -> prop -> prop -> ctxt * sub_proof =
           let (ctx, u) = new_uvar ctx s in
           let (ctx, p) = subtype ctx t a (bndr_subst f u.elt) in
           (ctx, Sub_Exis_r(p))
-      (* Membership on the left. *)
-      | (Memb(u,a)  , _          ) when t_is_val ->
-          begin
-            try
-              let equations = learn ctx.equations (t,true,u) in
-              let (ctx, p) = subtype {ctx with equations} t a b in
-              (ctx, Sub_Memb_l(Some p))
-            with Contradiction -> (ctx, Sub_Memb_l(None))
-          end
       (* Membership on the right. *)
       | (_          , Memb(u,b)  ) when t_is_val ->
           let equations = prove ctx.equations (t,true,u) in
@@ -499,14 +499,14 @@ let bind_uvar : type a. a sort -> a uvar -> prop -> (a, p) bndr =
       | FixN(o,b)   -> fixm e.pos (fn sa O uv o x) (bndr_name b)
                          (fun y -> fn sa P uv (bndr_subst b (mk_free y)) x)
       | Memb(t,a)   -> memb e.pos (fn sa T uv t x) (fn sa P uv a x)
-      | Rest(a,c)   -> let c = 
+      | Rest(a,c)   -> let c =
                          match c with
                          | Equiv(t,b,u) ->
                              equiv (fn sa T uv t x) b (fn sa T uv u x)
                          | Posit(o)     ->
                              posit (fn sa O uv o x)
                        in rest e.pos (fn sa P uv a x) c
-      | Impl(c,a)   -> let c = 
+      | Impl(c,a)   -> let c =
                          match c with
                          | Equiv(t,b,u) ->
                              equiv (fn sa T uv t x) b (fn sa T uv u x)
