@@ -57,6 +57,7 @@ val eq_comm : ∀ x:ι, ∀ y:ι, x∈bool ⇒ y∈bool ⇒ eq x y ≡ eq y x =
     | F[x] → (case b2 of | T[y] → {} | F[y] → {})
     | T[x] → (case b2 of | T[y] → {} | F[y] → {})
 
+
 val eq_comm2 : ∀ x:ι, ∀ y:ι, x∈bool ⇒ y∈bool ⇒ eq (eq x y) (eq y x) ≡ tru =
   fun b1 b2 →
     case b1 of
@@ -75,7 +76,7 @@ val eq_asso : ∀ x:ι, ∀ y:ι, ∀ z:ι, x∈bool ⇒ y∈bool ⇒ z∈bool �
               | T[y] → (case b3 of | T[z] → {} | F[z] → {})
               | F[y] → (case b3 of | T[z] → {} | F[z] → {}))
 
-// Other version using "let".
+// Other version using "let", not correct without proving totality of eq
 //val eq_comm3 : ∀ x:ι, ∀ y:ι, x∈bool ⇒ y∈bool ⇒ eq (eq x y) (eq y x) ≡ tru =
 //  fun b1 b2 →
 //    let p = eq_comm b1 b2 in
