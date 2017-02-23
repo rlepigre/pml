@@ -479,8 +479,8 @@ let insert_appl : Ptr.t -> Ptr.t -> pool -> Ptr.t * pool = fun pt pu po ->
   (Ptr.T_ptr p, po)
 
 (** Normalisation function. *)
-let rec normalise : TPtr.t -> pool -> Ptr.t * pool = fun p po ->
-  let (p, po) = find (Ptr.T_ptr p) po in
+let rec normalise : ?update:bool -> TPtr.t -> pool -> Ptr.t * pool = fun ?(update=false) p po ->
+  let (p, po) = if update then (Ptr.T_ptr p,po) else find (Ptr.T_ptr p) po in
   match p with
   | Ptr.V_ptr _  -> (p, po)
   | Ptr.T_ptr pt ->
@@ -523,6 +523,7 @@ let rec normalise : TPtr.t -> pool -> Ptr.t * pool = fun p po ->
         | TN_Case(pv,m)  ->
             begin
               let (pv, po) = find_valu pv po in
+              log_edp "normalisation in TN_Case: %a" VPtr.print pv;
               match snd (VPtrMap.find pv po.vs) with
               | VN_Cons(c,pv) ->
                   begin
@@ -557,89 +558,83 @@ let rec normalise : TPtr.t -> pool -> Ptr.t * pool = fun p po ->
             end
       end
 
-(** Union operation. *)
-let join : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
-  let nps = parents p1 po in
-  let po = { po with eq_map = PtrMap.add p1 p2 po.eq_map } in
-  add_parents p2 nps po
-
-let reinsert : pool -> Ptr.t -> pool = fun po p ->
+let rec reinsert : Ptr.t -> pool -> pool = fun p po ->
   match p with
-  | Ptr.T_ptr p ->
-     log_edp "normalisation of parent %a" TPtr.print p;
-     let res = snd (normalise p po) in
-     log_edp "normalised parent %a" TPtr.print p;
-     res
+  | Ptr.T_ptr tp ->
+     log_edp "normalisation of parent %a" TPtr.print tp;
+     let (p', po) = normalise ~update:true tp po in
+     let po = union p p' po in
+     log_edp "normalised parent %a" TPtr.print tp;
+     po
   | _           -> po
 
-let union : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
+(** Union operation. *)
+and join : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
+  let nps = parents p1 po in
+  let po = { po with eq_map = PtrMap.add p1 p2 po.eq_map } in
+  let po = add_parents p2 nps po in
+  PtrSet.fold reinsert nps po
+
+and union : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
   let (p1, po) = find p1 po in
   let (p2, po) = find p2 po in
   if p1 = p2 then po else
-    let (po, deblocked) =
-      match (p1, p2) with
-      | (Ptr.T_ptr _  , Ptr.V_ptr _  ) -> (join p1 p2 po, [p1])
-      | (Ptr.V_ptr _  , Ptr.T_ptr _  ) -> (join p2 p1 po, [p2])
-      | (Ptr.T_ptr _  , Ptr.T_ptr _  ) -> (join p1 p2 po, []) (* arbitrary *)
-      | (Ptr.V_ptr vp1, Ptr.V_ptr vp2) ->
-         let po =
-           let rec check_equiv vp1 vp2 po =
-             let (_,n1) = VPtrMap.find vp1 po.vs in
-             let (_,n2) = VPtrMap.find vp2 po.vs in
-             match (n1, n2) with
-             (* Immediate contradictions. *)
-             | (VN_LAbs(_)     , VN_Reco(_)     )
-             | (VN_LAbs(_)     , VN_Cons(_,_)   )
-             | (VN_Reco(_)     , VN_LAbs(_)     )
-             | (VN_Reco(_)     , VN_Cons(_,_)   )
-             | (VN_Cons(_,_)   , VN_Reco(_)     )
-             | (VN_Cons(_,_)   , VN_LAbs(_)     ) -> bottom ()
-             (* Constructors. *)
-             | (VN_Cons(c1,vp1), VN_Cons(c2,vp2)) ->
-                if c1.elt <> c2.elt then bottom ();
-                check_equiv vp1 vp2 po
-             (* Records. *)
-             | (VN_Reco(m1)    , VN_Reco(m2)    ) ->
-                let test vp1 vp2 = check_equiv vp1 vp2 po; true in
-                if not (M.equal test m1 m2) then bottom ()
-             (* No possible refutation. *)
-             | (_              , _              ) -> ()
-           in
-           let (_,n1) = VPtrMap.find vp1 po.vs in
-           let (_,n2) = VPtrMap.find vp2 po.vs in
-           match (n1, n2) with
-           (* Immediate contradictions. *)
-           | (VN_LAbs(_)     , VN_Reco(_)     )
-           | (VN_LAbs(_)     , VN_Cons(_,_)   )
-           | (VN_Reco(_)     , VN_LAbs(_)     )
-           | (VN_Reco(_)     , VN_Cons(_,_)   )
-           | (VN_Cons(_,_)   , VN_Reco(_)     )
-           | (VN_Cons(_,_)   , VN_LAbs(_)     ) -> bottom ()
-           (* Constructors. *)
-           | (VN_Cons(c1,vp1), VN_Cons(c2,vp2)) ->
-              if c1.elt <> c2.elt then bottom ();
-              check_equiv vp1 vp2 po;
-              join p1 p2 po (* arbitrary *)
-           (* Records. *)
-           | (VN_Reco(m1)    , VN_Reco(m2)    ) ->
-              let test vp1 vp2 = check_equiv vp1 vp2 po; true in
-              if not (M.equal test m1 m2) then bottom ();
-              join p1 p2 po (* arbitrary *)
-           (* Prefer real values as equivalence class representatives. *)
-           | (VN_LAbs(_)     , _              )
-           | (VN_Reco(_)     , _              )
-           | (VN_Cons(_,_)   , _              ) -> join p2 p1 po
-           | (_              , VN_LAbs(_)     )
-           | (_              , VN_Reco(_)     )
-           | (_              , VN_Cons(_,_)   ) -> join p1 p2 po
-           (* Arbitrary join otherwise. *)
-           | (_              , _              ) -> join p1 p2 po
-         in
-         (po, [p1; p2]) (* TODO on pourrait sélectionner p1 ou p2, faire dans join *)
-    in
-    List.fold_left reinsert po deblocked
-
-
+  match (p1, p2) with
+  | (Ptr.T_ptr _  , Ptr.V_ptr _  ) -> join p1 p2 po
+  | (Ptr.V_ptr _  , Ptr.T_ptr _  ) -> join p2 p1 po
+  | (Ptr.T_ptr _  , Ptr.T_ptr _  ) -> join p1 p2 po (* arbitrary, TODO OR NOT Tarjan *)
+  | (Ptr.V_ptr vp1, Ptr.V_ptr vp2) ->
+     let rec check_equiv vp1 vp2 po =
+       let (_,n1) = VPtrMap.find vp1 po.vs in
+       let (_,n2) = VPtrMap.find vp2 po.vs in
+       match (n1, n2) with
+       (* Immediate contradictions. *)
+       | (VN_LAbs(_)     , VN_Reco(_)     )
+       | (VN_LAbs(_)     , VN_Cons(_,_)   )
+       | (VN_Reco(_)     , VN_LAbs(_)     )
+       | (VN_Reco(_)     , VN_Cons(_,_)   )
+       | (VN_Cons(_,_)   , VN_Reco(_)     )
+       | (VN_Cons(_,_)   , VN_LAbs(_)     ) -> bottom ()
+       (* Constructors. *)
+       | (VN_Cons(c1,vp1), VN_Cons(c2,vp2)) ->
+          if c1.elt <> c2.elt then bottom ();
+          check_equiv vp1 vp2 po
+       (* Records. *)
+       | (VN_Reco(m1)    , VN_Reco(m2)    ) ->
+          let test vp1 vp2 = check_equiv vp1 vp2 po; true in
+          if not (M.equal test m1 m2) then bottom ()
+       (* No possible refutation. *)
+       | (_              , _              ) -> ()
+     in
+     let (_,n1) = VPtrMap.find vp1 po.vs in
+     let (_,n2) = VPtrMap.find vp2 po.vs in
+     match (n1, n2) with
+     (* Immediate contradictions. *)
+     | (VN_LAbs(_)     , VN_Reco(_)     )
+     | (VN_LAbs(_)     , VN_Cons(_,_)   )
+     | (VN_Reco(_)     , VN_LAbs(_)     )
+     | (VN_Reco(_)     , VN_Cons(_,_)   )
+     | (VN_Cons(_,_)   , VN_Reco(_)     )
+     | (VN_Cons(_,_)   , VN_LAbs(_)     ) -> bottom ()
+     (* Constructors. *)
+     | (VN_Cons(c1,vp1), VN_Cons(c2,vp2)) ->
+        if c1.elt <> c2.elt then bottom ();
+        check_equiv vp1 vp2 po;
+        join p1 p2 po (* arbitrary *)
+     (* Records. *)
+     | (VN_Reco(m1)    , VN_Reco(m2)    ) ->
+        let test vp1 vp2 = check_equiv vp1 vp2 po; true in
+        if not (M.equal test m1 m2) then bottom ();
+        join p1 p2 po (* arbitrary *)
+     (* Prefer real values as equivalence class representatives. *)
+     | (VN_LAbs(_)     , _              )
+     | (VN_Reco(_)     , _              )
+     | (VN_Cons(_,_)   , _              ) -> join p2 p1 po
+     | (_              , VN_LAbs(_)     )
+     | (_              , VN_Reco(_)     )
+     | (_              , VN_Cons(_,_)   ) -> join p1 p2 po
+     (* Arbitrary join otherwise. *)
+     | (_              , _              ) -> join p1 p2 po
 
 let is_equal : pool -> Ptr.t -> Ptr.t -> bool = fun po p1 p2 ->
   if Ptr.compare p1 p2 = 0 then true else

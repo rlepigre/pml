@@ -84,8 +84,52 @@ val id_id2 : ∀ x:ι, x∈real_bool ⇒ id_bool x ≡ x = fun b →
       | T[u] → {}
       | F[u] → {}
 
+val toto : C[{}] ≡ D[{}] ⇒ [] = fun x → x
+
+val or : real_bool ⇒ real_bool ⇒ real_bool =
+  fun b1 → fun b2 →
+    case b1 of
+    | F[x] → b2
+    | T[x] → tru
+
+val not : real_bool ⇒ real_bool =
+  fun n →
+    case n of
+    | F[u] → tru
+    | T[u] → fls
+
+val test1 : ∀ x:ι, x∈real_bool ⇒ or x x ≡ x =
+  fun b →
+    case b of
+    | F[y] → {}
+    | T[y] → {}
+
+val test2a : ∀ x:ι, x∈real_bool ⇒ not x ≡ tru ⇒ x ≡ fls =
+  fun b →
+    case b of
+    | F[y] → fun e → {}
+    | T[y] → fun e → {}
+
+val test2b : ∀ x:ι, x∈real_bool ⇒ not x ≡ tru ⇒ x ≡ fls =
+  fun b e →
+    case b of
+    | F[y] → {}
+    | T[y] → ✂
+
+val test3 : ∀ x:ι, x∈real_bool ⇒ or x x ≡ tru ⇒ x ≡ tru =
+  fun b e →
+    case b of
+    | F[y] → ✂
+    | T[y] → {}
+
 val eq_eq : ∀ x:ι, ∀ y:ι, x∈real_bool ⇒ y∈real_bool ⇒ eq x y ≡ tru ⇒ x ≡ y =
   fun b1 b2 e →
     case is_realbool b1 of
-    | L[u] → (case is_realbool b2 of | L[u] → {} | R[u] → {})
-    | R[u] → (case is_realbool b2 of | L[u] → {} | R[u] → {})
+    | L[u] → (case is_realbool b2 of | L[u] → {} | R[u] → ✂)
+    | R[u] → (case is_realbool b2 of | L[u] → ✂ | R[u] → {})
+
+val eq_eq2 : ∀ x:ι, ∀ y:ι, x∈real_bool ⇒ y∈real_bool ⇒ eq x y ≡ tru ⇒ x ≡ y =
+  fun b1 b2 e →
+    case b1 of
+    | T[u] → (case b2 of | T[u] → {} | F[u] → ✂)
+    | F[u] → (case b2 of | T[u] → ✂ | F[u] → {})
