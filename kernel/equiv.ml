@@ -250,7 +250,6 @@ let parents : Ptr.t -> pool -> PtrSet.t = fun p po ->
   | Ptr.V_ptr vp -> fst (find_v_node vp po)
   | Ptr.T_ptr tp -> fst (find_t_node tp po)
 
-
 let add_parents : Ptr.t -> PtrSet.t -> pool -> pool = fun p nps po ->
   match p with
   | Ptr.V_ptr vp ->
