@@ -99,7 +99,11 @@ let rec learn_equivalences : ctxt -> term -> prop -> ctxt = fun ctx wit a ->
                        learn_equivalences {ctx with equations} wit a
         | Posit(_)  -> ctx (* TODO *)
       end
-  | Prod(fs)   -> ctx (* TODO *)
+  | Exis(s, f) -> let t = EWit(s,wit,f) in
+                  learn_equivalences ctx wit (bndr_subst f t)
+  | Prod(fs)   -> ctx (* TODO: wit should be a value
+     M.fold (fun lbl p ctxt ->
+         learn_equivalences ctxt (Pos.none (Proj(wit,lbl))) p) ctxt fs*)
   | _          -> ctx
 
 let term_is_value : term -> ctxt -> bool * ctxt = fun t ctx ->
