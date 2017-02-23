@@ -382,30 +382,30 @@ and type_term : ctxt -> term -> prop -> ctxt * typ_proof = fun ctx t c ->
         in
         let (ts, ctx) = M.fold fn m (M.empty, ctx) in
         let (ctx, p) = type_valu ctx v (Pos.none (DSum(ts))) in
-        let check d (p,f) (ctx, ps) =
+        let check d (p,f) ps =
           log_typ "Checking case %s." d;
           let (_,a) = M.find d ts in
-          let wit = VWit(f, a, c) in
-          let eq =
-            let wit = Valu (Pos.none (Cons(Pos.none d, Pos.none wit))) in
-            (Pos.none (Valu v), true, Pos.none wit)
-          in
-          let t = bndr_subst f wit in
-          try
-            let ctx' = {ctx with equations = learn ctx.equations eq} in
-            let (ctx', p) = type_term ctx' t c in
-            ({ctx' with equations = ctx.equations}, p::ps)
+          let wit = Pos.none (VWit(f, a, c)) in
+          let t = bndr_subst f wit.elt in
+          (try
+            let eq =
+              let w = Valu (Pos.none (Cons(Pos.none d, wit))) in
+              (Pos.none (Valu v), true, Pos.none w)
+            in
+            let ctx = {ctx with equations = learn ctx.equations eq} in
+            let ctx = learn_equivalences ctx wit a in
+            (fun () -> snd (type_term ctx t c) :: ps)
           with Contradiction ->
-            if not (is_scis t) then
-              begin
-                match t.pos with
-                | None   -> Output.wrn_msg "unreachable code..."
-                | Some p -> Output.wrn_msg "unreachable code %a"
-                              Pos.print_short_pos p
-              end;
-            (ctx, (t,c,Typ_Scis)::ps)
+             if not (is_scis t) then
+               begin
+                 match t.pos with
+                 | None   -> Output.wrn_msg "unreachable code..."
+                 | Some p -> Output.wrn_msg "unreachable code %a"
+                                            Pos.print_short_pos p
+               end;
+             (fun () -> (t,c,Typ_Scis)::ps)) ()
         in
-        let (ctx, ps) = M.fold check m (ctx, []) in
+        let ps = M.fold check m [] in
         (ctx, Typ_DSum_e(p,List.rev ps))
     (* Fixpoint. *)
     | FixY(t,v)   ->

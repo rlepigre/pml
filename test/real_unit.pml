@@ -55,15 +55,21 @@ val eq_total :  ∀ x:ι, x∈real_bool ⇒  ∀ y:ι, y∈real_bool ⇒ ∃ v:�
 val arg_bool :  ∀ x:ι, x∈real_bool ⇒ {} =
   fun b → case b of | T[v] → v | F[v] → v
 
-//val is_realbool2 : ∀ x:ι, x∈real_bool ⇒ arg_bool x ≡ {} =
-//  fun x →
-//    case x of
-//    | T[e] → {}
-//    | F[e] → {}
+val is_realbool2 : ∀ x:ι, x∈real_bool ⇒ arg_bool x ≡ {} =
+  fun b →
+    case is_realbool b of
+    | L[e] → {}
+    | R[e] → {}
+
+val is_realbool3 : ∀ x:ι, x∈real_bool ⇒ arg_bool x ≡ {} =
+  fun x →
+    case x of
+    | T[e] → {}
+    | F[e] → {}
 
 
 //val eq_eq : ∀ x:ι, ∀ y:ι, x∈real_bool ⇒ y∈real_bool ⇒ eq x y ≡ tru ⇒ x ≡ y =
 //  fun b1 b2 e →
 //    case is_realbool b1 of
-//    | L[x] → (case is_realbool b2 of | L[x] → {} | R[x] → {})
-//    | R[x] → (case is_realbool b2 of | L[x] → {} | R[x] → {})
+//    | L[u] → (case is_realbool b2 of | L[u] → {} | R[u] → {})
+//    | R[u] → (case is_realbool b2 of | L[u] → {} | R[u] → {})
