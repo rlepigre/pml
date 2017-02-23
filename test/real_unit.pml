@@ -68,8 +68,24 @@ val is_realbool3 : ∀ x:ι, x∈real_bool ⇒ arg_bool x ≡ {} =
     | F[e] → {}
 
 
-//val eq_eq : ∀ x:ι, ∀ y:ι, x∈real_bool ⇒ y∈real_bool ⇒ eq x y ≡ tru ⇒ x ≡ y =
-//  fun b1 b2 e →
-//    case is_realbool b1 of
-//    | L[u] → (case is_realbool b2 of | L[u] → {} | R[u] → {})
-//    | R[u] → (case is_realbool b2 of | L[u] → {} | R[u] → {})
+val id_bool :  ∀ x:ι, x∈real_bool ⇒ real_bool = fun b  →
+    case b of
+    | T[e] → tru
+    | F[e] → fls
+
+val id_id : ∀ x:ι, x∈real_bool ⇒ id_bool x ≡ x = fun b →
+   case is_realbool b of
+      | L[u] → {}
+      | R[u] → {}
+
+val id_id2 : ∀ x:ι, x∈real_bool ⇒ id_bool x ≡ x = fun b →
+   let lem = is_realbool2 in
+   case b of
+      | T[u] → {}
+      | F[u] → {}
+
+val eq_eq : ∀ x:ι, ∀ y:ι, x∈real_bool ⇒ y∈real_bool ⇒ eq x y ≡ tru ⇒ x ≡ y =
+  fun b1 b2 e →
+    case is_realbool b1 of
+    | L[u] → (case is_realbool b2 of | L[u] → {} | R[u] → {})
+    | R[u] → (case is_realbool b2 of | L[u] → {} | R[u] → {})

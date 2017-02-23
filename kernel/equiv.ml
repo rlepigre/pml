@@ -56,7 +56,8 @@ module Ptr =
       | V_ptr p -> VPtr.print ch p
       | T_ptr p -> TPtr.print ch p
   end
-module PtrMap  = Map.Make(Ptr)
+module PtrMap = Map.Make(Ptr)
+module PtrSet = Set.Make(Ptr)
 
 (** Type of a pointer map, used to keep track of equivalences. *)
 type eq_map = Ptr.t PtrMap.t
@@ -76,7 +77,7 @@ type v_node =
   | VN_EWit of (t ex loc * (v, p) bndr)
   | VN_HApp of v ho_appl
   | VN_UVar of v uvar
-type v_map = (Ptr.t list * v_node) VPtrMap.t
+type v_map = (PtrSet.t * v_node) VPtrMap.t
 
 (** Type of a term node. *)
 type t_node =
@@ -91,7 +92,7 @@ type t_node =
   | TN_EWit of (t ex loc * (t, p) bndr)
   | TN_HApp of t ho_appl
   | TN_UVar of t uvar
-type t_map = (Ptr.t list * t_node) TPtrMap.t
+type t_map = (PtrSet.t * t_node) TPtrMap.t
 
 (** Printing function for value nodes. *)
 let print_v_node : out_channel -> v_node -> unit = fun ch n ->
@@ -151,13 +152,13 @@ let print_pool : string -> out_channel -> pool -> unit = fun prefix ch po ->
   Printf.fprintf ch "%s#### Nodes ####\n" prefix;
   let fn k (ps, n) =
     Printf.fprintf ch "%s  %a\t→ %a\t← [%a]\n" prefix VPtr.print k
-      print_v_node n (Print.print_list Ptr.print ",") ps
+      print_v_node n (Print.print_list Ptr.print ",") (PtrSet.elements ps)
   in
   VPtrMap.iter fn vs;
   Printf.fprintf ch "%s---------------\n" prefix;
   let fn k (ps, n) =
     Printf.fprintf ch "%s  %a\t→ %a\t← [%a]\n" prefix TPtr.print k
-      print_t_node n (Print.print_list Ptr.print ",") ps
+      print_t_node n (Print.print_list Ptr.print ",") (PtrSet.elements ps)
   in
   TPtrMap.iter fn ts;
   Printf.fprintf ch "%s#### Links ####\n" prefix;
@@ -175,10 +176,10 @@ let empty_pool : pool =
   ; eq_map = PtrMap.empty }
 
 (** Node search. *)
-let find_v_node : VPtr.t -> pool -> Ptr.t list * v_node = fun p po ->
+let find_v_node : VPtr.t -> pool -> PtrSet.t * v_node = fun p po ->
   VPtrMap.find p po.vs
 
-let find_t_node : TPtr.t -> pool -> Ptr.t list * t_node = fun p po ->
+let find_t_node : TPtr.t -> pool -> PtrSet.t * t_node = fun p po ->
   TPtrMap.find p po.ts
 
 (** Equality functions on nodes. *)
@@ -217,7 +218,7 @@ let insert_v_node : v_node -> pool -> VPtr.t * pool = fun nn po ->
   | FoundV(p) -> (p, po)
   | Not_found ->
       let ptr = VPtr.V po.next in
-      let vs = VPtrMap.add ptr ([], nn) po.vs in
+      let vs = VPtrMap.add ptr (PtrSet.empty, nn) po.vs in
       let next = po.next + 1 in
       (ptr, { po with vs ; next })
 
@@ -228,20 +229,36 @@ let insert_t_node : t_node -> pool -> TPtr.t * pool = fun nn po ->
   | FoundT(p) -> (p, po)
   | Not_found ->
       let ptr = TPtr.T po.next in
-      let ts = TPtrMap.add ptr ([], nn) po.ts in
+      let ts = TPtrMap.add ptr (PtrSet.empty, nn) po.ts in
       let next = po.next + 1 in
       (ptr, { po with ts ; next })
 
 (** Adding a parent to a given node. *)
-let add_parent_v_node : VPtr.t -> Ptr.t -> pool -> pool = fun pv pp po ->
-  let (ps, n) = find_v_node pv po in
-  if List.mem pp ps then po else (* TODO: use set *)
-  {po with vs = VPtrMap.add pv (pp::ps, n) po.vs}
+let add_parent_v_node : VPtr.t -> Ptr.t -> pool -> pool = fun vp pp po ->
+  let (ps, n) = find_v_node vp po in
+  if PtrSet.mem pp ps then po else
+  {po with vs = VPtrMap.add vp (PtrSet.add pp ps, n) po.vs}
 
-let add_parent_t_node : TPtr.t -> Ptr.t -> pool -> pool = fun pt pp po ->
-  let (ps, n) = find_t_node pt po in
-  if List.mem pp ps then po else (* TODO: use set *)
-  {po with ts = TPtrMap.add pt (pp::ps, n) po.ts}
+let add_parent_t_node : TPtr.t -> Ptr.t -> pool -> pool = fun tp pp po ->
+  let (ps, n) = find_t_node tp po in
+  if PtrSet.mem pp ps then po else
+  {po with ts = TPtrMap.add tp (PtrSet.add pp ps, n) po.ts}
+
+(** Obtain the parents of a pointed node. *)
+let parents : Ptr.t -> pool -> PtrSet.t = fun p po ->
+  match p with
+  | Ptr.V_ptr vp -> fst (find_v_node vp po)
+  | Ptr.T_ptr tp -> fst (find_t_node tp po)
+
+
+let add_parents : Ptr.t -> PtrSet.t -> pool -> pool = fun p nps po ->
+  match p with
+  | Ptr.V_ptr vp ->
+     let (ps, n) = find_v_node vp po in
+     {po with vs = VPtrMap.add vp (PtrSet.union nps ps, n) po.vs}
+  | Ptr.T_ptr tp ->
+     let (ps, n) = find_t_node tp po in
+     {po with ts = TPtrMap.add tp (PtrSet.union nps ps, n) po.ts}
 
 (** Insertion of actual terms and values to the pool. *)
 let rec add_term : pool -> term -> TPtr.t * pool = fun po t ->
@@ -541,19 +558,19 @@ let rec normalise : TPtr.t -> pool -> Ptr.t * pool = fun p po ->
             end
       end
 
-(** Obtain the parents of a pointed node. *)
-let parents : Ptr.t -> pool -> Ptr.t list = fun p po ->
-  match p with
-  | Ptr.V_ptr vp -> fst (find_v_node vp po)
-  | Ptr.T_ptr tp -> fst (find_t_node tp po)
-
 (** Union operation. *)
 let join : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
-  { po with eq_map = PtrMap.add p1 p2 po.eq_map }
+  let nps = parents p1 po in
+  let po = { po with eq_map = PtrMap.add p1 p2 po.eq_map } in
+  add_parents p2 nps po
 
 let reinsert : pool -> Ptr.t -> pool = fun po p ->
   match p with
-  | Ptr.T_ptr p -> snd (normalise p po)
+  | Ptr.T_ptr p ->
+     log_edp "normalisation of parent %a" TPtr.print p;
+     let res = snd (normalise p po) in
+     log_edp "normalised parent %a" TPtr.print p;
+     res
   | _           -> po
 
 let union : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
