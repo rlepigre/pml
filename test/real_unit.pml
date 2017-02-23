@@ -62,8 +62,8 @@ val arg_bool :  ∀ x:ι, x∈real_bool ⇒ {} =
 //    | F[e] → {}
 
 
-val eq_eq : ∀ x:ι, ∀ y:ι, x∈real_bool ⇒ y∈real_bool ⇒ eq x y ≡ tru ⇒ x ≡ y =
-  fun b1 b2 e →
-    case is_realbool b1 of
-    | L[x] → (case is_realbool b2 of | L[x] → {} | R[x] → {})
-    | R[x] → (case is_realbool b2 of | L[x] → {} | R[x] → {})
+//val eq_eq : ∀ x:ι, ∀ y:ι, x∈real_bool ⇒ y∈real_bool ⇒ eq x y ≡ tru ⇒ x ≡ y =
+//  fun b1 b2 e →
+//    case is_realbool b1 of
+//    | L[x] → (case is_realbool b2 of | L[x] → {} | R[x] → {})
+//    | R[x] → (case is_realbool b2 of | L[x] → {} | R[x] → {})
