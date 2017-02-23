@@ -81,7 +81,7 @@ val eq_asso : ∀ x:ι, ∀ y:ι, ∀ z:ι, x∈bool ⇒ y∈bool ⇒ z∈bool �
 //    let p = eq_comm b1 b2 in
 //    eq_refl (eq b1 b2)
 
-//def sunit : ο = ∃ x:ι, (x ∈ {}) | x ≡ {} 
+//def sunit : ο = ∃ x:ι, (x ∈ {}) | x ≡ {}
 //val unit : sunit = {}
 //
 //

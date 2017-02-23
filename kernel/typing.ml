@@ -54,7 +54,7 @@ type typ_rule =
   | Typ_VDef   of value * sub_proof
   | Typ_DSum_i of sub_proof * typ_proof
   | Typ_DSum_e of typ_proof * typ_proof list
-  | Typ_Func_i of sub_proof * typ_proof
+  | Typ_Func_i of sub_proof * typ_proof option
   | Typ_Func_e of typ_proof * typ_proof
   | Typ_Func_s of typ_proof * typ_proof
   | Typ_Prod_i of sub_proof * typ_proof list
@@ -272,9 +272,13 @@ and type_valu : ctxt -> valu -> prop -> ctxt * typ_proof = fun ctx v c ->
         let (ctx, p1) = subtype ctx t c' c in
         let wit = VWit(f, a, b) in
         (* Learn the equivalence that are valid in the witness. *)
-        let ctx = learn_equivalences ctx (Pos.none wit) a in
-        let (ctx, p2) = type_term ctx (bndr_subst f wit) b in
-        (ctx, Typ_Func_i(p1,p2))
+        begin
+          try
+            let ctx = learn_equivalences ctx (Pos.none wit) a in
+            let (ctx, p2) = type_term ctx (bndr_subst f wit) b in
+            (ctx, Typ_Func_i(p1,Some p2))
+          with Contradiction -> (ctx, Typ_Func_i(p1, None))
+        end
     (* Constructor. *)
     | Cons(d,v)   ->
         let (ctx, a) = new_uvar ctx P in
