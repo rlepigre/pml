@@ -19,11 +19,11 @@ val eq : bool ⇒ bool ⇒ bool =
               | F[y] → fls)
 
 // Equivalence is total.
-val eq :  ∀ x:ι, x∈bool ⇒  ∀ y:ι, y∈bool ⇒ ∃ v:ι, v ∈ (bool | eq x y ≡ v) =
+val eq_total :  ∀ x:ι, x∈bool ⇒  ∀ y:ι, y∈bool ⇒ ∃ v:ι, eq x y ≡ v =
   fun b1 b2 →
     case b1 of
-    | F[x] → (case b2 of | T[y] → fls | F[y] → tru)
-    | T[x] → (case b2 of | T[y] → tru | F[y] → fls)
+    | F[x] → (case b2 of | T[y] → {} | F[y] → {})
+    | T[x] → (case b2 of | T[y] → {} | F[y] → {})
 
 val not : bool ⇒ bool =
   fun b →
@@ -31,17 +31,35 @@ val not : bool ⇒ bool =
     | F[x] → tru
     | T[x] → fls
 
+val not_total : ∀ x:ι, x∈bool ⇒ ∃ v:ι, not x ≡ v =
+  fun b →
+    case b of
+    | F[x] → {}
+    | T[x] → {}
+
 val or : bool ⇒ bool ⇒ bool =
-  fun b1 → fun b2 →
+  fun b1 b2 →
     case b1 of
     | F[x] → b2
     | T[x] → tru
+
+val or_total : ∀ x:ι, x∈bool ⇒  ∀ y:ι, y∈bool ⇒ ∃ v:ι, or x y ≡ v =
+  fun b1 b2 →
+    case b1 of
+    | F[x] → {}
+    | T[x] → {}
 
 val and : bool ⇒ bool ⇒ bool =
   fun b1 → fun b2 →
     case b1 of
     | F[x] → fls
     | T[x] → b2
+
+val and_total : ∀ x:ι, x∈bool ⇒  ∀ y:ι, y∈bool ⇒ ∃ v:ι, and x y ≡ v =
+  fun b1 b2 →
+    case b1 of
+    | F[x] → {}
+    | T[x] → {}
 
 // Proof of the excluded middle
 val excluded_middle : ∀ x:ι, x∈bool ⇒ or x (not x) ≡ tru =

@@ -87,10 +87,11 @@ and typ_proof = term * prop * typ_rule
 and stk_proof = stac * prop * stk_rule
 and sub_proof = term * prop * prop * sub_rule
 
-let rec learn_equivalences : ctxt -> term -> prop -> ctxt = fun ctx wit a ->
+let rec learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
+  let twit = Pos.none (Valu wit) in
   match (Norm.whnf a).elt with
   | HDef(_,e)  -> learn_equivalences ctx wit e.expr_def
-  | Memb(t,a)  -> let equations = learn ctx.equations (wit, true, t) in
+  | Memb(t,a)  -> let equations = learn ctx.equations (twit, true, t) in
                   learn_equivalences {ctx with equations} wit a
   | Rest(a,c)  ->
       begin
@@ -99,7 +100,7 @@ let rec learn_equivalences : ctxt -> term -> prop -> ctxt = fun ctx wit a ->
                        learn_equivalences {ctx with equations} wit a
         | Posit(_)  -> ctx (* TODO *)
       end
-  | Exis(s, f) -> let t = EWit(s,wit,f) in
+  | Exis(s, f) -> let t = EWit(s,twit,f) in
                   learn_equivalences ctx wit (bndr_subst f t)
   | Prod(fs)   -> ctx (* TODO: wit should be a value
      M.fold (fun lbl p ctxt ->
@@ -271,7 +272,7 @@ and type_valu : ctxt -> valu -> prop -> ctxt * typ_proof = fun ctx v c ->
         let (ctx, p1) = subtype ctx t c' c in
         let wit = VWit(f, a, b) in
         (* Learn the equivalence that are valid in the witness. *)
-        let ctx = learn_equivalences ctx (Pos.none (Valu(Pos.none wit))) a in
+        let ctx = learn_equivalences ctx (Pos.none wit) a in
         let (ctx, p2) = type_term ctx (bndr_subst f wit) b in
         (ctx, Typ_Func_i(p1,p2))
     (* Constructor. *)
@@ -341,20 +342,17 @@ and type_term : ctxt -> term -> prop -> ctxt * typ_proof = fun ctx t c ->
     match (Norm.whnf t).elt with
     (* Value. *)
     | Valu(v)     ->
-        let (ctx, (_, _, r)) = type_valu ctx v c in (ctx, r)
+       let (ctx, (_, _, r)) = type_valu ctx v c in (ctx, r)
+
     (* Application or strong application. *)
     | Appl(t,u)   ->
-        let (is_val, ctx) = term_is_value u ctx in
-        let (ctx, a) = new_uvar ctx P in
-        if is_val then
-          let ae = Pos.none (Memb(u, a)) in
-          let (ctx, p1) = type_term ctx t (Pos.none (Func(ae,c))) in
-          let (ctx, p2) = type_term ctx u a in
-          (ctx, Typ_Func_s(p1,p2))
-        else
-          let (ctx, p1) = type_term ctx t (Pos.none (Func(a,c))) in
-          let (ctx, p2) = type_term ctx u a in
-          (ctx, Typ_Func_e(p1,p2))
+       let (is_val, ctx) = term_is_value u ctx in
+       let (ctx, a) = new_uvar ctx P in
+       let ae = if is_val then Pos.none (Memb(u, a)) else a in
+       let (ctx, p2) = type_term ctx u a in
+       let (ctx, p1) = type_term ctx t (Pos.none (Func(ae,c))) in
+       (ctx, if is_val then Typ_Func_s(p1,p2) else Typ_Func_e(p1,p2))
+
     (* μ-abstraction. *)
     | MAbs(ao,b)  ->
         let (ctx, a) =
