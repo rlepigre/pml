@@ -9,7 +9,7 @@ val u_aux : unit = {l = {}}
 
 
 // We can define a real (one element) « unit » type as follows.
-def real_unit : ο = ∃ x:ι, (x ∈ {}) | x ≡ {} 
+def real_unit : ο = ∃ x:ι, (x ∈ {}) | x ≡ {}
 
 // It is still inhabited by the empty record.
 val unit : real_unit = {}
@@ -30,3 +30,40 @@ val is_realbool : ∀ x:ι, x∈real_bool ⇒ [L of x ≡ T[{}] ; R of x ≡ F[{
     case x of
     | F[e] → R[e]
     | T[e] → L[e]
+
+val tru : real_bool = T[{}]
+val fls : real_bool = F[{}]
+
+// Basic functions.
+val eq : real_bool ⇒ real_bool ⇒ real_bool =
+  fun b1 b2 →
+    case b1 of
+    | F[x] → (case b2 of
+              | T[y] → fls
+              | F[y] → tru)
+    | T[x] → (case b2 of
+              | T[y] → tru
+              | F[y] → fls)
+
+// Equivalence is total.
+val eq_total :  ∀ x:ι, x∈real_bool ⇒  ∀ y:ι, y∈real_bool ⇒ ∃ v:ι, eq x y ≡ v =
+  fun b1 b2 →
+    case b1 of
+    | F[x] → (case b2 of | T[y] → {} | F[y] → {})
+    | T[x] → (case b2 of | T[y] → {} | F[y] → {})
+
+val arg_bool :  ∀ x:ι, x∈real_bool ⇒ {} =
+  fun b → case b of | T[v] → v | F[v] → v
+
+//val is_realbool2 : ∀ x:ι, x∈real_bool ⇒ arg_bool x ≡ {} =
+//  fun x →
+//    case x of
+//    | T[e] → {}
+//    | F[e] → {}
+
+
+val eq_eq : ∀ x:ι, ∀ y:ι, x∈real_bool ⇒ y∈real_bool ⇒ eq x y ≡ tru ⇒ x ≡ y =
+  fun b1 b2 e →
+    case is_realbool b1 of
+    | L[x] → (case is_realbool b2 of | L[x] → {} | R[x] → {})
+    | R[x] → (case is_realbool b2 of | L[x] → {} | R[x] → {})
