@@ -83,19 +83,9 @@ val eq_asso : ∀ x:ι, ∀ y:ι, ∀ z:ι, x∈bool ⇒ y∈bool ⇒ z∈bool �
               | F[y] → (case b3 of | T[z] → {} | F[z] → {}))
 
 // Other version using "let".
-// val eq_comm3 : ∀ x:ι, ∀ y:ι, x∈bool ⇒ y∈bool ⇒ eq (eq x y) (eq y x) ≡ tru =
-//  fun b1 b2 →
-//    (fun (p : eq b1 b2 ≡ eq b2 b1) → eq_refl (eq b1 b2)) (eq_comm b1 b2)
-
-
-//def sunit : ο = ∃ x:ι, (x ∈ {}) | x ≡ {}
-//val unit : sunit = {}
-//
-//
-//def sbool : ο = [F of sunit ; T of sunit]
-//
-//val eq_eq : ∀ x:ι, ∀ y:ι, x∈sbool ⇒ y∈sbool ⇒ eq x y ≡ tru ⇒ x ≡ y =
-//  fun b1 b2 e →
-//    case b1 of
-//    | F[x] → (case b2 of | T[y] → {} | F[y] → {})
-//    | T[x] → (case b2 of | T[y] → {} | F[y] → {})
+val eq_comm3 : ∀ x:ι, ∀ y:ι, x∈bool ⇒ y∈bool ⇒ eq (eq x y) (eq y x) ≡ tru =
+  fun b1 b2 →
+    let lem1 = eq_comm b1 b2 in
+    let lem0 = eq_total b1 b2 in
+    let lem2 = eq_refl (eq b1 b2) in
+    {}
