@@ -5,10 +5,6 @@
 (* Type of a printf-like function. *)
 type 'a printer = ('a, out_channel, unit) format -> 'a
 
-(* Main printing function (to standard output). *)
-let out : 'a printer =
-  Printf.printf
-
 (* Test if a channel corresponds to a terminal. *)
 let isatty : out_channel -> bool =
   fun ch -> Unix.isatty (Unix.descr_of_out_channel ch)
@@ -139,3 +135,10 @@ module Log =
         let l = List.map fn l in
         String.concat "\n" l
 end
+
+(* Main printing function to standard output. When a log file has been
+   provided, the output is directed to the log (and not to standard output
+   anymore. *)
+let out : 'a printer = fun fmt ->
+  let ch = if !Log.log_channel == stderr then stdout else !Log.log_channel in
+  Printf.fprintf ch fmt
