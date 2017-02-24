@@ -62,6 +62,7 @@ type typ_rule =
   | Typ_Name   of typ_proof * stk_proof
   | Typ_Mu     of typ_proof
   | Typ_Scis
+  | Typ_FixY   of typ_proof * typ_proof
 
 and  stk_rule =
   | Stk_Push   of sub_proof * typ_proof * stk_proof
@@ -248,6 +249,15 @@ let rec subtype : ctxt -> term -> prop -> prop -> ctxt * sub_proof =
          let (ctx, p) = subtype ctx t (bndr_subst f a.elt) b in
          (ctx, Sub_FixN_i(p))
 
+      (* Mu, Nu tempory wrong rules FIXME . *)
+      | (_          , FixN({ elt = Conv },f)) ->
+         let (ctx, p) = subtype ctx t a (bndr_subst f b.elt) in
+         (ctx, Sub_FixN_i(p))
+
+      | (FixM({ elt = Conv },f), _) ->
+         let (ctx, p) = subtype ctx t (bndr_subst f a.elt) b in
+         (ctx, Sub_FixM_i(p))
+
       (* Fallback to general witness. *)
       | (_          , _          ) when not t_is_val ->
           let wit =
@@ -424,7 +434,12 @@ and type_term : ctxt -> term -> prop -> ctxt * typ_proof = fun ctx t c ->
         (ctx, Typ_DSum_e(p,List.rev ps))
     (* Fixpoint. *)
     | FixY(t,v)   ->
-        assert false (* TODO *)
+       let (ctx, a) = new_uvar ctx P in
+       let b = Pos.none (Func(a,c)) in
+       let (ctx, p2) = type_valu ctx v a in
+       let (ctx, p1) = type_term ctx t (Pos.none (Func(b,b))) in
+       (ctx, Typ_FixY(p1,p2))
+
     (* Coercion. *)
     | TTyp(t,a)   ->
         let (ctx, p1) = subtype ctx t a c in
