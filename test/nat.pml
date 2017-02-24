@@ -12,7 +12,7 @@ val id_nat : nat ⇒ nat = fix fun id_nat n →
 
 val test : nat = id_nat two
 
-//val id_nat_id : ∀n:ι, n∈nat ⇒ id_nat n ≡ n = fix fun id_nat_id n →
-//  case n of
+//val id_nat_id : ∀n:ι, n∈nat ⇒ id_nat n ≡ n = fix fun id_nat_id x →
+//  case x of
 //  | Z[u] → {}
 //  | S[p] → let lem = id_nat_id p in {}

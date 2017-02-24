@@ -64,12 +64,11 @@ let locate buf1 pos1 buf2 pos2 =
     | ""    -> None
     | fname -> Some fname
   in
-  { fname
-  ; start_line = Input.line_num buf1
-  ; start_col  = (Input.utf8_col_num buf1 pos1) + 1
-  ; end_line   = Input.line_num buf2
-  ; end_col    = Input.utf8_col_num buf2 pos2
-  }
+  let start_line = Input.line_num buf1 in
+  let start_col  = 1 + Input.utf8_col_num buf1 pos1 in
+  let end_line   = Input.line_num buf2 in
+  let end_col    = max start_col (Input.utf8_col_num buf2 pos2) in
+  { fname ; start_line ; start_col ; end_line ; end_col }
 
 (** [pos_to_string pos] transforms the position [pos] into a readable
     format. *)

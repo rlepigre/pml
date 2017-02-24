@@ -127,10 +127,10 @@ let handle_file env fn =
       begin
         let _ =
           match t.pos with
-          | None   -> err_msg "Sort clash on %a (expected %a)."
-                        print_raw_expr t print_raw_sort s
-          | Some p -> err_msg "Sort clash at %a (expected %a)."
-                        Pos.print_short_pos p print_raw_sort s
+          | None   -> err_msg "Sort %a expected for %a."
+                        pretty_print_raw_sort s print_raw_expr t
+          | Some p -> err_msg "Sort %a expected at %a."
+                        pretty_print_raw_sort s Pos.print_short_pos p
         in
         exit 1
       end

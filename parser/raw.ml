@@ -37,6 +37,36 @@ let print_raw_sort : out_channel -> raw_sort -> unit = fun ch s ->
         end
   in print ch s
 
+let pretty_print_raw_sort : out_channel -> raw_sort -> unit = fun ch s ->
+  let rec is_fun s =
+    match s.elt with
+    | SFun(_,_) -> true
+    | SUni(r)   ->
+        begin
+          match !r with
+          | None   -> false
+          | Some s -> is_fun s
+        end
+    | _         -> false
+  in
+  let rec print ch s =
+    match s.elt with
+    | SV        -> output_string ch "ι"
+    | ST        -> output_string ch "τ"
+    | SS        -> output_string ch "σ"
+    | SP        -> output_string ch "ο"
+    | SO        -> output_string ch "κ"
+    | SFun(a,b) -> let (l,r) = if is_fun a then ("(",")") else ("","") in
+                   Printf.fprintf ch "%s%a%s→%a" l print a r print b
+    | SVar(x)   -> output_string ch x
+    | SUni(r)   ->
+        begin
+          match !r with
+          | None   -> output_string ch "?"
+          | Some a -> print ch a
+        end
+  in print ch s
+
 let _sv = Pos.none SV
 let _st = Pos.none ST
 let _ss = Pos.none SS
