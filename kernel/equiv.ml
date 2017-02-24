@@ -660,7 +660,7 @@ type inequiv = term * term
 let add_equiv : equiv -> eq_ctxt -> eq_ctxt = fun (t,u) {pool} ->
   log_edp "inserting %a = %a in context\n%a" Print.print_ex t
     Print.print_ex u (print_pool "        ") pool;
-  if t == u || eq_expr t u then
+  if eq_expr t u then
     begin
       log_edp "trivial proof";
       {pool}
