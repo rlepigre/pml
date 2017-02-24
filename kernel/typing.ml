@@ -82,6 +82,8 @@ and  sub_rule =
   | Sub_Memb_l of sub_proof option (* None means contradictory context. *)
   | Sub_Memb_r of sub_proof
   | Sub_Gene   of sub_proof
+  | Sub_FixM_i of sub_proof
+  | Sub_FixN_i of sub_proof
 
 and typ_proof = term * prop * typ_rule
 and stk_proof = stac * prop * stk_rule
@@ -237,6 +239,15 @@ let rec subtype : ctxt -> term -> prop -> prop -> ctxt * sub_proof =
             | Posit(o)  ->
                 assert false (* TODO *)
           end
+      (* Mu, Nu infinite case. *)
+      | (_          , FixM({ elt = Conv },f)) ->
+         let (ctx, p) = subtype ctx t a (bndr_subst f b.elt) in
+         (ctx, Sub_FixM_i(p))
+
+      | (FixN({ elt = Conv },f), _) ->
+         let (ctx, p) = subtype ctx t (bndr_subst f a.elt) b in
+         (ctx, Sub_FixN_i(p))
+
       (* Fallback to general witness. *)
       | (_          , _          ) when not t_is_val ->
           let wit =

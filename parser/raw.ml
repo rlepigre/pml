@@ -305,7 +305,7 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
     | (EExis(_,_,_) , _        ) -> sort_clash e s
     | (EFixM(o,x,e) , SP       )
     | (EFixN(o,x,e) , SP       ) -> infer env vars o _so;
-                                    let vars = M.add x.elt (x.pos,_so) vars in
+                                    let vars = M.add x.elt (x.pos,_sp) vars in
                                     infer env vars e _sp
     | (EFixM(_,_,_) , SUni(r)  )
     | (EFixN(_,_,_) , SUni(r)  ) -> r := Some _sp; infer env vars e s
@@ -706,7 +706,7 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
         end
     | (ECase(v,r,l) , ST       ) ->
         begin
-          let fn (c, (x, ao), t) = 
+          let fn (c, (x, ao), t) =
             let f xx =
               let xx = (x.pos, Box(V, vari x.pos xx)) in
               let vars = M.add x.elt xx vars in
@@ -721,7 +721,7 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
           let m = List.fold_left gn M.empty (List.map fn l) in
           match !r with
           | `V -> let v = to_valu (unsugar env vars v _sv) in
-                  Box(T, case e.pos v m)          
+                  Box(T, case e.pos v m)
           | `T -> let t = to_term (unsugar env vars v _st) in
                   Box(T, t_case e.pos t m)
         end
