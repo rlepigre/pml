@@ -210,6 +210,69 @@ let eq_t_nodes : t_node -> t_node -> bool = fun n1 n2 -> n1 == n2 ||
   | (TN_EWit(t1,b1)  , TN_EWit(t2,b2)  ) -> eq_expr t1 t2 && eq_bndr b1 b2
   | (_               , _               ) -> false
 
+(** Geting the children sons of a node. *)
+
+let children_v_node : v_node -> Ptr.t list = fun n ->
+  match n with
+  | VN_LAbs _
+  | VN_Scis
+  | VN_VWit _
+  | VN_UWit _
+  | VN_UVar _ (* TODO check *)
+  | VN_HApp _ (* TODO check *)
+  | VN_EWit _     -> []
+  | VN_Cons(_,pv) -> [Ptr.V_ptr pv]
+  | VN_Reco(m)    -> M.fold (fun _ p s -> Ptr.V_ptr p :: s) m []
+
+let children_t_node : t_node -> Ptr.t list = fun n ->
+  match n with
+  | TN_Valu(pv)    -> [Ptr.V_ptr pv]
+  | TN_Appl(pt,pu) -> [Ptr.T_ptr pt; Ptr.T_ptr pu]
+  | TN_Name(_,pt)  -> [Ptr.T_ptr pt]
+  | TN_Proj(pv,_)  -> [Ptr.V_ptr pv]
+  | TN_Case(pv,_)  -> [Ptr.V_ptr pv]
+  | TN_FixY(pt,pv) -> [Ptr.T_ptr pt; Ptr.V_ptr pv]
+  | TN_MAbs _
+  | TN_UWit _
+  | TN_EWit _
+  | TN_HApp _
+  | TN_UVar _      -> []
+
+(** Adding a parent to a given node. *)
+let add_parent_nodes : Ptr.t -> Ptr.t list-> pool -> pool = fun np ps po ->
+  let fn po p =
+    match p with
+    | Ptr.V_ptr p ->
+       let (ps, n) = find_v_node p po in
+       { po with vs = VPtrMap.add p (PtrSet.add np ps, n) po.vs }
+    | Ptr.T_ptr p ->
+       let (ps, n) = find_t_node p po in
+       { po with ts = TPtrMap.add p (PtrSet.add np ps, n) po.ts }
+  in
+  List.fold_left fn po ps
+
+let add_parent_v_nodes : VPtr.t -> Ptr.t list -> pool -> pool = fun vp ps po ->
+  add_parent_nodes (Ptr.V_ptr vp) ps po
+
+let add_parent_t_nodes : TPtr.t -> Ptr.t list -> pool -> pool = fun tp ps po ->
+  add_parent_nodes (Ptr.T_ptr tp) ps po
+
+(** Obtain the parents of a pointed node. *)
+let parents : Ptr.t -> pool -> PtrSet.t = fun p po ->
+  match p with
+  | Ptr.V_ptr vp -> fst (find_v_node vp po)
+  | Ptr.T_ptr tp -> fst (find_t_node tp po)
+
+(** FIXME: to remove *)
+let add_parents : Ptr.t -> PtrSet.t -> pool -> pool = fun p nps po ->
+  match p with
+  | Ptr.V_ptr vp ->
+     let (ps, n) = find_v_node vp po in
+     {po with vs = VPtrMap.add vp (PtrSet.union nps ps, n) po.vs}
+  | Ptr.T_ptr tp ->
+     let (ps, n) = find_t_node tp po in
+     {po with ts = TPtrMap.add tp (PtrSet.union nps ps, n) po.ts}
+
 (** Insertion function for nodes. *)
 exception FoundV of VPtr.t
 let insert_v_node : v_node -> pool -> VPtr.t * pool = fun nn po ->
@@ -220,7 +283,10 @@ let insert_v_node : v_node -> pool -> VPtr.t * pool = fun nn po ->
       let ptr = VPtr.V po.next in
       let vs = VPtrMap.add ptr (PtrSet.empty, nn) po.vs in
       let next = po.next + 1 in
-      (ptr, { po with vs ; next })
+      let po = { po with vs ; next } in
+      let children = children_v_node nn in
+      let po = add_parent_v_nodes ptr children po in
+      (ptr, po)
 
 exception FoundT of TPtr.t
 let insert_t_node : t_node -> pool -> TPtr.t * pool = fun nn po ->
@@ -231,40 +297,16 @@ let insert_t_node : t_node -> pool -> TPtr.t * pool = fun nn po ->
       let ptr = TPtr.T po.next in
       let ts = TPtrMap.add ptr (PtrSet.empty, nn) po.ts in
       let next = po.next + 1 in
-      (ptr, { po with ts ; next })
-
-(** Adding a parent to a given node. *)
-let add_parent_v_node : VPtr.t -> Ptr.t -> pool -> pool = fun vp pp po ->
-  let (ps, n) = find_v_node vp po in
-  if PtrSet.mem pp ps then po else
-  {po with vs = VPtrMap.add vp (PtrSet.add pp ps, n) po.vs}
-
-let add_parent_t_node : TPtr.t -> Ptr.t -> pool -> pool = fun tp pp po ->
-  let (ps, n) = find_t_node tp po in
-  if PtrSet.mem pp ps then po else
-  {po with ts = TPtrMap.add tp (PtrSet.add pp ps, n) po.ts}
-
-(** Obtain the parents of a pointed node. *)
-let parents : Ptr.t -> pool -> PtrSet.t = fun p po ->
-  match p with
-  | Ptr.V_ptr vp -> fst (find_v_node vp po)
-  | Ptr.T_ptr tp -> fst (find_t_node tp po)
-
-let add_parents : Ptr.t -> PtrSet.t -> pool -> pool = fun p nps po ->
-  match p with
-  | Ptr.V_ptr vp ->
-     let (ps, n) = find_v_node vp po in
-     {po with vs = VPtrMap.add vp (PtrSet.union nps ps, n) po.vs}
-  | Ptr.T_ptr tp ->
-     let (ps, n) = find_t_node tp po in
-     {po with ts = TPtrMap.add tp (PtrSet.union nps ps, n) po.ts}
+      let po = { po with ts ; next } in
+      let children = children_t_node nn in
+      let po = add_parent_t_nodes ptr children po in
+      (ptr, po)
 
 (** Insertion of actual terms and values to the pool. *)
 let rec add_term : pool -> term -> TPtr.t * pool = fun po t ->
   match (Norm.whnf t).elt with
   | Valu(v)     -> let (pv, po) = add_valu po v in
                    let (pp, po) = insert_t_node (TN_Valu(pv)) po in
-                   let po = add_parent_v_node pv (Ptr.T_ptr pp) po in
                    let eq_map =
                      PtrMap.add (Ptr.T_ptr pp) (Ptr.V_ptr pv) po.eq_map
                    in
@@ -272,28 +314,21 @@ let rec add_term : pool -> term -> TPtr.t * pool = fun po t ->
   | Appl(t,u)   -> let (pt, po) = add_term po t in
                    let (pu, po) = add_term po u in
                    let (pp, po) = insert_t_node (TN_Appl(pt,pu)) po in
-                   let po = add_parent_t_node pt (Ptr.T_ptr pp) po in
-                   let po = add_parent_t_node pu (Ptr.T_ptr pp) po in
                    (pp, po)
   | MAbs(_,b)   -> insert_t_node (TN_MAbs(b)) po
   | Name(s,t)   -> let (pt, po) = add_term po t in
                    let (pp, po) = insert_t_node (TN_Name(s,pt)) po in
-                   let po = add_parent_t_node pt (Ptr.T_ptr pp) po in
                    (pp, po)
   | Proj(v,l)   -> let (pv, po) = add_valu po v in
                    let (pp, po) = insert_t_node (TN_Proj(pv,l)) po in
-                   let po = add_parent_v_node pv (Ptr.T_ptr pp) po in
                    (pp, po)
   | Case(v,m)   -> let (pv, po) = add_valu po v in
                    let m = M.map snd m in
                    let (pp, po) = insert_t_node (TN_Case(pv,m)) po in
-                   let po = add_parent_v_node pv (Ptr.T_ptr pp) po in
                    (pp, po)
   | FixY(t,v)   -> let (pt, po) = add_term po t in
                    let (pv, po) = add_valu po v in
                    let (pp, po) = insert_t_node (TN_FixY(pt,pv)) po in
-                   let po = add_parent_v_node pv (Ptr.T_ptr pp) po in
-                   let po = add_parent_t_node pt (Ptr.T_ptr pp) po in
                    (pp, po)
   | TTyp(t,_)   -> add_term po t
   | TLam(_,b)   -> add_term po (bndr_subst b Dumm)
@@ -311,7 +346,6 @@ and     add_valu : pool -> valu -> VPtr.t * pool = fun po v ->
   | LAbs(_,b)   -> insert_v_node (VN_LAbs(b)) po
   | Cons(c,v)   -> let (pv, po) = add_valu po v in
                    let (pp, po) = insert_v_node (VN_Cons(c,pv)) po in
-                   let po = add_parent_v_node pv (Ptr.V_ptr pp) po in
                    (pp, po)
   | Reco(m)     -> let fn l (_, v) (m, po) =
                      let (pv, po) = add_valu po v in
@@ -319,8 +353,6 @@ and     add_valu : pool -> valu -> VPtr.t * pool = fun po v ->
                    in
                    let (m, po) = M.fold fn m (M.empty, po) in
                    let (pp, po) = insert_v_node (VN_Reco(m)) po in
-                   let fn _ pv po = add_parent_v_node pv (Ptr.V_ptr pp) po in
-                   let po = M.fold fn m po in
                    (pp, po)
   | Scis        -> insert_v_node VN_Scis po
   | VDef(d)     -> add_valu po (Erase.to_valu d.value_eval)

@@ -8,7 +8,7 @@ val two  : nat = succ one
 
 val id_nat : nat ⇒ nat = fix fun id_nat n →
   case n of
-  | Z[u] → zero
+  | Z[u] → Z[u]
   | S[p] → succ (id_nat p)
 
 val test : nat = id_nat two
