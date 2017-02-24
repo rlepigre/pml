@@ -108,6 +108,7 @@ let {eq_expr; eq_bndr} =
   let rec eq_expr : type a. a ex loc -> a ex loc -> bool = fun e1 e2 ->
     let e1 = Norm.whnf e1 in
     let e2 = Norm.whnf e2 in
+    if e1 == e2 then true else (
     if !full_eq then log_equ "comparing %a and %a" Print.ex e1 Print.ex e2;
     match (e1.elt, e2.elt) with
     | (Vari(x1)      , Vari(x2)      ) ->
@@ -201,9 +202,10 @@ let {eq_expr; eq_bndr} =
         if uvar_occurs u1 e2 then false else (uvar_set u1 e2; true)
     | (_             , UVar(_,u2)    ) ->
         if uvar_occurs u2 e1 then false else (uvar_set u2 e1; true)
-    | _                                -> false
+    | _                                -> false)
 
   and eq_bndr : type a b. (a,b) bndr -> (a,b) bndr -> bool = fun b1 b2 ->
+    if b1 == b2 then true else
     let t = new_itag () in
     eq_expr (bndr_subst b1 t) (bndr_subst b2 t)
   in

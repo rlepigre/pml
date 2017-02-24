@@ -21,11 +21,16 @@ let rec whnf : type a. a ex loc -> a ex loc = fun exp ->
   (* Reduction of a redex. *)
   | HApp(s,e,f)                       ->
       begin
-        let e = whnf e and f = whnf f in
-        match (e.elt, f.elt) with
+        let ne = whnf e and nf = whnf f in
+        match (ne.elt, nf.elt) with
         | (HFun(_,_,b), f) -> whnf (bndr_subst b f)
-        | (HDef(_,d)  , _) -> whnf {exp with elt = HApp(s, d.expr_def, f)}
-        | (_          , _) -> {exp with elt = HApp(s, e, f)}
+        | (HDef(_,d)  , _) ->
+           let de = {exp with elt = HApp(s, d.expr_def, nf)} in
+           let nde = whnf de in (* preserves physical eq if possible *)
+           if nde == de && ne == e && nf == f then exp else nde
+        | (_          , _) -> (* preserves physical eq if possible *)
+           if ne == e && nf == f then exp
+           else {exp with elt = HApp(s, e, f)}
       end
   (* Unfolding of a unification variable. *)
   | UVar(_, {uvar_val = {contents = Some exp}}) -> whnf exp
