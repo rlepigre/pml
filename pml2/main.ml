@@ -101,7 +101,7 @@ let handle_file env fn =
   out "[%s]\n%!" fn;
   try
     let ast = Parser.parse_file fn in
-    List.fold_left interpret env ast 
+    List.fold_left interpret env ast
   with
   | No_parse(p, None)       ->
       begin

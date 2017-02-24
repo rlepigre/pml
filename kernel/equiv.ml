@@ -541,7 +541,7 @@ let rec normalise : ?update:bool -> TPtr.t -> pool -> Ptr.t * pool = fun ?(updat
               let b = bndr_from_fun "x" (fun x -> FixY(t, Pos.none x)) in
               let (pf, po) = insert_v_node (VN_LAbs(b)) po in
               let (pf, po) = insert_t_node (TN_Valu(pf)) po in
-              let (pap, po) = insert_t_node (TN_Appl(pf, pt)) po in
+              let (pap, po) = insert_t_node (TN_Appl(pt, pf)) po in
               let (pu, po) = insert_t_node (TN_Valu(pv)) po in
               let (pap, po) = insert_t_node (TN_Appl(pap, pu)) po in
               normalise pap po
