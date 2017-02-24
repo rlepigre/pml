@@ -1,4 +1,3 @@
-
 def nat : ο = μx [ Z of {} ; S of x ]
 
 val zero : nat = Z[{}]

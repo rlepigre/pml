@@ -167,7 +167,7 @@ let bndr_subst : ('a, 'b) bndr -> 'a ex -> 'b ex loc =
 (** Obtain the name of a bound variable in the form of a located string. The
     position corresponds to the variable in binding position. *)
 let bndr_name : ('a, 'b) bndr -> strloc =
-  fun (p, b) -> build_pos p (binder_name b)
+  fun (p, b) -> Pos.make p (binder_name b)
 
 (** [bndr_from_fun x f] builds a binder using [x] as a name  for  the  bound
     variable, and the function [f] as a definition. *)

@@ -105,12 +105,12 @@ let handle_file env fn =
   with
   | No_parse(p, None)       ->
       begin
-        err_msg "No parse %a." Pos.print_pos p;
+        err_msg "No parse %a." Pos.print_short_pos p;
         exit 1
       end
   | No_parse(p, Some msg)   ->
       begin
-        err_msg "No parse %a (%s)." Pos.print_pos p msg;
+        err_msg "No parse %a (%s)." Pos.print_short_pos p msg;
         exit 1
       end
   | Unbound_sort(s, None  ) ->
@@ -120,7 +120,18 @@ let handle_file env fn =
       end
   | Unbound_sort(s, Some p) ->
       begin
-        err_msg "Unbound sort %s (%a)." s Pos.print_pos p;
+        err_msg "Unbound sort %s (%a)." s Pos.print_short_pos p;
+        exit 1
+      end
+  | Sort_clash(t,s) ->
+      begin
+        let _ =
+          match t.pos with
+          | None   -> err_msg "Sort clash on %a (expected %a)."
+                        print_raw_expr t print_raw_sort s
+          | Some p -> err_msg "Sort clash at %a (expected %a)."
+                        Pos.print_short_pos p print_raw_sort s
+        in
         exit 1
       end
 

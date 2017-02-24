@@ -509,7 +509,7 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
             let box =
               try snd (M.find x.elt vars) with Not_found ->
               let Expr(sx, d) = find_expr x.elt env in
-              Box(sx, box (build_pos x.pos (HDef(sx,d))))
+              Box(sx, box (Pos.make x.pos (HDef(sx,d))))
             in
             let rec build_app (Box(se,e)) args =
               match (se, args) with
@@ -533,7 +533,7 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
           with Not_found ->
             let d = find_value x.elt env in
             if args <> [] then assert false; (* FIXME *)
-            Box(V, box (build_pos x.pos (VDef(d))))
+            Box(V, box (Pos.make x.pos (VDef(d))))
         end
     | (EHOFn(x,k,f) , SFun(a,b)) ->
         let Sort sa = unsugar_sort env a in
@@ -640,8 +640,8 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
               in
               Box(V, labs e.pos ao x fn)
           | (x     , y::xs) ->
-              let t = build_pos e.pos (ELAbs((y,xs),t)) in
-              let t = build_pos e.pos (ELAbs((x,[]),t)) in
+              let t = Pos.make e.pos (ELAbs((y,xs),t)) in
+              let t = Pos.make e.pos (ELAbs((x,[]),t)) in
               unsugar env vars t _sv
         end
     | (ECons(c,vo)  , SV       ) ->
@@ -688,8 +688,8 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
               in
               Box(T, mabs e.pos ao x fn)
           | (x     , y::xs) ->
-              let t = build_pos e.pos (EMAbs((y,xs),t)) in
-              let t = build_pos e.pos (EMAbs((x,[]),t)) in
+              let t = Pos.make e.pos (EMAbs((y,xs),t)) in
+              let t = Pos.make e.pos (EMAbs((x,[]),t)) in
               unsugar env vars t _st
         end
     | (EName(s,t)   , ST       ) ->

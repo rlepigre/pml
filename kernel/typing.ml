@@ -276,7 +276,7 @@ let rec subtype : ctxt -> term -> prop -> prop -> ctxt * sub_proof =
 
 and type_valu : ctxt -> valu -> prop -> ctxt * typ_proof = fun ctx v c ->
   let v = Norm.whnf v in
-  let t = build_pos v.pos (Valu(v)) in
+  let t = Pos.make v.pos (Valu(v)) in
   log_typ "(val) %a : %a" Print.ex v Print.ex c;
   let (ctx, r) =
     match v.elt with
@@ -331,7 +331,7 @@ and type_valu : ctxt -> valu -> prop -> ctxt * typ_proof = fun ctx v c ->
         type_error v.pos "Reachable scissors..."
     (* Coercion. *)
     | VTyp(v,a)   ->
-        let (ctx, p1) = subtype ctx (build_pos v.pos (Valu(v))) a c in
+        let (ctx, p1) = subtype ctx (Pos.make v.pos (Valu(v))) a c in
         let (ctx, p2) = type_valu ctx v a in
         (ctx, Typ_VTyp(p1,p2))
     (* Type abstraction. *)
@@ -359,7 +359,7 @@ and type_valu : ctxt -> valu -> prop -> ctxt * typ_proof = fun ctx v c ->
     | Dumm        -> unexpected "Dummy value during typing..."
     | ITag(_)     -> unexpected "Tag during typing..."
   in
-  (ctx, (build_pos v.pos (Valu(v)), c, r))
+  (ctx, (Pos.make v.pos (Valu(v)), c, r))
 
 and type_term : ctxt -> term -> prop -> ctxt * typ_proof = fun ctx t c ->
   log_typ "(trm) %a : %a" Print.ex t Print.ex c;
@@ -439,7 +439,6 @@ and type_term : ctxt -> term -> prop -> ctxt * typ_proof = fun ctx t c ->
        let (ctx, p2) = type_valu ctx v a in
        let (ctx, p1) = type_term ctx t (Pos.none (Func(b,b))) in
        (ctx, Typ_FixY(p1,p2))
-
     (* Coercion. *)
     | TTyp(t,a)   ->
         let (ctx, p1) = subtype ctx t a c in
