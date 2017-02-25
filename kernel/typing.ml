@@ -434,10 +434,12 @@ and type_term : ctxt -> term -> prop -> ctxt * typ_proof = fun ctx t c ->
         (ctx, Typ_DSum_e(p,List.rev ps))
     (* Fixpoint. *)
     | FixY(t,v)   ->
-       let (ctx, a) = new_uvar ctx P in
-       let b = Pos.none (Func(a,c)) in
+       let (ctx, va) = new_uvar ctx P in
+       let a = Pos.none (Memb(Pos.none (Valu(v)),va)) in
+       let b1 = Pos.none (Func(va,c)) in
+       let b2 = Pos.none (Func(a,c)) in
        let (ctx, p2) = type_valu ctx v a in
-       let (ctx, p1) = type_term ctx t (Pos.none (Func(b,b))) in
+       let (ctx, p1) = type_term ctx t (Pos.none (Func(b1,b2))) in
        (ctx, Typ_FixY(p1,p2))
     (* Coercion. *)
     | TTyp(t,a)   ->
