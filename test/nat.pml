@@ -7,7 +7,7 @@ val two  : nat = succ one
 
 val id_nat : nat ⇒ nat = fix fun id_nat n →
   case n of
-  | Z[] → Z[{}]
+  | Z[] → Z[]
   | S[p] → succ (id_nat p)
 
 val test : nat = id_nat two
@@ -22,12 +22,19 @@ val add : nat ⇒ nat ⇒ nat = fix fun add n m →
   | Z[] → m
   | S[p] → succ (add p m)
 
-val add_total :  ∀n m∈nat, ∃v:ι, add n m ≡ v = fix fun add_total n m →
+val add_total : ∀n m∈nat, ∃v:ι, add n m ≡ v = fix fun add_total n m →
   case n of
   | Z[] → {}
   | S[p] → let ind_hyp = add_total p m in {}
 
-//val add_zero : ∀n∈nat, add n zero ≡ n = fix fun add_zero n →
+//val add_zero1 : ∀z∈nat, add z zero ≡ z = fix fun add_zero k →
+//  case k of
+//  | Z[] → {}
+//  | S[p] →
+//    let lem = add_total p zero in
+//    let ind_hyp = (add_zero p : add p zero ≡ p )in {}
+
+//val add_zero2 : ∀n∈nat, add n zero ≡ n = fix fun add_zero n →
 //  case n of
 //  | Z[] → {}
 //  | S[p] → let ind_hyp : add p zero ≡ p = add_zero p in {}
@@ -37,7 +44,7 @@ val add_zero : ∀n∈nat, add n zero ≡ n = fix fun add_zero n →
   | Z[] → {}
   | S[p] → let ind_hyp = add_zero p in {}
 
-val add_succ : ∀n m∈nat, add n S[m] ≡ succ (add n m) = fix fun add_succ n m →
+val add_succ : ∀n m∈nat, add n S[m] ≡ succ(add n m) = fix fun add_succ n m →
   case n of
   | Z[] → {}
   | S[p] → let ind_hyp = add_succ p m in {}
@@ -59,15 +66,25 @@ val add_comm : ∀n m∈nat, add n m ≡ add m n = fix fun add_comm n m →
     let ind_hyp = add_comm p m in
     let lem = add_succ n p in {}
 
-//val add_asso : ∀n m q∈nat, add n (add m q) ≡ add (add n m) q =
-//  fix fun add_asso n m q →
-//    case n of
-//    | Z[] → {}
-//    | S[p] →
-//      let tot1 = add_total m q in
-//      let deduce : add n (add m q) ≡ succ (add p (add m q)) = {} in
-//      let tot2 = add_total p m in
-//      let deduce : add (add n m) q ≡ succ (add (add p m) q) = {} in
-//      let ind_hyp = add_asso p m q in
-//      let deduce : add (add p m) q ≡ add (add p m) q = {} in
-//      ✂
+val add_asso : ∀n m q∈nat, add n (add m q) ≡ add (add n m) q =
+  fix fun add_asso n m q →
+    let tot1 = add_total m q in
+    case n of
+    | Z[] → {}
+    | S[p] →
+      let deduce : add n (add m q) ≡ succ (add p (add m q)) = {} in
+      let tot2 = add_total p m in
+      let deduce : add (add n m) q ≡ succ (add (add p m) q) = {} in
+      let ind_hyp = add_asso p m q in
+      let deduce : add (add p m) q ≡ add (add p m) q = {} in
+      {}
+
+val mul : nat ⇒ nat ⇒ nat = fix fun mul n m →
+  case n of
+  | Z[] → Z[]
+  | S[p] → add m (mul p n)
+
+val mul_zero : ∀n∈nat, mul n zero ≡ n = fix fun mul_zero n →
+  case n of
+  | Z[] → {}
+  | S[p] → let ind_hyp = mul_zero p in {}

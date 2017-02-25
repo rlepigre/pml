@@ -590,7 +590,28 @@ let rec normalise : ?update:bool -> TPtr.t -> pool -> Ptr.t * pool = fun ?(updat
             end
       end
 
-let rec reinsert : Ptr.t -> pool -> pool = fun p po ->
+and check_eq : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
+  let (p1, po) = find p1 po in
+  let (p2, po) = find p2 po in
+  if p1 = p2 then po else
+  match (p1, p2) with
+  | Ptr.V_ptr vp1, Ptr.V_ptr vp2 ->
+     let (pp1, n1) = find_v_node vp1 po in
+     let (pp2, n2) = find_v_node vp2 po in
+     if eq_v_nodes n1 n2 then join p1 p2 po else po
+  | Ptr.T_ptr tp1, Ptr.T_ptr tp2 ->
+     let (pp1, n1) = find_t_node tp1 po in
+     let (pp2, n2) = find_t_node tp2 po in
+     if eq_t_nodes n1 n2 then join p1 p2 po else po
+  | _ -> po
+
+and check_parents_eq pp1 pp2 po =
+  PtrSet.fold (fun p1 po ->
+      PtrSet.fold (fun p2 po ->
+          check_eq p1 p2 po) pp2 po)
+              pp1 po
+
+and reinsert : Ptr.t -> pool -> pool = fun p po ->
   match p with
   | Ptr.T_ptr tp ->
      log_edp "normalisation of parent %a" TPtr.print tp;
@@ -604,6 +625,7 @@ let rec reinsert : Ptr.t -> pool -> pool = fun p po ->
 and join : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
   let nps = parents p1 po in
   let po = { po with eq_map = PtrMap.add p1 p2 po.eq_map } in
+  let po = check_parents_eq nps (parents p2 po) po in
   let po = add_parents p2 nps po in
   PtrSet.fold reinsert nps po
 
