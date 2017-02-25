@@ -1,7 +1,7 @@
 // Booleans
 
 // Type of booleans
-def bool : ο = [F of {} ; T of {}]
+def bool : ο = [F of {} ∈ {} ; T of {} ∈ {}]
 
 // Smart constructors
 val tru : bool = T[]
@@ -10,21 +10,40 @@ val fls : bool = F[]
 def eq0 : ι =
   fun b1 b2 →
     case b1 of
-    | F[x] → (case b2 of
-              | T[y] → fls
-              | F[y] → tru)
-    | T[x] → (case b2 of
-              | T[y] → tru
-              | F[y] → fls)
+    | F[] → (case b2 of
+              | T[] → fls
+              | F[] → tru)
+    | T[] → (case b2 of
+              | T[] → tru
+              | F[] → fls)
 
-// Equivalence is total.
-val eq : ∀ x:ι, x∈bool ⇒ ∀ y:ι, y∈bool ⇒ ∃ v:ι, v ∈ (bool | eq0 x y ≡ v) = eq0
+// Equivalence with totality.
+val eq : ∀x y∈bool, ∃ v:ι, v ∈ (bool | eq0 x y ≡ v) = eq0
 
-//val not : bool ⇒ bool =
-//  fun b →
-//    case b of
-//    | F[x] → tru
-//    | T[x] → fls
+def not0 : ι =
+  fun b →
+    case b of
+    | F[] → tru
+    | T[] → fls
+
+val not_total : ∀x∈bool, ∃v:ι, not x ≡ v =
+  fun b →
+    case b of
+    | F[] → {}
+    | T[] → {}
+
+val not : bool ⇒ bool = fun b → let x = not_total b in not0 b
+
+//val test0 : ∀x∈bool, not x ≡ not0 x = fun b → {}
+
+val not_idempotent : ∀x∈bool, not (not x) ≡ x = fun b →
+  case b of
+  | F[] → {}
+  | T[] → {}
+
+//val test : ∀x∈bool, not (not (not x)) ≡ not x = fun b →
+//  let lem0 = not_total b in
+//  let lem = not_idempotent (not b) in {}
 
 //val not_total : ∀ x:ι, x∈bool ⇒ ∃ v:ι, not x ≡ v =
 //  fun b →
