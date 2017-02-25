@@ -9,11 +9,10 @@ val u_aux : unit = {l = {}}
 
 
 // We can define a real (one element) « unit » type as follows.
-def real_unit : ο = ∃ x:ι, (x ∈ {}) | x ≡ {}
+def real_unit : ο = {} ∈ {}
 
 // It is still inhabited by the empty record.
 val unit : real_unit = {}
-
 
 // But any other record is not in this type.
 // val unit_bad : real_unit = {l = {}}
