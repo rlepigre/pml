@@ -62,7 +62,7 @@ type typ_rule =
   | Typ_Name   of typ_proof * stk_proof
   | Typ_Mu     of typ_proof
   | Typ_Scis
-  | Typ_FixY   of typ_proof * typ_proof
+  | Typ_FixY   of typ_proof
 
 and  stk_rule =
   | Stk_Push   of sub_proof * typ_proof * stk_proof
@@ -282,24 +282,36 @@ and type_valu : ctxt -> valu -> prop -> ctxt * typ_proof = fun ctx v c ->
     match v.elt with
     (* λ-abstraction. *)
     | LAbs(ao,f)  ->
-        let (ctx, a) =
-          match ao with
-          | None   -> new_uvar ctx P
-          | Some a -> (ctx, a)
-        in
-        let (ctx, b) = new_uvar ctx P in
-        let c' = Pos.none (Func(a,b)) in
-        (* TODO NuRec ? *)
-        let (ctx, p1) = subtype ctx t c' c in
-        let wit = VWit(f, a, b) in
-        (* Learn the equivalence that are valid in the witness. *)
-        begin
-          try
-            let ctx = learn_equivalences ctx (Pos.none wit) a in
-            let (ctx, p2) = type_term ctx (bndr_subst f wit) b in
-            (ctx, Typ_Func_i(p1,Some p2))
-          with Contradiction -> (ctx, Typ_Func_i(p1, None))
-        end
+       begin
+       let (x,tx) = unbind mk_free (snd f) in
+         match tx.elt with
+         (* Fixpoint. Temporary code *)
+         | FixY(t,{ elt = Vari y})   ->
+            assert(eq_vars x y);
+            (* x must not be free in t *)
+            let b = Pos.none (Func(c,c)) in
+            let (ctx, p) = type_term ctx t b in
+            (ctx, Typ_FixY(p))
+         | _ ->
+            let (ctx, a) =
+              match ao with
+              | None   -> new_uvar ctx P
+              | Some a -> (ctx, a)
+            in
+            let (ctx, b) = new_uvar ctx P in
+            let c' = Pos.none (Func(a,b)) in
+            (* TODO NuRec ? *)
+            let (ctx, p1) = subtype ctx t c' c in
+            let wit = VWit(f, a, b) in
+            (* Learn the equivalence that are valid in the witness. *)
+            begin
+              try
+                let ctx = learn_equivalences ctx (Pos.none wit) a in
+                let (ctx, p2) = type_term ctx (bndr_subst f wit) b in
+                (ctx, Typ_Func_i(p1,Some p2))
+              with Contradiction -> (ctx, Typ_Func_i(p1, None))
+            end
+       end
     (* Constructor. *)
     | Cons(d,v)   ->
         let (ctx, a) = new_uvar ctx P in
@@ -432,15 +444,16 @@ and type_term : ctxt -> term -> prop -> ctxt * typ_proof = fun ctx t c ->
         in
         let ps = M.fold check m [] in
         (ctx, Typ_DSum_e(p,List.rev ps))
-    (* Fixpoint. *)
+    (* Fixpoint. FIXME temporary code *)
     | FixY(t,v)   ->
+       assert false (*
        let (ctx, va) = new_uvar ctx P in
        let a = Pos.none (Memb(Pos.none (Valu(v)),va)) in
        let b1 = Pos.none (Func(va,c)) in
        let b2 = Pos.none (Func(a,c)) in
        let (ctx, p2) = type_valu ctx v a in
        let (ctx, p1) = type_term ctx t (Pos.none (Func(b1,b2))) in
-       (ctx, Typ_FixY(p1,p2))
+       (ctx, Typ_FixY(p1,p2))*)
     (* Coercion. *)
     | TTyp(t,a)   ->
         let (ctx, p1) = subtype ctx t a c in

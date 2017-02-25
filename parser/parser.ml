@@ -266,7 +266,7 @@ and fun_arg =
   | "(" id:llid ":" a:(expr (`Prp`A)) ")" -> (id, Some a)
 and pattern =
   | "|" c:luid "[" x:{ llid {":" (expr (`Prp`F))}?
-                     | EMPTY -> (Pos.in_pos _loc "_", None)}
+                     | { EMPTY | '_' } -> (Pos.in_pos _loc "_", None)}
                "]" arrow t:(expr (`Trm`F))
     -> (c, x, t)
 let expr = expr `Any
