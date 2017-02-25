@@ -736,9 +736,15 @@ let add_inequiv : inequiv -> eq_ctxt -> eq_ctxt = fun (t,u) {pool} ->
 
 (* Main module interface. *)
 
-exception Equiv_error of string
-let equiv_error : string -> 'a =
-  fun msg -> raise (Equiv_error msg)
+type relation = term * bool * term (* true means equivalent *)
+
+let print_relation : out_channel -> relation -> unit = fun ch (t,b,u) ->
+  let sym = if b then "=" else "≠" in
+  Printf.fprintf ch "%a %s %a" Print.print_ex t sym Print.print_ex u
+
+exception Failed_to_prove of relation
+let equiv_error : relation -> 'a =
+  fun rel -> raise (Failed_to_prove rel)
 
 (* Test whether a term is equivalent to a value or not. *)
 let is_value : term -> eq_ctxt -> bool * eq_ctxt = fun t {pool} ->
@@ -748,28 +754,23 @@ let is_value : term -> eq_ctxt -> bool * eq_ctxt = fun t {pool} ->
   log_edp "%a is%s a value" Print.print_ex t (if res then "" else " not");
   (res, {pool})
 
-type relation = term * bool * term (* true means equivalent *)
-
 let learn : eq_ctxt -> relation -> eq_ctxt = fun ctx (t,b,u) ->
-  let sym = if b then "=" else "≠" in
-  log_edp "learning %a %s %a" Print.print_ex t sym Print.print_ex u;
+  log_edp "learning %a" print_relation (t,b,u);
   try
     let ctx = (if b then add_equiv else add_inequiv) (t,u) ctx in
-    log_edp "learned  %a %s %a" Print.print_ex t sym Print.print_ex u;
-    ctx
+    log_edp "learned  %a" print_relation (t,b,u); ctx
   with Contradiction ->
     log_edp "contradiction in the context";
     raise Contradiction
 
 let prove : eq_ctxt -> relation -> eq_ctxt = fun ctx (t,b,u) ->
-  let sym = if b then "=" else "≠" in
-  log_edp "proving  %a %s %a" Print.print_ex t sym Print.print_ex u;
+  log_edp "proving  %a" print_relation (t,b,u);
   try
     ignore ((if b then add_inequiv else add_equiv) (t,u) ctx);
-    log_edp "failed to prove %a %s %a" Print.print_ex t sym Print.print_ex u;
-    equiv_error "failed to prove an equational relation"
+    log_edp "failed to prove %a" print_relation (t,b,u);
+    equiv_error (t,b,u)
   with Contradiction ->
-    log_edp "proved   %a %s %a" Print.print_ex t sym Print.print_ex u;
+    log_edp "proved   %a" print_relation (t,b,u);
     let ctx =
       try learn ctx (t,b,u)
       with Contradiction -> assert false (* unexpected. *)

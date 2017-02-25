@@ -144,6 +144,14 @@ let _ =
         | Some p -> err_msg "Subtype error in %s." (pos_to_string p);
                     err_msg "Message: %s." msg
       end
-  | Equiv.Equiv_error(msg)      ->
-      err_msg "Equation error: %s." msg
+  | Typing.Type_error(p,msg)    ->
+      begin
+        match p with
+        | None   -> err_msg "Type error: %s." msg
+        | Some p -> err_msg "Type error in %s." (pos_to_string p);
+                    err_msg "Message: %s." msg
+      end
+  | Equiv.Failed_to_prove(rel)  ->
+      err_msg "Failed to prove an equational relation.";
+      err_msg "  %a" Equiv.print_relation rel
   | e -> err_msg "Uncaught exception [%s]." (Printexc.to_string e)
