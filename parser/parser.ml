@@ -63,7 +63,7 @@ let parser arrow = "→" | "->"
 let parser impl  = "⇒" | "=>"
 let parser scis  = "✂" | "8<"
 let parser equiv =
-  | {"≡" | "="} -> true 
+  | {"≡" | "="} -> true
   | "≠"         -> false
 
 (** Parser for sorts. *)
@@ -94,7 +94,7 @@ let parser expr (m : mode) =
   (* Proposition (variable and higher-order application) *)
   | id:llid args:{"<" (lsep "," (expr `Any)) ">"}?[[]]
       when m = `Prp`A
-      -> in_pos _loc (EVari(id, args)) 
+      -> in_pos _loc (EVari(id, args))
   (* Proposition (implication) *)
   | a:(expr (`Prp`A)) impl b:(expr (`Prp`F))
       when m = `Prp`F
@@ -148,7 +148,7 @@ let parser expr (m : mode) =
   (* Term (variable and higher-order application) *)
   | id:llid args:{"<" (lsep "," (expr `Any)) ">"}?[[]]
       when m = `Trm`A
-      -> in_pos _loc (EVari(id, args)) 
+      -> in_pos _loc (EVari(id, args))
   (* Term (lambda abstraction) *)
   | _fun_ args:fun_arg+ arrow t:(expr (`Trm`F))
       when m = `Trm`F
@@ -158,7 +158,7 @@ let parser expr (m : mode) =
       -> in_pos _loc (ELAbs((List.hd args, List.tl args),t))
   (* Term (constructor) *)
   | c:luid "[" t:(expr (`Trm`F))? "]"
-      when m = `Trm`A 
+      when m = `Trm`A
       -> in_pos _loc (ECons(c, Option.map (fun t -> (t, ref `T)) t))
   (* Term (record) *)
   | "{" fs:(lsep_ne ";" (parser l:llid "=" a:(expr (`Trm`F)))) "}"
@@ -173,9 +173,9 @@ let parser expr (m : mode) =
       when m = `Trm`Ap
       -> in_pos _loc (EAppl(t,u))
   (* Let binding. *)
-  | _let_ id:llid '=' t:(expr (`Trm`F)) _in_ u:(expr (`Trm`F))
+  | _let_ id:llid a:{':' a:(expr (`Prp`A))}? '=' t:(expr (`Trm`F)) _in_ u:(expr (`Trm`F))
       when m = `Trm`F
-      -> let f = ELAbs(((id, None), []), u) in
+      -> let f = ELAbs(((id, a), []), u) in
          in_pos _loc (EAppl(Pos.none f, t))
   (* Term (mu abstraction) *)
   | _save_ args:fun_arg+ arrow t:(expr (`Trm`F))
@@ -226,7 +226,7 @@ let parser expr (m : mode) =
   (* Stack (variable and higher-order application) *)
   | id:llid args:{"<" (lsep "," (expr `Any)) ">"}?[[]]
       when m = `Stk
-      -> in_pos _loc (EVari(id, args)) 
+      -> in_pos _loc (EVari(id, args))
   (* Stack (empty) *)
   | "ε"
       when m = `Stk
@@ -246,7 +246,7 @@ let parser expr (m : mode) =
   (* Ordinal (variable and higher-order application) *)
   | id:llid args:{"<" (lsep "," (expr `Any)) ">"}?[[]]
       when m = `Ord
-      -> in_pos _loc (EVari(id, args)) 
+      -> in_pos _loc (EVari(id, args))
   (* Ordinal (infinite) *)
   | {"∞" | "<inf>"}
       when m = `Ord
@@ -262,7 +262,7 @@ and fun_arg =
   | id:llid                               -> (id, None  )
   | "(" id:llid ":" a:(expr (`Prp`A)) ")" -> (id, Some a)
 and pattern =
-  | "|" c:luid "[" x:llid a:{":" (expr (`Prp`F))}? "]" arrow t:(expr (`Trm`F)) 
+  | "|" c:luid "[" x:llid a:{":" (expr (`Prp`F))}? "]" arrow t:(expr (`Trm`F))
     -> (c, (x,a), t)
 let expr = expr `Any
 
