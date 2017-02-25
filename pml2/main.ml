@@ -134,6 +134,15 @@ let handle_file env fn =
         in
         exit 1
       end
+  | Unbound_variable(x,p)   ->
+      begin
+        match p with
+        | None   -> err_msg "Unbound variable %s." x;
+                    exit 1
+        | Some p -> err_msg "Unbound variable %s at %a." x
+                      Pos.print_short_pos p;
+                    exit 1
+      end
 
 let _ =
   try ignore (List.fold_left handle_file Env.empty files) with
