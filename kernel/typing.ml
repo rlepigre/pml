@@ -623,3 +623,6 @@ let type_check : term -> prop option -> prop * typ_proof = fun t ao ->
   let bind_uvar a (U(s,u)) = Pos.none (Univ(s, bind_uvar s u a)) in
   let a = List.fold_left bind_uvar a (uvars a) in
   (Norm.whnf a, prf)
+
+(* FIXME hack to compile the SCP. *)
+open Scp
