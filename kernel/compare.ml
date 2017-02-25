@@ -78,6 +78,8 @@ let rec uvar_iter : type a. uvar_fun -> a ex loc -> unit = fun f e ->
   | SWit(b,a)   -> uvar_iter f (bndr_subst b Dumm); uvar_iter f a
   | UWit(_,t,b) -> uvar_iter f t; uvar_iter f (bndr_subst b Dumm)
   | EWit(_,t,b) -> uvar_iter f t; uvar_iter f (bndr_subst b Dumm)
+  | OWit(o,i,s) -> let (_,(t,k)) = Bindlib.unmbind mk_free s.sch_judge in
+                   uvar_iter f o; uvar_iter f t; uvar_iter f k
   | UVar(s,u)   -> f.f s u
 
 type s_elt = U : 'a sort * 'a uvar -> s_elt

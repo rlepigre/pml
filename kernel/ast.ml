@@ -76,7 +76,7 @@ type _ ex =
   (** Named term. *)
   | Proj : v ex loc * M.key loc                    -> t  ex
   (** Record projection. *)
-  | Case : v ex loc * (popt * (v, t) bndr) M.t     -> t  ex 
+  | Case : v ex loc * (popt * (v, t) bndr) M.t     -> t  ex
   (** Case analysis. *)
   | FixY : t ex loc * v ex loc                     -> t  ex
   (** Fixpoint combinator. *)
@@ -96,6 +96,7 @@ type _ ex =
   (** Maximal ordinal. *)
   | Succ : o ex loc                                -> o  ex
   (** Successor of an ordinal. *)
+  | OWit : o ex loc * int * schema                 -> o  ex
 
   (* Type annotations. *)
 
@@ -140,6 +141,12 @@ and value =
   ; value_orig : t ex loc
   ; value_type : p ex loc
   ; value_eval : e_valu }
+
+and schema =
+  { sch_index : Scp.index (** index of the schema in the sct call graph *)
+  ; sch_posit : int list  (** the index of positive ordinals *)
+  ; sch_relat : (int * int) list (** relation between ordinals *)
+  ; sch_judge : (o ex, t ex loc * p ex loc) mbinder (** judgement *) }
 
 (** Type of unification variables. *)
 and 'a uvar =
@@ -246,7 +253,7 @@ let vlam : type a. popt -> strloc -> a sort -> (a var -> vbox) -> vbox =
   fun pos x s f ->
     let b = vbind mk_free x.elt f in
     box_apply (fun b -> {elt = VLam(s, (x.pos, b)); pos}) b
- 
+
 (** {5 Term constructors} *)
 
 let t_vari : popt -> tvar -> tbox = vari
@@ -315,7 +322,7 @@ let fram : popt -> tbox -> sbox -> sbox =
   fun pos -> box_apply2 (fun t s -> {elt = Fram(t,s); pos})
 
 (** {5 Proposition constructors} *)
- 
+
 let p_vari : popt -> pvar -> pbox = vari
 
 let func : popt -> pbox -> pbox -> pbox =
@@ -397,6 +404,15 @@ let ewit : type a. popt -> tbox -> strloc -> a sort -> (a var -> pbox)
   fun pos t x s f ->
     let b = vbind mk_free x.elt f in
     box_apply2 (fun t b -> {elt = EWit(s, t, (x.pos, b)); pos}) t b
+
+let owit : type a. popt -> obox -> int -> schema Bindlib.bindbox -> obox =
+  fun pos o i sch ->
+    box_apply2 (fun o sch -> Pos.make pos (OWit(o,i,sch))) o sch
+
+let schm : Scp.index -> int list -> (int * int) list ->
+           (o ex, t ex loc * p ex loc) mbinder bindbox -> schema bindbox =
+  fun sch_index sch_posit sch_relat ->
+    box_apply (fun sch_judge -> { sch_index; sch_posit; sch_relat; sch_judge})
 
 let vwit : popt -> strloc -> (vvar -> tbox) -> pbox -> pbox -> vbox =
   fun pos x f a c ->

@@ -602,13 +602,17 @@ let bind_uvar : type a. a sort -> a uvar -> prop -> (a, p) bndr =
       | UWit(s,t,b) -> uwit e.pos (fn sa T uv t x) (bndr_name b) s
                          (fun y -> fn sa P uv (bndr_subst b (mk_free y)) x)
       | EWit(s,t,b) -> ewit e.pos (fn sa T uv t x) (bndr_name b) s
-                         (fun y -> fn sa P uv (bndr_subst b (mk_free y)) x)
+                            (fun y -> fn sa P uv (bndr_subst b (mk_free y)) x)
+      | OWit(o,i,s) -> owit e.pos (fn sa O uv o x) i (gn sa uv s x)
       | UVar(t,v)   ->
           begin
             match eq_sort sa t with
             | Eq  -> if uvar_eq uv v then box_apply Pos.none x else box e
             | NEq -> box e
           end
+  and gn : type a. a sort -> a uvar -> schema -> a ex bindbox
+                                            -> schema Bindlib.bindbox =
+    fun s uv sch x -> assert false (* FIXME *)
   in
   fun s uv e -> (None, unbox (bind mk_free "X0" (fn s P uv e)))
 
