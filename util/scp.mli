@@ -1,13 +1,13 @@
 (** Size change principle. This module implements a decision procedure based
-    on the work of Chin Soon Lee, Neil D. Jones and Amir M. Ben-Amram (POPL
-    2001). It is used by PML to check that typing and subtyping proofs are
+    on the work of Chin Soon Lee,  Neil D. Jones and Amir M. Ben-Amram (POPL
+    2001).  It is used by PML2 to check that typing and subtyping proofs are
     well-founded. *)
 
 (** Representation of the set {-1, 0, ∞} *)
 type cmp = Min1 | Zero | Infi
 
-(** [cmp_to_string c] returns a string representation of the given [cmp]
-    element on one character. *)
+(** [cmp_to_string c] returns the string representation of an element of the
+    [cmp] type on one (UTF-8) character. *)
 val cmp_to_string : cmp -> string
 
 (** Size change matrix. *)
