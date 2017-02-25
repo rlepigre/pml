@@ -11,86 +11,84 @@ val fls : bool = F[]
 val eq : bool ⇒ bool ⇒ bool =
   fun b1 b2 →
     case b1 of
-    | F[x] → (case b2 of
-              | T[y] → fls
-              | F[y] → tru)
-    | T[x] → (case b2 of
-              | T[y] → tru
-              | F[y] → fls)
+    | F[] → (case b2 of
+              | T[] → fls
+              | F[] → tru)
+    | T[] → (case b2 of
+              | T[] → tru
+              | F[] → fls)
 
 val not : bool ⇒ bool =
   fun b →
     case b of
-    | F[x] → tru
-    | T[x] → fls
+    | F[] → tru
+    | T[] → fls
 
 val or : bool ⇒ bool ⇒ bool =
   fun b1 → fun b2 →
     case b1 of
-    | F[x] → b2
-    | T[x] → tru
+    | F[] → b2
+    | T[] → tru
 
 val and : bool ⇒ bool ⇒ bool =
   fun b1 → fun b2 →
     case b1 of
-    | F[x] → fls
-    | T[x] → b2
+    | F[] → fls
+    | T[] → b2
 
 // Proof of the excluded middle
-val excluded_middle : ∀ x:ι, x∈bool ⇒ or x (not x) ≡ tru =
+val excluded_middle : ∀x∈bool, or x (not x) ≡ tru =
   fun b →
     case b of
-    | F[x] → {}
-    | T[x] → {}
+    | F[] → {}
+    | T[] → {}
 
 // Equivalence is reflexive.
-val eq_refl : ∀ x:ι, x∈bool ⇒ eq x x ≡ tru =
+val eq_refl : ∀x∈bool, eq x x ≡ tru =
   fun b →
     case b of
-    | F[x] → {}
-    | T[x] → {}
+    | F[] → {}
+    | T[] → {}
 
 // Equivalence is commutative.
-val eq_comm : ∀ x:ι, ∀ y:ι, x∈bool ⇒ y∈bool ⇒ eq x y ≡ eq y x =
+val eq_comm : ∀x y∈bool, eq x y ≡ eq y x =
   fun b1 b2 →
     case b1 of
-    | F[x] → (case b2 of | T[y] → {} | F[y] → {})
-    | T[x] → (case b2 of | T[y] → {} | F[y] → {})
+    | F[] → (case b2 of | T[y] → {} | F[y] → {})
+    | T[] → (case b2 of | T[y] → {} | F[y] → {})
 
 
-val eq_comm2 : ∀ x:ι, ∀ y:ι, x∈bool ⇒ y∈bool ⇒ eq (eq x y) (eq y x) ≡ tru =
+val eq_comm2 : ∀x y∈bool, eq (eq x y) (eq y x) ≡ tru =
   fun b1 b2 →
     case b1 of
-    | F[x] → (case b2 of | T[y] → {} | F[y] → {})
-    | T[x] → (case b2 of | T[y] → {} | F[y] → {})
+    | F[] → (case b2 of | T[] → {} | F[] → {})
+    | T[] → (case b2 of | T[] → {} | F[] → {})
 
 // Equivalence is associative.
-val eq_asso : ∀ x:ι, ∀ y:ι, ∀ z:ι, x∈bool ⇒ y∈bool ⇒ z∈bool ⇒
-              eq (eq x y) z ≡ eq x (eq y z) =
+val eq_asso : ∀x y z∈bool, eq (eq x y) z ≡ eq x (eq y z) =
   fun b1 b2 b3 →
     case b1 of
-    | F[x] → (case b2 of
-              | T[y] → (case b3 of | T[z] → {} | F[z] → {})
-              | F[y] → (case b3 of | T[z] → {} | F[z] → {}))
-    | T[x] → (case b2 of
-              | T[y] → (case b3 of | T[z] → {} | F[z] → {})
-              | F[y] → (case b3 of | T[z] → {} | F[z] → {}))
+    | F[] → (case b2 of
+              | T[] → (case b3 of | T[z] → {} | F[z] → {})
+              | F[] → (case b3 of | T[z] → {} | F[z] → {}))
+    | T[] → (case b2 of
+              | T[] → (case b3 of | T[z] → {} | F[z] → {})
+              | F[] → (case b3 of | T[z] → {} | F[z] → {}))
 
 // Other version using "let", not correct without proving totality of eq
-//val eq_comm3 : ∀ x:ι, ∀ y:ι, x∈bool ⇒ y∈bool ⇒ eq (eq x y) (eq y x) ≡ tru =
+//val eq_comm3 : ∀x y∈bool, eq (eq x y) (eq y x) ≡ tru =
 //  fun b1 b2 →
 //    let p = eq_comm b1 b2 in
 //    let x = eq b1 b2 in
 //    let y = eq b2 b1 in
 //    eq_refl x
 
-val eq_asso2 : ∀ x:ι, ∀ y:ι, ∀ z:ι, x∈bool ⇒ y∈bool ⇒ z∈bool ⇒
-              eq (eq (eq x y) z) (eq x (eq y z)) ≡ tru =
+val eq_asso2 : ∀x y z∈bool, eq (eq (eq x y) z) (eq x (eq y z)) ≡ tru =
   fun b1 b2 b3 →
     case b1 of
-    | F[x] → (case b2 of
-              | T[y] → (case b3 of | T[z] → {} | F[z] → {})
-              | F[y] → (case b3 of | T[z] → {} | F[z] → {}))
-    | T[x] → (case b2 of
-              | T[y] → (case b3 of | T[z] → {} | F[z] → {})
-              | F[y] → (case b3 of | T[z] → {} | F[z] → {}))
+    | F[] → (case b2 of
+              | T[] → (case b3 of | T[z] → {} | F[z] → {})
+              | F[] → (case b3 of | T[z] → {} | F[z] → {}))
+    | T[] → (case b2 of
+              | T[] → (case b3 of | T[z] → {} | F[z] → {})
+              | F[] → (case b3 of | T[z] → {} | F[z] → {}))

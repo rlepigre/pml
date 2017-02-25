@@ -115,6 +115,9 @@ let parser expr (m : mode) =
   | "∀" x:llid xs:llid* ':' s:sort ',' a:(expr (`Prp`F))
       when m = `Prp`F
       -> in_pos _loc (EUniv((x,xs),s,a))
+  | "∀" x:llid xs:llid* "∈" a:(expr (`Prp`F)) ',' b:(expr (`Prp`F))
+      when m = `Prp`F
+      -> euniv_in _loc x xs a b
   (* Proposition (existential quantification) *)
   | "∃" x:llid xs:llid* ':' s:sort ',' a:(expr (`Prp`F))
       when m = `Prp`F
@@ -262,8 +265,10 @@ and fun_arg =
   | id:llid                               -> (id, None  )
   | "(" id:llid ":" a:(expr (`Prp`A)) ")" -> (id, Some a)
 and pattern =
-  | "|" c:luid "[" x:llid a:{":" (expr (`Prp`F))}? "]" arrow t:(expr (`Trm`F))
-    -> (c, (x,a), t)
+  | "|" c:luid "[" x:{ llid {":" (expr (`Prp`F))}?
+                     | EMPTY -> (Pos.in_pos _loc "_", None)}
+               "]" arrow t:(expr (`Trm`F))
+    -> (c, x, t)
 let expr = expr `Any
 
 (** Toplevel. *)

@@ -423,7 +423,7 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
           try infer env vars v _sv; r := `V
           with Sort_clash(_,_) ->
             Time.rollback tm;
-            infer env vars v _st; r := `T; all_val << false
+            infer env vars v _st; r := `T; all_val << false (* >> *)
         in
         List.iter fn l;
         r := Some (if !all_val then _sv else _st)
@@ -809,3 +809,11 @@ type toplevel =
   | Sort_def of strloc * raw_sort
   | Expr_def of strloc * raw_sort * raw_ex
   | Valu_def of strloc * raw_ex option * raw_ex
+
+(** syntactic sugars *)
+let euniv_in _loc x xs a b =
+  let p x = Pos.in_pos _loc x in
+  let c = List.fold_right (fun x c ->
+    p (EFunc(p (EMemb(p (EVari(x,[])), a)), c))) (x::xs) b
+  in
+  p (EUniv((x,xs),p SV,c))
