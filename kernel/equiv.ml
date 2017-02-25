@@ -742,6 +742,19 @@ let print_relation : out_channel -> relation -> unit = fun ch (t,b,u) ->
   let sym = if b then "=" else "≠" in
   Printf.fprintf ch "%a %s %a" Print.print_ex t sym Print.print_ex u
 
+let print_relation_pos : out_channel -> relation -> unit = fun ch (t,b,u) ->
+  begin
+    match t.pos with
+    | None   -> Print.print_ex ch t
+    | Some p -> Printf.fprintf ch "(%a)" print_short_pos p
+  end;
+  output_string ch (if b then " = " else " ≠ ");
+  begin
+    match u.pos with
+    | None   -> Print.print_ex ch u
+    | Some p -> Printf.fprintf ch "(%a)" print_short_pos p
+  end
+
 exception Failed_to_prove of relation
 let equiv_error : relation -> 'a =
   fun rel -> raise (Failed_to_prove rel)

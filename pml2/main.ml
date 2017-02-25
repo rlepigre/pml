@@ -153,5 +153,5 @@ let _ =
       end
   | Equiv.Failed_to_prove(rel)  ->
       err_msg "Failed to prove an equational relation.";
-      err_msg "  %a" Equiv.print_relation rel
+      err_msg "  %a" Equiv.print_relation_pos rel
   | e -> err_msg "Uncaught exception [%s]." (Printexc.to_string e)
