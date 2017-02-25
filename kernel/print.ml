@@ -4,16 +4,7 @@ open Bindlib
 open Sorts
 open Pos
 open Ast
-
-type 'a printer = out_channel -> 'a -> unit
-
-let print_list : 'a printer -> string -> 'a list printer =
-  fun pelem sep ch l ->
-    let rec prnt ch = function
-      | []    -> ()
-      | [e]   -> pelem ch e
-      | e::es -> pelem ch e; output_string ch sep; prnt ch es
-    in prnt ch l
+open Output
 
 let print_map : (string * 'a) printer -> string -> 'a M.t printer =
   fun pelem sep ch m -> print_list pelem sep ch (M.bindings m)

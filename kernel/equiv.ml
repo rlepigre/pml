@@ -152,13 +152,13 @@ let print_pool : string -> out_channel -> pool -> unit = fun prefix ch po ->
   Printf.fprintf ch "%s#### Nodes ####\n" prefix;
   let fn k (ps, n) =
     Printf.fprintf ch "%s  %a\t→ %a\t← [%a]\n" prefix VPtr.print k
-      print_v_node n (Print.print_list Ptr.print ",") (PtrSet.elements ps)
+      print_v_node n (print_list Ptr.print ",") (PtrSet.elements ps)
   in
   VPtrMap.iter fn vs;
   Printf.fprintf ch "%s---------------\n" prefix;
   let fn k (ps, n) =
     Printf.fprintf ch "%s  %a\t→ %a\t← [%a]\n" prefix TPtr.print k
-      print_t_node n (Print.print_list Ptr.print ",") (PtrSet.elements ps)
+      print_t_node n (print_list Ptr.print ",") (PtrSet.elements ps)
   in
   TPtrMap.iter fn ts;
   Printf.fprintf ch "%s#### Links ####\n" prefix;

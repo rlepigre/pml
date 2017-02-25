@@ -3,26 +3,26 @@
     command line arguments parsing is made easy. *)
 
 (** Type of printf-like functions. *)
-type 'a printer = ('a, out_channel, unit) format -> 'a
+type 'a formatter = ('a, out_channel, unit) format -> 'a
 
 (** Main printing function (to standard output). It is actually the same  as
     [Printf.printf]. *)
-val out     : 'a printer
+val out     : 'a formatter
 
 (** Printing function for a warning message, printed in yellow and preceeded
     by the ["[WRN]"] tag. Note that a newline symbol is append to the format
     and that the channel is flushed. *)
-val wrn_msg : 'a printer
+val wrn_msg : 'a formatter
 
 (** Printing function for an error message, printed in red and preceeded  by
     the ["[ERR]"] tag. Note that a newline symbol is append  to  the  format
     and that the channel is flushed. *)
-val err_msg : 'a printer
+val err_msg : 'a formatter
 
 (** Printing function for a bug signaling message, printed  in  magenta  and
     preceeded by the ["[BUG]"] tag. Note that a newline symbol is append  to
     the format and that the channel is flushed. *)
-val bug_msg : 'a printer
+val bug_msg : 'a formatter
 
 module Log :
   sig
@@ -43,11 +43,11 @@ module Log :
         optional [tag] argument can be used to set the three  characters tag
         associated to the entry. Note that a newline character is append  to
         the message automatically, and that the buffer is flushed. *)
-    val log : ?tag:string -> 'a printer
+    val log : ?tag:string -> 'a formatter
 
-    (** Type of a printer wrapped in a record. This type is useful  to  work
+    (** Type of a formatter wrapped in a record. This type is useful  to  work
         around value restriction... *)
-    type r_printer = { p : 'a. 'a printer } 
+    type r_formatter = { p : 'a. 'a formatter } 
     
     (** [register key tag descr] registers a new logging function associated
         to a character [key], an optional three character [tag] and a descr-
@@ -55,7 +55,7 @@ module Log :
         only printed to the log if the [key] has been enabled. Note  that  a
         newline character is append to the message automatically,  and  that
         the buffer is flushed when using the produced log function. *)
-    val register : char -> string option -> string -> r_printer
+    val register : char -> string option -> string -> r_formatter
 
     (** [enable c] enables the log function associated to the key [c]. *)
     val enable : char -> unit
@@ -77,3 +77,14 @@ module Log :
         list is preceeded with the given [prefix]. *)
     val opts_to_string : string -> string
   end
+
+(** Type of a printing function for elements of type ['a]. *)
+type 'a printer = out_channel -> 'a -> unit
+
+(** [print_list pelem sep l] prints the list [l] using the function  [pelem]
+    ofr printing its elements, and [sep] as a separator. *)
+val print_list : 'a printer -> string -> 'a list printer
+
+(** [print_array] is the same as [print_list], but for the [array] type. *)
+val print_array : 'a printer -> string -> 'a array printer
+
