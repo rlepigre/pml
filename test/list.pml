@@ -4,14 +4,21 @@ val nil : ∀a:ο, list<a> = Nil[]
 val cns : ∀a:ο, a ⇒ list<a> ⇒ list<a> = fun e l → Cns[{ hd = e; tl = l }]
 
 val app : ∀a:ο, list<a> ⇒ list<a> ⇒ list<a> = fix fun app l1 l2 → case l1 of
-  | Nil[] → nil
-  | Cns[c] →  cns c.hd (app c.tl l2)
+  | Nil[]  → nil
+  | Cns[c] → cns c.hd (app c.tl l2)
+
+//val app : ∀a:ο, list<a> ⇒ list<a> ⇒ list<a> = fix fun app l1 l2 → case l1 of
+//  | Nil[]  → nil
+//  | Cns[c] → let hd = c.hd in let tl = c.tl in cns hd (app tl l2)
 
 //val app_total : ∀a:ο, ∀l1 l2 ∈list<a>, ∃v:ι, app l1 l2 ≡ v =
 //  fix fun app_total l1 l2 →
 //    case l1 of
 //    | Nil[] → {}
-//    | Cns[c] → let ind = app_total c.tl l2 in {}
+//    | Cns[c] →
+//      let hd = c.hd in
+//      let tl = c.tl in
+//      let ind = app_total tl l2 in {}
 //
 //val app_asso : ∀a:ο, ∀l1 l2 l3∈list<a>, app l1 (app l2 l3) ≡ app (app l1 l2) l3 =
 //  fix fun app_asso l1 l2 l3 →
