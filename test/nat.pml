@@ -15,7 +15,7 @@ val test : nat = id_nat two
 val id_nat_id : ∀n∈nat, id_nat n ≡ n = fix fun id_nat_id m →
   case m of
   | Z[] → {}
-  | S[p] → let lem = id_nat_id p in {}
+  | S[p] → let ind_hyp : id_nat p ≡ p = id_nat_id p in {}
 
 val add : nat ⇒ nat ⇒ nat = fix fun add n m →
   case n of
@@ -27,12 +27,14 @@ val add_total : ∀n m∈nat, ∃v:ι, add n m ≡ v = fix fun add_total n m →
   | Z[] → {}
   | S[p] → let ind_hyp = add_total p m in {}
 
+val add_zero_left : ∀z∈nat, add zero z ≡ z = fun n → {}
+
 val add_zero1 : ∀z∈nat, add z zero ≡ z = fix fun add_zero k →
   case k of
   | Z[] → {}
   | S[p] →
     let lem = add_total p zero in
-    let ind_hyp = (add_zero p : add p zero ≡ p )in {}
+    let ind_hyp = (add_zero p : add p zero ≡ p) in {}
 
 val add_zero2 : ∀n∈nat, add n zero ≡ n = fix fun add_zero n →
   case n of
