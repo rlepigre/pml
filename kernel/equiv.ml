@@ -697,6 +697,7 @@ let is_equal : pool -> Ptr.t -> Ptr.t -> bool = fun po p1 p2 ->
   if Ptr.compare p1 p2 = 0 then true else
   let (t1, po) = canonical p1 po in
   let (t2, po) = canonical p2 po in
+  log_edp "test term equality %a = %a" Print.print_ex t1 Print.print_ex t2;
   eq_expr t1 t2
 
 (* Equational context type. *)

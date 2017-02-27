@@ -192,13 +192,19 @@ let rec subtype : ctxt -> term -> prop -> prop -> ctxt * sub_proof =
           let (ctx, ps) = M.fold check_variant cs1 (ctx,[]) in
           (ctx, Sub_DSum(ps))
       (* Universal quantification on the right. *)
-      | (_          , Univ(s,f)  ) when t_is_val ->
-          let (ctx, p) = subtype ctx t a (bndr_subst f (UWit(s,t,f))) in
-          (ctx, Sub_Univ_r(p))
+      | (_          , Univ(s,f)  ) ->
+         if t_is_val then
+           let (ctx, p) = subtype ctx t a (bndr_subst f (UWit(s,t,f))) in
+           (ctx, Sub_Univ_r(p))
+         else
+           gen_subtype ctx a b
       (* Existential quantification on the left. *)
-      | (Exis(s,f)  , _          ) when t_is_val ->
-          let (ctx, p) = subtype ctx t (bndr_subst f (EWit(s,t,f))) b in
-          (ctx, Sub_Exis_l(p))
+      | (Exis(s,f)  , _          ) ->
+         if t_is_val then
+           let (ctx, p) = subtype ctx t (bndr_subst f (EWit(s,t,f))) b in
+           (ctx, Sub_Exis_l(p))
+         else
+           gen_subtype ctx a b
       (* Universal quantification on the left. *)
       | (Univ(s,f)  , _          ) ->
           let (ctx, u) = new_uvar ctx s in
@@ -260,12 +266,8 @@ let rec subtype : ctxt -> term -> prop -> prop -> ctxt * sub_proof =
 
       (* Fallback to general witness. *)
       | (_          , _          ) when not t_is_val ->
-          let wit =
-            let f = bndr_from_fun "x" (fun x -> Valu(Pos.none x)) in
-            Pos.none (Valu(Pos.none (VWit(f, a, b))))
-          in
-          let (ctx, p) = subtype ctx wit a b in
-          (ctx, Sub_Gene(p))
+         gen_subtype ctx a b
+
       (* No rule apply. *)
       | _                          ->
           err_msg "cannot show %a ∈ %a ⊆ %a\n%!"
@@ -273,6 +275,15 @@ let rec subtype : ctxt -> term -> prop -> prop -> ctxt * sub_proof =
           exit 1
     in
     (ctx, (t, a, b, r))
+
+and gen_subtype : ctxt -> prop -> prop -> ctxt * sub_rule =
+  fun ctx a b ->
+    let wit =
+      let f = bndr_from_fun "x" (fun x -> Valu(Pos.none x)) in
+      Pos.none (Valu(Pos.none (VWit(f, a, b))))
+    in
+    let (ctx, p) = subtype ctx wit a b in
+    (ctx, Sub_Gene(p))
 
 and type_valu : ctxt -> valu -> prop -> ctxt * typ_proof = fun ctx v c ->
   let v = Norm.whnf v in

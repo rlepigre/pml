@@ -1,11 +1,27 @@
-def list<a:ο> : ο = μx [ Nil of {} ∈ {}; Cns of { hd : a; tl : x } ]
+def cons<a:ο,b:ο> = ∃v w:ι, { hd = v; tl = w } ∈ { hd : a; tl : b }
+
+def list<a:ο> : ο = μx [ Nil of {} ∈ {}; Cns of cons<a,x> ]
 
 val nil : ∀a:ο, list<a> = Nil[]
-val cns : ∀a:ο, a ⇒ list<a> ⇒ list<a> = fun e l → Cns[{ hd = e; tl = l }]
 
-val app : ∀a:ο, list<a> ⇒ list<a> ⇒ list<a> = fix fun app l1 l2 → case l1 of
+def tl : ι = fun l → case l of | Cns[c] → c.tl
+def hd : ι = fun l → case l of | Cns[c] → c.hd
+
+val cns : ∀a:ο, a ⇒ list<a> ⇒ list<a> = fun e l → Cns[{ hd = e; tl = l }]
+val cns2 : ∀a:ο, ∀x∈a, ∀l∈list<a>, ∃v:ι, v ∈ list<a> | tl v ≡ l | hd v ≡ x =
+  fun e l → Cns[{ hd = e; tl = l }]
+
+val app : ∀b:ο, list<b> ⇒ list<b> ⇒ list<b> = fix fun app l1 l2 → case l1 of
   | Nil[]  → nil
-  | Cns[c] → cns c.hd (app c.tl l2)
+  | Cns[c] →
+     let hd = c.hd in
+     let tl = app c.tl l2 in
+     Cns[{ hd = hd; tl = tl }]
+
+val app2 : ∀b:ο, list<b> ⇒ list<b> ⇒ list<b> = fix fun app l1 l2 → case l1 of
+  | Nil[]  → nil
+  | Cns[c] →
+     cns2 c.hd (app c.tl l2)
 
 //val app : ∀a:ο, list<a> ⇒ list<a> ⇒ list<a> = fix fun app l1 l2 → case l1 of
 //  | Nil[]  → nil
@@ -31,7 +47,7 @@ val app : ∀a:ο, list<a> ⇒ list<a> ⇒ list<a> = fix fun app l1 l2 → case 
 //
 val map : ∀a b:ο, (a ⇒ b) ⇒ list<a> ⇒ list<b> = fix fun map f l →
   case l of
-  | Nil[u] → Nil[{}]
+  | Nil[] → Nil[]
   | Cns[c] → let hd = f c.hd in
              let tl = map f c.tl in
              Cns[{ hd = hd; tl = tl }]
