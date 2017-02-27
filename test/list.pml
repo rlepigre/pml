@@ -8,7 +8,7 @@ def tl : ι = fun l → case l of | Cns[c] → c.tl
 def hd : ι = fun l → case l of | Cns[c] → c.hd
 
 val cns : ∀a:ο, a ⇒ list<a> ⇒ list<a> = fun e l → Cns[{ hd = e; tl = l }]
-val cns2 : ∀a:ο, ∀x∈a, ∀l∈list<a>, ∃v:ι, v ∈ list<a> | tl v ≡ l | hd v ≡ x =
+val cns2 : ∀a:ο, ∀x∈a, ∀l∈list<a>, ∃v:ι, v ∈ list<a> =
   fun e l → Cns[{ hd = e; tl = l }]
 
 val app : ∀b:ο, list<b> ⇒ list<b> ⇒ list<b> = fix fun app l1 l2 → case l1 of
@@ -21,30 +21,34 @@ val app : ∀b:ο, list<b> ⇒ list<b> ⇒ list<b> = fix fun app l1 l2 → case 
 val app2 : ∀b:ο, list<b> ⇒ list<b> ⇒ list<b> = fix fun app l1 l2 → case l1 of
   | Nil[]  → nil
   | Cns[c] →
+     cns c.hd (app c.tl l2)
+
+def app0 : ι = fix fun app l1 l2 → case l1 of
+  | Nil[]  → nil
+  | Cns[c] →
      cns2 c.hd (app c.tl l2)
 
-//val app : ∀a:ο, list<a> ⇒ list<a> ⇒ list<a> = fix fun app l1 l2 → case l1 of
-//  | Nil[]  → nil
-//  | Cns[c] → let hd = c.hd in let tl = c.tl in cns hd (app tl l2)
+val appt : ∀b:ο, list<b> ⇒ list<b> ⇒ ∃w:ι, (w∈list<b>) = app0
 
-//val app_total : ∀a:ο, ∀l1 l2 ∈list<a>, ∃v:ι, app l1 l2 ≡ v =
-//  fix fun app_total l1 l2 →
-//    case l1 of
-//    | Nil[] → {}
-//    | Cns[c] →
-//      let hd = c.hd in
-//      let tl = c.tl in
-//      let ind = app_total tl l2 in {}
-//
+val app_total : ∀a:ο, ∀l1 l2 ∈list<a>, ∃v:ι, app l1 l2 ≡ v =
+  fix fun app_total l1 l2 →
+    case l1 of
+    | Nil[] → {}
+    | Cns[c] →
+      let hd = c.hd in
+      let tl = c.tl in
+      let ind = app_total tl l2 in {}
+
 //val app_asso : ∀a:ο, ∀l1 l2 l3∈list<a>, app l1 (app l2 l3) ≡ app (app l1 l2) l3 =
 //  fix fun app_asso l1 l2 l3 →
 //    case l1 of
 //    | Nil[] → {}
 //    | Cns[c] →
+//       let total = app_total c.tl l2 in
 //       let total = app_total l2 l3 in
 //       let ind = app_asso c.tl l2 l3 in
 //       {}
-//
+
 val map : ∀a b:ο, (a ⇒ b) ⇒ list<a> ⇒ list<b> = fix fun map f l →
   case l of
   | Nil[] → Nil[]

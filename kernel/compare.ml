@@ -17,7 +17,7 @@ let log_uni = Log.(log_uni.p)
 let uvar_set : type a. a uvar -> a ex loc -> unit = fun u e ->
   log_uni "?%i ← %a" u.uvar_key Print.ex e;
   assert(!(u.uvar_val) = None);
-  u.uvar_val := Some e
+  Timed.(u.uvar_val := Some e)
 
 (* Unification variable equality test. *)
 let uvar_eq : type a. a uvar -> a uvar -> bool =
@@ -215,7 +215,7 @@ let {eq_expr; eq_bndr} =
   let eq_expr : type a. a ex loc -> a ex loc -> bool = fun e1 e2 ->
     c := -1; (* Reset. *)
     log_equ "trying to show %a = %a" Print.ex e1 Print.ex e2;
-    let res = eq_expr e1 e2 in
+    let res = Timed.pure_test (eq_expr e1) e2 in
     log_equ "we have %a %s %a"
             Print.ex e1 (if res then "=" else "≠") Print.ex e2;
     res
@@ -223,6 +223,6 @@ let {eq_expr; eq_bndr} =
 
   let eq_bndr : type a b. (a,b) bndr -> (a,b) bndr -> bool = fun b1 b2 ->
     c := -1; (* Reset. *)
-    eq_bndr b1 b2
+    Timed.pure_test (eq_bndr b1) b2
   in
   {eq_expr; eq_bndr}

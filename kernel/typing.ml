@@ -136,15 +136,6 @@ let rec subtype : ctxt -> term -> prop -> prop -> ctxt * sub_proof =
     let (t_is_val, ctx) = term_is_value t ctx in
     let (ctx, r) =
       match (a.elt, b.elt) with
-      (* Membership on the left. *)
-      | (Memb(u,a)  , _          ) when t_is_val ->
-          begin
-            try
-              let equations = learn ctx.equations (t,true,u) in
-              let (ctx, p) = subtype {ctx with equations} t a b in
-              (ctx, Sub_Memb_l(Some p))
-            with Contradiction -> (ctx, Sub_Memb_l(None))
-          end
       (* Same types.  *)
       | _ when eq_expr a b         ->
           (ctx, Sub_Equal)
@@ -158,8 +149,8 @@ let rec subtype : ctxt -> term -> prop -> prop -> ctxt * sub_proof =
           let fn x = appl None (box t) (valu None (vari None x)) in
           let f = (None, unbox (vbind mk_free "x" fn)) in
           let wit = Pos.none (Valu(Pos.none (VWit(f,a2,b2)))) in
-          let (ctx, p1) = subtype ctx wit a2 a1 in
           let (ctx, p2) = subtype ctx (Pos.none (Appl(t, wit))) b1 b2 in
+          let (ctx, p1) = subtype ctx wit a2 a1 in
           (ctx, Sub_Func(p1,p2))
       (* Product (record) types. *)
       | (Prod(fs1)  , Prod(fs2)  ) when t_is_val ->
@@ -215,26 +206,37 @@ let rec subtype : ctxt -> term -> prop -> prop -> ctxt * sub_proof =
           let (ctx, u) = new_uvar ctx s in
           let (ctx, p) = subtype ctx t a (bndr_subst f u.elt) in
           (ctx, Sub_Exis_r(p))
+      (* Membership on the left. *)
+      | (Memb(u,c)  , _          ) ->
+         if t_is_val then
+           try
+             let equations = learn ctx.equations (t,true,u) in
+             let (ctx, p) = subtype {ctx with equations} t c b in
+             (ctx, Sub_Memb_l(Some p))
+           with Contradiction -> (ctx, Sub_Memb_l(None))
+         (* NOTE may need a backtrack because a right rule could work *)
+         else gen_subtype ctx a b
       (* Membership on the right. *)
       | (_          , Memb(u,b)  ) when t_is_val ->
           let equations = prove ctx.equations (t,true,u) in
           let (ctx, p) = subtype {ctx with equations} t a b in
           (ctx, Sub_Memb_r(p))
       (* Restriction on the left. *)
-      | (Rest(a,c)  , _          ) when t_is_val ->
-          begin
-            match c with
+      | (Rest(c,e)  , _          ) ->
+          if t_is_val then
+            match e with
             | Equiv(eq) ->
-                begin
-                  try
-                    let equations = learn ctx.equations eq in
-                    let (ctx, p) = subtype {ctx with equations} t a b in
-                    (ctx, Sub_Rest_l(Some p))
-                  with Contradiction -> (ctx, Sub_Rest_l(None))
-                end
+               begin
+                 try
+                   let equations = learn ctx.equations eq in
+                   let (ctx, p) = subtype {ctx with equations} t c b in
+                   (ctx, Sub_Rest_l(Some p))
+                 with Contradiction -> (ctx, Sub_Rest_l(None))
+               end
             | Posit(o)  ->
-                assert false (* TODO *)
-          end
+               assert false (* TODO *)
+          (* NOTE may need a backtrack because a right rule could work *)
+          else gen_subtype ctx a b
       (* Restriction on the right. *)
       | (_          , Rest(b,c)  ) ->
           begin
