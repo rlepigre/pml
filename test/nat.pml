@@ -33,7 +33,6 @@ val add_zero1 : ∀z∈nat, add z zero ≡ z = fix fun add_zero k →
   case k of
   | Z[] → {}
   | S[p] →
-    let lem = add_total p zero in
     let ind_hyp = (add_zero p : add p zero ≡ p) in {}
 
 val add_zero2 : ∀n∈nat, add n zero ≡ n = fix fun add_zero n →

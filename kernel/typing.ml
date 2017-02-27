@@ -305,6 +305,7 @@ and type_valu : ctxt -> valu -> prop -> ctxt * typ_proof = fun ctx v c ->
             let b = Pos.none (Func(c,c)) in
             let (ctx, p) = type_term ctx t b in
             (ctx, Typ_FixY(p))
+         (* General case for typing λ-abstraction *)
          | _ ->
             let (ctx, a) =
               match ao with

@@ -184,6 +184,8 @@ let find_t_node : TPtr.t -> pool -> PtrSet.t * t_node = fun p po ->
 
 (** Equality functions on nodes. *)
 let eq_v_nodes : v_node -> v_node -> bool = fun n1 n2 -> n1 == n2 ||
+  let eq_expr e1 e2 = eq_expr ~strict:true e1 e2 in
+  let eq_bndr b1 b2 = eq_bndr ~strict:true b1 b2 in
   match (n1, n2) with
   | (VN_LAbs(b1)   , VN_LAbs(b2)   ) -> eq_bndr b1 b2
   | (VN_Cons(c1,p1), VN_Cons(c2,p2)) -> c1.elt = c2.elt && p1 = p2
@@ -198,6 +200,8 @@ let eq_v_nodes : v_node -> v_node -> bool = fun n1 n2 -> n1 == n2 ||
   | (_             , _             ) -> false
 
 let eq_t_nodes : t_node -> t_node -> bool = fun n1 n2 -> n1 == n2 ||
+  let eq_expr e1 e2 = eq_expr ~strict:true e1 e2 in
+  let eq_bndr b1 b2 = eq_bndr ~strict:true b1 b2 in
   match (n1, n2) with
   | (TN_Valu(p1)     , TN_Valu(p2)     ) -> p1 = p2
   | (TN_Appl(p11,p12), TN_Appl(p21,p22)) -> p11 = p21 && p12 = p22
@@ -715,7 +719,7 @@ type inequiv = term * term
 let add_equiv : equiv -> eq_ctxt -> eq_ctxt = fun (t,u) {pool} ->
   log_edp "inserting %a = %a in context\n%a" Print.print_ex t
     Print.print_ex u (print_pool "        ") pool;
-  if eq_expr t u then
+  if eq_expr ~strict:true t u then
     begin
       log_edp "trivial proof";
       {pool}
