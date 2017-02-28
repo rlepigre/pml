@@ -120,6 +120,7 @@ let rec print_ex : type a. a ex loc printer = fun ch e ->
   | Push(v,s)   -> fprintf ch "%a · %a" print_ex v print_ex s
   | Fram(t,s)   -> fprintf ch "[%a] %a" print_ex t print_ex s
   | Conv        -> output_string ch "∞"
+  | OMax        -> output_string ch "∞+ω"
   | Succ(o)     -> fprintf ch "%a+1" print_ex o
   | VTyp(v,a)   -> fprintf ch "(%a : %a)" print_ex v print_ex a
   | TTyp(t,a)   -> fprintf ch "(%a : %a)" print_ex t print_ex a

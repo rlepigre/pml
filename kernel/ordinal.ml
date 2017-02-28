@@ -26,25 +26,10 @@ let rec leq_i_ordi : positives -> ordi -> int -> ordi -> bool =
     | (_       , _       ) when eq_expr ~strict:true (oadd o1 i) o2 -> true
     | (_       , Succ(o2)) -> leq_i_ordi pos o1 (i-1) o2
     | (Succ(o1), _       ) -> leq_i_ordi pos o1 (i+1) o2
-    (*
-    (* the existing constraint is enough *)
-    | (OUVar({uvar_state = {contents = Unset (_, Some o')}},os), o2)
-         when strict (leqi_ordi pos (msubst o' os) (i-1)) o2 -> true
-    | (o1         , OUVar({uvar_state = {contents = Unset (Some o',_)}},os))
-         when strict (leqi_ordi pos o1 i) (msubst o' os) -> true
-    (* variable on the right, we improve the lower bound *)
-    | (o1         , OUVar(p,os)) when not !eq_strict &&
-        Timed.pure_test (fun () ->
-          let o1 = oadd o1 i in
-          less_opt_ordi pos o1 (uvar_state p) os) () ->
-       p.uvar_state := Unset(Some (!fobind_ordis os (oadd o1 i)), snd (uvar_state p));
-       leqi_ordi pos o1 i o2
-    | (OUVar(p,os)   , o2      ) when i<=0 && safe_set_ouvar pos p os o2 ->
-       leqi_ordi pos o1 i o2
-    | (OLess(o1,_),       o2  ) when o1 <> OMaxi ->
-       let i = if is_positive pos o1 then i-1 else i in
-       leqi_ordi pos o1 i o2
-    *)
+    (* TODO unification and higher-order *)
+    | (OWit(o1,_,_), _   ) when (Norm.whnf o1).elt <> OMax ->
+        let i = if is_pos pos o1 then i-1 else i in
+        leq_i_ordi pos o1 i o2
     | (_       , _       ) -> false
 
 let leq_ordi : positives -> ordi -> ordi -> bool =
