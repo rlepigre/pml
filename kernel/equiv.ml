@@ -277,12 +277,31 @@ let add_parents : Ptr.t -> PtrSet.t -> pool -> pool = fun p nps po ->
      let (ps, n) = find_t_node tp po in
      {po with ts = TPtrMap.add tp (PtrSet.union nps ps, n) po.ts}
 
+(** Find operation (with path contraction). *)
+let find : Ptr.t -> pool -> Ptr.t * pool = fun p po ->
+  let rec follow p eq_map =
+    try follow (PtrMap.find p eq_map) eq_map
+    with Not_found -> p
+  in
+  let repr = follow p po.eq_map in
+  let eq_map =
+    if repr = p then po.eq_map
+    else PtrMap.add p repr po.eq_map
+  in
+  (repr, {po with eq_map})
+
+let find_valu : VPtr.t -> pool -> VPtr.t * pool = fun p po ->
+  let (p, po) = find (Ptr.V_ptr p) po in
+  match p with
+  | Ptr.V_ptr p -> (p, po)
+  | Ptr.T_ptr _ -> assert false
+
 (** Insertion function for nodes. *)
 exception FoundV of VPtr.t
 let insert_v_node : v_node -> pool -> VPtr.t * pool = fun nn po ->
   let fn p (_,n) = if eq_v_nodes n nn then raise (FoundV p) in
   try VPtrMap.iter fn po.vs; raise Not_found with
-  | FoundV(p) -> (p, po)
+  | FoundV(p) -> find_valu p po
   | Not_found ->
       let ptr = VPtr.V po.next in
       let vs = VPtrMap.add ptr (PtrSet.empty, nn) po.vs in
@@ -403,25 +422,6 @@ and     to_valu : VPtr.t -> pool -> valu = fun p po ->
     | VN_UVar(v)     -> UVar(V,v)
   in Pos.none v
 
-(** Find operation (with path contraction). *)
-let find : Ptr.t -> pool -> Ptr.t * pool = fun p po ->
-  let rec follow p eq_map =
-    try follow (PtrMap.find p eq_map) eq_map
-    with Not_found -> p
-  in
-  let repr = follow p po.eq_map in
-  let eq_map =
-    if repr = p then po.eq_map
-    else PtrMap.add p repr po.eq_map
-  in
-  (repr, {po with eq_map})
-
-let find_valu : VPtr.t -> pool -> VPtr.t * pool = fun p po ->
-  let (p, po) = find (Ptr.V_ptr p) po in
-  match p with
-  | Ptr.V_ptr p -> (p, po)
-  | Ptr.T_ptr _ -> assert false
-
 (** Obtain the canonical term / value pointed by a pointer. *)
 let rec canonical_term : TPtr.t -> pool -> term * pool = fun p po ->
   let (p, po) = find (Ptr.T_ptr p) po in
@@ -512,7 +512,7 @@ let insert_appl : Ptr.t -> Ptr.t -> pool -> Ptr.t * pool = fun pt pu po ->
   let (pt, po) = as_term pt po in
   let (pu, po) = as_term pu po in
   let (p,  po) = insert_t_node (TN_Appl(pt,pu)) po in
-  (Ptr.T_ptr p, po)
+  find (Ptr.T_ptr p) po
 
 (** Normalisation function. *)
 let rec normalise : ?update:bool -> TPtr.t -> pool -> Ptr.t * pool = fun ?(update=false) p po ->
@@ -525,23 +525,25 @@ let rec normalise : ?update:bool -> TPtr.t -> pool -> Ptr.t * pool = fun ?(updat
         | TN_Valu(pv)    -> find (Ptr.V_ptr pv) po
         | TN_Appl(pt,pu) ->
             begin
+              log_edp "normalisation in TN_Appl: %a %a" TPtr.print pt TPtr.print pu;
               let (pt, po) = normalise pt po in
               let (pu, po) = normalise pu po in
+              log_edp "normalised    in TN_Appl: %a %a" Ptr.print pt Ptr.print pu;
               match (pt, pu) with
               | (Ptr.V_ptr pf, Ptr.V_ptr pv) ->
-                  begin
-                    match snd (VPtrMap.find pf po.vs) with
-                    | VN_LAbs(b) ->
-                        begin
-                          let (v, po) = canonical_valu pv po in
-                          let t = bndr_subst b v.elt in
-                          let (tp, po) = add_term po t in
-                          normalise tp po
-                        end
-                    | _          -> insert_appl pt pu po
-                  end
+                 begin
+                   match snd (VPtrMap.find pf po.vs) with
+                   | VN_LAbs(b) ->
+                      begin
+                        let (v, po) = canonical_valu pv po in
+                        let t = bndr_subst b v.elt in
+                        let (tp, po) = add_term po t in
+                        normalise tp po
+                      end
+                   | _          -> insert_appl pt pu po
+                 end
               | (_           , _           ) ->
-                  insert_appl pt pu po
+                 insert_appl pt pu po
             end
         | TN_MAbs(b)     -> (p, po) (* FIXME can do better. *)
         | TN_Name(s,pt)  -> (p, po) (* FIXME can do better. *)
