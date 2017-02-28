@@ -696,6 +696,15 @@ and union : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
      (* Arbitrary join otherwise. *)
      | (_              , _              ) -> join p1 p2 po
 
+let oracle : pool -> valu -> valu -> bool = fun po t u ->
+  let (pt, pool) = add_valu po t in
+  let (pu, pool) = add_valu po u in
+  log_edp "insertion at %a and %a" VPtr.print pt VPtr.print pu;
+  log_edp "obtained context:\n%a" (print_pool "        ") pool;
+  let (pt, po) = find_valu pt po in
+  let (pu, po) = find_valu pu po in
+  VPtr.compare pt pu = 0
+
 let is_equal : pool -> Ptr.t -> Ptr.t -> bool = fun po p1 p2 ->
   if Ptr.compare p1 p2 = 0 then true else
   let (p1, po) = find p1 po in
@@ -704,7 +713,8 @@ let is_equal : pool -> Ptr.t -> Ptr.t -> bool = fun po p1 p2 ->
   let (t1, po) = canonical p1 po in
   let (t2, po) = canonical p2 po in
   log_edp "test term equality %a = %a" Print.print_ex t1 Print.print_ex t2;
-  eq_expr t1 t2
+  let oracle = oracle po in
+  eq_expr ~oracle t1 t2
 
 (* Equational context type. *)
 type eq_ctxt =

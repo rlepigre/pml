@@ -63,7 +63,7 @@ val map : ∀a b:ο, (a ⇒ b) ⇒ list<a> ⇒ list<b> = fix fun map f l →
 def total<f:ι,a:ο> : ο = ∀x∈a, ∃v:ι, f x ≡ v
 
 val compose_total : ∀a b c:ο, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c),
-                            total<f,a> ⇒ total<g,b> ⇒ total<fun x → g (f x), a> =
+                            total<f,a> ⇒ total<g,b> ⇒ total<(fun x → g (f x)), a> =
   fun fn gn tf tg a → let lem = tf a in
                       let lem = tg (fn a) in {}
 
@@ -79,25 +79,25 @@ val map_total : ∀a b:ο, ∀f∈(a ⇒ b), total<f,a> ⇒ ∀l∈list<a>, ∃v
         let deduce : map fn ls ≡ cns (fn hd) (map fn tl) = {} in
         {}
 
-//p : ∀a b c:ο, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c), total<f,a> ⇒ total<g,b> ⇒
-//st<a>, map g (map f l) ≡ map (fun x → g (f x)) l =
-//map_map fn gn tf tg ls →
-//s of
-//] → {}
-//c] →
-//t hd = c.hd in
-//t tl = c.tl in
-//t lem = tf hd in
-//t lem = tg (fn hd) in
-//t lem = map_total fn tf tl in
-//t lem = map_total gn tg (map fn tl) in
-//t deduce : map gn (map fn ls) ≡ cns (gn (fn hd)) (map gn (map fn tl)) = {} in
-//t tgf = compose_total fn gn tf tg in
-//t lem = map_total (fun x → gn (fn x)) tgf tl in
-//t deduce : map (fun x → gn (fn x)) ls
-//         ≡ cns (gn (fn hd)) (map (fun x → gn (fn x)) tl) = {}
-//
-//t show : map gn (map fn tl) ≡ map (fun x → gn (fn x)) tl =
-//map_map fn gn tf tg tl
-//
-//
+val map_map : ∀a b c:ο, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c), total<f,a> ⇒ total<g,b> ⇒
+     ∀l∈list<a>, map g (map f l) ≡ map (fun x → g (f x)) l =
+  fix fun map_map fn gn tf tg ls →
+    case ls of
+    | Nil[] → {}
+    | Cns[c] →
+        let hd = c.hd in
+        let tl = c.tl in
+        let lem = tf hd in
+        let lem = tg (fn hd) in
+        let lem = map_total fn tf tl in
+        let lem = map_total gn tg (map fn tl) in
+        let deduce : map gn (map fn ls) ≡ cns (gn (fn hd)) (map gn (map fn tl)) = {} in
+        let tgf = compose_total fn gn tf tg in
+        let lem = map_total (fun x → gn (fn x)) tgf tl in
+        let deduce : map (fun x → gn (fn x)) ls
+                   ≡ cns (gn (fn hd)) (map (fun x → gn (fn x)) tl) = {}
+        in
+        let show : map gn (map fn tl) ≡ map (fun x → gn (fn x)) tl =
+          map_map fn gn tf tg tl
+        in
+        {}
