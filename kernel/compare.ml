@@ -78,7 +78,6 @@ let uvar_iter : type a. uvar_fun -> a ex loc -> unit = fun f e ->
     | Push(v,s)   -> uvar_iter v; uvar_iter s
     | Fram(t,s)   -> uvar_iter t; uvar_iter s
     | Conv        -> ()
-    | OMax        -> ()
     | Succ(o)     -> uvar_iter o
     (* NOTE type annotations ignored. *)
     | VTyp(v,_)   -> uvar_iter v
@@ -216,7 +215,6 @@ let {eq_expr; eq_bndr} =
     | (Push(v1,s1)   , Push(v2,s2)   ) -> eq_expr v1 v2 && eq_expr s1 s2
     | (Fram(t1,s1)   , Fram(t2,s2)   ) -> eq_expr t1 t2 && eq_expr s1 s2
     | (Conv          , Conv          ) -> true
-    | (OMax          , OMax          ) -> true
     | (Succ(o1)      , Succ(o2)      ) -> eq_expr o1 o2
     (* NOTE type annotations ignored. *)
     | (VTyp(v1,_)    , _             ) -> eq_expr v1 e2

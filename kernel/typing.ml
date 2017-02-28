@@ -598,7 +598,6 @@ let bind_uvar : type a. a sort -> a uvar -> prop -> (a, p) bndr =
       | Push(v,s)   -> push e.pos (fn sa V uv v x) (fn sa S uv s x)
       | Fram(t,s)   -> fram e.pos (fn sa T uv t x) (fn sa S uv s x)
       | Conv        -> box e
-      | OMax        -> box e
       | Succ(o)     -> succ e.pos (fn sa O uv o x)
       | VTyp(v,a)   -> vtyp e.pos (fn sa V uv v x) (fn sa P uv a x)
       | TTyp(t,a)   -> ttyp e.pos (fn sa T uv t x) (fn sa P uv a x)

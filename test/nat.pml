@@ -27,6 +27,9 @@ val add_total : ∀n m∈nat, ∃v:ι, add n m ≡ v = fix fun add_total n m →
   | Z[] → {}
   | S[p] → let ind_hyp = add_total p m in {}
 
+def addt<x:τ,y:τ> : τ =
+   let lem = add_total x y in add x y
+
 val add_zero_left : ∀z∈nat, add zero z ≡ z = fun n → {}
 
 val add_zero1 : ∀z∈nat, add z zero ≡ z = fix fun add_zero k →
@@ -176,7 +179,7 @@ val mul_dist_l : ∀p n m∈nat, mul p (add n m) ≡ add (mul p n) (mul p m) =
        in
        let lem = mul_total p' n in
        let lem = mul_total p' m in
-       // let lem = add_all4<n, (mul p' n), m, (mul p' m)> in FIXME loops
+       //let lem = add_all4<n, (mul p' n), m, (mul p' m)> in FIXME loops
        let lem = add_total m (mul p' m) in
        let lem : add (add n (mul p' n)) (add m (mul p' m)) ≡
                  add n (add (mul p' n) (add m (mul p' m))) =

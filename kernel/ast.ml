@@ -94,8 +94,6 @@ type _ ex =
 
   | Conv :                                            o  ex
   (** Convergent ordinal. *)
-  | OMax :                                            o  ex
-  (** Maximum (unreachable) ordinal. *)
   | Succ : o ex loc                                -> o  ex
   (** Successor of an ordinal. *)
   | OWit : o ex loc * int * schema                 -> o  ex

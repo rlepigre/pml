@@ -23,11 +23,12 @@ let rec leq_i_ordi : positives -> ordi -> int -> ordi -> bool =
     match (o1.elt, o2.elt) with
     | (Vari(_) , _       ) -> assert false (* Should not happen. *)
     | (_       , Vari(_) ) -> assert false (* Should not happen. *)
+    (* TODO use oracle for eq_expr *)
     | (_       , _       ) when eq_expr ~strict:true (oadd o1 i) o2 -> true
     | (_       , Succ(o2)) -> leq_i_ordi pos o1 (i-1) o2
     | (Succ(o1), _       ) -> leq_i_ordi pos o1 (i+1) o2
     (* TODO unification and higher-order *)
-    | (OWit(o1,_,_), _   ) when (Norm.whnf o1).elt <> OMax ->
+    | (OWit(o1,_,_), _   ) ->
         let i = if is_pos pos o1 then i-1 else i in
         leq_i_ordi pos o1 i o2
     | (_       , _       ) -> false
