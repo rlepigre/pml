@@ -25,11 +25,16 @@ let uvar_eq : type a. a uvar -> a uvar -> bool =
 
 type uvar_fun = { f : 'a. 'a sort -> 'a uvar -> unit }
 
-let rec uvar_iter : type a. uvar_fun -> a ex loc -> unit = fun f e ->
-  let uvar_iter_cond f c =
-    match c with
-    | Equiv(t,_,u) -> uvar_iter f t; uvar_iter f u
-    | Posit(o)     -> uvar_iter f o
+let uvar_iter : type a. uvar_fun -> a ex loc -> unit = fun f e ->
+  let not_closed b = not (Bindlib.binder_closed (snd b)) in
+  let adone = ref [] in
+  let test_done e =
+    if not (List.memq (Obj.repr e) !adone) then
+      begin
+        adone := (Obj.repr e) :: !adone;
+        false
+      end
+    else true
   in
   match (Norm.whnf e).elt with
   | Vari(_)     -> ()
@@ -65,7 +70,6 @@ let rec uvar_iter : type a. uvar_fun -> a ex loc -> unit = fun f e ->
   | Push(v,s)   -> uvar_iter f v; uvar_iter f s
   | Fram(t,s)   -> uvar_iter f t; uvar_iter f s
   | Conv        -> ()
-  | OMax        -> ()
   | Succ(o)     -> uvar_iter f o
   (* NOTE type annotations ignored. *)
   | VTyp(v,_)   -> uvar_iter f v
