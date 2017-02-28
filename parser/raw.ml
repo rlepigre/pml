@@ -809,6 +809,7 @@ type toplevel =
   | Sort_def of strloc * raw_sort
   | Expr_def of strloc * raw_sort * raw_ex
   | Valu_def of strloc * raw_ex option * raw_ex
+  | Include  of string list
 
 (** syntactic sugars *)
 let euniv_in _loc x xs a b =

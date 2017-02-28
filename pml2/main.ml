@@ -7,7 +7,7 @@ open Typing
 open Output
 open Eval
 
-let interpret : Env.env -> Raw.toplevel -> Env.env = fun env top ->
+let rec interpret : Env.env -> Raw.toplevel -> Env.env = fun env top ->
   match top with
   | Sort_def(id,s) ->
       let open Env in
@@ -34,6 +34,63 @@ let interpret : Env.env -> Raw.toplevel -> Env.env = fun env top ->
       out "  = %a\n%!" Print.print_ex (Erase.to_valu v);
       ignore prf;
       add_value id t a v env
+  | Include(ps) ->
+      let fn = (String.concat "/" ps) ^ ".pml" in
+      out "include %S\n%!" fn;
+      if not (Sys.file_exists fn) then
+        begin
+          err_msg "File \"%s\" does not exist." fn;
+          exit 1
+      end;
+      handle_file env fn
+
+(* Handling the files. *)
+and handle_file env fn =
+  out "[%s]\n%!" fn;
+  try
+    let ast = Parser.parse_file fn in
+    List.fold_left interpret env ast
+  with
+  | No_parse(p, None)       ->
+      begin
+        err_msg "No parse %a." Pos.print_short_pos p;
+        exit 1
+      end
+  | No_parse(p, Some msg)   ->
+      begin
+        err_msg "No parse %a (%s)." Pos.print_short_pos p msg;
+        exit 1
+      end
+  | Unbound_sort(s, None  ) ->
+      begin
+        err_msg "Unbound sort %s." s;
+        exit 1
+      end
+  | Unbound_sort(s, Some p) ->
+      begin
+        err_msg "Unbound sort %s (%a)." s Pos.print_short_pos p;
+        exit 1
+      end
+  | Sort_clash(t,s) ->
+      begin
+        let _ =
+          match t.pos with
+          | None   -> err_msg "Sort %a expected for %a."
+                        pretty_print_raw_sort s print_raw_expr t
+          | Some p -> err_msg "Sort %a expected at %a."
+                        pretty_print_raw_sort s Pos.print_short_pos p
+        in
+        exit 1
+      end
+  | Unbound_variable(x,p)   ->
+      begin
+        match p with
+        | None   -> err_msg "Unbound variable %s." x;
+                    exit 1
+        | Some p -> err_msg "Unbound variable %s at %a." x
+                      Pos.print_short_pos p;
+                    exit 1
+      end
 
 (* Command line argument parsing. *)
 let files =
@@ -95,54 +152,6 @@ let files =
   in
   List.iter check_exists files;
   files
-
-(* Handling the files. *)
-let handle_file env fn =
-  out "[%s]\n%!" fn;
-  try
-    let ast = Parser.parse_file fn in
-    List.fold_left interpret env ast
-  with
-  | No_parse(p, None)       ->
-      begin
-        err_msg "No parse %a." Pos.print_short_pos p;
-        exit 1
-      end
-  | No_parse(p, Some msg)   ->
-      begin
-        err_msg "No parse %a (%s)." Pos.print_short_pos p msg;
-        exit 1
-      end
-  | Unbound_sort(s, None  ) ->
-      begin
-        err_msg "Unbound sort %s." s;
-        exit 1
-      end
-  | Unbound_sort(s, Some p) ->
-      begin
-        err_msg "Unbound sort %s (%a)." s Pos.print_short_pos p;
-        exit 1
-      end
-  | Sort_clash(t,s) ->
-      begin
-        let _ =
-          match t.pos with
-          | None   -> err_msg "Sort %a expected for %a."
-                        pretty_print_raw_sort s print_raw_expr t
-          | Some p -> err_msg "Sort %a expected at %a."
-                        pretty_print_raw_sort s Pos.print_short_pos p
-        in
-        exit 1
-      end
-  | Unbound_variable(x,p)   ->
-      begin
-        match p with
-        | None   -> err_msg "Unbound variable %s." x;
-                    exit 1
-        | Some p -> err_msg "Unbound variable %s at %a." x
-                      Pos.print_short_pos p;
-                    exit 1
-      end
 
 let _ =
   try ignore (List.fold_left handle_file Env.empty files) with

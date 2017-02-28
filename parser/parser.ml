@@ -42,22 +42,27 @@ module KW =
       Earley.black_box f (Charset.singleton s.[0]) false s
   end
 
+let parser path_atom = id:''[a-zA-Z0-9_]+''
+let parser path = ps:{path_atom '.'}* f:path_atom -> ps @ [f]
+
 let parser lid = id:''[a-z][a-zA-Z0-9_']*'' -> KW.check_not_keyword id; id
 let parser uid = id:''[A-Z][a-zA-Z0-9_']*'' -> KW.check_not_keyword id; id
 
 let parser llid = id:lid -> in_pos _loc id
 let parser luid = id:uid -> in_pos _loc id
 
-let _sort_ = KW.new_keyword "sort"
-let _def_  = KW.new_keyword "def"
-let _val_  = KW.new_keyword "val"
-let _fun_  = KW.new_keyword "fun"
-let _save_ = KW.new_keyword "save"
-let _case_ = KW.new_keyword "case"
-let _of_   = KW.new_keyword "of"
-let _fix_  = KW.new_keyword "fix"
-let _let_  = KW.new_keyword "let"
-let _in_   = KW.new_keyword "in"
+let _sort_    = KW.new_keyword "sort"
+let _include_ = KW.new_keyword "include"
+let _type_    = KW.new_keyword "type"
+let _def_     = KW.new_keyword "def"
+let _val_     = KW.new_keyword "val"
+let _fun_     = KW.new_keyword "fun"
+let _save_    = KW.new_keyword "save"
+let _case_    = KW.new_keyword "case"
+let _of_      = KW.new_keyword "of"
+let _fix_     = KW.new_keyword "fix"
+let _let_     = KW.new_keyword "let"
+let _in_      = KW.new_keyword "in"
 
 let parser arrow = "→" | "->"
 let parser impl  = "⇒" | "=>"
@@ -282,8 +287,17 @@ let parser toplevel =
        let f (_ ,a) s = Pos.none (SFun(a,s)) in
        let s = List.fold_right f args s in
        Expr_def(id,s,e)
+  | _type_ id:llid args:sort_args '=' e:expr
+    -> let s = Pos.none SP in
+       let f (id,s) e = Pos.none (EHOFn(id,s,e)) in
+       let e = List.fold_right f args e in
+       let f (_ ,a) s = Pos.none (SFun(a,s)) in
+       let s = List.fold_right f args s in
+       Expr_def(id,s,e)
   | _val_  id:llid ao:{':' expr}? '=' t:expr
     -> Valu_def(id, ao, t)
+  | _include_ p:path
+    -> Include(p)
 and sort_arg =
   | id:llid            -> (id, new_sort_uvar ())
   | id:llid ":" s:sort -> (id, s)
