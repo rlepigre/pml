@@ -142,3 +142,86 @@ val mul_comm : ∀n m∈nat, mul n m ≡ mul m n = fix fun mul_comm n m →
      let tot = mul_total p m in
      let lem = add_comm (mul p m) m in
      {}
+
+def add_all3<a:τ,b:τ,c:τ> =
+  let lem = add_total a b in
+  let lem = add_total a c in
+  let lem = add_total b c in
+  let lem = add_comm a b in
+  let lem = add_comm a c in
+  let lem = add_comm b c in
+  let lem = add_asso a b c in
+  let lem = add_asso a c b in
+  {}
+
+def add_all4<a:τ,b:τ,c:τ,d:τ> =
+  let lem = add_all3<a,b,c> in
+  let lem = add_all3<a,b,d> in
+  let lem = add_all3<a,c,d> in
+  let lem = add_all3<b,c,d> in
+  {}
+
+val mul_dist_l : ∀p n m∈nat, mul p (add n m) ≡ add (mul p n) (mul p m) =
+  fix fun mul_dist p n m  →
+    case p of
+    | Z[] →
+       let lem = add_total n m in {}
+    | S[p'] →
+       let lem = add_total n m in
+       let deduce : mul p (add n m) ≡ add (add n m) (mul p' (add n m)) = {} in
+       let deduce : add (mul p n) (mul p m) ≡
+                    add (add n (mul p' n)) (add m (mul p' m)) = {} in
+       let ind : mul p' (add n m) ≡ add (mul p' n) (mul p' m) =
+          mul_dist p' n m
+       in
+       let lem = mul_total p' n in
+       let lem = mul_total p' m in
+       // let lem = add_all4<n, (mul p' n), m, (mul p' m)> in FIXME loops
+       let lem = add_total m (mul p' m) in
+       let lem : add (add n (mul p' n)) (add m (mul p' m)) ≡
+                 add n (add (mul p' n) (add m (mul p' m))) =
+               add_asso n (mul p' n) (add m (mul p' m))
+       in
+       let lem : add (add n (mul p' n)) (add m (mul p' m)) ≡
+                 add n (add (add (mul p' n) m) (mul p' m)) =
+               add_asso (mul p' n) m (mul p' m)
+       in
+       let lem : add (add n (mul p' n)) (add m (mul p' m)) ≡
+                 add n (add (add m (mul p' n)) (mul p' m)) =
+               add_comm m (mul p' n)
+       in
+       let lem : add (add n (mul p' n)) (add m (mul p' m)) ≡
+                 add n (add m (add (mul p' n) (mul p' m))) =
+               add_asso m (mul p' n) (mul p' m)
+       in
+       let lem = add_total (mul p' n) (mul p' m) in
+       let lem : add (add n (mul p' n)) (add m (mul p' m)) ≡
+                 add (add n m) (add (mul p' n) (mul p' m)) =
+               add_asso n m (add (mul p' n) (mul p' m))
+       in
+       {}
+
+val mul_dist_r : ∀n m p∈nat, mul (add n m) p ≡ add (mul n p) (mul m p) =
+  fun n m p →
+    let lem = add_total n m in
+    let lem = mul_comm (add n m) p in
+    let lem = mul_comm n p in
+    let lem = mul_comm m p in
+    let lem = mul_dist_l p n m in
+    {}
+
+val mul_asso : ∀n m p∈nat, mul (mul n m) p ≡ mul n (mul m p) =
+  fix fun mul_asso n m p →
+    case n of
+    | Z[] →
+       let lem = mul_total m p in {}
+    | S[n'] →
+       let deduce : mul (mul n m) p ≡ mul (add m (mul n' m)) p = {} in
+       let lem = mul_total m p in
+       let deduce : mul n (mul m p) ≡ add (mul m p) (mul n' (mul m p)) = {} in
+       let lem = mul_total n' m in
+       let lem : mul (mul n m) p ≡ add (mul m p) (mul (mul n' m) p) =
+         mul_dist_r m (mul n' m) p in
+       let lem : mul (mul n m) p ≡ add (mul m p) (mul n' (mul m p)) =
+         mul_asso n' m p in
+       {}
