@@ -36,56 +36,65 @@ let uvar_iter : type a. uvar_fun -> a ex loc -> unit = fun f e ->
       end
     else true
   in
-  match (Norm.whnf e).elt with
-  | Vari(_)     -> ()
-  | HFun(_,_,b) -> uvar_iter f (bndr_subst b Dumm)
-  | HApp(_,a,b) -> uvar_iter f a; uvar_iter f b
-  | HDef(_)     -> () (* NOTE no unification variable in definition. *)
-  | Func(a,b)   -> uvar_iter f a; uvar_iter f b
-  | Prod(m)     -> M.iter (fun _ (_,a) -> uvar_iter f a) m
-  | DSum(m)     -> M.iter (fun _ (_,a) -> uvar_iter f a) m
-  | Univ(_,b)   -> uvar_iter f (bndr_subst b Dumm)
-  | Exis(_,b)   -> uvar_iter f (bndr_subst b Dumm)
-  | FixM(o,b)   -> uvar_iter f o; uvar_iter f (bndr_subst b Dumm)
-  | FixN(o,b)   -> uvar_iter f o; uvar_iter f (bndr_subst b Dumm)
-  | Memb(t,a)   -> uvar_iter f t; uvar_iter f a
-  | Rest(a,c)   -> uvar_iter f a; uvar_iter_cond f c
-  | Impl(c,a)   -> uvar_iter_cond f c; uvar_iter f a
-  (* NOTE type annotation ignored. *)
-  | LAbs(_,b)   -> uvar_iter f (bndr_subst b Dumm)
-  | Cons(_,v)   -> uvar_iter f v
-  | Reco(m)     -> M.iter (fun _ (_,a) -> uvar_iter f a) m
-  | Scis        -> ()
-  | VDef(_)     -> () (* NOTE no unification variable in definition. *)
-  | Valu(v)     -> uvar_iter f v
-  | Appl(t,u)   -> uvar_iter f t; uvar_iter f u
-  (* NOTE type annotation ignored. *)
-  | MAbs(_,b)   -> uvar_iter f (bndr_subst b Dumm)
-  | Name(s,t)   -> uvar_iter f s; uvar_iter f t
-  | Proj(v,_)   -> uvar_iter f v
-  | Case(v,m)   -> let fn _ (_,b) = uvar_iter f (bndr_subst b Dumm) in
-                   uvar_iter f v; M.iter fn m
-  | FixY(t,v)   -> uvar_iter f t; uvar_iter f v
-  | Epsi        -> ()
-  | Push(v,s)   -> uvar_iter f v; uvar_iter f s
-  | Fram(t,s)   -> uvar_iter f t; uvar_iter f s
-  | Conv        -> ()
-  | Succ(o)     -> uvar_iter f o
-  (* NOTE type annotations ignored. *)
-  | VTyp(v,_)   -> uvar_iter f v
-  | TTyp(t,_)   -> uvar_iter f t
-  | VLam(_,b)   -> uvar_iter f (bndr_subst b Dumm)
-  | TLam(_,b)   -> uvar_iter f (bndr_subst b Dumm)
-  | ITag(_)     -> ()
-  | Dumm        -> ()
-  | VWit(b,a,c) -> uvar_iter f (bndr_subst b Dumm);
-                   uvar_iter f a; uvar_iter f c
-  | SWit(b,a)   -> uvar_iter f (bndr_subst b Dumm); uvar_iter f a
-  | UWit(_,t,b) -> uvar_iter f t; uvar_iter f (bndr_subst b Dumm)
-  | EWit(_,t,b) -> uvar_iter f t; uvar_iter f (bndr_subst b Dumm)
-  | OWit(o,i,s) -> let (_,(t,k)) = Bindlib.unmbind mk_free s.sch_judge in
-                   uvar_iter f o; uvar_iter f t; uvar_iter f k
-  | UVar(s,u)   -> f.f s u
+  let rec uvar_iter : type a. a ex loc -> unit = fun e ->
+    if test_done e then
+    let uvar_iter_cond f c =
+      match c with
+      | Equiv(t,_,u) -> uvar_iter t; uvar_iter u
+      | Posit(o)     -> uvar_iter o
+    in
+    let buvar_iter b = if not_closed b then uvar_iter (bndr_subst b Dumm) in
+    match (Norm.whnf e).elt with
+    | Vari(_)     -> ()
+    | HFun(_,_,b) -> buvar_iter b
+    | HApp(_,a,b) -> uvar_iter a; uvar_iter b
+    | HDef(_)     -> () (* NOTE no unification variable in definition. *)
+    | Func(a,b)   -> uvar_iter a; uvar_iter b
+    | Prod(m)     -> M.iter (fun _ (_,a) -> uvar_iter a) m
+    | DSum(m)     -> M.iter (fun _ (_,a) -> uvar_iter a) m
+    | Univ(_,b)   -> buvar_iter b
+    | Exis(_,b)   -> buvar_iter b
+    | FixM(o,b)   -> uvar_iter o; buvar_iter b
+    | FixN(o,b)   -> uvar_iter o; buvar_iter b
+    | Memb(t,a)   -> uvar_iter t; uvar_iter a
+    | Rest(a,c)   -> uvar_iter a; uvar_iter_cond f c
+    | Impl(c,a)   -> uvar_iter_cond f c; uvar_iter a
+    (* NOTE type annotation ignored. *)
+    | LAbs(_,b)   -> buvar_iter b
+    | Cons(_,v)   -> uvar_iter v
+    | Reco(m)     -> M.iter (fun _ (_,a) -> uvar_iter a) m
+    | Scis        -> ()
+    | VDef(_)     -> () (* NOTE no unification variable in definition. *)
+    | Valu(v)     -> uvar_iter v
+    | Appl(t,u)   -> uvar_iter t; uvar_iter u
+    (* NOTE type annotation ignored. *)
+    | MAbs(_,b)   -> buvar_iter b
+    | Name(s,t)   -> uvar_iter s; uvar_iter t
+    | Proj(v,_)   -> uvar_iter v
+    | Case(v,m)   -> let fn _ (_,b) = buvar_iter b in
+                     uvar_iter v; M.iter fn m
+    | FixY(t,v)   -> uvar_iter t; uvar_iter v
+    | Epsi        -> ()
+    | Push(v,s)   -> uvar_iter v; uvar_iter s
+    | Fram(t,s)   -> uvar_iter t; uvar_iter s
+    | Conv        -> ()
+    | OMax        -> ()
+    | Succ(o)     -> uvar_iter o
+    (* NOTE type annotations ignored. *)
+    | VTyp(v,_)   -> uvar_iter v
+    | TTyp(t,_)   -> uvar_iter t
+    | VLam(_,b)   -> buvar_iter b
+    | TLam(_,b)   -> buvar_iter b
+    | ITag(_)     -> ()
+    | Dumm        -> ()
+    | VWit(b,a,c) -> buvar_iter b; uvar_iter a; uvar_iter c
+    | SWit(b,a)   -> buvar_iter b; uvar_iter a
+    | UWit(_,t,b) -> uvar_iter t; buvar_iter b
+    | EWit(_,t,b) -> uvar_iter t; buvar_iter b
+    | OWit(o,i,s) -> let (_,(t,k)) = Bindlib.unmbind mk_free s.sch_judge in
+                     uvar_iter o; uvar_iter t; uvar_iter k
+    | UVar(s,u)   -> f.f s u
+  in uvar_iter e
 
 type s_elt = U : 'a sort * 'a uvar -> s_elt
 
