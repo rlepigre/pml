@@ -644,3 +644,4 @@ let type_check : term -> prop option -> prop * typ_proof = fun t ao ->
 
 (* FIXME hack to compile the SCP. *)
 open Scp
+open Ordinal
