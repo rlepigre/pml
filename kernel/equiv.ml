@@ -301,7 +301,7 @@ exception FoundV of VPtr.t
 let insert_v_node : v_node -> pool -> VPtr.t * pool = fun nn po ->
   let fn p (_,n) = if eq_v_nodes n nn then raise (FoundV p) in
   try VPtrMap.iter fn po.vs; raise Not_found with
-  | FoundV(p) -> find_valu p po
+  | FoundV(p) -> (p, po)
   | Not_found ->
       let ptr = VPtr.V po.next in
       let vs = VPtrMap.add ptr (PtrSet.empty, nn) po.vs in
