@@ -42,7 +42,7 @@ let rec interpret : Env.env -> Raw.toplevel -> Env.env = fun env top ->
           err_msg "File \"%s\" does not exist." fn;
           exit 1
       end;
-      handle_file env fn
+      Log.without (handle_file env) fn
 
 (* Handling the files. *)
 and handle_file env fn =

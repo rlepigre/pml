@@ -93,6 +93,20 @@ module Log =
         enabled := CSet.empty;
         String.iter enable str
 
+    let get_enabled : unit -> string =
+      fun () ->
+        let ls = CSet.elements !enabled in
+        String.concat "" (List.map (String.make 1) ls)
+
+    let without : ('a -> 'b) -> 'a -> 'b =
+      fun fn e ->
+        let enb = !enabled in
+        enabled := CSet.empty;
+        try
+          let res = fn e in
+          enabled := enb; res
+        with e -> enabled := enb; raise e
+
     type r_formatter = { p : 'a. 'a formatter }
 
     let register : char -> string option -> string -> r_formatter =

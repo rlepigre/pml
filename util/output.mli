@@ -67,6 +67,14 @@ module Log :
         which key is contained in the string [str]. *)
     val set_enabled : string -> unit
 
+    (** [get_enabled ()] returns a string containing the representation of
+        the enabled logs. *)
+    val get_enabled : unit -> string
+
+    (** [without fn e] computed [fn e] with all the logs disabled. The logs
+        are restored even if an exception is raised by the computation. *)
+    val without : ('a -> 'b) -> 'a -> 'b
+
     (** [print_opts ~prefix och] prints on the output channel [och] a  short
         summary of all the registered log functions (and their  keys).  Each
         line of this list is preceeded with an optional [prefix]. *)
