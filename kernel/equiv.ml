@@ -388,10 +388,10 @@ and     add_valu : pool -> valu -> VPtr.t * pool = fun po v ->
   | HDef(_,d)   -> add_valu po d.expr_def
   | UVar(_,v)   -> insert_v_node (VN_UVar(v)) po
   | Vari(_)     -> invalid_arg "free variable in the pool"
-  | ITag _      -> invalid_arg "integer tags forbidden in the pool"
   | Dumm        -> invalid_arg "dummy terms forbidden in the pool"
+  | ITag(_)     -> invalid_arg "itag terms forbidden in the pool"
 
-(** Recovery of plain term / value. *)
+(* unused, but may be usefull for debugging
 let rec to_term : TPtr.t -> pool -> term = fun p po ->
   let t =
     match snd (find_t_node p po) with
@@ -420,7 +420,7 @@ and     to_valu : VPtr.t -> pool -> valu = fun p po ->
     | VN_EWit(w)     -> let (t,b) = w in EWit(V,t,b)
     | VN_HApp(e)     -> let HO_Appl(s,f,a) = e in HApp(s,f,a)
     | VN_UVar(v)     -> UVar(V,v)
-  in Pos.none v
+  in Pos.none v *)
 
 (** Obtain the canonical term / value pointed by a pointer. *)
 let rec canonical_term : TPtr.t -> pool -> term * pool = fun p po ->
@@ -736,7 +736,7 @@ let add_equiv : equiv -> eq_ctxt -> eq_ctxt = fun (t,u) {pool} ->
 let add_inequiv : inequiv -> eq_ctxt -> eq_ctxt = fun (t,u) {pool} ->
   log_edp "inserting %a ≠ %a in context\n%a" Print.print_ex t
     Print.print_ex u (print_pool "        ") pool;
-  if eq_expr t u then
+  if eq_expr ~strict:true t u then
     begin
       log_edp "immediate contradiction";
       raise Contradiction

@@ -5,6 +5,7 @@ open Sorts
 open Pos
 open Ast
 open Output
+open Print
 
 (* Log functions registration. *)
 let log_equ = Log.register 'c' (Some "cmp") "comparing informations"
@@ -27,24 +28,22 @@ type uvar_fun = { f : 'a. 'a sort -> 'a uvar -> unit }
 
 let uvar_iter : type a. uvar_fun -> a ex loc -> unit = fun f e ->
   let not_closed b = not (Bindlib.binder_closed (snd b)) in
-  let adone = ref [] in
+  let adone = Ahash.create 101 in
   let test_done e =
-    if not (List.memq (Obj.repr e) !adone) then
-      begin
-        adone := (Obj.repr e) :: !adone;
-        false
-      end
-    else true
+    if Ahash.mem adone (Obj.repr e) then true
+    else (
+      Ahash.add adone (Obj.repr e) ();
+      false)
   in
   let rec uvar_iter : type a. a ex loc -> unit = fun e ->
-    if test_done e then
     let uvar_iter_cond f c =
       match c with
       | Equiv(t,_,u) -> uvar_iter t; uvar_iter u
       | Posit(o)     -> uvar_iter o
     in
     let buvar_iter b = if not_closed b then uvar_iter (bndr_subst b Dumm) in
-    match (Norm.whnf e).elt with
+    let e = Norm.whnf e in
+    if not (test_done e) then match e.elt with
     | Vari(_)     -> ()
     | HFun(_,_,b) -> buvar_iter b
     | HApp(_,a,b) -> uvar_iter a; uvar_iter b
@@ -144,6 +143,7 @@ let {eq_expr; eq_bndr} =
 
   let rec eq_expr : type a. bool -> oracle -> a ex loc -> a ex loc -> bool =
     fun strict oracle e1 e2 ->
+    (*Output.err_msg "eq %a === %a (%b)" print_ex e1 print_ex e2 (oracle == false_oracle);*)
     let eq_expr e1 e2 = eq_expr strict oracle e1 e2 in
     let eq_bndr b1 b2 = eq_bndr strict oracle b1 b2 in
     let e1 = Norm.whnf e1 in
@@ -232,15 +232,16 @@ let {eq_expr; eq_bndr} =
         eq_bndr f1 f2 && eq_expr a1 a2 && eq_expr b1 b2
     | (SWit(f1,a1)   , SWit(f2,a2)   ) -> eq_bndr f1 f2 && eq_expr a1 a2
     | (UWit(_,t1,b1) , UWit(_,t2,b2) ) -> eq_bndr b1 b2 && eq_expr t1 t2
-    | (EWit(s1,t1,b1), EWit(s2,t2,b2)) -> eq_bndr b1 b2 && eq_expr t1 t2
+    | (EWit(_,t1,b1) , EWit(_,t2,b2) ) -> eq_bndr b1 b2 && eq_expr t1 t2
     | (UVar(_,u1)    , UVar(_,u2)    ) ->
        if strict then u1.uvar_key = u2.uvar_key else
          begin
-           if u1.uvar_key <> u2.uvar_key then uvar_set u1 e2;
+           if u1.uvar_key <> u2.uvar_key then uvar_set u1 e2; (* arbitrary *)
            true
          end
     (* FIXME experimental. *)
-    | (UVar(_,u1)    , Func({elt = Memb(t,a)}, b)) when uvar_occurs u1 t ->
+    | (UVar(_,u1)    , Func({elt = Memb(t,a)}, b))
+                   when not strict && uvar_occurs u1 t ->
         eq_expr e1 (Pos.none (Func(a,b)))
     | (UVar(_,u1)    , _             ) when not strict ->
         if uvar_occurs u1 e2 then false else (uvar_set u1 e2; true)
@@ -259,7 +260,8 @@ let {eq_expr; eq_bndr} =
                         -> a ex loc -> a ex loc -> bool =
     fun ?(strict=false) ?(oracle=false_oracle) e1 e2 ->
       c := -1; (* Reset. *)
-      log_equ "trying to show %a = %a" Print.ex e1 Print.ex e2;
+      log_equ "trying to show (use oracle %b) %a === %a"
+              (oracle != false_oracle) Print.ex e1 Print.ex e2;
       let res = Timed.pure_test (eq_expr strict oracle e1) e2 in
       log_equ "we have %a %s %a"
               Print.ex e1 (if res then "=" else "≠") Print.ex e2;
@@ -270,6 +272,9 @@ let {eq_expr; eq_bndr} =
                           -> (a,b) bndr -> (a,b) bndr -> bool =
     fun ?(strict=false) ?(oracle=false_oracle) b1 b2 ->
       c := -1; (* Reset. *)
-      Timed.pure_test (eq_bndr strict oracle b1) b2
+      log_equ "entering eq_bndr (use oracle %b)" (oracle != false_oracle);
+      let res = Timed.pure_test (eq_bndr strict oracle b1) b2 in
+      log_equ "leaving eq_bndr";
+      res
   in
   {eq_expr; eq_bndr}

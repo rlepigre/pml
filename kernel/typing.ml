@@ -383,8 +383,8 @@ and type_valu : ctxt -> valu -> prop -> ctxt * typ_proof = fun ctx v c ->
     | Vari(_)     -> unexpected "Free variable during typing..."
     | HApp(_)     -> unexpected "Higher-order application during typing..."
     | Dumm        -> unexpected "Dummy value during typing..."
-    | ITag(_)     -> unexpected "Tag during typing..."
-  in
+    | ITag(_)     -> unexpected "ITag during typing..."
+ in
   (ctx, (Pos.make v.pos (Valu(v)), c, r))
 
 and type_term : ctxt -> term -> prop -> ctxt * typ_proof = fun ctx t c ->
@@ -488,7 +488,7 @@ and type_term : ctxt -> term -> prop -> ctxt * typ_proof = fun ctx t c ->
     | Vari(_)     -> unexpected "Free variable during typing..."
     | HApp(_)     -> unexpected "Higher-order application during typing..."
     | Dumm        -> unexpected "Dummy value during typing..."
-    | ITag(_)     -> unexpected "Tag during typing..."
+    | ITag(_)     -> unexpected "ITag during typing..."
   in
   (ctx, (t, c, r))
 

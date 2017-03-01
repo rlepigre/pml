@@ -30,6 +30,17 @@ val or : bool ⇒ bool ⇒ bool =
     | F[] → b2
     | T[] → tru
 
+val imp : bool ⇒ bool ⇒ bool =
+  fun b1 → fun b2 →
+    case b1 of
+    | F[] → tru
+    | T[] → b2
+
+def land<b1:τ,b2:τ> =
+  case b1 of
+  | F[] → fls
+  | T[] → b2
+
 val and : bool ⇒ bool ⇒ bool =
   fun b1 → fun b2 →
     case b1 of
