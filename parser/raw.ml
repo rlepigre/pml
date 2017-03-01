@@ -515,12 +515,17 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
 type boxed = Box : 'a sort * 'a ex loc bindbox -> boxed
 
 let rec sort_filter : type a b. a sort -> boxed -> a box =
-  fun s (Box(k,e)) ->
-    match Sorts.eq_sort k s with
-    | Eq  -> e
-    | NEq -> Printf.printf "ERROR: %a ≠ %a\n%!"
-               Print.print_sort s Print.print_sort k;
-             assert false
+  fun s bx ->
+    match (s, bx) with
+    | (T, Box(V,e)) -> valu (unbox e).pos e
+    | (s, Box(k,e)) ->
+        begin
+          match Sorts.eq_sort k s with
+          | Eq  -> e
+          | NEq -> Printf.printf "ERROR: %a ≠ %a\n%!" Print.print_sort s
+                     Print.print_sort k;
+                   assert false (* FIXME error management. *)
+        end
 
 let to_valu : boxed -> v box = sort_filter V
 
@@ -755,7 +760,7 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
             (c.elt, (c.pos, x, f))
           in
           let gn m (k,v) =
-            if M.mem k m then assert false;
+            if M.mem k m then assert false; (* FIXME handle error *)
             M.add k v m
           in
           let m = List.fold_left gn M.empty (List.map fn l) in
