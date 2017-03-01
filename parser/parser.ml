@@ -310,8 +310,12 @@ let parser toplevel =
        let f (_ ,a) s = Pos.none (SFun(a,s)) in
        let s = List.fold_right f args s in
        Expr_def(id,s,e)
-  | _val_  id:llid ao:{':' expr}? '=' t:expr
-    -> Valu_def(id, ao, t)
+  | _val_ r:is_rec id:llid ao:{':' expr}? '=' t:expr
+    -> let t =
+         if r then Pos.none (EFixY(Pos.none (ELAbs(((id, None),[]), t))))
+         else t
+       in
+       Valu_def(id, ao, t)
   | _include_ p:path
     -> Include(p)
 and sort_arg =
