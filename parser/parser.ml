@@ -128,7 +128,7 @@ let parser expr (m : mode) =
       when m = `Prp`A || m = `Trm`A
       -> in_pos _loc EUnit
   (* Proposition (disjoint sum) *)
-  | "[" fs:(lsep ";" (parser l:luid _:_of_ a:(expr (`Prp`F)))) "]"
+  | "[" fs:(lsep ";" (parser l:luid a:{_:_of_ a:(expr (`Prp`F))}?)) "]"
       when m = `Prp`A
       -> in_pos _loc (EDSum(fs))
   (* Proposition (universal quantification) *)

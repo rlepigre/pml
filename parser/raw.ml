@@ -135,7 +135,7 @@ and raw_ex' =
   | EFunc of raw_ex * raw_ex
   | EProd of (strloc * raw_ex) list * bool
   | EUnit (* Empty record as a type or a term *)
-  | EDSum of (strloc * raw_ex) list
+  | EDSum of (strloc * raw_ex option) list
   | EUniv of strloc ne_list * raw_sort * raw_ex
   | EExis of strloc ne_list * raw_sort * raw_ex
   | EFixM of raw_ex * strloc * raw_ex
@@ -172,7 +172,7 @@ let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
                          print_raw_sort s print e
     | EFunc(a,b)    -> Printf.fprintf ch "EFunc(%a,%a)" print a print b
     | EProd(l,str)  -> Printf.fprintf ch "EProd([%a], %s)"
-                         (print_list aux_ps "; ") l
+                         (print_list aux_ls "; ") l
                          (if str then "strict" else "extensible")
     | EUnit         -> Printf.fprintf ch "EUnit"
     | EDSum(l)      -> Printf.fprintf ch "EDSum([%a])"
@@ -213,7 +213,8 @@ let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
     | EFram(t,s)    -> Printf.fprintf ch "EFram(%a,%a)" print t print s
     | EConv         -> Printf.fprintf ch "EConv"
     | ESucc(o)      -> Printf.fprintf ch "ESucc(%a)" print o
-  and aux_ps ch (l,e) = Printf.fprintf ch "(%S,%a)" l.elt print e
+  and aux_ls ch (l,e) = Printf.fprintf ch "(%S,%a)" l.elt print e
+  and aux_ps ch (l,e) = Printf.fprintf ch "(%S,%a)" l.elt aux_opt e
   and aux_rec ch (l,e,_) = Printf.fprintf ch "(%S,%a)" l.elt print e
   and aux_var ch x = Printf.fprintf ch "%S" x.elt
   and aux_cons ch = function
@@ -313,7 +314,11 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
     | (EUnit        , ST       ) -> ()
     | (EUnit        , SUni(_)  ) -> unif_failure e
     | (EUnit        , _        ) -> sort_clash e s
-    | (EDSum(l)     , SP       )
+    | (EDSum(l)     , SP       ) -> let fn (_, a) =
+                                      match a with
+                                      | None   -> ()
+                                      | Some a -> infer env vars a _sp
+                                    in List.iter fn l
     | (EProd(l,_)   , SP       ) -> let fn (_, a) =
                                       infer env vars a _sp
                                     in List.iter fn l
@@ -592,7 +597,11 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
         let m = List.fold_left gn M.empty (List.map fn l) in
         Box(P, (if str then strict_prod else prod) e.pos m)
     | (EDSum(l)     , SP       ) ->
-        let fn (p, a) = (p.elt, (p.pos, to_prop (unsugar env vars a s))) in
+        let fn (p, a) =
+          match a with
+          | None   -> (p.elt, (p.pos, strict_prod p.pos M.empty))
+          | Some a -> (p.elt, (p.pos, to_prop (unsugar env vars a s)))
+        in
         let gn m (k,v) =
           if M.mem k m then assert false;
           M.add k v m
