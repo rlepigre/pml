@@ -133,7 +133,7 @@ and raw_ex' =
   | EHOFn of strloc * raw_sort * raw_ex
 
   | EFunc of raw_ex * raw_ex
-  | EProd of (strloc * raw_ex) list
+  | EProd of (strloc * raw_ex) list * bool
   | EUnit (* Empty record as a type or a term *)
   | EDSum of (strloc * raw_ex) list
   | EUniv of strloc ne_list * raw_sort * raw_ex
@@ -171,8 +171,9 @@ let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
     | EHOFn(x,s,e)  -> Printf.fprintf ch "EHOFn(%S,%a,%a)" x.elt
                          print_raw_sort s print e
     | EFunc(a,b)    -> Printf.fprintf ch "EFunc(%a,%a)" print a print b
-    | EProd(l)      -> Printf.fprintf ch "EProd([%a])"
+    | EProd(l,str)  -> Printf.fprintf ch "EProd([%a], %s)"
                          (print_list aux_ps "; ") l
+                         (if str then "strict" else "extensible")
     | EUnit         -> Printf.fprintf ch "EUnit"
     | EDSum(l)      -> Printf.fprintf ch "EDSum([%a])"
                          (print_list aux_ps "; ") l
@@ -313,14 +314,14 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
     | (EUnit        , SUni(_)  ) -> unif_failure e
     | (EUnit        , _        ) -> sort_clash e s
     | (EDSum(l)     , SP       )
-    | (EProd(l)     , SP       ) -> let fn (_, a) =
+    | (EProd(l,_)   , SP       ) -> let fn (_, a) =
                                       infer env vars a _sp
                                     in List.iter fn l
     | (EDSum(_)     , SUni(r)  )
-    | (EProd(_)     , SUni(r)  ) -> r := Some _sp;
+    | (EProd(_,_)   , SUni(r)  ) -> r := Some _sp;
                                     infer env vars e s
     | (EDSum(_)     , _        )
-    | (EProd(_)     , _        ) -> sort_clash e s
+    | (EProd(_,_)   , _        ) -> sort_clash e s
     | (EUniv(xs,k,e), SP       )
     | (EExis(xs,k,e), SP       ) -> let fn vars x =
                                       M.add x.elt (x.pos, k) vars
@@ -579,17 +580,17 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
         let a = unsugar env vars a s in
         let b = unsugar env vars b s in
         Box(P, func e.pos (to_prop a) (to_prop b))
-    | (EUnit        , SP       ) -> Box(P, prod e.pos M.empty)
+    | (EUnit        , SP       ) -> Box(P, strict_prod e.pos M.empty)
     | (EUnit        , SV       ) -> Box(V, reco e.pos M.empty)
     | (EUnit        , ST       ) -> Box(T, valu e.pos (reco e.pos M.empty))
-    | (EProd(l)     , SP       ) ->
+    | (EProd(l,str) , SP       ) ->
         let fn (p, a) = (p.elt, (p.pos, to_prop (unsugar env vars a s))) in
         let gn m (k,v) =
           if M.mem k m then assert false;
           M.add k v m
         in
         let m = List.fold_left gn M.empty (List.map fn l) in
-        Box(P, prod e.pos m)
+        Box(P, (if str then strict_prod else prod) e.pos m)
     | (EDSum(l)     , SP       ) ->
         let fn (p, a) = (p.elt, (p.pos, to_prop (unsugar env vars a s))) in
         let gn m (k,v) =
@@ -649,7 +650,7 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
     | (ERest(a,eq)  , SP       ) ->
         let a =
           match a with
-          | None   -> prod e.pos M.empty
+          | None   -> strict_prod e.pos M.empty
           | Some a -> to_prop (unsugar env vars a _sp)
         in
         let (t,b,u) = eq in

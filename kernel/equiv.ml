@@ -644,57 +644,40 @@ and union : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
   | (Ptr.V_ptr _  , Ptr.T_ptr _  ) -> join p2 p1 po
   | (Ptr.T_ptr _  , Ptr.T_ptr _  ) -> join p1 p2 po (* arbitrary, TODO OR NOT Tarjan *)
   | (Ptr.V_ptr vp1, Ptr.V_ptr vp2) ->
-     let rec check_equiv vp1 vp2 po =
-       let (_,n1) = VPtrMap.find vp1 po.vs in
-       let (_,n2) = VPtrMap.find vp2 po.vs in
-       match (n1, n2) with
-       (* Immediate contradictions. *)
-       | (VN_LAbs(_)     , VN_Reco(_)     )
-       | (VN_LAbs(_)     , VN_Cons(_,_)   )
-       | (VN_Reco(_)     , VN_LAbs(_)     )
-       | (VN_Reco(_)     , VN_Cons(_,_)   )
-       | (VN_Cons(_,_)   , VN_Reco(_)     )
-       | (VN_Cons(_,_)   , VN_LAbs(_)     ) -> bottom ()
-       (* Constructors. *)
-       | (VN_Cons(c1,vp1), VN_Cons(c2,vp2)) ->
-          if c1.elt <> c2.elt then bottom ();
-          check_equiv vp1 vp2 po
-       (* Records. *)
-       | (VN_Reco(m1)    , VN_Reco(m2)    ) ->
-          let test vp1 vp2 = check_equiv vp1 vp2 po; true in
-          if not (M.equal test m1 m2) then bottom ()
-       (* No possible refutation. *)
-       | (_              , _              ) -> ()
-     in
-     let (_,n1) = VPtrMap.find vp1 po.vs in
-     let (_,n2) = VPtrMap.find vp2 po.vs in
-     match (n1, n2) with
-     (* Immediate contradictions. *)
-     | (VN_LAbs(_)     , VN_Reco(_)     )
-     | (VN_LAbs(_)     , VN_Cons(_,_)   )
-     | (VN_Reco(_)     , VN_LAbs(_)     )
-     | (VN_Reco(_)     , VN_Cons(_,_)   )
-     | (VN_Cons(_,_)   , VN_Reco(_)     )
-     | (VN_Cons(_,_)   , VN_LAbs(_)     ) -> bottom ()
-     (* Constructors. *)
-     | (VN_Cons(c1,vp1), VN_Cons(c2,vp2)) ->
-        if c1.elt <> c2.elt then bottom ();
-        check_equiv vp1 vp2 po;
-        join p1 p2 po (* arbitrary *)
-     (* Records. *)
-     | (VN_Reco(m1)    , VN_Reco(m2)    ) ->
-        let test vp1 vp2 = check_equiv vp1 vp2 po; true in
-        if not (M.equal test m1 m2) then bottom ();
-        join p1 p2 po (* arbitrary *)
-     (* Prefer real values as equivalence class representatives. *)
-     | (VN_LAbs(_)     , _              )
-     | (VN_Reco(_)     , _              )
-     | (VN_Cons(_,_)   , _              ) -> join p2 p1 po
-     | (_              , VN_LAbs(_)     )
-     | (_              , VN_Reco(_)     )
-     | (_              , VN_Cons(_,_)   ) -> join p1 p2 po
-     (* Arbitrary join otherwise. *)
-     | (_              , _              ) -> join p1 p2 po
+      begin
+        let (_,n1) = VPtrMap.find vp1 po.vs in
+        let (_,n2) = VPtrMap.find vp2 po.vs in
+        match (n1, n2) with
+        (* Immediate contradictions. *)
+        | (VN_LAbs(_)     , VN_Reco(_)     )
+        | (VN_LAbs(_)     , VN_Cons(_,_)   )
+        | (VN_Reco(_)     , VN_LAbs(_)     )
+        | (VN_Reco(_)     , VN_Cons(_,_)   )
+        | (VN_Cons(_,_)   , VN_Reco(_)     )
+        | (VN_Cons(_,_)   , VN_LAbs(_)     ) -> bottom ()
+        (* Constructors. *)
+        | (VN_Cons(c1,vp1), VN_Cons(c2,vp2)) ->
+           if c1.elt <> c2.elt then bottom ();
+           let po = join p1 p2 po in (* arbitrary *)
+           union (Ptr.V_ptr vp1) (Ptr.V_ptr vp2) po
+        (* Records. *)
+        | (VN_Reco(m1)    , VN_Reco(m2)    ) ->
+           let po = ref (join p1 p2 po) in (* arbitrary *)
+           let test vp1 vp2 =
+             po := union (Ptr.V_ptr vp1) (Ptr.V_ptr vp2) !po; true
+           in
+           if not (M.equal test m1 m2) then bottom ();
+           !po
+        (* Prefer real values as equivalence class representatives. *)
+        | (VN_LAbs(_)     , _              )
+        | (VN_Reco(_)     , _              )
+        | (VN_Cons(_,_)   , _              ) -> join p2 p1 po
+        | (_              , VN_LAbs(_)     )
+        | (_              , VN_Reco(_)     )
+        | (_              , VN_Cons(_,_)   ) -> join p1 p2 po
+        (* Arbitrary join otherwise. *)
+        | (_              , _              ) -> join p1 p2 po
+      end
 
 let oracle : pool -> valu -> valu -> bool = fun po t u ->
   let (pt, pool) = add_valu po t in

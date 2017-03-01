@@ -1,5 +1,5 @@
 // Usual « unit » type (i.e. empty product).
-def unit : ο = {}
+def unit : ο = {⋯}
 
 // It is inhabited by the empty record.
 val u : unit = {}
@@ -9,7 +9,7 @@ val u_aux : unit = {l = {}}
 
 
 // We can define a real (one element) « unit » type as follows.
-def real_unit : ο = {} ∈ {}
+def real_unit : ο = {}
 
 // It is still inhabited by the empty record.
 val unit : real_unit = {}

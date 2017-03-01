@@ -427,6 +427,17 @@ let swit : popt -> strloc -> (svar -> tbox) -> pbox -> sbox =
 
 (** {5 useful functions} *)
 
+let strict_prod : popt -> (popt * pbox) M.t -> pbox =
+  fun pos m ->
+    let fn env = reco None (M.mapi (fun l _ -> (None, List.assoc l env)) m) in
+    let rec build env ls =
+      match ls with
+      | []    -> memb None (valu None (fn env)) (prod pos m)
+      | l::ls -> let fn (x:vvar) = build ((l, vari None x) :: env) ls in
+                 exis None (Pos.none l) V fn
+    in
+    build [] (List.map fst (M.bindings m))
+
 let rec is_scis : type a. a ex loc -> bool =
   fun e ->
     match e.elt with

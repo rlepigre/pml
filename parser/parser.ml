@@ -61,8 +61,19 @@ let _save_    = KW.new_keyword "save"
 let _case_    = KW.new_keyword "case"
 let _of_      = KW.new_keyword "of"
 let _fix_     = KW.new_keyword "fix"
+let _rec_     = KW.new_keyword "rec"
 let _let_     = KW.new_keyword "let"
 let _in_      = KW.new_keyword "in"
+
+let parser elipsis = "⋯" | "..."
+
+let parser is_rec =
+  | _rec_ -> true
+  | EMPTY -> false
+
+let parser is_strict =
+  | elipsis -> false
+  | EMPTY   -> true
 
 let parser arrow = "→" | "->"
 let parser impl  = "⇒" | "=>"
@@ -105,9 +116,13 @@ let parser expr (m : mode) =
       when m = `Prp`F
       -> in_pos _loc (EFunc(a,b))
   (* Proposition (non-empty product) *)
-  | "{" fs:(lsep_ne ";" (parser l:llid ":" a:(expr (`Prp`F)))) "}"
+  | "{" fs:(lsep_ne ";" (parser l:llid ":" a:(expr (`Prp`F)))) s:is_strict "}"
       when m = `Prp`A
-      -> in_pos _loc (EProd(fs))
+      -> in_pos _loc (EProd(fs,s))
+  (* Extensible empty record. *)
+  | "{" elipsis "}"
+      when m = `Prp`A
+      -> in_pos _loc (EProd([],false))
   (* Proposition / Term (empty product / empty record) *)
   | "{" "}"
       when m = `Prp`A || m = `Trm`A
@@ -287,8 +302,9 @@ let parser toplevel =
        let f (_ ,a) s = Pos.none (SFun(a,s)) in
        let s = List.fold_right f args s in
        Expr_def(id,s,e)
-  | _type_ id:llid args:sort_args '=' e:expr
+  | _type_ r:is_rec id:llid args:sort_args '=' e:expr
     -> let s = Pos.none SP in
+       let e = if r then in_pos _loc (EFixM(Pos.none EConv, id, e)) else e in
        let f (id,s) e = Pos.none (EHOFn(id,s,e)) in
        let e = List.fold_right f args e in
        let f (_ ,a) s = Pos.none (SFun(a,s)) in
