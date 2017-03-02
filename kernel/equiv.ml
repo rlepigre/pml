@@ -691,7 +691,7 @@ and union : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
   match (p1, p2) with
   | (Ptr.T_ptr _  , Ptr.V_ptr _  ) -> join p1 p2 po
   | (Ptr.V_ptr _  , Ptr.T_ptr _  ) -> join p2 p1 po
-  | (Ptr.T_ptr _  , Ptr.T_ptr _  ) -> join p1 p2 po (* arbitrary, TODO OR NOT Tarjan *)
+  | (Ptr.T_ptr _  , Ptr.T_ptr _  ) -> join p1 p2 po (* TODO Tarjan *)
   | (Ptr.V_ptr vp1, Ptr.V_ptr vp2) ->
       begin
         let (_,n1) = VPtrMap.find vp1 po.vs in
