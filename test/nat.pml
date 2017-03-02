@@ -53,7 +53,6 @@ val add_asso : ∀n m q∈nat, add n (add m q) ≡ add (add n m) q =
       let tot2 = add_total p m in
       let deduce : add (add n m) q ≡ succ (add (add p m) q) = {} in
       let ind_hyp = add_asso p m q in
-      let deduce : add (add p m) q ≡ add (add p m) q = {} in
       {}
 
 val add_zero : ∀n∈nat, add n zero ≡ n = fix fun add_zero n →

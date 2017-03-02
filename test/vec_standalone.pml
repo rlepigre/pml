@@ -1,15 +1,15 @@
 
-def nat : ο = μx [ Z of {} ; S of x ]
+type nat = μx [ Z of {} ; S of x ]
 
 val zero : nat = Z[]
 val succ : nat ⇒ nat = fun n → S[n]
 
-val add : nat ⇒ nat ⇒ nat = fix fun add n m →
+val rec add : nat ⇒ nat ⇒ nat = fun n m →
   case n of
   | Z[] → m
   | S[p] → succ (add p m)
 
-val add_total : ∀n m∈nat, ∃v:ι, add n m ≡ v = fix fun add_total n m →
+val rec add_total : ∀n m∈nat, ∃v:ι, add n m ≡ v = fun n m →
   case n of
   | Z[] → {}
   | S[p] → let ind_hyp = add_total p m in {}
@@ -38,7 +38,7 @@ val vcns : ∀a:ο,∀s:ι, ∀x∈a, vec<a,s> ⇒ vec<a,succ s> =
    fun y ls → Cns[{hd= y;tl= ls}]
 
 val rec app : ∀a:ο, ∀n1 n2:ι, vec<a,n1> ⇒ vec<a,n2> ⇒ vec<a,add n1 n2> =
-  Λa:ο. Λn1:ι. Λn2:ι. fun l1 l2 →
+  Λa:ο. fun l1 l2 →
   case l1 of
   | Nil[] → l2
   | Cns[c] →
