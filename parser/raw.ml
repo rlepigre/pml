@@ -148,7 +148,7 @@ and raw_ex' =
   | EReco of (strloc * raw_ex * flag) list
   | EScis
   | EAppl of raw_ex * raw_ex
-  | EMAbs of (strloc * raw_ex option) ne_list * raw_ex
+  | EMAbs of strloc ne_list * raw_ex
   | EName of raw_ex * raw_ex
   | EProj of raw_ex * flag * strloc
   | ECase of raw_ex * flag * (strloc * (strloc * raw_ex option) * raw_ex) list
@@ -198,7 +198,7 @@ let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
     | EScis         -> Printf.fprintf ch "EScis"
     | EAppl(t,u)    -> Printf.fprintf ch "EAppl(%a,%a)" print t print u
     | EMAbs(args,t) -> Printf.fprintf ch "EMAbs([%a],%a)"
-                         (print_list aux_arg "; ")
+                         (print_list aux_var "; ")
                          (ne_list_to_list args) print t
     | EName(s,t)    -> Printf.fprintf ch "EName(%a,%a)" print s print t
     | EProj(v,_,l)  -> Printf.fprintf ch "EProj(%a,%S)" print v l.elt
@@ -443,12 +443,7 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
     | (EAppl(_,_)   , _        ) -> sort_clash e s
     | (EMAbs(args,t), ST       ) ->
         begin
-          let fn vs (x, ao) =
-            begin
-              match ao with
-              | None   -> ()
-              | Some a -> infer env vars a _sp
-            end;
+          let fn vs x =
             M.add x.elt (x.pos, Pos.none SS) vs
           in
           let vars = List.fold_left fn vars (ne_list_to_list args) in
@@ -723,15 +718,13 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
     | (EMAbs(args,t), ST       ) ->
         begin
           match args with
-          | ((x,ao), []   ) ->
-              let fn a = to_prop (unsugar env vars a _sp) in
-              let ao = Option.map fn ao in
+          | (x, []   ) ->
               let fn xx =
                 let xx = (x.pos, Box(S, vari x.pos xx)) in
                 let vars = M.add x.elt xx vars in
                 to_term (unsugar env vars t _st)
               in
-              Box(T, mabs e.pos ao x fn)
+              Box(T, mabs e.pos x fn)
           | (x     , y::xs) ->
               let t = Pos.make e.pos (EMAbs((y,xs),t)) in
               let t = Pos.make e.pos (EMAbs((x,[]),t)) in

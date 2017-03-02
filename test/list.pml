@@ -58,7 +58,7 @@ val map : ∀a b:ο, (a ⇒ b) ⇒ list<a> ⇒ list<b> = fix fun map f l →
   | Nil[] → Nil[]
   | Cns[c] → let hd = f c.hd in
              let tl = map f c.tl in
-             cns hd tl
+             Cns[{hd= hd; tl= tl}]
 
 def total<f:ι,a:ο> : ο = ∀x∈a, ∃v:ι, f x ≡ v
 
@@ -79,25 +79,23 @@ val map_total : ∀a b:ο, ∀f∈(a ⇒ b), total<f,a> ⇒ ∀l∈list<a>, ∃v
         let deduce : map fn ls ≡ cns (fn hd) (map fn tl) = {} in
         {}
 
-val map_map : ∀a b c:ο, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c), total<f,a> ⇒ total<g,b> ⇒
-     ∀l∈list<a>, map g (map f l) ≡ map (fun x → g (f x)) l =
-  fix fun map_map fn gn tf tg ls →
-    case ls of
-    | Nil[] → {}
-    | Cns[c] →
-        let hd = c.hd in
-        let tl = c.tl in
-        let lem = tf hd in
-        let lem = tg (fn hd) in
-        let lem = map_total fn tf tl in
-        let lem = map_total gn tg (map fn tl) in
-        let deduce : map gn (map fn ls) ≡ cns (gn (fn hd)) (map gn (map fn tl)) = {} in
-        let tgf = compose_total fn gn tf tg in
-        let lem = map_total (fun x → gn (fn x)) tgf tl in
-        let deduce : map (fun x → gn (fn x)) ls
-                   ≡ cns (gn (fn hd)) (map (fun x → gn (fn x)) tl) = {}
-        in
-        let show : map gn (map fn tl) ≡ map (fun x → gn (fn x)) tl =
-          map_map fn gn tf tg tl
-        in
-        {}
+//val map_map : ∀a b c:ο, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c), total<f,a> ⇒ total<g,b> ⇒
+//     ∀l∈list<a>, map g (map f l) ≡ map (fun x → g (f x)) l =
+//  fix fun map_map fn gn tf tg ls →
+//    case ls of
+//    | Nil[] → {}
+//    | Cns[c] →
+//        let hd = c.hd in
+//        let tl = c.tl in
+//        let gof = fun x → gn (fn x) in
+//        let tgf = compose_total fn gn tf tg in
+//        let lem : (∃v:ι, map gof tl ≡ v) = map_total gof tgf tl in
+//        let lem = tf hd in
+//        let lem = tg (fn hd) in
+//        let lem = map_total fn tf tl in
+//        let lem = map_total gn tg (map fn tl) in
+//        let deduce : map gn (map fn ls) ≡ cns (gn (fn hd)) (map gn (map fn tl)) = {} in
+//        let lem = tgf hd in
+//        let deduce : map gof ls ≡ cns (gn (fn hd)) (map gof tl) = {} in
+//        let show : map gn (map fn tl) ≡ map gof tl = map_map fn gn tf tg tl in
+//        {}

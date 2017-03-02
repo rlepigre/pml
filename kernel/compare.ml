@@ -67,7 +67,7 @@ let uvar_iter : type a. uvar_fun -> a ex loc -> unit = fun f e ->
     | Valu(v)     -> uvar_iter v
     | Appl(t,u)   -> uvar_iter t; uvar_iter u
     (* NOTE type annotation ignored. *)
-    | MAbs(_,b)   -> buvar_iter b
+    | MAbs(b)     -> buvar_iter b
     | Name(s,t)   -> uvar_iter s; uvar_iter t
     | Proj(v,_)   -> uvar_iter v
     | Case(v,m)   -> let fn _ (_,b) = buvar_iter b in
@@ -105,13 +105,22 @@ let uvars : type a. a ex loc -> s_elt list = fun e ->
   uvar_iter {f} e; !uvars
 
 let uvar_occurs : type a b. a uvar -> b ex loc -> bool = fun u e ->
-  let f _ v = if v.uvar_key == u.uvar_key then raise Exit in
+  let f _ v =
+    if v.uvar_key == u.uvar_key then
+      begin
+        log_equ "Occur check on %d" u.uvar_key;
+        raise Exit
+      end
+  in
   try uvar_iter {f} e; false with Exit -> true
 
 let full_eq = ref false
 
-type oracle = v ex loc -> v ex loc -> bool
-let false_oracle _ _ = false
+type oracle = { eq_valu : valu -> valu -> bool
+              ; is_valu : term -> valu option }
+
+let false_oracle = { eq_valu = (fun _ _ -> false)
+                   ; is_valu = (fun _ -> None) }
 
 let rec apply_oracle : type a b. oracle -> a ex loc -> b ex loc -> bool =
   fun oracle e1 e2 ->
@@ -119,15 +128,15 @@ let rec apply_oracle : type a b. oracle -> a ex loc -> b ex loc -> bool =
   (* FIXME should also works for terms *)
   (* FIXME and for any expression of sort V or T *)
   match (e1.elt, e2.elt) with
-  | (UWit(V,_,_), UWit(V,_,_)) -> oracle e1 e2
-  | (EWit(V,_,_), EWit(V,_,_)) -> oracle e1 e2
-  | (VWit _     , VWit _     ) -> oracle e1 e2
-  | (UWit(V,_,_), EWit(V,_,_)) -> oracle e1 e2
-  | (EWit(V,_,_), UWit(V,_,_)) -> oracle e1 e2
-  | (UWit(V,_,_), VWit _     ) -> oracle e1 e2
-  | (VWit _     , UWit(V,_,_)) -> oracle e1 e2
-  | (EWit(V,_,_), VWit _     ) -> oracle e1 e2
-  | (VWit _     , EWit(V,_,_)) -> oracle e1 e2
+  | (UWit(V,_,_), UWit(V,_,_)) -> oracle.eq_valu e1 e2
+  | (EWit(V,_,_), EWit(V,_,_)) -> oracle.eq_valu e1 e2
+  | (VWit _     , VWit _     ) -> oracle.eq_valu e1 e2
+  | (UWit(V,_,_), EWit(V,_,_)) -> oracle.eq_valu e1 e2
+  | (EWit(V,_,_), UWit(V,_,_)) -> oracle.eq_valu e1 e2
+  | (UWit(V,_,_), VWit _     ) -> oracle.eq_valu e1 e2
+  | (VWit _     , UWit(V,_,_)) -> oracle.eq_valu e1 e2
+  | (EWit(V,_,_), VWit _     ) -> oracle.eq_valu e1 e2
+  | (VWit _     , EWit(V,_,_)) -> oracle.eq_valu e1 e2
   | _ -> false
 
 type eq_t =
@@ -204,7 +213,7 @@ let {eq_expr; eq_bndr} =
     | (Valu(v1)      , Valu(v2)      ) -> eq_expr v1 v2
     | (Appl(t1,u1)   , Appl(t2,u2)   ) -> eq_expr t1 t2 && eq_expr u1 u2
     (* NOTE type annotation ignored. *)
-    | (MAbs(_,b1)    , MAbs(_,b2)    ) -> eq_bndr b1 b2
+    | (MAbs(b1)      , MAbs(b2)      ) -> eq_bndr b1 b2
     | (Name(s1,t1)   , Name(s2,t2)   ) -> eq_expr s1 s2 && eq_expr t1 t2
     | (Proj(v1,l1)   , Proj(v2,l2)   ) -> l1.elt = l2.elt && eq_expr v1 v2
     | (Case(v1,m1)   , Case(v2,m2)   ) ->
@@ -242,11 +251,23 @@ let {eq_expr; eq_bndr} =
     (* FIXME experimental. *)
     | (UVar(_,u1)    , Func({elt = Memb(t,a)}, b))
                    when not strict && uvar_occurs u1 t ->
-        eq_expr e1 (Pos.none (Func(a,b)))
+       eq_expr e1 (Pos.none (Func(a,b)))
     | (UVar(_,u1)    , _             ) when not strict ->
         if uvar_occurs u1 e2 then false else (uvar_set u1 e2; true)
     | (_             , UVar(_,u2)    ) when not strict ->
-        if uvar_occurs u2 e1 then false else (uvar_set u2 e1; true)
+       if uvar_occurs u2 e1 then false else (uvar_set u2 e1; true)
+    | (Valu v1       , _             ) ->
+       begin
+         match oracle.is_valu e2 with
+         | None -> false
+         | Some v2 -> eq_expr v1 v2
+       end
+    | (_              , Valu v2      ) ->
+       begin
+         match oracle.is_valu e1 with
+         | None -> false
+         | Some v1 -> eq_expr v1 v2
+       end
     | _                                -> false))
 
   and eq_bndr : type a b. bool -> oracle -> (a,b) bndr -> (a,b) bndr -> bool =

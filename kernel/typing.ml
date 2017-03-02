@@ -29,21 +29,20 @@ let log_typ = Log.register 't' (Some "typ") "typing informations"
 let log_typ = Log.(log_typ.p)
 
 type ctxt  =
-  { uvar_counter : int
+  { uvarcount    : int ref
   ; equations    : eq_ctxt
   ; positives    : ordi list }
 
 let empty_ctxt =
-  { uvar_counter = 0
+  { uvarcount    = ref 0
   ; equations    = empty_ctxt
   ; positives    = [] }
 
-(* New unification variable of the given sort. *)
-let new_uvar : type a. ctxt -> a sort -> ctxt * a ex loc = fun ctx s ->
-  let i = ctx.uvar_counter in
-  let ctx = {ctx with uvar_counter = i+1} in
+let new_uvar : type a. ctxt -> a sort -> a ex loc = fun ctx s ->
+  let c = ctx.uvarcount in
+  let i = !c in incr c;
   log_uni "?%i : %a" i Print.print_sort s;
-  (ctx, Pos.none (UVar(s, {uvar_key = i; uvar_val = ref None})))
+  Pos.none (UVar(s, {uvar_key = i; uvar_val = ref None}))
 
 type typ_rule =
   | Typ_VTyp   of sub_proof * typ_proof
@@ -105,9 +104,24 @@ let rec learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
       end
   | Exis(s, f) -> let t = EWit(s,twit,f) in
                   learn_equivalences ctx wit (bndr_subst f t)
-  | Prod(fs)   -> ctx (* TODO: wit should be a value
-     M.fold (fun lbl p ctxt ->
-         learn_equivalences ctxt (Pos.none (Proj(wit,lbl))) p) ctxt fs*)
+  | Prod(fs)   ->
+     M.fold (fun lbl (_, b) ctx ->
+         match find_proj ctx.equations.pool (Pos.none (Valu wit)) lbl with
+         | None -> ctx
+         | Some (v,pool) ->
+            let ctx = { ctx with equations = { pool } } in
+            learn_equivalences ctx v b) fs ctx
+  | DSum(fs)   ->
+     begin
+       match find_sum ctx.equations.pool (Pos.none (Valu wit)) with
+       | None -> ctx
+       | Some(s,v,pool) ->
+          try
+            let (_, b) = M.find s fs in
+            let ctx = { ctx with equations = { pool } } in
+            learn_equivalences ctx v b
+          with Not_found -> assert false (* NOTE check *)
+     end
   | _          -> ctx
 
 let term_is_value : term -> ctxt -> bool * ctxt = fun t ctx ->
@@ -128,46 +142,46 @@ let rec get_lam : type a. string -> a sort -> term -> prop -> a ex * prop =
         end
     | _         -> unexpected "Expected ∀ type..."
 
-let rec subtype : ctxt -> term -> prop -> prop -> ctxt * sub_proof =
+let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
   fun ctx t a b ->
     log_sub "%a ∈ %a ⊆ %a" Print.ex t Print.ex a Print.ex b;
     let a = Norm.whnf a in
     let b = Norm.whnf b in
     let (t_is_val, ctx) = term_is_value t ctx in
-    let (ctx, r) =
+    let r =
       match (a.elt, b.elt) with
       (* Same types.  *)
       | _ when eq_expr a b         ->
-          (ctx, Sub_Equal)
+          Sub_Equal
       (* Unfolding of definitions. *)
       | (HDef(_,d)  , _          ) ->
-          let (ctx, (_, _, _, r)) = subtype ctx t d.expr_def b in (ctx, r)
+          let (_, _, _, r) = subtype ctx t d.expr_def b in r
       | (_          , HDef(_,d)  ) ->
-          let (ctx, (_, _, _, r)) = subtype ctx t a d.expr_def in (ctx, r)
+          let (_, _, _, r) = subtype ctx t a d.expr_def in r
       (* Arrow types. *)
       | (Func(a1,b1), Func(a2,b2)) when t_is_val ->
           let fn x = appl None (box t) (valu None (vari None x)) in
           let f = (None, unbox (vbind mk_free "x" fn)) in
           let wit = Pos.none (Valu(Pos.none (VWit(f,a2,b2)))) in
-          let (ctx, p2) = subtype ctx (Pos.none (Appl(t, wit))) b1 b2 in
-          let (ctx, p1) = subtype ctx wit a2 a1 in
-          (ctx, Sub_Func(p1,p2))
+          let p2 = subtype ctx (Pos.none (Appl(t, wit))) b1 b2 in
+          let p1 = subtype ctx wit a2 a1 in
+          Sub_Func(p1,p2)
       (* Product (record) types. *)
       | (Prod(fs1)  , Prod(fs2)  ) when t_is_val ->
-          let check_field l (p,a2) (ctx,ps) =
+          let check_field l (p,a2) ps =
             let a1 =
               try snd (M.find l fs1) with Not_found ->
               subtype_error p ("Product clash on label " ^ l ^ "...")
             in
             let t = unbox (t_proj None (box t) (Pos.none l)) in
-            let (ctx, p) = subtype ctx t a1 a2 in
-            (ctx, p::ps)
+            let p = subtype ctx t a1 a2 in
+            p::ps
           in
-          let (ctx, ps) = M.fold check_field fs2 (ctx,[]) in
-          (ctx, Sub_Prod(ps))
+          let ps = M.fold check_field fs2 [] in
+          Sub_Prod(ps)
       (* Disjoint sum types. *)
       | (DSum(cs1)  , DSum(cs2)  ) when t_is_val ->
-          let check_variant c (p,a1) (ctx,ps) =
+          let check_variant c (p,a1) ps =
             let a2 =
               try snd (M.find c cs2) with Not_found ->
               subtype_error p ("Sum clash on constructor " ^ c ^ "...")
@@ -177,50 +191,41 @@ let rec subtype : ctxt -> term -> prop -> prop -> ctxt * sub_proof =
               let id = (None, Pos.none "x", f) in
               unbox (t_case None (box t) (M.singleton c id))
             in
-            let (ctx, p) = subtype ctx t a1 a2 in
-            (ctx, p::ps)
+            let p = subtype ctx t a1 a2 in
+            p::ps
           in
-          let (ctx, ps) = M.fold check_variant cs1 (ctx,[]) in
-          (ctx, Sub_DSum(ps))
+          let ps = M.fold check_variant cs1 [] in
+          Sub_DSum(ps)
       (* Universal quantification on the right. *)
       | (_          , Univ(s,f)  ) ->
          if t_is_val then
-           let (ctx, p) = subtype ctx t a (bndr_subst f (UWit(s,t,f))) in
-           (ctx, Sub_Univ_r(p))
+           Sub_Univ_r(subtype ctx t a (bndr_subst f (UWit(s,t,f))))
          else
            gen_subtype ctx a b
       (* Existential quantification on the left. *)
       | (Exis(s,f)  , _          ) ->
          if t_is_val then
-           let (ctx, p) = subtype ctx t (bndr_subst f (EWit(s,t,f))) b in
-           (ctx, Sub_Exis_l(p))
+           let wit = EWit(s,t,f) in
+           Sub_Exis_l(subtype ctx t (bndr_subst f wit) b)
          else
            gen_subtype ctx a b
       (* Universal quantification on the left. *)
       | (Univ(s,f)  , _          ) ->
-          let (ctx, u) = new_uvar ctx s in
-          let (ctx, p) = subtype ctx t (bndr_subst f u.elt) b in
-          (ctx, Sub_Univ_l(p))
+          let u = new_uvar ctx s in
+          Sub_Univ_l(subtype ctx t (bndr_subst f u.elt) b)
       (* Existential quantification on the right. *)
       | (_          , Exis(s,f)  ) ->
-          let (ctx, u) = new_uvar ctx s in
-          let (ctx, p) = subtype ctx t a (bndr_subst f u.elt) in
-          (ctx, Sub_Exis_r(p))
+          let u = new_uvar ctx s in
+          Sub_Exis_r(subtype ctx t a (bndr_subst f u.elt))
       (* Membership on the left. *)
       | (Memb(u,c)  , _          ) ->
          if t_is_val then
            try
              let equations = learn ctx.equations (t,true,u) in
-             let (ctx, p) = subtype {ctx with equations} t c b in
-             (ctx, Sub_Memb_l(Some p))
-           with Contradiction -> (ctx, Sub_Memb_l(None))
+             Sub_Memb_l(Some(subtype {ctx with equations} t c b))
+           with Contradiction -> Sub_Memb_l(None)
          (* NOTE may need a backtrack because a right rule could work *)
          else gen_subtype ctx a b
-      (* Membership on the right. *)
-      | (_          , Memb(u,b)  ) when t_is_val ->
-          let equations = prove ctx.equations (t,true,u) in
-          let (ctx, p) = subtype {ctx with equations} t a b in
-          (ctx, Sub_Memb_r(p))
       (* Restriction on the left. *)
       | (Rest(c,e)  , _          ) ->
           if t_is_val then
@@ -229,69 +234,61 @@ let rec subtype : ctxt -> term -> prop -> prop -> ctxt * sub_proof =
                begin
                  try
                    let equations = learn ctx.equations eq in
-                   let (ctx, p) = subtype {ctx with equations} t c b in
-                   (ctx, Sub_Rest_l(Some p))
-                 with Contradiction -> (ctx, Sub_Rest_l(None))
+                   Sub_Rest_l(Some(subtype {ctx with equations} t c b))
+                 with Contradiction -> Sub_Rest_l(None)
                end
             | Posit(o)  ->
                assert false (* TODO *)
           (* NOTE may need a backtrack because a right rule could work *)
           else gen_subtype ctx a b
+      (* Membership on the right. *)
+      | (_          , Memb(u,b)  ) when t_is_val ->
+          let equations = prove ctx.equations (t,true,u) in
+          Sub_Memb_r(subtype {ctx with equations} t a b)
       (* Restriction on the right. *)
       | (_          , Rest(b,c)  ) ->
-          begin
+          begin  (* FIXME: contradiction poss, if ineq ? *)
             match c with
             | Equiv(eq) ->
                 let equations = prove ctx.equations eq in
-                let (ctx, p) = subtype {ctx with equations} t a b in
-                (ctx, Sub_Rest_r(p))
+                Sub_Rest_r(subtype {ctx with equations} t a b)
             | Posit(o)  ->
                 assert false (* TODO *)
           end
       (* Mu, Nu infinite case. *)
       | (_          , FixM({ elt = Conv },f)) ->
-         let (ctx, p) = subtype ctx t a (bndr_subst f b.elt) in
-         (ctx, Sub_FixM_i(p))
-
+         Sub_FixM_i(subtype ctx t a (bndr_subst f b.elt))
       | (FixN({ elt = Conv },f), _) ->
-         let (ctx, p) = subtype ctx t (bndr_subst f a.elt) b in
-         (ctx, Sub_FixN_i(p))
-
+         Sub_FixN_i(subtype ctx t (bndr_subst f a.elt) b)
       (* Mu, Nu tempory wrong rules FIXME . *)
       | (_          , FixN({ elt = Conv },f)) ->
-         let (ctx, p) = subtype ctx t a (bndr_subst f b.elt) in
-         (ctx, Sub_FixN_i(p))
-
+         Sub_FixN_i(subtype ctx t a (bndr_subst f b.elt))
       | (FixM({ elt = Conv },f), _) ->
-         let (ctx, p) = subtype ctx t (bndr_subst f a.elt) b in
-         (ctx, Sub_FixM_i(p))
-
+         Sub_FixM_i(subtype ctx t (bndr_subst f a.elt) b)
       (* Fallback to general witness. *)
       | (_          , _          ) when not t_is_val ->
          gen_subtype ctx a b
-
       (* No rule apply. *)
       | _                          ->
           err_msg "cannot show %a ∈ %a ⊆ %a\n%!"
             Print.ex t Print.ex a Print.ex b;
           exit 1
     in
-    (ctx, (t, a, b, r))
+    (t, a, b, r)
 
-and gen_subtype : ctxt -> prop -> prop -> ctxt * sub_rule =
+and gen_subtype : ctxt -> prop -> prop -> sub_rule =
   fun ctx a b ->
     let wit =
       let f = bndr_from_fun "x" (fun x -> Valu(Pos.none x)) in
       Pos.none (Valu(Pos.none (VWit(f, a, b))))
     in
-    let (ctx, p) = subtype ctx wit a b in
-    (ctx, Sub_Gene(p))
+    Sub_Gene(subtype ctx wit a b)
 
-and type_valu : ctxt -> valu -> prop -> ctxt * typ_proof = fun ctx v c ->
+and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
   let v = Norm.whnf v in
   let t = Pos.make v.pos (Valu(v)) in
   log_typ "(val) %a : %a" Print.ex v Print.ex c;
-  let (ctx, r) =
+  let r =
     match v.elt with
     (* λ-abstraction. *)
     | LAbs(ao,f)  ->
@@ -303,79 +300,79 @@ and type_valu : ctxt -> valu -> prop -> ctxt * typ_proof = fun ctx v c ->
             assert(eq_vars x y);
             (* x must not be free in t *)
             let b = Pos.none (Func(c,c)) in
-            let (ctx, p) = type_term ctx t b in
-            (ctx, Typ_FixY(p))
+            let p = type_term ctx t b in
+            Typ_FixY(p)
          (* General case for typing λ-abstraction *)
          | _ ->
-            let (ctx, a) =
+            let a =
               match ao with
               | None   -> new_uvar ctx P
-              | Some a -> (ctx, a)
+              | Some a -> a
             in
-            let (ctx, b) = new_uvar ctx P in
+            let b = new_uvar ctx P in
             let c' = Pos.none (Func(a,b)) in
             (* TODO NuRec ? *)
-            let (ctx, p1) = subtype ctx t c' c in
+            let p1 = subtype ctx t c' c in
             let wit = VWit(f, a, b) in
             (* Learn the equivalence that are valid in the witness. *)
             begin
               try
                 let ctx = learn_equivalences ctx (Pos.none wit) a in
-                let (ctx, p2) = type_term ctx (bndr_subst f wit) b in
-                (ctx, Typ_Func_i(p1,Some p2))
-              with Contradiction -> (ctx, Typ_Func_i(p1, None))
+                let p2 = type_term ctx (bndr_subst f wit) b in
+                Typ_Func_i(p1,Some p2)
+              with Contradiction -> Typ_Func_i(p1, None)
             end
        end
     (* Constructor. *)
     | Cons(d,v)   ->
-        let (ctx, a) = new_uvar ctx P in
+        let a = new_uvar ctx P in
         let c' = Pos.none (DSum(M.singleton d.elt (None, a))) in
         (* TODO NuRec ? *)
-        let (ctx, p1) = subtype ctx t c' c in
-        let (ctx, p2) = type_valu ctx v a in
-        (ctx, Typ_DSum_i(p1,p2))
+        let p1 = subtype ctx t c' c in
+        let p2 = type_valu ctx v a in
+        Typ_DSum_i(p1,p2)
     (* Record. *)
     | Reco(m)     ->
-        let fn l _ (ctx, m) =
-          let (ctx,a) = new_uvar ctx P in
-          (ctx, M.add l (None, a) m)
+        let fn l _ m =
+          let a = new_uvar ctx P in
+          M.add l (None, a) m
         in
-        let (ctx, pm) = M.fold fn m (ctx, M.empty) in
+        let pm = M.fold fn m M.empty in
         let c' = Pos.none (Prod(pm)) in
         (* TODO NuRec ? *)
-        let (ctx, p1) = subtype ctx t c' c in
-        let fn l (p, v) (ctx, ps) =
+        let p1 = subtype ctx t c' c in
+        let fn l (p, v) ps =
           log_typ "Checking case %s." l;
           let (_,a) = M.find l pm in
-          let (ctx,p) = type_valu ctx v a in
-          (ctx, p::ps)
+          let p = type_valu ctx v a in
+          p::ps
         in
-        let (ctx, p2s) = M.fold fn m (ctx, []) in
-        (ctx, Typ_Prod_i(p1,p2s))
+        let p2s = M.fold fn m [] in
+        Typ_Prod_i(p1,p2s)
     (* Scissors. *)
     | Scis        ->
         type_error v.pos "Reachable scissors..."
     (* Coercion. *)
     | VTyp(v,a)   ->
-        let (ctx, p1) = subtype ctx (Pos.make v.pos (Valu(v))) a c in
-        let (ctx, p2) = type_valu ctx v a in
-        (ctx, Typ_VTyp(p1,p2))
+        let p1 = subtype ctx (Pos.make v.pos (Valu(v))) a c in
+        let p2 = type_valu ctx v a in
+        Typ_VTyp(p1,p2)
     (* Type abstraction. *)
     | VLam(s,b)   ->
         let (w, c) = get_lam (bndr_name b).elt s t c in
-        let (ctx, p) = type_valu ctx (bndr_subst b w) c in
-        (ctx, Typ_VLam(p))
+        let p = type_valu ctx (bndr_subst b w) c in
+        Typ_VLam(p)
     (* Witness. *)
     | VWit(_,a,_) ->
-        let (ctx, p) = subtype ctx t a c in
-        (ctx, Typ_VWit(p))
+        let p = subtype ctx t a c in
+        Typ_VWit(p)
     (* Definition. *)
     | HDef(_,d)   ->
-        let (ctx, (_, _, r)) = type_valu ctx d.expr_def c in (ctx, r)
+        let (_, _, r) = type_valu ctx d.expr_def c in r
     (* Value definition. *)
     | VDef(d)     ->
-        let (ctx, p) = subtype ctx t d.value_type c in
-        (ctx, Typ_VDef(d,p))
+        let p = subtype ctx t d.value_type c in
+        Typ_VDef(d,p)
     (* Constructors that cannot appear in user-defined terms. *)
     | UWit(_,_,_) -> unexpected "∀-witness during typing..."
     | EWit(_,_,_) -> unexpected "∃-witness during typing..."
@@ -385,54 +382,47 @@ and type_valu : ctxt -> valu -> prop -> ctxt * typ_proof = fun ctx v c ->
     | Dumm        -> unexpected "Dummy value during typing..."
     | ITag(_)     -> unexpected "ITag during typing..."
  in
-  (ctx, (Pos.make v.pos (Valu(v)), c, r))
+  (Pos.make v.pos (Valu(v)), c, r)
 
-and type_term : ctxt -> term -> prop -> ctxt * typ_proof = fun ctx t c ->
+and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
   log_typ "(trm) %a : %a" Print.ex t Print.ex c;
-  let (ctx, r) =
+  let r =
     match (Norm.whnf t).elt with
     (* Value. *)
     | Valu(v)     ->
-       let (ctx, (_, _, r)) = type_valu ctx v c in (ctx, r)
+       let (_, _, r) = type_valu ctx v c in r
 
     (* Application or strong application. *)
     | Appl(t,u)   ->
-       let (ctx, a) = new_uvar ctx P in
-       let (ctx, p2) = type_term ctx u a in
+       let a = new_uvar ctx P in
+       let p2 = type_term ctx u a in
        let (is_val, ctx) = term_is_value u ctx in
        let ae = if is_val then Pos.none (Memb(u, a)) else a in
-       let (ctx, p1) = type_term ctx t (Pos.none (Func(ae,c))) in
-       (ctx, if is_val then Typ_Func_s(p1,p2) else Typ_Func_e(p1,p2))
+       let p1 = type_term ctx t (Pos.none (Func(ae,c))) in
+       if is_val then Typ_Func_s(p1,p2) else Typ_Func_e(p1,p2)
 
     (* μ-abstraction. *)
-    | MAbs(ao,b)  ->
-        let (ctx, a) =
-          match ao with
-          | None   -> new_uvar ctx P
-          | Some a -> (ctx, a)
-        in
+    | MAbs(b)  ->
         let t = bndr_subst b (SWit(b,c)) in
-        let (ctx, p) = type_term ctx t c in
-        (ctx, Typ_Mu(p))
+        Typ_Mu(type_term ctx t c)
     (* Named term. *)
     | Name(pi,t)  ->
-        let (ctx, a) = new_uvar ctx P in
-        let (ctx, p1) = type_term ctx t a in
-        let (ctx, p2) = type_stac ctx pi a in
-        (ctx, Typ_Name(p1,p2))
+        let a = new_uvar ctx P in
+        let p1 = type_term ctx t a in
+        let p2 = type_stac ctx pi a in
+        Typ_Name(p1,p2)
     (* Projection. *)
     | Proj(v,l)   ->
         let c = Pos.none (Prod(M.singleton l.elt (None, c))) in
-        let (ctx, p) = type_valu ctx v c in
-        (ctx, Typ_Prod_e(p))
+        Typ_Prod_e(type_valu ctx v c)
     (* Case analysis. *)
     | Case(v,m)   ->
-        let fn d (p,_) (m, ctx) =
-          let (ctx, a) = new_uvar ctx P in
-          (M.add d (p,a) m, ctx)
+        let fn d (p,_) m =
+          let a = new_uvar ctx P in
+          M.add d (p,a) m
         in
-        let (ts, ctx) = M.fold fn m (M.empty, ctx) in
-        let (ctx, p) = type_valu ctx v (Pos.none (DSum(ts))) in
+        let ts = M.fold fn m M.empty in
+        let p = type_valu ctx v (Pos.none (DSum(ts))) in
         let check d (p,f) ps =
           log_typ "Checking case %s." d;
           let (_,a) = M.find d ts in
@@ -445,7 +435,7 @@ and type_term : ctxt -> term -> prop -> ctxt * typ_proof = fun ctx t c ->
             in
             let ctx = {ctx with equations = learn ctx.equations eq} in
             let ctx = learn_equivalences ctx wit a in
-            (fun () -> snd (type_term ctx t c) :: ps)
+            (fun () -> type_term ctx t c :: ps)
           with Contradiction ->
              if not (is_scis t) then
                begin
@@ -457,30 +447,23 @@ and type_term : ctxt -> term -> prop -> ctxt * typ_proof = fun ctx t c ->
              (fun () -> (t,c,Typ_Scis)::ps)) ()
         in
         let ps = M.fold check m [] in
-        (ctx, Typ_DSum_e(p,List.rev ps))
+        Typ_DSum_e(p,List.rev ps)
     (* Fixpoint. FIXME temporary code *)
     | FixY(t,v)   ->
-       assert false (*
-       let (ctx, va) = new_uvar ctx P in
-       let a = Pos.none (Memb(Pos.none (Valu(v)),va)) in
-       let b1 = Pos.none (Func(va,c)) in
-       let b2 = Pos.none (Func(a,c)) in
-       let (ctx, p2) = type_valu ctx v a in
-       let (ctx, p1) = type_term ctx t (Pos.none (Func(b1,b2))) in
-       (ctx, Typ_FixY(p1,p2))*)
+       assert false (* FIXME prevent by parsing *)
     (* Coercion. *)
     | TTyp(t,a)   ->
-        let (ctx, p1) = subtype ctx t a c in
-        let (ctx, p2) = type_term ctx t a in
-        (ctx, Typ_TTyp(p1,p2))
+        let p1= subtype ctx t a c in
+        let p2 = type_term ctx t a in
+        Typ_TTyp(p1,p2)
     (* Type abstraction. *)
     | TLam(s,b)   ->
         let (w, c) = get_lam (bndr_name b).elt s t c in
-        let (ctx, p) = type_term ctx (bndr_subst b w) c in
-        (ctx, Typ_TLam(p))
+        let p = type_term ctx (bndr_subst b w) c in
+        Typ_TLam(p)
     (* Definition. *)
     | HDef(_,d)   ->
-        let (ctx, (_, _, r)) = type_term ctx d.expr_def c in (ctx, r)
+        let (_, _, r) = type_term ctx d.expr_def c in r
     (* Constructors that cannot appear in user-defined terms. *)
     | UWit(_,_,_) -> unexpected "∀-witness during typing..."
     | EWit(_,_,_) -> unexpected "∃-witness during typing..."
@@ -490,38 +473,37 @@ and type_term : ctxt -> term -> prop -> ctxt * typ_proof = fun ctx t c ->
     | Dumm        -> unexpected "Dummy value during typing..."
     | ITag(_)     -> unexpected "ITag during typing..."
   in
-  (ctx, (t, c, r))
+  (t, c, r)
 
-and type_stac : ctxt -> stac -> prop -> ctxt * stk_proof = fun ctx s c ->
+and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
   log_typ "(stk) %a : %a" Print.ex s Print.ex c;
-  let (ctx, r) =
+  let r =
     match (Norm.whnf s).elt with
     | Push(v,pi)  ->
-        let (ctx, a) = new_uvar ctx P in
-        let (ctx, b) = new_uvar ctx P in
+        let a = new_uvar ctx P in
+        let b = new_uvar ctx P in
         let wit =
           let f = bndr_from_fun "x" (fun x -> Valu(Pos.none x)) in
           Pos.none (Valu(Pos.none (VWit(f, a, b))))
         in
-        let (ctx, p1) = subtype ctx wit (Pos.none (Func(a,b))) c in
-        let (ctx, p2) = type_valu ctx v a in
-        let (ctx, p3) = type_stac ctx pi b in
-        (ctx, Stk_Push(p1,p2,p3))
+        let p1 = subtype ctx wit (Pos.none (Func(a,b))) c in
+        let p2 = type_valu ctx v a in
+        let p3 = type_stac ctx pi b in
+        Stk_Push(p1,p2,p3)
     | Fram(t,pi)  ->
-        let (ctx, a) = new_uvar ctx P in
-        let (ctx, p1) = type_term ctx t (Pos.none (Func(c,a))) in
-        let (ctx, p2) = type_stac ctx pi a in
-        (ctx, Stk_Fram(p1,p2))
+        let a = new_uvar ctx P in
+        let p1 = type_term ctx t (Pos.none (Func(c,a))) in
+        let p2 = type_stac ctx pi a in
+        Stk_Fram(p1,p2)
     | SWit(_,a)   ->
         let wit =
           let f = bndr_from_fun "x" (fun x -> Valu(Pos.none x)) in
           Pos.none (Valu(Pos.none (VWit(f, a, c))))
         in
-        let (ctx, p) = subtype ctx wit c a in
-        (ctx, Stk_SWit(p))
+         Stk_SWit(subtype ctx wit c a)
     (* Definition. *)
     | HDef(_,d)   ->
-        let (ctx, (_, _, r)) = type_stac ctx d.expr_def c in (ctx, r)
+        let (_, _, r) = type_stac ctx d.expr_def c in r
     (* Constructors that cannot appear in user-defined stacks. *)
     | Epsi        -> unexpected "Empty stack during typing..."
     | UWit(_,_,_) -> unexpected "∀-witness during typing..."
@@ -532,7 +514,7 @@ and type_stac : ctxt -> stac -> prop -> ctxt * stk_proof = fun ctx s c ->
     | Dumm        -> unexpected "Dummy value during typing..."
     | ITag(_)     -> unexpected "Tag during typing..."
   in
-  (ctx, (s, c, r))
+  (s, c, r)
 
 let bind_uvar : type a. a sort -> a uvar -> prop -> (a, p) bndr =
   let rec fn : type a b. a sort -> b sort -> a uvar -> b ex loc
@@ -583,8 +565,7 @@ let bind_uvar : type a. a sort -> a uvar -> prop -> (a, p) bndr =
       | VDef(_)     -> box e (* NOTE no unification variables in defs. *)
       | Valu(v)     -> valu e.pos (fn sa V uv v x)
       | Appl(t,u)   -> appl e.pos (fn sa T uv t x) (fn sa T uv u x)
-      | MAbs(ao,b)  -> mabs e.pos (Option.map (fun a -> fn sa P uv a x) ao)
-                         (bndr_name b)
+      | MAbs(b)     -> mabs e.pos (bndr_name b)
                          (fun y -> fn sa T uv (bndr_subst b (mk_free y)) x)
       | Name(s,t)   -> name e.pos (fn sa S uv s x) (fn sa T uv t x)
       | Proj(v,l)   -> proj e.pos (fn sa V uv v x) l
@@ -632,12 +613,12 @@ let bind_uvar : type a. a sort -> a uvar -> prop -> (a, p) bndr =
 
 let type_check : term -> prop option -> prop * typ_proof = fun t ao ->
   let ctx = empty_ctxt in
-  let (ctx, a) =
+  let a =
     match ao with
     | None   -> new_uvar ctx P
-    | Some a -> (ctx, a)
+    | Some a -> a
   in
-  let (ctx, prf) = type_term ctx t a in
+  let prf = type_term ctx t a in
   let bind_uvar a (U(s,u)) = Pos.none (Univ(s, bind_uvar s u a)) in
   let a = List.fold_left bind_uvar a (uvars a) in
   (Norm.whnf a, prf)

@@ -32,14 +32,11 @@ val sorted_total : ∀a:ο, ∀o∈order<a>, ∀l∈list<a>, ∃v:ι, v ≡ sort
        let hd2 = c2.hd in
        let tl2 = c2.tl in
        let ind : (∃v:ι, v ≡ sorted o tl) = sorted_total o tl in
-       let lem : l ≡ cns hd (cns hd2 tl2) = {} in
-       let lem : (λx.x) (sorted o tl) ≡ sorted o tl = {} in
        let lem = o.tmp hd hd2 in
        (case o.cmp hd hd2 of
        | T[] →
           let lem : o.cmp hd hd2 ≡ tru = {} in
           let lem : sorted o l ≡ sorted o tl = {} in
-          let ind : (∃v:ι, v ≡ sorted o tl) = sorted_total o tl in //???
           {}
        | F[] →
           let lem : o.cmp hd hd2 ≡ fls = {} in

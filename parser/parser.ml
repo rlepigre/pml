@@ -201,10 +201,10 @@ let parser expr (m : mode) =
       -> let f = ELAbs(((id, a), []), u) in
          in_pos _loc (EAppl(Pos.none f, t))
   (* Term (mu abstraction) *)
-  | _save_ args:fun_arg+ arrow t:(expr (`Trm`F))
+  | _save_ args:llid+ arrow t:(expr (`Trm`F))
       when m = `Trm`F
       -> in_pos _loc (EMAbs((List.hd args, List.tl args),t))
-  | "μ" args:fun_arg+ "." t:(expr (`Trm`F))
+  | "μ" args:llid+ "." t:(expr (`Trm`F))
       when m = `Trm`F
       -> in_pos _loc (EMAbs((List.hd args, List.tl args),t))
   (* Term (name) *)
