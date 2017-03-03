@@ -135,14 +135,15 @@ let parser expr (m : mode) =
       when m = `Prp`A
       -> in_pos _loc (EDSum(fs))
   (* Proposition (universal quantification) *)
-  | "∀" x:llid xs:llid* ':' s:sort ',' a:(expr (`Prp`F))
+  | "∀" x:llid xs:llid* s:{':' s:sort}?[Pos.none SP] ',' a:(expr (`Prp`F))
       when m = `Prp`F
       -> in_pos _loc (EUniv((x,xs),s,a))
+  (* Dependent function type. *)
   | "∀" x:llid xs:llid* "∈" a:(expr (`Prp`F)) ',' b:(expr (`Prp`F))
       when m = `Prp`F
       -> euniv_in _loc x xs a b
   (* Proposition (existential quantification) *)
-  | "∃" x:llid xs:llid* ':' s:sort ',' a:(expr (`Prp`F))
+  | "∃" x:llid xs:llid* s:{':' s:sort}?[Pos.none SP] ',' a:(expr (`Prp`F))
       when m = `Prp`F
       -> in_pos _loc (EExis((x,xs),s,a))
   (* Proposition (least fixpoint) *)
