@@ -246,6 +246,7 @@ let too_many_args : strloc -> 'a =
   fun s -> raise (Too_many_args(s))
 
 let rec eq_sort : env -> raw_sort -> raw_sort -> bool = fun env s1 s2 ->
+  log_par "eq_sort %a %a" print_raw_sort s1 print_raw_sort s2;
   match ((sort_repr env s1).elt, (sort_repr env s2).elt) with
   | (SV         , SV         ) -> true
   | (ST         , ST         ) -> true
@@ -286,10 +287,10 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
               | _                -> assert false
             in
             infer_args args ss;
+            if not (eq_sort env sx s) then
             let sx_is_v = unsugar_sort env sx = Sort V in
             let s_is_t  = unsugar_sort env s  = Sort T in
-            if not (eq_sort env sx s) && not (sx_is_v && s_is_t) then
-              sort_clash e s
+            if not (sx_is_v && s_is_t) then sort_clash e s
           with Not_found ->
             try
               ignore (find_value x.elt env);
