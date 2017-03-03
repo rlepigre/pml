@@ -528,7 +528,7 @@ let to_valu : boxed -> v box = sort_filter V
 let to_term : boxed -> t box = fun e ->
   match e with
   | Box(T,e) -> e
-  | Box(V,e) -> valu None e
+  | Box(V,e) -> valu (unbox e).pos e
   | _        -> assert false
 
 let to_stac : boxed -> s box = sort_filter S
@@ -702,8 +702,23 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
         Box(V, reco e.pos m)
     | (EScis        , SV       ) -> Box(V, scis e.pos)
     (* Values as terms. *)
+    | (ECons(c,vo)  , ST       ) ->
+        begin
+          match vo with
+          | Some (t,{contents = `T}) ->
+              begin
+                (* Syntactic sugar. *)
+                let t = to_term (unsugar env vars t _st) in
+                Box(T, t_cons e.pos c t)
+              end
+          | _                        ->
+              begin
+                match unsugar env vars e _sv with
+                | Box(V,v) -> Box(T, valu e.pos v)
+                | _        -> assert false
+              end
+        end
     | (ELAbs(_,_)   , ST       )
-    | (ECons(_,_)   , ST       )
     | (EReco(_)     , ST       )
     | (EScis        , ST       ) ->
         begin

@@ -309,6 +309,13 @@ let t_case : popt -> tbox -> (popt * strloc * (vvar -> tbox)) M.t -> tbox =
     let u = valu pos (labs pos None (Pos.none "x") f) in
     appl pos u t
 
+(** Syntactic sugar for a constructor applied to a term. *)
+let t_cons : popt -> strloc -> tbox -> tbox =
+  fun pos c t ->
+    let f x = valu pos (cons pos c (vari None x)) in
+    let u = valu pos (labs pos None (Pos.none "x") f) in
+    appl pos u t
+
 (** {5 Stack constructors} *)
 
 let s_vari : popt -> svar -> sbox = vari
