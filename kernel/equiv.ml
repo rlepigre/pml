@@ -612,11 +612,14 @@ let rec normalise : ?update:bool -> TPtr.t -> pool -> Ptr.t * pool = fun ?(updat
               match snd (VPtrMap.find pv po.vs) with
               | VN_Cons(c,pv) ->
                   begin
-                    let (pv, po) = find_valu pv po in
-                    let (v, po) = canonical_valu pv po in
-                    let t = bndr_subst (M.find c.elt m) v.elt in
-                    let (tp, po) = add_term po t in
-                    normalise tp po
+                    try
+                      let (pv, po) = find_valu pv po in
+                      let (v, po) = canonical_valu pv po in
+                      let t = bndr_subst (M.find c.elt m) v.elt in
+                      let (tp, po) = add_term po t in
+                      normalise tp po
+                    with
+                      Not_found -> (p, po)
                   end
               | _            -> (p, po)
             end
