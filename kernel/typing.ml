@@ -152,6 +152,8 @@ let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
       match (a.elt, b.elt) with
       (* Same types.  *)
       | _ when eq_expr a b         ->
+          log_sub "reflexivity applies";
+          log_sub "%a ∈ %a ⊆ %a" Print.ex t Print.ex a Print.ex b;
           Sub_Equal
       (* Unfolding of definitions. *)
       | (HDef(_,d)  , _          ) ->

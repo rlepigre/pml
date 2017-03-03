@@ -32,7 +32,6 @@ let rec print_sort : type a. a sort printer = fun ch s ->
 let print_full = ref false
 
 let print_ex : type a. a ex loc printer = fun ch e ->
-  let e = Norm.repr e in
   let adone = Ahash.create 101 in
   let test_done e =
     if Ahash.mem adone (Obj.repr e) then true
@@ -51,6 +50,7 @@ let print_ex : type a. a ex loc printer = fun ch e ->
   in
   let is_unit a = match a.elt with Prod(m) -> M.is_empty m | _ -> false in
   let rec print_ex : type a. a ex loc printer = fun ch e ->
+    let e = Norm.repr e in
     if test_done e && !print_full then output_string ch "..." else
     match e.elt with
     | Vari(x)     -> output_string ch (name_of x)

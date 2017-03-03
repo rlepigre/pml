@@ -293,9 +293,7 @@ let {eq_expr; eq_bndr} =
                           -> (a,b) bndr -> (a,b) bndr -> bool =
     fun ?(strict=false) ?(oracle=false_oracle) b1 b2 ->
       c := -1; (* Reset. *)
-      log_equ "entering eq_bndr (use oracle %b)" (oracle != false_oracle);
       let res = Timed.pure_test (eq_bndr strict oracle b1) b2 in
-      log_equ "leaving eq_bndr";
       res
   in
   {eq_expr; eq_bndr}

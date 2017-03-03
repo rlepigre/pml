@@ -728,19 +728,26 @@ and union : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
         | (_              , _              ) -> join p1 p2 po
       end
 
+(* Log functions registration. *)
+let log_ora = Log.register 'o' (Some "ora") "oracle informations"
+let log_ora = Log.(log_ora.p)
+
 let oracle : pool -> oracle = fun po ->
   let eq_valu = fun t u ->
-    log_edp "entiring oracle.eq_valu";
+    log_ora "entiring oracle.eq_valu";
     let (pt, pool) = add_valu po t in
     let (pu, pool) = add_valu po u in
     log_edp "insertion at %a and %a" VPtr.print pt VPtr.print pu;
     log_edp "obtained context:\n%a" (print_pool "        ") pool;
     let (pt, po) = find_valu pt po in
     let (pu, po) = find_valu pu po in
-    VPtr.compare pt pu = 0
+    let res = VPtr.compare pt pu = 0 in
+    log_ora "%a === %a : %b" Print.print_ex t Print.print_ex u res;
+    res
+
   in
   let is_valu = fun t ->
-    log_edp "entiring oracle.is_valu";
+    log_ora "entiring oracle.is_valu";
     let (pt, pool) = add_term po t in
     let (pt, pool) = normalise pt po in
     let res = match pt with
@@ -748,7 +755,7 @@ let oracle : pool -> oracle = fun po ->
          Some(fst (canonical_valu vp po))
       | Ptr.T_ptr(_) -> None
     in
-    log_edp "%a is a value: %b" Print.print_ex t (res <> None);
+    log_ora "%a is a value: %b" Print.print_ex t (res <> None);
     res
   in
   { eq_valu; is_valu }
