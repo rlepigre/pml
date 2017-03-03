@@ -7,14 +7,18 @@ type bool = [Tru ; Fls]
 val tru : bool = Tru[]
 val fls : bool = Fls[]
 
-def if<c:τ,t:τ,e:τ> : τ =
+// More usual names for the booleans.
+val true  : bool = Tru[]
+val false : bool = Fls[]
+
+def cond<c:τ,t:τ,e:τ> : τ =
   case c of
   | Tru[] → t
   | Fls[] → e
 
-val and : bool ⇒ bool ⇒ bool = fun a b → if<a, b, fls>
+val and : bool ⇒ bool ⇒ bool = fun a b → cond<a, b, fls>
 
-val or  : bool ⇒ bool ⇒ bool = fun a b → if<a, tru, b>
+val or  : bool ⇒ bool ⇒ bool = fun a b → cond<a, tru, b>
 
 // Option type.
 type option<a:ο> = [None ; Some of a]

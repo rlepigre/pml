@@ -64,6 +64,9 @@ let _fix_     = KW.new_keyword "fix"
 let _rec_     = KW.new_keyword "rec"
 let _let_     = KW.new_keyword "let"
 let _in_      = KW.new_keyword "in"
+let _if_      = KW.new_keyword "if"
+let _then_    = KW.new_keyword "then"
+let _else_    = KW.new_keyword "else"
 
 let parser elipsis = "⋯" | "..."
 
@@ -222,6 +225,10 @@ let parser expr (m : mode) =
   | "[" "?" t:(expr (`Trm`F)) ps:pattern* "]"
       when m = `Trm`A
       -> in_pos _loc (ECase(t, ref `T, ps))
+  (* Term (conditional) *)
+  | _if_ c:(expr (`Trm`F)) _then_ t:(expr (`Trm`F)) _else_ e:(expr (`Trm`F)) 
+      when m = `Trm`A
+      -> if_then_else _loc c t e
   (* Term (fixpoint) *)
   | _fix_ t:(expr (`Trm`F))
       when m = `Trm`F

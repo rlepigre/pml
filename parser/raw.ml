@@ -826,3 +826,6 @@ let euniv_in _loc x xs a b =
     p (EFunc(p (EMemb(p (EVari(x,[])), a)), c))) (x::xs) b
   in
   p (EUniv((x,xs),p SV,c))
+
+let if_then_else _loc c t e =
+  Pos.make (Some _loc) (EVari(Pos.none "cond", [c;t;e]))
