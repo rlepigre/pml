@@ -718,8 +718,32 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
                 | _        -> assert false
               end
         end
+    | (EReco(l)     , ST       ) ->
+        let is_val (_,_,r) = !r = `V in
+        begin
+          if List.for_all is_val l then
+            begin
+              match unsugar env vars e _sv with
+              | Box(V,v) -> Box(T, valu e.pos v)
+              | _        -> assert false
+            end
+          else
+            let (vs, ts) = List.partition is_val l in
+            let fn (p,v,_) =
+              (p.elt, (p.pos, to_valu (unsugar env vars v _sv)))
+            in
+            let gn m (k,v) =
+              if M.mem k m then assert false;
+              M.add k v m
+            in
+            let vm = List.fold_left gn M.empty (List.map fn vs) in
+            let fn (p,v,_) =
+              (p.elt, (p.pos, to_term (unsugar env vars v _st)))
+            in
+            let ts = List.map fn ts in
+            Box(T, t_reco e.pos ts vm)
+        end
     | (ELAbs(_,_)   , ST       )
-    | (EReco(_)     , ST       )
     | (EScis        , ST       ) ->
         begin
           match unsugar env vars e _sv with

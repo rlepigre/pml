@@ -295,27 +295,6 @@ let tlam : type a. popt -> strloc -> a sort -> (a var -> tbox) -> tbox =
     let b = vbind mk_free x.elt f in
     box_apply (fun b -> {elt = TLam(s, (x.pos, b)); pos}) b
 
-(** Syntactic sugar for the projection of a term. *)
-let t_proj : popt -> tbox -> strloc -> tbox =
-  fun pos t l ->
-    let f x = proj pos (v_vari None x) l in
-    let u = valu pos (labs pos None (Pos.none "x") f) in
-    appl pos u t
-
-(** Syntactic sugar for the case analysis on a term. *)
-let t_case : popt -> tbox -> (popt * strloc * (vvar -> tbox)) M.t -> tbox =
-  fun pos t m ->
-    let f x = case pos (vari None x) m in
-    let u = valu pos (labs pos None (Pos.none "x") f) in
-    appl pos u t
-
-(** Syntactic sugar for a constructor applied to a term. *)
-let t_cons : popt -> strloc -> tbox -> tbox =
-  fun pos c t ->
-    let f x = valu pos (cons pos c (vari None x)) in
-    let u = valu pos (labs pos None (Pos.none "x") f) in
-    appl pos u t
-
 (** {5 Stack constructors} *)
 
 let s_vari : popt -> svar -> sbox = vari
@@ -432,8 +411,47 @@ let swit : popt -> strloc -> (svar -> tbox) -> pbox -> sbox =
     let b = vbind mk_free x.elt f in
     box_apply2 (fun b a -> {elt = SWit((x.pos, b),a); pos}) b a
 
-(** {5 useful functions} *)
+(** {5 syntactic sugars} *)
 
+(** Syntactic sugar for the projection of a term. *)
+let t_proj : popt -> tbox -> strloc -> tbox =
+  fun pos t l ->
+    let f x = proj pos (v_vari None x) l in
+    let u = valu pos (labs pos None (Pos.none "x") f) in
+    appl pos u t
+
+(** Syntactic sugar for the case analysis on a term. *)
+let t_case : popt -> tbox -> (popt * strloc * (vvar -> tbox)) M.t -> tbox =
+  fun pos t m ->
+    let f x = case pos (vari None x) m in
+    let u = valu pos (labs pos None (Pos.none "x") f) in
+    appl pos u t
+
+(** Syntactic sugar for a constructor applied to a term. *)
+let t_cons : popt -> strloc -> tbox -> tbox =
+  fun pos c t ->
+    let f x = valu pos (cons pos c (vari None x)) in
+    let u = valu pos (labs pos None (Pos.none "x") f) in
+    appl pos u t
+
+(** Syntactic sugar for records containing terms. *)
+let t_reco : popt -> (string * (popt*tbox)) list -> (popt*vbox) M.t -> tbox =
+  fun pos tfs m ->
+    let fn env =
+      let add m (l,_) = M.add l (None, List.assoc l env) m in
+      valu pos (reco pos (List.fold_left add m tfs))
+    in
+    let rec build env xs =
+      match xs with
+      | []    -> fn env
+      | x::xs -> let fn y = build ((x, vari None y) :: env) xs in
+                 valu None (labs None None (Pos.none x) fn)
+    in
+    let f = build [] (List.map fst tfs) in
+    let ts = List.map (fun (_,(_,t)) -> t) tfs in
+    List.fold_left (appl None) f ts
+
+(** Syntactic sugar for strict product type. *)
 let strict_prod : popt -> (popt * pbox) M.t -> pbox =
   fun pos m ->
     let fn env = reco None (M.mapi (fun l _ -> (None, List.assoc l env)) m) in
@@ -444,6 +462,8 @@ let strict_prod : popt -> (popt * pbox) M.t -> pbox =
                  exis None (Pos.none l) V fn
     in
     build [] (List.map fst (M.bindings m))
+
+(** {5 useful functions} *)
 
 let rec is_scis : type a. a ex loc -> bool =
   fun e ->
