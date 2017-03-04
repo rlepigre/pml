@@ -67,6 +67,12 @@ let isVal : type a.a ex loc -> v ex loc option = fun e ->
   | (T,{ elt = Valu e}) -> Some e
   | _                   -> None
 
+let isTerm : type a.a ex loc -> t ex loc option = fun e ->
+  match sort e with
+  | (V,e) -> Some (Pos.none (Valu e))
+  | (T,e) -> Some e
+  | _     -> None
+
 
 (*
 let rec term_has_type : term -> bool = fun t ->

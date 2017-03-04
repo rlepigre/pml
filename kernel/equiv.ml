@@ -737,20 +737,20 @@ let log_ora = Log.register 'o' (Some "ora") "oracle informations"
 let log_ora = Log.(log_ora.p)
 
 let oracle : pool -> oracle = fun po ->
-  let eq_valu = fun t u ->
+  let eq_term = fun t u ->
     log_ora "entiring eq_valu";
-    let (pt, po) = add_valu po t in
-    let (pu, po) = add_valu po u in
-    log_edp "insertion at %a and %a" VPtr.print pt VPtr.print pu;
+    let (pt, po) = add_term po t in
+    let (pu, po) = add_term po u in
+    log_edp "insertion at %a and %a" TPtr.print pt TPtr.print pu;
     log_edp "obtained context:\n%a" (print_pool "        ") po;
-    let (pt, po) = canonical (Ptr.V_ptr pt) po in
-    let (pu, po) = canonical (Ptr.V_ptr pu) po in
+    let (pt, po) = canonical (Ptr.T_ptr pt) po in
+    let (pu, po) = canonical (Ptr.T_ptr pu) po in
     log_ora "calling eq_expr %a === %a" Print.print_ex t Print.print_ex u;
     let res = eq_expr pt pu in
     log_ora "%a === %a : %b" Print.print_ex t Print.print_ex u res;
     Some res
   in
-  { eq_valu }
+  { eq_term }
 
 let find_proj : pool -> term -> string -> (valu * pool) option = fun po t l ->
   try
