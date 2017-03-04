@@ -15,8 +15,7 @@ let find_file : string -> string = fun fn ->
   let rec find ls =
     match ls with
     | []     -> err_msg "File \"%s\" does not exist." fn; exit 1
-    | fn::ls -> bug_msg "Looking for %S." fn;
-                if Sys.file_exists fn then fn else find ls
+    | fn::ls -> if Sys.file_exists fn then fn else find ls
   in find ls
 
 let find_module : string list -> string = fun ps ->
