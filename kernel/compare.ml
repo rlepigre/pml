@@ -123,7 +123,7 @@ let false_oracle = { eq_term = (fun _ _ -> None) }
 
 let rec apply_oracle : type a b. oracle -> a ex loc -> b ex loc -> bool option =
   fun oracle e1 e2 ->
-  (* FIXME should also works for terms and stacks *)
+  (* FIXME should also works for stacks *)
   try match (isTerm e1, isTerm e2) with
       | (Some e1, Some e2)  -> oracle.eq_term e1 e2
       | _ -> None
