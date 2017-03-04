@@ -12,7 +12,7 @@ val fls : bool = Fls[{}]
 val true  : bool = Tru[{}]
 val false : bool = Fls[{}]
 
-def cond<c,t,e> =
+def cond<c:τ,t:τ,e:τ> =
   case (c : bool) of
   | Tru[_] → t
   | Fls[_] → e
@@ -43,7 +43,7 @@ val gather : ∀a b c, (a ⇒ c) ⇒ (b ⇒ c) ⇒ either<a,b> ⇒ c = fun f g e
   | InL[x] → f x
   | InR[x] → g x
 
-val map_eigher : ∀a b c d, (a ⇒ c) ⇒ (b ⇒ d) ⇒ either<a,b> ⇒ either<c,d> =
+val map_either : ∀a b c d, (a ⇒ c) ⇒ (b ⇒ d) ⇒ either<a,b> ⇒ either<c,d> =
   fun f g e →
     case e of
     | InL[x] → InL[f x]
