@@ -1,6 +1,4 @@
-def cons<a:ο,b:ο> = ∃v w:ι, { hd = v; tl = w } ∈ { hd : a; tl : b }
-
-def list<a:ο> : ο = μx [ Nil of {} ∈ {}; Cns of cons<a,x> ]
+type rec list<a:ο> = μx [ Nil of {}; Cns of { hd : a; tl : list } ]
 
 val nil : ∀a:ο, list<a> = Nil[]
 

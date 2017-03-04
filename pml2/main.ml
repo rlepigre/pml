@@ -7,21 +7,6 @@ open Typing
 open Output
 open Eval
 
-let path = ["." ; "/usr/local/lib/pml2"]
-
-let find_file : string -> string = fun fn ->
-  let add_fn dir = Filename.concat dir fn in
-  let ls = fn :: (List.map add_fn path) in
-  let rec find ls =
-    match ls with
-    | []     -> err_msg "File \"%s\" does not exist." fn; exit 1
-    | fn::ls -> if Sys.file_exists fn then fn else find ls
-  in find ls
-
-let find_module : string list -> string = fun ps ->
-  let fn = (String.concat "/" ps) ^ ".pml" in
-  find_file fn
-
 let rec interpret : Env.env -> Raw.toplevel -> Env.env = fun env top ->
   match top with
   | Sort_def(id,s) ->
@@ -191,4 +176,6 @@ let _ =
   | Equiv.Failed_to_prove(rel)  ->
       err_msg "Failed to prove an equational relation.";
       err_msg "  %a" Equiv.print_relation_pos rel
-  | e -> err_msg "Uncaught exception [%s]." (Printexc.to_string e)
+  | e ->
+     err_msg "Uncaught exception [%s]." (Printexc.to_string e);
+     err_msg "%t" Printexc.print_backtrace

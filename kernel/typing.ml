@@ -151,9 +151,8 @@ let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
     let r =
       match (a.elt, b.elt) with
       (* Same types.  *)
-      | _ when eq_expr a b         ->
+      | _ when eq_expr ~oracle:(oracle ctx.equations.pool) a b         ->
           log_sub "reflexivity applies";
-          log_sub "%a ∈ %a ⊆ %a" Print.ex t Print.ex a Print.ex b;
           Sub_Equal
       (* Unfolding of definitions. *)
       | (HDef(_,d)  , _          ) ->
@@ -397,9 +396,9 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
     (* Application or strong application. *)
     | Appl(t,u)   ->
        let a = new_uvar ctx P in
-       let p2 = type_term ctx u a in
        let (is_val, ctx) = term_is_value u ctx in
        let ae = if is_val then Pos.none (Memb(u, a)) else a in
+       let p2 = type_term ctx u a in
        let p1 = type_term ctx t (Pos.none (Func(ae,c))) in
        if is_val then Typ_Func_s(p1,p2) else Typ_Func_e(p1,p2)
 

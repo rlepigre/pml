@@ -6,6 +6,7 @@ open Pos
 open Ast
 open Output
 open Print
+open ExprInfo
 
 (* Log functions registration. *)
 let log_equ = Log.register 'c' (Some "cmp") "comparing informations"
@@ -116,28 +117,19 @@ let uvar_occurs : type a b. a uvar -> b ex loc -> bool = fun u e ->
 
 let full_eq = ref false
 
-type oracle = { eq_valu : valu -> valu -> bool
+type oracle = { eq_valu : valu -> valu -> bool option
               ; is_valu : term -> valu option }
 
-let false_oracle = { eq_valu = (fun _ _ -> false)
+let false_oracle = { eq_valu = (fun _ _ -> None)
                    ; is_valu = (fun _ -> None) }
 
-let rec apply_oracle : type a b. oracle -> a ex loc -> b ex loc -> bool =
+let rec apply_oracle : type a b. oracle -> a ex loc -> b ex loc -> bool option =
   fun oracle e1 e2 ->
-  (* FIXME too many cases how to avoid ? *)
-  (* FIXME should also works for terms *)
-  (* FIXME and for any expression of sort V or T *)
-  match (e1.elt, e2.elt) with
-  | (UWit(V,_,_), UWit(V,_,_)) -> oracle.eq_valu e1 e2
-  | (EWit(V,_,_), EWit(V,_,_)) -> oracle.eq_valu e1 e2
-  | (VWit _     , VWit _     ) -> oracle.eq_valu e1 e2
-  | (UWit(V,_,_), EWit(V,_,_)) -> oracle.eq_valu e1 e2
-  | (EWit(V,_,_), UWit(V,_,_)) -> oracle.eq_valu e1 e2
-  | (UWit(V,_,_), VWit _     ) -> oracle.eq_valu e1 e2
-  | (VWit _     , UWit(V,_,_)) -> oracle.eq_valu e1 e2
-  | (EWit(V,_,_), VWit _     ) -> oracle.eq_valu e1 e2
-  | (VWit _     , EWit(V,_,_)) -> oracle.eq_valu e1 e2
-  | _ -> false
+  (* FIXME should also works for terms and stacks *)
+  try match (isVal e1, isVal e2) with
+      | (Some e1, Some e2)  -> oracle.eq_valu e1 e2
+      | _ -> None
+  with ITagInPool -> None
 
 type eq_t =
   { eq_expr : 'a    . ?strict:bool -> ?oracle:oracle
@@ -158,7 +150,7 @@ let {eq_expr; eq_bndr} =
     let e1 = Norm.whnf e1 in
     let e2 = Norm.whnf e2 in
     if e1 == e2 then true else (
-    if apply_oracle oracle e1 e2 then true else (
+    match apply_oracle oracle e1 e2 with Some r -> r | None ->
     if !full_eq then log_equ "comparing %a and %a" Print.ex e1 Print.ex e2;
     match (e1.elt, e2.elt) with
     | (Vari(x1)      , Vari(x2)      ) ->
@@ -253,22 +245,10 @@ let {eq_expr; eq_bndr} =
                    when not strict && uvar_occurs u1 t ->
        eq_expr e1 (Pos.none (Func(a,b)))
     | (UVar(_,u1)    , _             ) when not strict ->
-        if uvar_occurs u1 e2 then false else (uvar_set u1 e2; true)
+       if uvar_occurs u1 e2 then false else (uvar_set u1 e2; true)
     | (_             , UVar(_,u2)    ) when not strict ->
        if uvar_occurs u2 e1 then false else (uvar_set u2 e1; true)
-    | (Valu v1       , _             ) ->
-       begin
-         match oracle.is_valu e2 with
-         | None -> false
-         | Some v2 -> eq_expr v1 v2
-       end
-    | (_              , Valu v2      ) ->
-       begin
-         match oracle.is_valu e1 with
-         | None -> false
-         | Some v1 -> eq_expr v1 v2
-       end
-    | _                                -> false))
+    | _                                -> false)
 
   and eq_bndr : type a b. bool -> oracle -> (a,b) bndr -> (a,b) bndr -> bool =
     fun strict oracle b1 b2 ->

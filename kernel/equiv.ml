@@ -9,6 +9,7 @@ open Sorts
 open Pos
 open Ast
 open Output
+open ExprInfo
 open Compare
 
 (* Log function registration. *)
@@ -407,8 +408,8 @@ let rec add_term : pool -> term -> TPtr.t * pool = fun po t ->
   | HApp(s,f,a) -> insert_t_node (TN_HApp(HO_Appl(s,f,a))) po
   | HDef(_,d)   -> add_term po d.expr_def
   | UVar(_,v)   -> insert_t_node (TN_UVar(v)) po
+  | ITag _      -> raise ITagInPool
   | Vari(_)     -> invalid_arg "free variable in the pool"
-  | ITag _      -> invalid_arg "integer tags forbidden in the pool"
   | Dumm        -> invalid_arg "dummy terms forbidden in the pool"
 
 and     add_valu : pool -> valu -> VPtr.t * pool = fun po v ->
@@ -434,9 +435,9 @@ and     add_valu : pool -> valu -> VPtr.t * pool = fun po v ->
   | HApp(s,f,a) -> insert_v_node (VN_HApp(HO_Appl(s,f,a))) po
   | HDef(_,d)   -> add_valu po d.expr_def
   | UVar(_,v)   -> insert_v_node (VN_UVar(v)) po
+  | ITag(_)     -> raise ITagInPool
   | Vari(_)     -> invalid_arg "free variable in the pool"
   | Dumm        -> invalid_arg "dummy terms forbidden in the pool"
-  | ITag(_)     -> invalid_arg "itag terms forbidden in the pool"
 
 (* unused, but may be usefull for debugging
 let rec to_term : TPtr.t -> pool -> term = fun p po ->
@@ -737,36 +738,42 @@ let log_ora = Log.(log_ora.p)
 
 let oracle : pool -> oracle = fun po ->
   let eq_valu = fun t u ->
-    log_ora "entiring oracle.eq_valu";
-    let (pt, pool) = add_valu po t in
-    let (pu, pool) = add_valu po u in
-    log_edp "insertion at %a and %a" VPtr.print pt VPtr.print pu;
-    log_edp "obtained context:\n%a" (print_pool "        ") pool;
-    let (pt, po) = find_valu pt po in
-    let (pu, po) = find_valu pu po in
-    let res = VPtr.compare pt pu = 0 in
-    log_ora "%a === %a : %b" Print.print_ex t Print.print_ex u res;
-    res
-
+    try
+      log_ora "entiring eq_valu";
+      let (pt, po) = add_valu po t in
+      let (pu, po) = add_valu po u in
+      log_edp "insertion at %a and %a" VPtr.print pt VPtr.print pu;
+      log_edp "obtained context:\n%a" (print_pool "        ") po;
+      let (pt, po) = canonical (Ptr.V_ptr pt) po in
+      let (pu, po) = canonical (Ptr.V_ptr pu) po in
+      log_ora "calling eq_expr %a === %a" Print.print_ex t Print.print_ex u;
+      let res = eq_expr pt pu in
+      log_ora "%a === %a : %b" Print.print_ex t Print.print_ex u res;
+      Some res
+    with
+      ITagInPool -> None
   in
   let is_valu = fun t ->
-    log_ora "entiring oracle.is_valu";
-    let (pt, pool) = add_term po t in
-    let (pt, pool) = normalise pt po in
-    let res = match pt with
-      | Ptr.V_ptr(vp) ->
-         Some(fst (canonical_valu vp po))
-      | Ptr.T_ptr(_) -> None
-    in
-    log_ora "%a is a value: %b" Print.print_ex t (res <> None);
-    res
+    try
+      log_ora "entiring is_valu";
+      let (pt, po) = add_term po t in
+      let (pt, po) = normalise pt po in
+      let res = match pt with
+        | Ptr.V_ptr(vp) ->
+           Some(fst (canonical_valu vp po))
+        | Ptr.T_ptr(_) -> None
+      in
+      log_ora "%a is a value: %b" Print.print_ex t (res <> None);
+      res
+    with
+      ITagInPool -> None
   in
   { eq_valu; is_valu }
 
 let find_proj : pool -> term -> string -> (valu * pool) option = fun po t l ->
   try
-    let (pt, pool) = add_term po t in
-    let (pt, pool) = normalise pt po in
+    let (pt, po) = add_term po t in
+    let (pt, po) = normalise pt po in
     match pt with
       | Ptr.T_ptr(_) -> raise Not_found
       | Ptr.V_ptr(vp) ->
@@ -780,8 +787,8 @@ let find_proj : pool -> term -> string -> (valu * pool) option = fun po t l ->
 
 let find_sum : pool -> term -> (string * valu * pool) option = fun po t ->
   try
-    let (pt, pool) = add_term po t in
-    let (pt, pool) = normalise pt po in
+    let (pt, po) = add_term po t in
+    let (pt, po) = normalise pt po in
     match pt with
       | Ptr.T_ptr(_) -> raise Not_found
       | Ptr.V_ptr(vp) ->
@@ -802,8 +809,7 @@ let is_equal : pool -> Ptr.t -> Ptr.t -> bool = fun po p1 p2 ->
   let (t1, po) = canonical p1 po in
   let (t2, po) = canonical p2 po in
   log_edp "test term equality %a = %a" Print.print_ex t1 Print.print_ex t2;
-  let oracle = oracle po in
-  eq_expr ~oracle t1 t2
+  eq_expr t1 t2
 
 (* Equational context type. *)
 type eq_ctxt =
