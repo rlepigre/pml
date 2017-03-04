@@ -132,13 +132,13 @@ let rec apply_oracle : type a b. oracle -> a ex loc -> b ex loc -> bool option =
 type eq_t =
   { eq_expr : 'a    . ?strict:bool -> ?oracle:oracle
                       -> 'a ex loc -> 'a ex loc -> bool
-  ; eq_bndr : 'a 'b . ?strict:bool -> ?oracle:oracle
+  ; eq_bndr : 'a 'b . ?strict:bool -> ?oracle:oracle -> 'a sort
                       -> ('a,'b) bndr -> ('a,'b) bndr -> bool }
 
 (* Comparison function with unification variable instantiation. *)
 let {eq_expr; eq_bndr} =
   let c = ref (-1) in
-  let new_itag : type a. unit -> a ex = fun () -> incr c; ITag(!c) in
+  let new_itag : type a. a sort -> a ex = fun s -> incr c; ITag(s,!c) in
 
   let rec eq_expr : type a. bool -> oracle -> a ex loc -> a ex loc -> bool =
     fun strict oracle e1 e2 ->
@@ -153,7 +153,7 @@ let {eq_expr; eq_bndr} =
     match (e1.elt, e2.elt) with
     | (Vari(x1)      , Vari(x2)      ) ->
         Bindlib.eq_vars x1 x2
-    | (HFun(_,_,b1)  , HFun(_,_,b2)  ) -> eq_bndr b1 b2
+    | (HFun(s1,_,b1) , HFun(_,_,b2)  ) -> eq_bndr s1 b1 b2
     | (HApp(s1,f1,a1), HApp(s2,f2,a2)) ->
         begin
           match eq_sort s1 s2 with
@@ -170,17 +170,17 @@ let {eq_expr; eq_bndr} =
     | (Univ(s1,b1)   , Univ(s2,b2)   ) ->
         begin
           match eq_sort s1 s2 with
-          | Eq  -> eq_bndr b1 b2
+          | Eq  -> eq_bndr s1 b1 b2
           | NEq -> false
         end
     | (Exis(s1,b1)   , Exis(s2,b2)   ) ->
         begin
           match eq_sort s1 s2 with
-          | Eq  -> eq_bndr b1 b2
+          | Eq  -> eq_bndr s1 b1 b2
           | NEq -> false
         end
-    | (FixM(o1,b1)   , FixM(o2,b2)   ) -> eq_expr o1 o2 && eq_bndr b1 b2
-    | (FixN(o1,b1)   , FixN(o2,b2)   ) -> eq_expr o1 o2 && eq_bndr b1 b2
+    | (FixM(o1,b1)   , FixM(o2,b2)   ) -> eq_expr o1 o2 && eq_bndr P b1 b2
+    | (FixN(o1,b1)   , FixN(o2,b2)   ) -> eq_expr o1 o2 && eq_bndr P b1 b2
     | (Memb(t1,a1)   , Memb(t2,a2)   ) -> eq_expr t1 t2 && eq_expr a1 a2
     | (Rest(a1,c1)   , Rest(a2,c2)   ) ->
         eq_expr a1 a2 &&
@@ -194,7 +194,7 @@ let {eq_expr; eq_bndr} =
                 false
           end
     (* NOTE type annotation ignored. *)
-    | (LAbs(_,b1)    , LAbs(_,b2)    ) -> eq_bndr b1 b2
+    | (LAbs(_,b1)   , LAbs(_,b2)    )  -> eq_bndr V b1 b2
     | (Cons(c1,v1)   , Cons(c2,v2)   ) -> c1.elt = c2.elt && eq_expr v1 v2
     | (Reco(m1)      , Reco(m2)      ) ->
         M.equal (fun (_,v1) (_,v2) -> eq_expr v1 v2) m1 m2
@@ -203,11 +203,11 @@ let {eq_expr; eq_bndr} =
     | (Valu(v1)      , Valu(v2)      ) -> eq_expr v1 v2
     | (Appl(t1,u1)   , Appl(t2,u2)   ) -> eq_expr t1 t2 && eq_expr u1 u2
     (* NOTE type annotation ignored. *)
-    | (MAbs(b1)      , MAbs(b2)      ) -> eq_bndr b1 b2
+    | (MAbs(b1)      , MAbs(b2)      ) -> eq_bndr S b1 b2
     | (Name(s1,t1)   , Name(s2,t2)   ) -> eq_expr s1 s2 && eq_expr t1 t2
     | (Proj(v1,l1)   , Proj(v2,l2)   ) -> l1.elt = l2.elt && eq_expr v1 v2
     | (Case(v1,m1)   , Case(v2,m2)   ) ->
-        let cmp (_,b1) (_,b2) = eq_bndr b1 b2 in
+        let cmp (_,b1) (_,b2) = eq_bndr V b1 b2 in
         eq_expr v1 v2 && M.equal cmp m1 m2
     | (FixY(t1,v1)   , FixY(t2,v2)   ) -> eq_expr t1 t2 && eq_expr v1 v2
     | (Epsi          , Epsi          ) -> true
@@ -224,14 +224,14 @@ let {eq_expr; eq_bndr} =
     | (_             , VLam(_,b2)    ) -> eq_expr e1 (bndr_subst b2 Dumm)
     | (TLam(_,b1)    , _             ) -> eq_expr (bndr_subst b1 Dumm) e2
     | (_             , TLam(_,b2)    ) -> eq_expr e1 (bndr_subst b2 Dumm)
-    | (ITag(i1)      , ITag(i2)      ) -> i1 = i2
+    | (ITag(_,i1)    , ITag(_,i2)    ) -> i1 = i2
     (* NOTE should not be compare dummy expressions. *)
     | (Dumm          , Dumm          ) -> false
     | (VWit(f1,a1,b1), VWit(f2,a2,b2)) ->
-        eq_bndr f1 f2 && eq_expr a1 a2 && eq_expr b1 b2
-    | (SWit(f1,a1)   , SWit(f2,a2)   ) -> eq_bndr f1 f2 && eq_expr a1 a2
-    | (UWit(_,t1,b1) , UWit(_,t2,b2) ) -> eq_bndr b1 b2 && eq_expr t1 t2
-    | (EWit(_,t1,b1) , EWit(_,t2,b2) ) -> eq_bndr b1 b2 && eq_expr t1 t2
+        eq_bndr V f1 f2 && eq_expr a1 a2 && eq_expr b1 b2
+    | (SWit(f1,a1)   , SWit(f2,a2)   ) -> eq_bndr S f1 f2 && eq_expr a1 a2
+    | (UWit(s1,t1,b1), UWit(_,t2,b2) ) -> eq_bndr s1 b1 b2 && eq_expr t1 t2
+    | (EWit(s1,t1,b1), EWit(_,t2,b2) ) -> eq_bndr s1 b1 b2 && eq_expr t1 t2
     | (UVar(_,u1)    , UVar(_,u2)    ) ->
        if strict then u1.uvar_key = u2.uvar_key else
          begin
@@ -248,10 +248,10 @@ let {eq_expr; eq_bndr} =
        if uvar_occurs u2 e1 then false else (uvar_set u2 e1; true)
     | _                                -> false)
 
-  and eq_bndr : type a b. bool -> oracle -> (a,b) bndr -> (a,b) bndr -> bool =
-    fun strict oracle b1 b2 ->
+  and eq_bndr : type a b. bool -> oracle -> a sort -> (a,b) bndr -> (a,b) bndr -> bool =
+    fun strict oracle s1 b1 b2 ->
       if b1 == b2 then true else
-        let t = new_itag () in
+        let t = new_itag s1 in
         eq_expr strict oracle (bndr_subst b1 t) (bndr_subst b2 t)
   in
 
@@ -267,11 +267,11 @@ let {eq_expr; eq_bndr} =
       res
   in
 
-  let eq_bndr : type a b. ?strict:bool -> ?oracle:oracle
+  let eq_bndr : type a b. ?strict:bool -> ?oracle:oracle -> a sort
                           -> (a,b) bndr -> (a,b) bndr -> bool =
-    fun ?(strict=false) ?(oracle=false_oracle) b1 b2 ->
+    fun ?(strict=false) ?(oracle=false_oracle) s1 b1 b2 ->
       c := -1; (* Reset. *)
-      let res = Timed.pure_test (eq_bndr strict oracle b1) b2 in
+      let res = Timed.pure_test (eq_bndr strict oracle s1 b1) b2 in
       res
   in
   {eq_expr; eq_bndr}

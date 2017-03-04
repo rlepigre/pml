@@ -130,7 +130,7 @@ let print_ex : type a. a ex loc printer = fun ch e ->
                      fprintf ch "Λ%s.%a" (name_of x) print_ex t
     | TLam(_,b)   -> let (x,t) = unbind mk_free (snd b) in
                      fprintf ch "Λ%s.%a" (name_of x) print_ex t
-    | ITag(i)     -> fprintf ch "#%i" i
+    | ITag(_,i)   -> fprintf ch "#%i" i
     | Dumm        -> output_string ch "∅"
     (* TODO give a number to all witnesses to distinguish equal ones even
      when print_full is false *)

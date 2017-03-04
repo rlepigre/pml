@@ -17,6 +17,7 @@ let rec sort : type a b. a ex loc ->  a sort * a ex loc= fun e ->
   | UWit(s,_,_) -> (s,e)
   | EWit(s,_,_) -> (s,e)
   | UVar(s,_)   -> (s,e)
+  | ITag(s,_)   -> (s,e)
 
   | Func _      -> (P,e)
   | Prod _      -> (P,e)
@@ -58,7 +59,6 @@ let rec sort : type a b. a ex loc ->  a sort * a ex loc= fun e ->
   | OWit _      -> (O,e)
 
   | Vari _      -> assert false
-  | ITag _      -> raise NotClosed
   | Dumm        -> assert false
 
 let isVal : type a.a ex loc -> v ex loc option = fun e ->

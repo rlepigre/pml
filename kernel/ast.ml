@@ -112,7 +112,7 @@ type _ ex =
 
   (* Special constructors. *)
 
-  | ITag : int                                     -> 'a ex
+  | ITag : 'a sort * int                           -> 'a ex
   (** Integer tag (usuful for comparision). *)
   | Dumm :                                            'a ex
   (** Dummy constructor.*)
