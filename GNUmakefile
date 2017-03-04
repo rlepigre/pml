@@ -103,3 +103,11 @@ clean:
 
 distclean: clean
 	rm -f *~ pml2/*~ kernel/*~ parser/*~ editor/*~ doc/*~ test/*~ util/*~
+
+# Install.
+install: main.native $(wldcard lib/*.pml)
+	install -d /usr/local/bin
+	install $< /usr/local/bin/pml2
+	install -d /usr/local/lib/pml2
+	install -d /usr/local/lib/pml2/lib
+	install lib/*.pml /usr/local/lib/pml2/lib

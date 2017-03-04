@@ -7,6 +7,22 @@ open Typing
 open Output
 open Eval
 
+let path = ["." ; "/usr/local/lib/pml2"]
+
+let find_file : string -> string = fun fn ->
+  let add_fn dir = Filename.concat dir fn in
+  let ls = fn :: (List.map add_fn path) in
+  let rec find ls =
+    match ls with
+    | []     -> err_msg "File \"%s\" does not exist." fn; exit 1
+    | fn::ls -> bug_msg "Looking for %S." fn;
+                if Sys.file_exists fn then fn else find ls
+  in find ls
+
+let find_module : string list -> string = fun ps ->
+  let fn = (String.concat "/" ps) ^ ".pml" in
+  find_file fn
+
 let rec interpret : Env.env -> Raw.toplevel -> Env.env = fun env top ->
   match top with
   | Sort_def(id,s) ->
@@ -35,13 +51,8 @@ let rec interpret : Env.env -> Raw.toplevel -> Env.env = fun env top ->
       ignore prf;
       add_value id t a v env
   | Include(ps) ->
-      let fn = (String.concat "/" ps) ^ ".pml" in
+      let fn = find_module ps in
       out "include %S\n%!" fn;
-      if not (Sys.file_exists fn) then
-        begin
-          err_msg "File \"%s\" does not exist." fn;
-          exit 1
-      end;
       Log.without (handle_file env) fn
 
 (* Handling the files. *)
@@ -107,6 +118,8 @@ let files =
     (f, Arg.Unit(act), " Show this usage message.")
   in
 
+  let load_prelude = ref true in
+
   let spec =
     [ ( "--log-file"
       , Arg.String(Log.with_file)
@@ -121,6 +134,9 @@ let files =
     ; ( "--full-compare"
       , Arg.Set Compare.full_eq
       , " Show all the steps when comparing expressions.")
+    ; ( "--no-prelude"
+      , Arg.Clear load_prelude
+      , " Do not load the prelude.")
     ] @ List.map help ["--help" ; "-help" ; "-h" ]
   in
   let spec = Arg.align spec in
@@ -129,6 +145,10 @@ let files =
   (* Run checks on files. *)
   Arg.parse spec anon_fun usage_msg;
   let files = List.rev !files in
+  let files =
+    if !load_prelude then find_file "lib/prelude.pml" :: files
+    else files
+  in
 
   let check_ext fn =
     if not (Filename.check_suffix fn ".pml") then
