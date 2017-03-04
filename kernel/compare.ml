@@ -117,11 +117,9 @@ let uvar_occurs : type a b. a uvar -> b ex loc -> bool = fun u e ->
 
 let full_eq = ref false
 
-type oracle = { eq_valu : valu -> valu -> bool option
-              ; is_valu : term -> valu option }
-
-let false_oracle = { eq_valu = (fun _ _ -> None)
-                   ; is_valu = (fun _ -> None) }
+type oracle = { eq_valu : valu -> valu -> bool option }
+(* if the oracle returns None, eq_expr will do the work *)
+let false_oracle = { eq_valu = (fun _ _ -> None) }
 
 let rec apply_oracle : type a b. oracle -> a ex loc -> b ex loc -> bool option =
   fun oracle e1 e2 ->
@@ -129,7 +127,7 @@ let rec apply_oracle : type a b. oracle -> a ex loc -> b ex loc -> bool option =
   try match (isVal e1, isVal e2) with
       | (Some e1, Some e2)  -> oracle.eq_valu e1 e2
       | _ -> None
-  with ITagInPool -> None
+  with NotClosed -> None (* oracle fails on open terms *)
 
 type eq_t =
   { eq_expr : 'a    . ?strict:bool -> ?oracle:oracle

@@ -6,7 +6,7 @@ open Pos
 open Ast
 open Output
 
-exception ITagInPool (* raised for ITag, FIXME: ITag could carry a sort *)
+exception NotClosed (* raised for ITag *)
 
 let rec sort : type a b. a ex loc ->  a sort * a ex loc= fun e ->
   let e = Norm.whnf e in
@@ -58,7 +58,7 @@ let rec sort : type a b. a ex loc ->  a sort * a ex loc= fun e ->
   | OWit _      -> (O,e)
 
   | Vari _      -> assert false
-  | ITag _      -> raise ITagInPool
+  | ITag _      -> raise NotClosed
   | Dumm        -> assert false
 
 let isVal : type a.a ex loc -> v ex loc option = fun e ->

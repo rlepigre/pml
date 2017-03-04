@@ -105,7 +105,7 @@ let print_ex : type a. a ex loc printer = fun ch e ->
     | Scis        -> output_string ch "✂"
     | VDef(d)     -> output_string ch d.value_name.elt
     | Valu(v)     -> if !print_full then output_string ch "↑";
-                     print_ex ch v
+                     fprintf ch "V(%a)" print_ex v
     | Appl(t,u)   -> fprintf ch "(%a) (%a)" print_ex t print_ex u
     | MAbs(b)     -> let (x,t) = unbind mk_free (snd b) in
                      fprintf ch "μ%s.%a" (name_of x) print_ex t

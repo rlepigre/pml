@@ -408,7 +408,7 @@ let rec add_term : pool -> term -> TPtr.t * pool = fun po t ->
   | HApp(s,f,a) -> insert_t_node (TN_HApp(HO_Appl(s,f,a))) po
   | HDef(_,d)   -> add_term po d.expr_def
   | UVar(_,v)   -> insert_t_node (TN_UVar(v)) po
-  | ITag _      -> raise ITagInPool
+  | ITag _      -> raise NotClosed
   | Vari(_)     -> invalid_arg "free variable in the pool"
   | Dumm        -> invalid_arg "dummy terms forbidden in the pool"
 
@@ -435,7 +435,7 @@ and     add_valu : pool -> valu -> VPtr.t * pool = fun po v ->
   | HApp(s,f,a) -> insert_v_node (VN_HApp(HO_Appl(s,f,a))) po
   | HDef(_,d)   -> add_valu po d.expr_def
   | UVar(_,v)   -> insert_v_node (VN_UVar(v)) po
-  | ITag(_)     -> raise ITagInPool
+  | ITag(_)     -> raise NotClosed
   | Vari(_)     -> invalid_arg "free variable in the pool"
   | Dumm        -> invalid_arg "dummy terms forbidden in the pool"
 
@@ -738,37 +738,19 @@ let log_ora = Log.(log_ora.p)
 
 let oracle : pool -> oracle = fun po ->
   let eq_valu = fun t u ->
-    try
-      log_ora "entiring eq_valu";
-      let (pt, po) = add_valu po t in
-      let (pu, po) = add_valu po u in
-      log_edp "insertion at %a and %a" VPtr.print pt VPtr.print pu;
-      log_edp "obtained context:\n%a" (print_pool "        ") po;
-      let (pt, po) = canonical (Ptr.V_ptr pt) po in
-      let (pu, po) = canonical (Ptr.V_ptr pu) po in
-      log_ora "calling eq_expr %a === %a" Print.print_ex t Print.print_ex u;
-      let res = eq_expr pt pu in
-      log_ora "%a === %a : %b" Print.print_ex t Print.print_ex u res;
-      Some res
-    with
-      ITagInPool -> None
+    log_ora "entiring eq_valu";
+    let (pt, po) = add_valu po t in
+    let (pu, po) = add_valu po u in
+    log_edp "insertion at %a and %a" VPtr.print pt VPtr.print pu;
+    log_edp "obtained context:\n%a" (print_pool "        ") po;
+    let (pt, po) = canonical (Ptr.V_ptr pt) po in
+    let (pu, po) = canonical (Ptr.V_ptr pu) po in
+    log_ora "calling eq_expr %a === %a" Print.print_ex t Print.print_ex u;
+    let res = eq_expr pt pu in
+    log_ora "%a === %a : %b" Print.print_ex t Print.print_ex u res;
+    Some res
   in
-  let is_valu = fun t ->
-    try
-      log_ora "entiring is_valu";
-      let (pt, po) = add_term po t in
-      let (pt, po) = normalise pt po in
-      let res = match pt with
-        | Ptr.V_ptr(vp) ->
-           Some(fst (canonical_valu vp po))
-        | Ptr.T_ptr(_) -> None
-      in
-      log_ora "%a is a value: %b" Print.print_ex t (res <> None);
-      res
-    with
-      ITagInPool -> None
-  in
-  { eq_valu; is_valu }
+  { eq_valu }
 
 let find_proj : pool -> term -> string -> (valu * pool) option = fun po t l ->
   try
