@@ -7,6 +7,23 @@ open Typing
 open Output
 open Eval
 
+let _ = Printexc.record_backtrace true
+
+let path = ["." ; "/usr/local/lib/pml2"]
+
+let find_file : string -> string = fun fn ->
+  let add_fn dir = Filename.concat dir fn in
+  let ls = fn :: (List.map add_fn path) in
+  let rec find ls =
+    match ls with
+    | []     -> err_msg "File \"%s\" does not exist." fn; exit 1
+    | fn::ls -> if Sys.file_exists fn then fn else find ls
+  in find ls
+
+let find_module : string list -> string = fun ps ->
+  let fn = (String.concat "/" ps) ^ ".pml" in
+  find_file fn
+
 let rec interpret : Env.env -> Raw.toplevel -> Env.env = fun env top ->
   match top with
   | Sort_def(id,s) ->
