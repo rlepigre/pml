@@ -117,38 +117,24 @@ let uvar_occurs : type a b. a uvar -> b ex loc -> bool = fun u e ->
 
 let full_eq = ref false
 
-type oracle = { eq_term : term -> term -> bool option }
-(* if the oracle returns None, eq_expr will do the work *)
-let false_oracle = { eq_term = (fun _ _ -> None) }
-
-let rec apply_oracle : type a b. oracle -> a ex loc -> b ex loc -> bool option =
-  fun oracle e1 e2 ->
-  (* FIXME should also works for stacks *)
-  try match (isTerm e1, isTerm e2) with
-      | (Some e1, Some e2)  -> oracle.eq_term e1 e2
-      | _ -> None
-  with NotClosed -> None (* oracle fails on open terms *)
-
-type eq_t =
-  { eq_expr : 'a    . ?strict:bool -> ?oracle:oracle
-                      -> 'a ex loc -> 'a ex loc -> bool
-  ; eq_bndr : 'a 'b . ?strict:bool -> ?oracle:oracle -> 'a sort
-                      -> ('a,'b) bndr -> ('a,'b) bndr -> bool }
+type eq =
+  { eq_expr : 'a. ?strict:bool -> 'a ex loc -> 'a ex loc -> bool
+  ; eq_bndr : 'a 'b. ?strict:bool -> 'a sort ->
+                ('a,'b) bndr -> ('a,'b) bndr -> bool
+  }
 
 (* Comparison function with unification variable instantiation. *)
 let {eq_expr; eq_bndr} =
   let c = ref (-1) in
   let new_itag : type a. a sort -> a ex = fun s -> incr c; ITag(s,!c) in
 
-  let rec eq_expr : type a. bool -> oracle -> a ex loc -> a ex loc -> bool =
-    fun strict oracle e1 e2 ->
-    (*Output.err_msg "eq %a === %a (%b)" print_ex e1 print_ex e2 (oracle == false_oracle);*)
-    let eq_expr e1 e2 = eq_expr strict oracle e1 e2 in
-    let eq_bndr b1 b2 = eq_bndr strict oracle b1 b2 in
+  let rec eq_expr : type a. bool -> a ex loc -> a ex loc -> bool =
+    fun strict e1 e2 ->
+    let eq_expr e1 e2 = eq_expr strict e1 e2 in
+    let eq_bndr b1 b2 = eq_bndr strict b1 b2 in
     let e1 = Norm.whnf e1 in
     let e2 = Norm.whnf e2 in
     if e1 == e2 then true else (
-    match apply_oracle oracle e1 e2 with Some r -> r | None ->
     if !full_eq then log_equ "comparing %a and %a" Print.ex e1 Print.ex e2;
     match (e1.elt, e2.elt) with
     | (Vari(x1)      , Vari(x2)      ) ->
@@ -248,30 +234,28 @@ let {eq_expr; eq_bndr} =
        if uvar_occurs u2 e1 then false else (uvar_set u2 e1; true)
     | _                                -> false)
 
-  and eq_bndr : type a b. bool -> oracle -> a sort -> (a,b) bndr -> (a,b) bndr -> bool =
-    fun strict oracle s1 b1 b2 ->
+  and eq_bndr : type a b. bool -> a sort -> (a,b) bndr -> (a,b) bndr -> bool =
+    fun strict s1 b1 b2 ->
       if b1 == b2 then true else
         let t = new_itag s1 in
-        eq_expr strict oracle (bndr_subst b1 t) (bndr_subst b2 t)
+        eq_expr strict (bndr_subst b1 t) (bndr_subst b2 t)
   in
 
-  let eq_expr : type a. ?strict:bool -> ?oracle:oracle
-                        -> a ex loc -> a ex loc -> bool =
-    fun ?(strict=false) ?(oracle=false_oracle) e1 e2 ->
+  let eq_expr : type a. ?strict:bool -> a ex loc -> a ex loc -> bool =
+    fun ?(strict=false) e1 e2 ->
       c := -1; (* Reset. *)
-      log_equ "trying to show (use oracle %b) %a === %a"
-              (oracle != false_oracle) Print.ex e1 Print.ex e2;
-      let res = Timed.pure_test (eq_expr strict oracle e1) e2 in
+      log_equ "trying to show %a === %a" Print.ex e1 Print.ex e2;
+      let res = Timed.pure_test (eq_expr strict e1) e2 in
       log_equ "we have %a %s %a"
               Print.ex e1 (if res then "=" else "≠") Print.ex e2;
       res
   in
 
-  let eq_bndr : type a b. ?strict:bool -> ?oracle:oracle -> a sort
-                          -> (a,b) bndr -> (a,b) bndr -> bool =
-    fun ?(strict=false) ?(oracle=false_oracle) s1 b1 b2 ->
+  let eq_bndr : type a b. ?strict:bool ->
+                     a sort -> (a,b) bndr -> (a,b) bndr -> bool =
+    fun ?(strict=false) s1 b1 b2 ->
       c := -1; (* Reset. *)
-      let res = Timed.pure_test (eq_bndr strict oracle s1 b1) b2 in
+      let res = Timed.pure_test (eq_bndr strict s1 b1) b2 in
       res
   in
   {eq_expr; eq_bndr}

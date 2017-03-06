@@ -408,7 +408,7 @@ let rec add_term : pool -> term -> TPtr.t * pool = fun po t ->
   | HApp(s,f,a) -> insert_t_node (TN_HApp(HO_Appl(s,f,a))) po
   | HDef(_,d)   -> add_term po d.expr_def
   | UVar(_,v)   -> insert_t_node (TN_UVar(v)) po
-  | ITag _      -> raise NotClosed
+  | ITag _      -> invalid_arg "itag variable in the pool"
   | Vari(_)     -> invalid_arg "free variable in the pool"
   | Dumm        -> invalid_arg "dummy terms forbidden in the pool"
 
@@ -435,7 +435,7 @@ and     add_valu : pool -> valu -> VPtr.t * pool = fun po v ->
   | HApp(s,f,a) -> insert_v_node (VN_HApp(HO_Appl(s,f,a))) po
   | HDef(_,d)   -> add_valu po d.expr_def
   | UVar(_,v)   -> insert_v_node (VN_UVar(v)) po
-  | ITag(_)     -> raise NotClosed
+  | ITag(_)     -> invalid_arg "itag variable in the pool"
   | Vari(_)     -> invalid_arg "free variable in the pool"
   | Dumm        -> invalid_arg "dummy terms forbidden in the pool"
 
@@ -735,22 +735,6 @@ and union : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
 (* Log functions registration. *)
 let log_ora = Log.register 'o' (Some "ora") "oracle informations"
 let log_ora = Log.(log_ora.p)
-
-let oracle : pool -> oracle = fun po ->
-  let eq_term = fun t u ->
-    log_ora "entiring eq_valu";
-    let (pt, po) = add_term po t in
-    let (pu, po) = add_term po u in
-    log_edp "insertion at %a and %a" TPtr.print pt TPtr.print pu;
-    log_edp "obtained context:\n%a" (print_pool "        ") po;
-    let (pt, po) = canonical (Ptr.T_ptr pt) po in
-    let (pu, po) = canonical (Ptr.T_ptr pu) po in
-    log_ora "calling eq_expr %a === %a" Print.print_ex t Print.print_ex u;
-    let res = eq_expr pt pu in
-    log_ora "%a === %a : %b" Print.print_ex t Print.print_ex u res;
-    Some res
-  in
-  { eq_term }
 
 let find_proj : pool -> term -> string -> (valu * pool) option = fun po t l ->
   try

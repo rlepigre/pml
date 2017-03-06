@@ -151,7 +151,7 @@ let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
     let r =
       match (a.elt, b.elt) with
       (* Same types.  *)
-      | _ when eq_expr ~oracle:(oracle ctx.equations.pool) a b         ->
+      | _ when eq_expr a b         ->
           log_sub "reflexivity applies";
           Sub_Equal
       (* Unfolding of definitions. *)
