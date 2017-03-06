@@ -4,7 +4,7 @@ include lib.nat
 type rec list<a:ο> = [Nil ; Cons of {hd : a ; tl : list}]
 
 val nil : ∀a:ο, list<a> = Nil[{}]
-val cons : ∀a:ο, a ⇒ list<a> ⇒ list<a> = fun hd tl → Cons[{hd = hd; tl = tl}]
+val cons : ∀a:ο, ∀x∈a, list<a> ⇒ list<a> = fun hd tl → Cons[{hd = hd; tl = tl}]
 
 val hd : ∀a:ο, list<a> ⇒ option<a> = fun l →
   case l of
