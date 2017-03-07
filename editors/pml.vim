@@ -14,7 +14,7 @@ syn keyword Todo contained TODO FIXME NOTE
 syn region Comment start="//" end="$" contains=Todo
 
 " Keywords
-syntax keyword Keyword fun save case of fix let in rec
+syntax keyword Keyword fun save restore case of fix let in rec
 syntax keyword Keyword include type def val sort if then else
 syntax match   Keyword "λ"
 syntax match   Keyword "μ"

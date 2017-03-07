@@ -58,6 +58,7 @@ let _def_     = KW.new_keyword "def"
 let _val_     = KW.new_keyword "val"
 let _fun_     = KW.new_keyword "fun"
 let _save_    = KW.new_keyword "save"
+let _restore_ = KW.new_keyword "restore"
 let _case_    = KW.new_keyword "case"
 let _of_      = KW.new_keyword "of"
 let _fix_     = KW.new_keyword "fix"
@@ -65,7 +66,6 @@ let _rec_     = KW.new_keyword "rec"
 let _let_     = KW.new_keyword "let"
 let _in_      = KW.new_keyword "in"
 let _if_      = KW.new_keyword "if"
-let _then_    = KW.new_keyword "then"
 let _else_    = KW.new_keyword "else"
 
 let parser elipsis = "⋯" | "..."
@@ -215,6 +215,9 @@ let parser expr (m : mode) =
   | "[" s:(expr `Stk) "]" t:(expr (`Trm`F))
       when m = `Trm`F
       -> in_pos _loc (EName(s,t))
+  | _restore_ s:(expr `Stk) t:(expr (`Trm`F))
+      when m = `Trm`F
+      -> in_pos _loc (EName(s,t))
   (* Term (projection) *)
   | t:(expr (`Trm`A)) "." l:llid
       when m = `Trm`A
@@ -227,7 +230,8 @@ let parser expr (m : mode) =
       when m = `Trm`A
       -> in_pos _loc (ECase(t, ref `T, ps))
   (* Term (conditional) *)
-  | _if_ c:(expr (`Trm`F)) _then_ t:(expr (`Trm`F)) _else_ e:(expr (`Trm`F)) 
+  | _if_ c:(expr (`Trm`F)) '{' t:(expr (`Trm`F)) '}' _else_ '{'
+      e:(expr (`Trm`F)) '}'
       when m = `Trm`A
       -> if_then_else _loc c t e
   (* Term (fixpoint) *)
