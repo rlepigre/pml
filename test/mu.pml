@@ -1,8 +1,9 @@
 val pierce : ∀ a b, ((a ⇒ b) ⇒ a) ⇒ a = λx.μa.x (λy.[a]y)
 
-def bot : ο = ∀x, x
+type bot = ∀x, x
+type neg<a> = a ⇒ bot
 
-val excl_mid : ∀ a, {} ⇒ either<a, a ⇒ bot> =
-  fun u → μk.InR[fun x → [k] InL[x]]
+val excl_mid : ∀ a, {} ⇒ either<a, neg<a>> =
+  fun _ → μk.InR[fun x → [k] InL[x]]
 
-//val dneg_elim : ∀ a, (a ⇒ bot) ⇒ bot = fun f →
+val dneg_elim : ∀ a, neg<neg<a>> ⇒ a = pierce

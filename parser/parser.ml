@@ -294,6 +294,7 @@ let parser expr (m : mode) =
   | (expr `Ord)
       when m = `Any
 and fun_arg =
+  | '_'                                   -> (Pos.none "_", None)
   | id:llid                               -> (id, None  )
   | "(" id:llid ":" a:(expr (`Prp`A)) ")" -> (id, Some a)
 and pattern =
