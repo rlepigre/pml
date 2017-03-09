@@ -12,12 +12,13 @@
     ; This is added so entity names with underscores can be more easily parsed
     (modify-syntax-entry ?_ "w" pml2-mode-syntax-table)
     (modify-syntax-entry ?' "w" pml2-mode-syntax-table)
-
-    ; Comment styles are same as C++
-    (modify-syntax-entry ?\) ")(4" pml2-mode-syntax-table)
-    (modify-syntax-entry ?* ". 23" pml2-mode-syntax-table)
-    (modify-syntax-entry ?\( "()1" pml2-mode-syntax-table)
-    ;       (modify-syntax-entry ?\n "> b" pml2-mode-syntax-table)
+    ; comments definition
+    ; . means punctuation
+    ; // 12 means first and second char of one line comments
+    ; The second space charater is ignored
+    (modify-syntax-entry ?/ ". 12" pml2-mode-syntax-table)
+    ; newlines end comments
+    (modify-syntax-entry ?\n ">" pml2-mode-syntax-table)
     pml2-mode-syntax-table)
   "Syntax table for pml2-mode")
 
@@ -67,9 +68,11 @@
  ;;;###autoload
 (define-derived-mode pml2-mode fundamental-mode "Pml2"
   "A major mode for editing Pml2 files."
-  :syntax-table pml2-mode-syntax-table
-  (setq-local font-lock-defaults
-              '(pml2-font-lock-keywords))
+  (set-syntax-table pml2-mode-syntax-table)
+  (setq-local font-lock-defaults '(pml2-font-lock-keywords))
+  (setq-local comment-start "//")
+  ;(setq-local font-lock-defaults
+  ;            '(pml2-font-lock-keywords))
   (setq-local indent-line-function 'pml2-indent-line)
   (set-input-method "Pml2")
                                         ;(setq-local imenu-generic-expression
