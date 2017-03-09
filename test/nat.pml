@@ -1,28 +1,28 @@
-def nat : ο = μx [ Z of {} ∈ {} ; S of x ]
+type rec nat = [ Z ; S of nat ]
 
 val zero : nat = Z[]
 val succ : nat ⇒ nat = fun n → S[n]
 val one  : nat = succ zero
 val two  : nat = succ one
 
-val id_nat : nat ⇒ nat = fix fun id_nat n →
+val rec id_nat : nat ⇒ nat = fun n →
   case n of
   | Z[] → Z[]
   | S[p] → succ (id_nat p)
 
 val test : nat = id_nat two
 
-val id_nat_id : ∀n∈nat, id_nat n ≡ n = fix fun id_nat_id m →
+val rec id_nat_id : ∀n∈nat, id_nat n ≡ n = fun m →
   case m of
   | Z[] → {}
   | S[p] → let ind_hyp : id_nat p ≡ p = id_nat_id p in {}
 
-val add : nat ⇒ nat ⇒ nat = fix fun add n m →
+val rec add : nat ⇒ nat ⇒ nat = fun n m →
   case n of
   | Z[] → m
   | S[p] → succ (add p m)
 
-val add_total : ∀n m∈nat, ∃v:ι, add n m ≡ v = fix fun add_total n m →
+val rec add_total : ∀n m∈nat, ∃v:ι, add n m ≡ v = fun n m →
   case n of
   | Z[] → {}
   | S[p] → let ind_hyp = add_total p m in {}
@@ -32,19 +32,19 @@ def addt<x:τ,y:τ> : τ =
 
 val add_zero_left : ∀z∈nat, add zero z ≡ z = fun n → {}
 
-val add_zero1 : ∀z∈nat, add z zero ≡ z = fix fun add_zero k →
+val rec add_zero1 : ∀z∈nat, add z zero ≡ z = fun k →
   case k of
   | Z[] → {}
   | S[p] →
-    let ind_hyp = (add_zero p : add p zero ≡ p) in {}
+    let ind_hyp = (add_zero1 p : add p zero ≡ p) in {}
 
-val add_zero2 : ∀n∈nat, add n zero ≡ n = fix fun add_zero n →
+val rec add_zero2 : ∀n∈nat, add n zero ≡ n = fun n →
   case n of
   | Z[] → {}
-  | S[p] → let ind_hyp : add p zero ≡ p = add_zero p in {}
+  | S[p] → let ind_hyp : add p zero ≡ p = add_zero2 p in {}
 
-val add_asso : ∀n m q∈nat, add n (add m q) ≡ add (add n m) q =
-  fix fun add_asso n m q →
+val rec add_asso : ∀n m q∈nat, add n (add m q) ≡ add (add n m) q =
+  fun n m q →
     let tot1 = add_total m q in
     case n of
     | Z[] → {}
@@ -55,25 +55,20 @@ val add_asso : ∀n m q∈nat, add n (add m q) ≡ add (add n m) q =
       let ind_hyp = add_asso p m q in
       {}
 
-val add_zero : ∀n∈nat, add n zero ≡ n = fix fun add_zero n →
+val rec add_zero : ∀n∈nat, add n zero ≡ n = fun n →
   case n of
   | Z[] → {}
   | S[p] → let ind_hyp = add_zero p in {}
 
-val add_succ : ∀n m∈nat, add n S[m] ≡ succ(add n m) = fix fun add_succ n m →
+val rec add_succ : ∀n m∈nat, add n S[m] ≡ succ(add n m) = fun n m →
   case n of
   | Z[] → {}
   | S[p] → let ind_hyp = add_succ p m in {}
 
-//val add_succ : ∀n m∈nat, add n S[m] ≡ succ (add n m) = fix fun add_succ n m →
-//  case n of
-//  | Z[] → {}
-//  | S[p] → let ind_hyp = add_succ p m in {}
-
-//val add_succ : ∀n m∈nat, add n S[m] ≡ S[add n m] = fix fun add_succ n m →
-//  case n of
-//  | Z[] → {}
-//  | S[p] → let ind_hyp : add p S[m] ≡ S[add p m] = add_succ p m in {}
+val rec add_succ2 : ∀n m∈nat, add n S[m] ≡ S[add n m] = fun n m →
+  case n of
+  | Z[] → {}
+  | S[p] → let ind_hyp : add p S[m] ≡ S[add p m] = add_succ p m in {}
 
 val add_comm : ∀n m∈nat, add n m ≡ add m n = fix fun add_comm n m →
   case n of
@@ -104,6 +99,7 @@ val mul_zero : ∀n∈nat, mul n zero ≡ zero = fix fun mul_zero n →
     let deduce : add zero (mul p zero) ≡ mul n zero = {} in
     let deduce : add zero (mul p zero) ≡ zero = {} in
     {}
+
 val mul_zero1 : ∀n∈nat, mul n zero ≡ zero = fix fun mul_zero n →
   case n of
   | Z[]  → {}
