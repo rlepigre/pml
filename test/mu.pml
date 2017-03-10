@@ -4,6 +4,6 @@ type bot = ∀x, x
 type neg<a> = a ⇒ bot
 
 val excl_mid : ∀ a, {} ⇒ either<a, neg<a>> =
-  fun _ → μk.InR[fun x → [k] InL[x]]
+  fun _ → save k → InR[fun x → [k] InL[x]]
 
 val dneg_elim : ∀ a, neg<neg<a>> ⇒ a = pierce

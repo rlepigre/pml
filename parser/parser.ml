@@ -185,7 +185,7 @@ let parser expr (m : mode) =
       when m = `Trm`F
       -> in_pos _loc (ELAbs((List.hd args, List.tl args),t))
   (* Term (constructor) *)
-  | c:luid "[" t:(expr (`Trm`F))? "]"
+  | c:luid t:{"[" t:(expr (`Trm`F))? "]"}?[None]$
       when m = `Trm`A
       -> in_pos _loc (ECons(c, Option.map (fun t -> (t, ref `T)) t))
   (* Term (record) *)
