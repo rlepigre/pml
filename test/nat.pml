@@ -22,6 +22,20 @@ val rec add : nat ⇒ nat ⇒ nat = fun n m →
   | Z[] → m
   | S[p] → succ (add p m)
 
+val partial_add_total : ∀x:ι, ∃v:ι, add x ≡ v = {}
+
+val rec strong_add_total : ∀n∈nat, ∀m∈(∃x,x), ∃v:ι, add n m ≡ v = fun n m →
+  case n of
+  | Z[_] → {}
+  | S[p] → let ind_hyp = strong_add_total p m in {}
+
+// FIXME should work
+//val rec strong_add_total : ∀m:ι, ∀n∈nat, ∃v:ι, add n m ≡ v = Λm:ι.fun n →
+//  case n of
+//  | Z[_] → {}
+//  | S[p] → let deduce  : add n m ≡ S[add p m] = {} in
+//           let ind_hyp = strong_add_total p in {}
+
 val rec add_total : ∀n m∈nat, ∃v:ι, add n m ≡ v = fun n m →
   case n of
   | Z[] → {}
