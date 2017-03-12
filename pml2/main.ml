@@ -48,7 +48,7 @@ let rec interpret : Env.env -> Raw.toplevel -> Env.env = fun env top ->
       let (a, prf) = type_check t ao in
       let v = Eval.eval (Erase.term_erasure t) in
       out "val %s : %a\n%!" id.elt Print.ex a;
-      out "  = %a\n%!" Print.print_ex (Erase.to_valu v);
+      (* out "  = %a\n%!" Print.print_ex (Erase.to_valu v); *)
       ignore prf;
       add_value id t a v env
   | Include(ps) ->
