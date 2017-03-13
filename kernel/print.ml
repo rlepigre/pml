@@ -48,7 +48,10 @@ let print_ex : type a. a ex loc printer = fun ch e ->
     | FixN(_,_) -> true
     | _         -> false
   in
-  let is_unit a = match a.elt with Prod(m) -> M.is_empty m | _ -> false in
+  let is_unit a =
+    false
+    (* match a.elt with Prod(m) -> M.is_empty m | _ -> false *)
+  in
   let rec print_ex : type a. a ex loc printer = fun ch e ->
     let e = Norm.repr e in
     if test_done e && !print_full then output_string ch "..." else
@@ -88,7 +91,7 @@ let print_ex : type a. a ex loc printer = fun ch e ->
                      fprintf ch "%a ∈ %s%a%s" print_ex t l print_ex a r
     | Rest(a,e)   -> if is_unit a then print_cond ch e else
                        let (l,r) = if is_arrow a then ("(",")") else ("","") in
-                       fprintf ch "%s%a%s | %a" l print_ex a r print_cond e
+                       fprintf ch "(%s%a%s | %a)" l print_ex a r print_cond e
     | Impl(e,a)   -> fprintf ch "%a ↪ %a" print_cond e print_ex a
     | LAbs(ao,b)  -> let (x,t) = unbind mk_free (snd b) in
                      begin

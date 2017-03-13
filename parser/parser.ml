@@ -100,7 +100,7 @@ let parser sort (p : [`A | `F]) =
 let sort = sort `F
 
 (** Parser for expressions *)
-type p_prio = [`A | `F]
+type p_prio = [`A | `M | `R | `F]
 type t_prio = [`A | `Ap | `F]
 
 type mode = [`Any | `Prp of p_prio | `Trm of t_prio | `Stk | `Ord ]
@@ -116,7 +116,7 @@ let parser expr (m : mode) =
       when m = `Prp`A
       -> in_pos _loc (EVari(id, args))
   (* Proposition (implication) *)
-  | a:(expr (`Prp`A)) impl b:(expr (`Prp`F))
+  | a:(expr (`Prp`R)) impl b:(expr (`Prp`F))
       when m = `Prp`F
       -> in_pos _loc (EFunc(a,b))
   (* Proposition (non-empty product) *)
@@ -156,18 +156,25 @@ let parser expr (m : mode) =
       when m = `Prp`F
       -> in_pos _loc (EFixN(o,x,a))
   (* Proposition (membership) *)
-  | t:(expr (`Trm`A)) "∈" a:(expr (`Prp`A))
-      when m = `Prp`A
+  | t:(expr (`Trm`A)) "∈" a:(expr (`Prp`M))
+      when m = `Prp`M
       -> in_pos _loc (EMemb(t,a))
   (* Proposition (restriction) *)
-  | a:{a:(expr (`Prp`A)) "|"}? t:(expr (`Trm`F)) b:equiv u:(expr (`Trm`F))
+  | a:(expr (`Prp`M)) "|" t:(expr (`Trm`F)) b:equiv u:(expr (`Trm`F))
+      when m = `Prp`R
+      -> in_pos _loc (ERest(Some a,(t,b,u)))
+  | t:(expr (`Trm`F)) b:equiv u:(expr (`Trm`F))
       when m = `Prp`A
-      -> in_pos _loc (ERest(a,(t,b,u)))
+      -> in_pos _loc (ERest(None,(t,b,u)))
   (* Proposition (parentheses) *)
   | "(" (expr (`Prp`F)) ")"
       when m = `Prp`A
   (* Proposition (coersion) *)
   | (expr (`Prp`A))
+      when m = `Prp`M
+  | (expr (`Prp`M))
+      when m = `Prp`R
+  | (expr (`Prp`R))
       when m = `Prp`F
   (* Proposition (from anything) *)
   | (expr (`Prp`F))
