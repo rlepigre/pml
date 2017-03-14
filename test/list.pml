@@ -97,16 +97,3 @@ val map_total : ∀a b:ο, ∀f∈(a ⇒ b), total<f,a> ⇒ ∀l∈list<a>, ∃v
 //        let deduce : map gof ls ≡ cns (gn (fn hd)) (map gof tl) = {} in
 //        let show : map gn (map fn tl) ≡ map gof tl = map_map fn gn tf tg tl in
 //        {}
-
-val rec exists : ∀a:ο, (a ⇒ bool) ⇒ list<a> ⇒ bool = fun f l → case l of
-    | Nil[] → false
-    | Cons[c] →
-       if f c.hd then true else exists f c.tl
-
-val rec find : ∀a:ο, ∀f:(a ⇒ bool), ∀l∈list<a>, neg<exists f l ≡ false> ⇒ = fun f l exc →
-    case l of
-    | Nil[] → exc
-    | Cons[c] →
-       let hd = c.hd in
-       let tl = c.tl in
-       if f hd then hd else find f tl exc
