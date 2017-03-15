@@ -688,6 +688,11 @@ and join : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
   let po = check_parents_eq nps pp2 po in
   PtrSet.fold reinsert nps po
 
+(* when the join can be arbitrary, better to point to
+   the oldest pointer (likely to given less occur-check failure*)
+and age_join : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
+  if p2 < p1 then join p1 p2 po else join p2 p1 po
+
 and union : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
   let (p1, po) = find p1 po in
   let (p2, po) = find p2 po in
@@ -711,11 +716,11 @@ and union : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
         (* Constructors. *)
         | (VN_Cons(c1,vp1), VN_Cons(c2,vp2)) ->
            if c1.elt <> c2.elt then bottom ();
-           let po = join p1 p2 po in (* arbitrary *)
+           let po = age_join p1 p2 po in
            union (Ptr.V_ptr vp1) (Ptr.V_ptr vp2) po
         (* Records. *)
         | (VN_Reco(m1)    , VN_Reco(m2)    ) ->
-           let po = ref (join p1 p2 po) in (* arbitrary *)
+           let po = ref (age_join p1 p2 po) in
            let test vp1 vp2 =
              po := union (Ptr.V_ptr vp1) (Ptr.V_ptr vp2) !po; true
            in
@@ -728,8 +733,9 @@ and union : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
         | (_              , VN_LAbs(_)     )
         | (_              , VN_Reco(_)     )
         | (_              , VN_Cons(_,_)   ) -> join p1 p2 po
-        (* Arbitrary join otherwise. *)
-        | (_              , _              ) -> join p1 p2 po
+        (* age_join otherwise. *)
+        | (_              , _              ) ->
+           age_join p2 p1 po
       end
 
 (* Log functions registration. *)
@@ -866,6 +872,16 @@ let is_value : term -> eq_ctxt -> bool * eq_ctxt = fun t {pool} ->
   let res = match pt with Ptr.V_ptr(_) -> true | Ptr.T_ptr(_) -> false in
   log_edp "%a is%s a value" Print.print_ex t (if res then "" else " not");
   (res, {pool})
+
+(* Test whether a term is equivalent to a value or not. *)
+let to_value : term -> eq_ctxt -> (valu * eq_ctxt) option = fun t {pool} ->
+  let (pt, pool) = add_term pool t in
+  let (pt, pool) = normalise pt pool in
+  match pt with
+  | Ptr.V_ptr(v) ->
+     let (v, pool) = canonical_valu v pool in
+     Some (v, { pool })
+  | Ptr.T_ptr(_) -> None (* FIXME: keep the pool in this case too *)
 
 let learn : eq_ctxt -> relation -> eq_ctxt = fun ctx (t,b,u) ->
   log_edp "learning %a" print_relation (t,b,u);

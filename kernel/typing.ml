@@ -268,6 +268,7 @@ let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
          Sub_FixM_i(subtype ctx t (bndr_subst f a.elt) b)
       (* Fallback to general witness. *)
       | (_          , _          ) when not t_is_val ->
+         log_sub "general subtyping";
          gen_subtype ctx a b
       (* No rule apply. *)
       | _                          ->
@@ -305,20 +306,22 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
             Typ_FixY(p)
          (* General case for typing λ-abstraction *)
          | _ ->
-            let a =
-              match ao with
-              | None   -> new_uvar ctx P
-              | Some a -> a
-            in
+            let a' = new_uvar ctx P in
             let b = new_uvar ctx P in
-            let c' = Pos.none (Func(a,b)) in
+            let c' = Pos.none (Func(a',b)) in
             (* TODO NuRec ? *)
             let p1 = subtype ctx t c' c in
+            let a =
+              match ao with
+              | None   -> a'
+              | Some a -> let _p2 = subtype ctx t a' a in (* FIXME: keep p2 *)
+                          a
+            in
             let wit = VWit(f, a, b) in
             (* Learn the equivalence that are valid in the witness. *)
             begin
               try
-                let ctx = learn_equivalences ctx (Pos.none wit) a in
+                let ctx = learn_equivalences ctx (Pos.none wit) a' in
                 let p2 = type_term ctx (bndr_subst f wit) b in
                 Typ_Func_i(p1,Some p2)
               with Contradiction -> Typ_Func_i(p1, None)
@@ -355,7 +358,9 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
         type_error v.pos "Reachable scissors..."
     (* Coercion. *)
     | VTyp(v,a)   ->
-        let p1 = subtype ctx (Pos.make v.pos (Valu(v))) a c in
+        let t = Pos.make v.pos (Valu(v)) in
+        let p1 = subtype ctx t a c in
+        let ctx = learn_equivalences ctx v c in
         let p2 = type_valu ctx v a in
         Typ_VTyp(p1,p2)
     (* Type abstraction. *)
@@ -455,6 +460,13 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
     (* Coercion. *)
     | TTyp(t,a)   ->
         let p1= subtype ctx t a c in
+        let ctx =
+          match to_value t ctx.equations with
+          | None -> ctx
+          | Some(v,equations) ->
+             let ctx = { ctx with equations } in
+             learn_equivalences ctx v c
+        in
         let p2 = type_term ctx t a in
         Typ_TTyp(p1,p2)
     (* Type abstraction. *)
