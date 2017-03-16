@@ -65,8 +65,8 @@ val compose_total : ∀a b c:ο, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c),
   fun fn gn tf tg a → let lem = tf a in
                       let lem = tg (fn a) in {}
 
-val map_total : ∀a b:ο, ∀f∈(a ⇒ b), total<f,a> ⇒ ∀l∈list<a>, ∃v:ι, map f l ≡ v =
-  fix fun map_total fn ft ls →
+val rec map_total : ∀a b:ο, ∀f∈(a ⇒ b), total<f,a> ⇒ ∀l∈list<a>, ∃v:ι, map f l ≡ v =
+  fun fn ft ls →
   case ls of
   | Nil[] → {}
   | Cns[c] →
@@ -74,12 +74,24 @@ val map_total : ∀a b:ο, ∀f∈(a ⇒ b), total<f,a> ⇒ ∀l∈list<a>, ∃v
         let tl = c.tl in
         let lem : (∃v:ι, fn hd ≡ v) = ft hd in
         let ind : (∃v:ι, map fn tl ≡ v) = map_total fn ft tl in
-        let deduce : map fn ls ≡ cns (fn hd) (map fn tl) = {} in
         {}
 
-//val map_map : ∀a b c:ο, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c), total<f,a> ⇒ total<g,b> ⇒
+val map_map : ∀a b c:ο, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c), total<f,a> ⇒ total<g,b> ⇒
+    ∀l∈list<a>, map g (map f l) ≡ map (fun x → g (f x)) l =
+ fun fn gn → fix fun map_map tf tg ls →
+   case ls of
+   | Nil[] → {}
+   | Cns[c] →
+       let hd = c.hd in let tl = c.tl in
+       let tgf = compose_total fn gn tf tg hd in
+       let lem = tf hd in
+       let lem = map_total fn tf tl in
+       let ind = map_map tf tg tl in
+       {}
+
+// val rec map_map : ∀a b c:ο, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c), total<f,a> ⇒ total<g,b> ⇒
 //     ∀l∈list<a>, map g (map f l) ≡ map (fun x → g (f x)) l =
-//  fix fun map_map fn gn tf tg ls →
+//  fun fn gn tf tg ls →
 //    case ls of
 //    | Nil[] → {}
 //    | Cns[c] →
@@ -92,8 +104,6 @@ val map_total : ∀a b:ο, ∀f∈(a ⇒ b), total<f,a> ⇒ ∀l∈list<a>, ∃v
 //        let lem = tg (fn hd) in
 //        let lem = map_total fn tf tl in
 //        let lem = map_total gn tg (map fn tl) in
-//        let deduce : map gn (map fn ls) ≡ cns (gn (fn hd)) (map gn (map fn tl)) = {} in
 //        let lem = tgf hd in
-//        let deduce : map gof ls ≡ cns (gn (fn hd)) (map gof tl) = {} in
-//        let show : map gn (map fn tl) ≡ map gof tl = map_map fn gn tf tg tl in
+//        let ind : map gn (map fn tl) ≡ map gof tl = map_map fn gn tf tg tl in
 //        {}
