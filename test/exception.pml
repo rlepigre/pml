@@ -20,14 +20,27 @@ val rec exists_total : ∀a:ο, ∀f∈(a ⇒ bool), total<f,a> ⇒ ∀l∈list<
 
 
 val rec find : ∀a:ο, ∀f∈(a ⇒ bool), total<f,a> ⇒ ∀l∈list<a>, neg<(exists f l ≡ false)> ⇒ a =
-  Λa:ο. fun f ftot l exc →
-    let ftot  : total<f,a> = ftot in
+  fun f ftot l exc →
     case l of
     | Nil[_]  → exc {}
-    | Cons[c] → let hd = c.hd in
-                let tl = c.tl in
+    | Cons[c] → let hd = c.hd in let tl = c.tl in
                 let lem : (∃v:ι, f hd ≡ v) = ftot hd in
-                if f hd then hd else
-                  (let lem2 = exists_total f ftot tl in
-                   let exc' : neg<exists f tl ≡ false> = exc in
-                   find f ftot tl exc')
+//                 let exc : neg<exists f tl ≡ false> = exc in //useless !!!
+                if f hd then hd else find f ftot tl exc
+
+val find_opt : ∀a:ο, ∀f∈(a ⇒ bool), total<f,a> ⇒ list<a> ⇒ option<a> =
+  fun f ftot l → save a → Some[find f ftot l (fun _ → restore a none)]
+
+val notNone : ∀a:ο, option<a> ⇒ bool = fun o →
+  case o of None[] → fls | Some[_] → tru
+
+val rec find2 : ∀a:ο, ∀f∈(a ⇒ bool), total<f,a> ⇒ list<list<a>> ⇒ option<a> =
+  fun f ftot ls →
+    case ls of Nil[_]  → none
+             | Cons[c] → let l = c.hd in let tl = c.tl in
+                         save a → Some[find f ftot l (fun _ → restore a (find2 f ftot tl))]
+
+
+//val find_opt2 : ∀a:ο, ∀f∈(a ⇒ bool), total<f,a> ⇒ ∀l∈list<a>, ∃o:ι, option<a> |
+//      imp (exists f l) (notNone o) ≡ tru  =
+//  fun f ftot l → save a → Some[find f ftot l (fun _ → restore a none)]

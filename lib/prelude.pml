@@ -24,6 +24,8 @@ val and : bool ⇒ bool ⇒ bool = fun a b → cond<a, b, fls>
 
 val or  : bool ⇒ bool ⇒ bool = fun a b → cond<a, tru, b>
 
+val imp : bool ⇒ bool ⇒ bool = fun a b → cond<a, b, tru>
+
 // Option type.
 type option<a> = [None ; Some of a]
 
