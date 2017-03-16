@@ -78,6 +78,7 @@ type v_node =
   | VN_EWit of (t ex loc * (v, p) bndr)
   | VN_HApp of v ho_appl
   | VN_UVar of v uvar
+  | VN_ITag of int
 type v_map = (PtrSet.t * v_node) VPtrMap.t
 
 (** Type of a term node. *)
@@ -93,6 +94,7 @@ type t_node =
   | TN_EWit of (t ex loc * (t, p) bndr)
   | TN_HApp of t ho_appl
   | TN_UVar of t uvar
+  | TN_ITag of int
 type t_map = (PtrSet.t * t_node) TPtrMap.t
 
 (** Printing function for value nodes. *)
@@ -111,7 +113,7 @@ let print_v_node : out_channel -> v_node -> unit = fun ch n ->
   | VN_HApp(e)     -> let HO_Appl(s,f,a) = e in
                       prnt ch "VN_HApp(%a)" pex (Pos.none (HApp(s,f,a)))
   | VN_UVar(v)     -> prnt ch "VN_UVar(%a)" pex (Pos.none (UVar(V,v)))
-
+  | VN_ITag(n)     -> prnt ch "VN_ITag(%d)" n
 
 (** Printing function for term nodes. *)
 let print_t_node : out_channel -> t_node -> unit = fun ch n ->
@@ -135,6 +137,7 @@ let print_t_node : out_channel -> t_node -> unit = fun ch n ->
                       let e = Pos.none (HApp(s,f,a)) in
                       prnt ch "TN_HApp(%a)" Print.print_ex e
   | TN_UVar(v)     -> prnt ch "TN_UVar(%a)" pex (Pos.none (UVar(T,v)))
+  | TN_ITag(n)     -> prnt ch "TN_ITag(%d)" n
 
 (** Type of a pool. *)
 type pool =
@@ -198,6 +201,7 @@ let id_v_nodes : v_node -> v_node -> bool = fun n1 n2 -> n1 == n2 ||
                                         eq_expr b1 b2
   | (VN_UWit(t1,b1), VN_UWit(t2,b2)) -> eq_expr t1 t2 && eq_bndr V b1 b2
   | (VN_EWit(t1,b1), VN_EWit(t2,b2)) -> eq_expr t1 t2 && eq_bndr V b1 b2
+  | (VN_ITag(n1)   , VN_ITag(n2)   ) -> n1 = n2
   | (_             , _             ) -> false
 
 let id_t_nodes : t_node -> t_node -> bool = fun n1 n2 -> n1 == n2 ||
@@ -213,6 +217,7 @@ let id_t_nodes : t_node -> t_node -> bool = fun n1 n2 -> n1 == n2 ||
   | (TN_FixY(p11,p12), TN_FixY(p21,p22)) -> p11 = p21 && p12 = p22
   | (TN_UWit(t1,b1)  , TN_UWit(t2,b2)  ) -> eq_expr t1 t2 && eq_bndr T b1 b2
   | (TN_EWit(t1,b1)  , TN_EWit(t2,b2)  ) -> eq_expr t1 t2 && eq_bndr T b1 b2
+  | (TN_ITag(n1)     , TN_ITag(n2)     ) -> n1 = n2
   | (_               , _               ) -> false
 
 (** Geting the children sons of a node. *)
@@ -223,6 +228,7 @@ let children_v_node : v_node -> Ptr.t list = fun n ->
   | VN_Scis
   | VN_VWit _
   | VN_UWit _
+  | VN_ITag _
   | VN_UVar _ (* TODO check *)
   | VN_HApp _ (* TODO check *)
   | VN_EWit _     -> []
@@ -241,6 +247,7 @@ let children_t_node : t_node -> Ptr.t list = fun n ->
   | TN_UWit _
   | TN_EWit _
   | TN_HApp _
+  | TN_ITag _
   | TN_UVar _      -> []
 
 (** Adding a parent to a given node. *)
@@ -324,6 +331,7 @@ let eq_v_nodes : pool -> v_node -> v_node -> bool = fun po n1 n2 -> n1 == n2 ||
                                         eq_expr b1 b2
   | (VN_UWit(t1,b1), VN_UWit(t2,b2)) -> eq_expr t1 t2 && eq_bndr V b1 b2
   | (VN_EWit(t1,b1), VN_EWit(t2,b2)) -> eq_expr t1 t2 && eq_bndr V b1 b2
+  | (VN_ITag(n1)   , VN_ITag(n2)   ) -> n1 = n2
   | (_             , _             ) -> false
 
 let eq_t_nodes : pool -> t_node -> t_node -> bool = fun po n1 n2 -> n1 == n2 ||
@@ -342,6 +350,7 @@ let eq_t_nodes : pool -> t_node -> t_node -> bool = fun po n1 n2 -> n1 == n2 ||
                                               eq_vptr po p12 p22
   | (TN_UWit(t1,b1)  , TN_UWit(t2,b2)  ) -> eq_expr t1 t2 && eq_bndr T b1 b2
   | (TN_EWit(t1,b1)  , TN_EWit(t2,b2)  ) -> eq_expr t1 t2 && eq_bndr T b1 b2
+  | (TN_ITag(n1)     , TN_ITag(n2)     ) -> n1 = n2
   | (_               , _               ) -> false
 
 (** Insertion function for nodes. *)
@@ -408,7 +417,7 @@ let rec add_term : pool -> term -> TPtr.t * pool = fun po t ->
   | HApp(s,f,a) -> insert_t_node (TN_HApp(HO_Appl(s,f,a))) po
   | HDef(_,d)   -> add_term po d.expr_def
   | UVar(_,v)   -> insert_t_node (TN_UVar(v)) po
-  | ITag _      -> invalid_arg "itag variable in the pool"
+  | ITag(_,n)   -> insert_t_node (TN_ITag(n)) po
   | Vari(_)     -> invalid_arg "free variable in the pool"
   | Dumm        -> invalid_arg "dummy terms forbidden in the pool"
 
@@ -435,7 +444,8 @@ and     add_valu : pool -> valu -> VPtr.t * pool = fun po v ->
   | HApp(s,f,a) -> insert_v_node (VN_HApp(HO_Appl(s,f,a))) po
   | HDef(_,d)   -> add_valu po d.expr_def
   | UVar(_,v)   -> insert_v_node (VN_UVar(v)) po
-  | ITag(_)     -> invalid_arg "itag variable in the pool"
+  | ITag(_,n)   -> insert_v_node (VN_ITag(n)) po
+
   | Vari(_)     -> invalid_arg "free variable in the pool"
   | Dumm        -> invalid_arg "dummy terms forbidden in the pool"
 
@@ -504,6 +514,7 @@ let rec canonical_term : TPtr.t -> pool -> term * pool = fun p po ->
                                   let (p, po) = add_term po t in
                                   canonical_term p po
                             end
+        | TN_ITag(n)      -> (Pos.none (ITag(T,n)), po)
       end
   | Ptr.V_ptr(p) ->
       let (v, po) = canonical_valu p po in
@@ -538,6 +549,7 @@ and     canonical_valu : VPtr.t -> pool -> valu * pool = fun p po ->
                                   let (p, po) = add_valu po w in
                                   canonical_valu p po
                             end
+        | VN_ITag(n)      -> (Pos.none (ITag(V,n)), po)
       end
 
 let canonical : Ptr.t -> pool -> term * pool = fun p po ->
@@ -646,6 +658,7 @@ let rec normalise : ?update:bool -> TPtr.t -> pool -> Ptr.t * pool =
             | Some t -> let (p, po) = add_term po t in
                         normalise p po
           end
+       | TN_ITag(n)      -> (p, po)
      end
 
 and check_eq : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
@@ -793,6 +806,16 @@ let empty_ctxt : eq_ctxt =
 
 type equiv   = term * term
 type inequiv = term * term
+
+let eq_val : eq_ctxt -> valu -> valu -> bool = fun {pool=po} v1 v2 ->
+  if v1 == v2 then true else
+  let (p1, po) = add_valu po v1 in
+  let (p2, po) = add_valu po v2 in
+  if VPtr.compare p1 p2 = 0 then true else
+  let (t1, po) = canonical (Ptr.V_ptr p1) po in
+  let (t2, po) = canonical (Ptr.V_ptr p2) po in
+  log_edp "test term equality %a = %a" Print.print_ex t1 Print.print_ex t2;
+  eq_expr t1 t2
 
 (* Adds an equivalence to a context, producing a bigger context. The
    exception [Contradiction] is raised when expected. *)

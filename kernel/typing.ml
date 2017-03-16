@@ -148,6 +148,10 @@ let rec is_singleton : type a. a ex loc -> bool = fun t ->
   | Rest(t,_) -> is_singleton t
   | _ -> false (* TODO: more cases are possible *)
 
+let oracle ctx = {
+    eq_val = fun v1 v2 -> eq_val ctx.equations v1 v2
+  }
+
 let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
   fun ctx t a b ->
     log_sub "%a ∈ %a ⊆ %a" Print.ex t Print.ex a Print.ex b;
@@ -157,7 +161,7 @@ let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
     let r =
       match (a.elt, b.elt) with
       (* Same types.  *)
-      | _ when eq_expr a b         ->
+      | _ when eq_expr ~oracle:(oracle ctx) a b ->
           log_sub "reflexivity applies";
           Sub_Equal
       (* Unfolding of definitions. *)

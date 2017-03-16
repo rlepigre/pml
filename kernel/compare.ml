@@ -143,6 +143,11 @@ let {eq_expr; eq_bndr} =
     let e1 = Norm.whnf e1 in
     let e2 = Norm.whnf e2 in
     if e1 == e2 then true else (
+    try
+      match (sort e1, sort e2) with
+      | (V, e1), (V,e2) -> oracle.eq_val e1 e2
+      | _ -> raise DontKnow
+    with DontKnow ->
     if !full_eq then log_equ "comparing %a and %a" Print.ex e1 Print.ex e2;
     match (e1.elt, e2.elt) with
     | (Vari(x1)      , Vari(x2)      ) ->
