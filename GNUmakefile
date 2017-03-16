@@ -102,7 +102,7 @@ check:
 
 # Test target.
 .PHONY: test
-TEST_FILES = $(wildcard test/*.pml)
+TEST_FILES = $(wildcard lib/*.pml test/*.pml)
 test: main.native $(TEST_FILES)
 	./$^
 
