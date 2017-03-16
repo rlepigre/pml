@@ -176,7 +176,9 @@ let print_ex : type a. a ex loc printer = fun ch e ->
     let rel = List.map (fun (i,j) -> (vars.(i), vars.(j))) sch.sch_relat in
     let print_cmp ch (i,j) = fprintf ch "%a<%a" print_ex i print_ex j in
     let print_rel = print_list print_cmp "," in
-    let sep = if sch.sch_posit <> [] && sch.sch_relat <> [] then ", " else "" in
+    let sep =
+      if sch.sch_posit <> [] && sch.sch_relat <> [] then ", " else ""
+    in
     fprintf ch "%a (%a%s%a ⊢ %a:%a)"
             print_vars (Array.to_list vars) print_vars pos sep
             print_rel rel print_ex t print_ex k

@@ -1,13 +1,13 @@
 (* This is part of OCaml, we just changed the comparison for
    polymorphic hashtbl for it to work on function, where
-   we use physical equality. 
+   we use physical equality.
 
    This is only useful when the hash function produces collision
  *)
 
 let compare x y =
   try Pervasives.compare x y = 0 with _ -> x == y
-					      
+
 let hash x = Hashtbl.hash x
 let hash_param n1 n2 x = Hashtbl.hash_param n1 n2 x
 

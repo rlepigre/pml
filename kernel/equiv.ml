@@ -209,7 +209,7 @@ let id_t_nodes : t_node -> t_node -> bool = fun n1 n2 -> n1 == n2 ||
   | (TN_MAbs(b1)     , TN_MAbs(b2)     ) -> eq_bndr S b1 b2
   | (TN_Name(s1,p1)  , TN_Name(s2,p2)  ) -> eq_expr s1 s2 && p1 = p2
   | (TN_Proj(p1,l1)  , TN_Proj(p2,l2)  ) -> p1 = p2 && l1.elt = l2.elt
-  | (TN_Case(p1,m1)  , TN_Case(p2,m2)  ) -> p1 = p2 && M.equal (eq_bndr V) m1 m2
+  | (TN_Case(p1,m1)  , TN_Case(p2,m2)  ) -> p1 = p2 && M.equal(eq_bndr V) m1 m2
   | (TN_FixY(p11,p12), TN_FixY(p21,p22)) -> p11 = p21 && p12 = p22
   | (TN_UWit(t1,b1)  , TN_UWit(t2,b2)  ) -> eq_expr t1 t2 && eq_bndr T b1 b2
   | (TN_EWit(t1,b1)  , TN_EWit(t2,b2)  ) -> eq_expr t1 t2 && eq_bndr T b1 b2
@@ -563,104 +563,105 @@ let insert_appl : Ptr.t -> Ptr.t -> pool -> Ptr.t * pool = fun pt pu po ->
   find (Ptr.T_ptr p) po
 
 (** Normalisation function. *)
-let rec normalise : ?update:bool -> TPtr.t -> pool -> Ptr.t * pool = fun ?(update=false) p po ->
+let rec normalise : ?update:bool -> TPtr.t -> pool -> Ptr.t * pool =
+  fun ?(update=false) p po ->
   let (p, po) = if update then (Ptr.T_ptr p,po) else find (Ptr.T_ptr p) po in
   match p with
   | Ptr.V_ptr _  -> (p, po)
   | Ptr.T_ptr pt ->
-      begin
-        match snd (TPtrMap.find pt po.ts) with
-        | TN_Valu(pv)    -> find (Ptr.V_ptr pv) po
-        | TN_Appl(pt,pu) ->
-            begin
-              log_edp "normalisation in TN_Appl: %a %a" TPtr.print pt TPtr.print pu;
-              let (pt, po) = normalise pt po in
-              let (pu, po) = normalise pu po in
-              log_edp "normalised    in TN_Appl: %a %a" Ptr.print pt Ptr.print pu;
-              match (pt, pu) with
-              | (Ptr.V_ptr pf, Ptr.V_ptr pv) ->
-                 begin
-                   match snd (VPtrMap.find pf po.vs) with
-                   | VN_LAbs(b) ->
-                      begin
-                        let (v, po) = canonical_valu pv po in
-                        let t = bndr_subst b v.elt in
-                        let (tp, po) = add_term po t in
-                        normalise tp po
-                      end
-                   | _          -> insert_appl pt pu po
-                 end
-              | (_           , _           ) ->
-                 insert_appl pt pu po
-            end
-        | TN_MAbs(b)     -> (p, po) (* FIXME can do better. *)
-        | TN_Name(s,pt)  -> (p, po) (* FIXME can do better. *)
-        | TN_Proj(pv,l)  ->
-            begin
-              let (pv, po) = find_valu pv po in
-              match snd (VPtrMap.find pv po.vs) with
-              | VN_Reco(m) ->
-                  begin
-                    try find (Ptr.V_ptr (M.find l.elt m)) po
-                    with Not_found -> (p, po)
-                  end
-              | _          -> (p, po)
-            end
-        | TN_Case(pv,m)  ->
-            begin
-              let (pv, po) = find_valu pv po in
-              log_edp "normalisation in TN_Case: %a" VPtr.print pv;
-              match snd (VPtrMap.find pv po.vs) with
-              | VN_Cons(c,pv) ->
-                  begin
-                    try
-                      let (pv, po) = find_valu pv po in
+     begin
+       match snd (TPtrMap.find pt po.ts) with
+       | TN_Valu(pv)    -> find (Ptr.V_ptr pv) po
+       | TN_Appl(pt,pu) ->
+          begin
+            log_edp "normalise in TN_Appl: %a %a" TPtr.print pt TPtr.print pu;
+            let (pt, po) = normalise pt po in
+            let (pu, po) = normalise pu po in
+            log_edp "normalised in TN_Appl: %a %a" Ptr.print pt Ptr.print pu;
+            match (pt, pu) with
+            | (Ptr.V_ptr pf, Ptr.V_ptr pv) ->
+               begin
+                 match snd (VPtrMap.find pf po.vs) with
+                 | VN_LAbs(b) ->
+                    begin
                       let (v, po) = canonical_valu pv po in
-                      let t = bndr_subst (M.find c.elt m) v.elt in
+                      let t = bndr_subst b v.elt in
                       let (tp, po) = add_term po t in
                       normalise tp po
-                    with
-                      Not_found -> (p, po)
-                  end
-              | _            -> (p, po)
-            end
-        | TN_FixY(pt,pv) ->
-            begin
-              let (t, po) = canonical_term pt po in
-              let b = bndr_from_fun "x" (fun x -> FixY(t, Pos.none x)) in
-              let (pf, po) = insert_v_node (VN_LAbs(b)) po in
-              let (pf, po) = insert_t_node (TN_Valu(pf)) po in
-              let (pap, po) = insert_t_node (TN_Appl(pt, pf)) po in
-              let (pu, po) = insert_t_node (TN_Valu(pv)) po in
-              let (pap, po) = insert_t_node (TN_Appl(pap, pu)) po in
-              normalise pap po
-            end
-        | TN_UWit(_)     -> (p, po)
-        | TN_EWit(_)     -> (p, po)
-        | TN_HApp(_)     -> (p, po)
-        | TN_UVar(v)     ->
-            begin
-              match !(v.uvar_val) with
-              | None   -> (p, po)
-              | Some t -> let (p, po) = add_term po t in
-                          normalise p po
-            end
-      end
+                    end
+                 | _          -> insert_appl pt pu po
+               end
+            | (_           , _           ) ->
+               insert_appl pt pu po
+          end
+       | TN_MAbs(b)     -> (p, po) (* FIXME can do better. *)
+       | TN_Name(s,pt)  -> (p, po) (* FIXME can do better. *)
+       | TN_Proj(pv,l)  ->
+          begin
+            let (pv, po) = find_valu pv po in
+            match snd (VPtrMap.find pv po.vs) with
+            | VN_Reco(m) ->
+               begin
+                 try find (Ptr.V_ptr (M.find l.elt m)) po
+                 with Not_found -> (p, po)
+               end
+            | _          -> (p, po)
+          end
+       | TN_Case(pv,m)  ->
+          begin
+            let (pv, po) = find_valu pv po in
+            log_edp "normalisation in TN_Case: %a" VPtr.print pv;
+            match snd (VPtrMap.find pv po.vs) with
+            | VN_Cons(c,pv) ->
+               begin
+                 try
+                   let (pv, po) = find_valu pv po in
+                   let (v, po) = canonical_valu pv po in
+                   let t = bndr_subst (M.find c.elt m) v.elt in
+                   let (tp, po) = add_term po t in
+                   normalise tp po
+                 with
+                   Not_found -> (p, po)
+               end
+            | _            -> (p, po)
+          end
+       | TN_FixY(pt,pv) ->
+          begin
+            let (t, po) = canonical_term pt po in
+            let b = bndr_from_fun "x" (fun x -> FixY(t, Pos.none x)) in
+            let (pf, po) = insert_v_node (VN_LAbs(b)) po in
+            let (pf, po) = insert_t_node (TN_Valu(pf)) po in
+            let (pap, po) = insert_t_node (TN_Appl(pt, pf)) po in
+            let (pu, po) = insert_t_node (TN_Valu(pv)) po in
+            let (pap, po) = insert_t_node (TN_Appl(pap, pu)) po in
+            normalise pap po
+          end
+       | TN_UWit(_)     -> (p, po)
+       | TN_EWit(_)     -> (p, po)
+       | TN_HApp(_)     -> (p, po)
+       | TN_UVar(v)     ->
+          begin
+            match !(v.uvar_val) with
+            | None   -> (p, po)
+            | Some t -> let (p, po) = add_term po t in
+                        normalise p po
+          end
+     end
 
 and check_eq : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
   let (p1, po) = find p1 po in
   let (p2, po) = find p2 po in
   if p1 = p2 then po else
-  match (p1, p2) with
-  | Ptr.V_ptr vp1, Ptr.V_ptr vp2 ->
-     let (pp1, n1) = find_v_node vp1 po in
-     let (pp2, n2) = find_v_node vp2 po in
-     if eq_v_nodes po n1 n2 then union p1 p2 po else po
-  | Ptr.T_ptr tp1, Ptr.T_ptr tp2 ->
-     let (pp1, n1) = find_t_node tp1 po in
-     let (pp2, n2) = find_t_node tp2 po in
-     if eq_t_nodes po n1 n2 then join p1 p2 po else po
-  | _ -> po
+    match (p1, p2) with
+    | Ptr.V_ptr vp1, Ptr.V_ptr vp2 ->
+       let (pp1, n1) = find_v_node vp1 po in
+       let (pp2, n2) = find_v_node vp2 po in
+       if eq_v_nodes po n1 n2 then union p1 p2 po else po
+    | Ptr.T_ptr tp1, Ptr.T_ptr tp2 ->
+       let (pp1, n1) = find_t_node tp1 po in
+       let (pp2, n2) = find_t_node tp2 po in
+       if eq_t_nodes po n1 n2 then join p1 p2 po else po
+    | _ -> po
 
 and check_parents_eq pp1 pp2 po =
   PtrSet.fold (fun p1 po ->
@@ -697,46 +698,46 @@ and union : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
   let (p1, po) = find p1 po in
   let (p2, po) = find p2 po in
   if p1 = p2 then po else
-  match (p1, p2) with
-  | (Ptr.T_ptr _  , Ptr.V_ptr _  ) -> join p1 p2 po
-  | (Ptr.V_ptr _  , Ptr.T_ptr _  ) -> join p2 p1 po
-  | (Ptr.T_ptr _  , Ptr.T_ptr _  ) -> join p1 p2 po (* TODO Tarjan *)
-  | (Ptr.V_ptr vp1, Ptr.V_ptr vp2) ->
-      begin
-        let (_,n1) = VPtrMap.find vp1 po.vs in
-        let (_,n2) = VPtrMap.find vp2 po.vs in
-        match (n1, n2) with
-        (* Immediate contradictions. *)
-        | (VN_LAbs(_)     , VN_Reco(_)     )
-        | (VN_LAbs(_)     , VN_Cons(_,_)   )
-        | (VN_Reco(_)     , VN_LAbs(_)     )
-        | (VN_Reco(_)     , VN_Cons(_,_)   )
-        | (VN_Cons(_,_)   , VN_Reco(_)     )
-        | (VN_Cons(_,_)   , VN_LAbs(_)     ) -> bottom ()
-        (* Constructors. *)
-        | (VN_Cons(c1,vp1), VN_Cons(c2,vp2)) ->
-           if c1.elt <> c2.elt then bottom ();
-           let po = age_join p1 p2 po in
-           union (Ptr.V_ptr vp1) (Ptr.V_ptr vp2) po
-        (* Records. *)
-        | (VN_Reco(m1)    , VN_Reco(m2)    ) ->
-           let po = ref (age_join p1 p2 po) in
-           let test vp1 vp2 =
-             po := union (Ptr.V_ptr vp1) (Ptr.V_ptr vp2) !po; true
-           in
-           if not (M.equal test m1 m2) then bottom ();
-           !po
-        (* Prefer real values as equivalence class representatives. *)
-        | (VN_LAbs(_)     , _              )
-        | (VN_Reco(_)     , _              )
-        | (VN_Cons(_,_)   , _              ) -> join p2 p1 po
-        | (_              , VN_LAbs(_)     )
-        | (_              , VN_Reco(_)     )
-        | (_              , VN_Cons(_,_)   ) -> join p1 p2 po
-        (* age_join otherwise. *)
-        | (_              , _              ) ->
-           age_join p2 p1 po
-      end
+    match (p1, p2) with
+    | (Ptr.T_ptr _  , Ptr.V_ptr _  ) -> join p1 p2 po
+    | (Ptr.V_ptr _  , Ptr.T_ptr _  ) -> join p2 p1 po
+    | (Ptr.T_ptr _  , Ptr.T_ptr _  ) -> join p1 p2 po (* TODO Tarjan *)
+    | (Ptr.V_ptr vp1, Ptr.V_ptr vp2) ->
+       begin
+         let (_,n1) = VPtrMap.find vp1 po.vs in
+         let (_,n2) = VPtrMap.find vp2 po.vs in
+         match (n1, n2) with
+         (* Immediate contradictions. *)
+         | (VN_LAbs(_)     , VN_Reco(_)     )
+           | (VN_LAbs(_)     , VN_Cons(_,_)   )
+           | (VN_Reco(_)     , VN_LAbs(_)     )
+           | (VN_Reco(_)     , VN_Cons(_,_)   )
+           | (VN_Cons(_,_)   , VN_Reco(_)     )
+           | (VN_Cons(_,_)   , VN_LAbs(_)     ) -> bottom ()
+         (* Constructors. *)
+         | (VN_Cons(c1,vp1), VN_Cons(c2,vp2)) ->
+            if c1.elt <> c2.elt then bottom ();
+            let po = age_join p1 p2 po in
+            union (Ptr.V_ptr vp1) (Ptr.V_ptr vp2) po
+         (* Records. *)
+         | (VN_Reco(m1)    , VN_Reco(m2)    ) ->
+            let po = ref (age_join p1 p2 po) in
+            let test vp1 vp2 =
+              po := union (Ptr.V_ptr vp1) (Ptr.V_ptr vp2) !po; true
+            in
+            if not (M.equal test m1 m2) then bottom ();
+            !po
+         (* Prefer real values as equivalence class representatives. *)
+         | (VN_LAbs(_)     , _              )
+           | (VN_Reco(_)     , _              )
+           | (VN_Cons(_,_)   , _              ) -> join p2 p1 po
+         | (_              , VN_LAbs(_)     )
+           | (_              , VN_Reco(_)     )
+           | (_              , VN_Cons(_,_)   ) -> join p1 p2 po
+         (* age_join otherwise. *)
+         | (_              , _              ) ->
+            age_join p2 p1 po
+       end
 
 (* Log functions registration. *)
 let log_ora = Log.register 'o' (Some "ora") "oracle informations"

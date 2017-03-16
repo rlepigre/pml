@@ -117,9 +117,17 @@ let uvar_occurs : type a b. a uvar -> b ex loc -> bool = fun u e ->
 
 let full_eq = ref false
 
+exception DontKnow
+type oracle = { eq_val :v ex loc -> v ex loc -> bool }
+
+let default_oracle = {
+    eq_val = fun _ _ -> raise DontKnow
+  }
+
 type eq =
-  { eq_expr : 'a. ?strict:bool -> 'a ex loc -> 'a ex loc -> bool
-  ; eq_bndr : 'a 'b. ?strict:bool -> 'a sort ->
+  { eq_expr : 'a. ?oracle:oracle -> ?strict:bool ->
+                'a ex loc -> 'a ex loc -> bool
+  ; eq_bndr : 'a 'b. ?oracle:oracle -> ?strict:bool -> 'a sort ->
                 ('a,'b) bndr -> ('a,'b) bndr -> bool
   }
 
@@ -128,10 +136,10 @@ let {eq_expr; eq_bndr} =
   let c = ref (-1) in
   let new_itag : type a. a sort -> a ex = fun s -> incr c; ITag(s,!c) in
 
-  let rec eq_expr : type a. bool -> a ex loc -> a ex loc -> bool =
-    fun strict e1 e2 ->
-    let eq_expr e1 e2 = eq_expr strict e1 e2 in
-    let eq_bndr b1 b2 = eq_bndr strict b1 b2 in
+  let rec eq_expr : type a. oracle -> bool -> a ex loc -> a ex loc -> bool =
+    fun oracle strict e1 e2 ->
+    let eq_expr e1 e2 = eq_expr oracle strict e1 e2 in
+    let eq_bndr b1 b2 = eq_bndr oracle strict b1 b2 in
     let e1 = Norm.whnf e1 in
     let e2 = Norm.whnf e2 in
     if e1 == e2 then true else (
@@ -234,28 +242,30 @@ let {eq_expr; eq_bndr} =
        if uvar_occurs u2 e1 then false else (uvar_set u2 e1; true)
     | _                                -> false)
 
-  and eq_bndr : type a b. bool -> a sort -> (a,b) bndr -> (a,b) bndr -> bool =
-    fun strict s1 b1 b2 ->
+  and eq_bndr : type a b. oracle -> bool -> a sort ->
+                            (a,b) bndr -> (a,b) bndr -> bool =
+    fun oracle strict s1 b1 b2 ->
       if b1 == b2 then true else
         let t = new_itag s1 in
-        eq_expr strict (bndr_subst b1 t) (bndr_subst b2 t)
+        eq_expr oracle strict (bndr_subst b1 t) (bndr_subst b2 t)
   in
 
-  let eq_expr : type a. ?strict:bool -> a ex loc -> a ex loc -> bool =
-    fun ?(strict=false) e1 e2 ->
+  let eq_expr : type a. ?oracle:oracle -> ?strict:bool ->
+                          a ex loc -> a ex loc -> bool =
+    fun ?(oracle=default_oracle) ?(strict=false) e1 e2 ->
       c := -1; (* Reset. *)
       log_equ "trying to show %a === %a" Print.ex e1 Print.ex e2;
-      let res = Timed.pure_test (eq_expr strict e1) e2 in
+      let res = Timed.pure_test (eq_expr oracle strict e1) e2 in
       log_equ "we have %a %s %a"
               Print.ex e1 (if res then "=" else "≠") Print.ex e2;
       res
   in
 
-  let eq_bndr : type a b. ?strict:bool ->
+  let eq_bndr : type a b. ?oracle:oracle -> ?strict:bool ->
                      a sort -> (a,b) bndr -> (a,b) bndr -> bool =
-    fun ?(strict=false) s1 b1 b2 ->
+    fun ?(oracle=default_oracle) ?(strict=false) s1 b1 b2 ->
       c := -1; (* Reset. *)
-      let res = Timed.pure_test (eq_bndr strict s1 b1) b2 in
+      let res = Timed.pure_test (eq_bndr oracle strict s1 b1) b2 in
       res
   in
   {eq_expr; eq_bndr}

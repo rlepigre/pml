@@ -224,7 +224,8 @@ let scp_only : t -> bool = fun ftbl ->
     let rec fn () =
       match !new_edges with
       | [] -> ()
-      | {callee = i; caller = j}::l when j < 0 -> new_edges := l; fn () (* ignore root *)
+      | {callee = i; caller = j}::l when j < 0 ->
+         new_edges := l; fn () (* ignore root *)
       | ({callee = i; caller = j; matrix = m} as c)::l ->
         assert (i >= 0);
         new_edges := l;

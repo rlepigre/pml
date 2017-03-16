@@ -1,6 +1,6 @@
 OCAMLBUILD := ocamlbuild -docflags -hide-warnings -use-ocamlfind -r
 
-all: pml2
+all: pml2 check
 
 .PHONY: libs libs_byte doc
 doc: depchecks kernel_doc util_doc
@@ -90,6 +90,15 @@ pml2/main.native:
 
 pml2/main.byte:
 	$(OCAMLBUILD) -package unix,bindlib,earley,earley.str $@
+
+check:
+	@echo FIXME:`grep FIXME */*.ml */*.mli | wc -l`
+	@echo TODO:`grep TODO */*.ml */*.mli | wc -l`
+	@echo Lines with TAB:
+	@grep -P "\t" */*.ml */*.mli; true
+	@echo Lines too long:
+	@wc -L */*.ml */*.mli | grep -e "\([89][0-9]\)\|\([1-9][0-9][0-9]\)"; true
+
 
 # Test target.
 .PHONY: test

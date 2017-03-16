@@ -212,7 +212,8 @@ let parser expr (m : mode) =
       when m = `Trm`Ap
       -> in_pos _loc (EAppl(t,u))
   (* Let binding. *)
-  | _let_ id:llid_wc a:{':' a:(expr (`Prp`A))}? '=' t:(expr (`Trm`F)) _in_ u:(expr (`Trm`F))
+  | _let_ id:llid_wc a:{':' a:(expr (`Prp`A))}? '='
+          t:(expr (`Trm`F)) _in_ u:(expr (`Trm`F))
       when m = `Trm`F
       -> let f = ELAbs(((id, a), []), u) in
          in_pos _loc (EAppl(Pos.none f, t))
