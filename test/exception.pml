@@ -29,6 +29,5 @@ val rec find : ∀a:ο, ∀f∈(a ⇒ bool), total<f,a> ⇒ ∀l∈list<a>, neg<
                 let lem : (∃v:ι, f hd ≡ v) = ftot hd in
                 if f hd then hd else
                   (let lem2 = exists_total f ftot tl in
-                   let deduce : exists f l ≡ exists f tl = {} in
                    let exc' : neg<exists f tl ≡ false> = exc in
-                   find (f:a⇒bool) (ftot:total<f,a>) (tl:list<a>) exc')
+                   find f ftot tl exc')
