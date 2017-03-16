@@ -51,6 +51,10 @@ let parser uid = id:''[A-Z][a-zA-Z0-9_']*'' -> KW.check_not_keyword id; id
 let parser llid = id:lid -> in_pos _loc id
 let parser luid = id:uid -> in_pos _loc id
 
+let parser llid_wc =
+  | id:lid -> in_pos _loc id
+  | '_'    -> in_pos _loc "_"
+
 let _sort_    = KW.new_keyword "sort"
 let _include_ = KW.new_keyword "include"
 let _type_    = KW.new_keyword "type"
@@ -101,7 +105,7 @@ let sort = sort `F
 
 (** Parser for expressions *)
 type p_prio = [`A | `M | `R | `F]
-type t_prio = [`A | `Ap | `F]
+type t_prio = [`A | `Ap | `S | `F]
 
 type mode = [`Any | `Prp of p_prio | `Trm of t_prio | `Stk | `Ord ]
 
@@ -208,9 +212,14 @@ let parser expr (m : mode) =
       when m = `Trm`Ap
       -> in_pos _loc (EAppl(t,u))
   (* Let binding. *)
-  | _let_ id:llid a:{':' a:(expr (`Prp`A))}? '=' t:(expr (`Trm`F)) _in_ u:(expr (`Trm`F))
+  | _let_ id:llid_wc a:{':' a:(expr (`Prp`A))}? '=' t:(expr (`Trm`F)) _in_ u:(expr (`Trm`F))
       when m = `Trm`F
       -> let f = ELAbs(((id, a), []), u) in
+         in_pos _loc (EAppl(Pos.none f, t))
+  (* Sequencing. *)
+  | t:(expr (`Trm`Ap)) ';' u:(expr (`Trm`S))
+      when m = `Trm`S
+      -> let f = ELAbs(((Pos.none "_", None), []), u) in
          in_pos _loc (EAppl(Pos.none f, t))
   (* Term (mu abstraction) *)
   | _save_ args:llid+ arrow t:(expr (`Trm`F))
@@ -260,6 +269,8 @@ let parser expr (m : mode) =
   | (expr (`Trm`A))
       when m = `Trm`Ap
   | (expr (`Trm`Ap))
+      when m = `Trm`S
+  | (expr (`Trm`S))
       when m = `Trm`F
   (* Term (from anything) *)
   | (expr (`Trm`F))
