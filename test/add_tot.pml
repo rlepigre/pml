@@ -16,10 +16,3 @@ val add : ∀n m∈nat, ∃k:ι, k∈(nat | t_add n m ≡ k) = t_add
 //    case n of
 //    | Zero[_] → {}
 //    | Succ[k] → let ih = add_asso k m p in {}
-
-// Proof by induction.
-//val rec ind : ∀f:ι→ο, f<Zero> ⇒ (∀i∈nat, f<i> ⇒ f<Succ[i]>) ⇒ ∀n∈nat, f<n> =
-//  fun d s n →
-//    case n of
-//    | Zero[_] → d
-//    | Succ[k] → s k (ind d s k)

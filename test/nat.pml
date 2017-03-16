@@ -237,3 +237,17 @@ val mul_asso : ∀n m p∈nat, mul (mul n m) p ≡ mul n (mul m p) =
        let lem : mul (mul n m) p ≡ add (mul m p) (mul n' (mul m p)) =
          mul_asso n' m p in
        {}
+
+// Proof by induction.
+val rec ind : ∀f:ι→ο, f<Z> ⇒ (∀i∈nat, f<i> ⇒ f<S[i]>) ⇒ ∀n∈nat, f<n> =
+ fun d s n →
+   case n of
+   | Z[_] → d
+   | S[k] → s k (ind d s k)
+
+// Proof by induction.
+def ind2<f:ι→ο,z:τ,s:τ> : τ = (ind z s : ∀n∈nat, f<n>)
+
+def p<n:ι> : ο =  id_nat n ≡ n
+
+//val rec id_nat_id : ∀n∈nat, id_nat n ≡ n = ind2<p,{},(fun i x → x)>
