@@ -1,4 +1,4 @@
-type rec list<a:ο> = μx [ Nil of {}; Cns of { hd : a; tl : list } ]
+type rec list<a:ο> = [ Nil of {}; Cns of { hd : a; tl : list } ]
 
 val nil : ∀a:ο, list<a> = Nil[]
 

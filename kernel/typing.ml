@@ -142,6 +142,12 @@ let rec get_lam : type a. string -> a sort -> term -> prop -> a ex * prop =
         end
     | _         -> unexpected "Expected ∀ type..."
 
+let rec is_singleton : type a. a ex loc -> bool = fun t ->
+  match (Norm.whnf t).elt with
+  | Memb(_) -> true
+  | Rest(t,_) -> is_singleton t
+  | _ -> false (* TODO: more cases are possible *)
+
 let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
   fun ctx t a b ->
     log_sub "%a ∈ %a ⊆ %a" Print.ex t Print.ex a Print.ex b;
@@ -164,8 +170,16 @@ let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
           let fn x = appl None (box t) (valu None (vari None x)) in
           let f = (None, unbox (vbind mk_free "x" fn)) in
           let wit = Pos.none (Valu(Pos.none (VWit(f,a2,b2)))) in
-          let p2 = subtype ctx (Pos.none (Appl(t, wit))) b1 b2 in
-          let p1 = subtype ctx wit a2 a1 in
+          let p1, p2 =
+            if is_singleton a1 then
+              let p1 = subtype ctx wit a2 a1 in
+              let p2 = subtype ctx (Pos.none (Appl(t, wit))) b1 b2 in
+              (p1,p2)
+            else
+              let p2 = subtype ctx (Pos.none (Appl(t, wit))) b1 b2 in
+              let p1 = subtype ctx wit a2 a1 in
+              (p1,p2)
+          in
           Sub_Func(p1,p2)
       (* Product (record) types. *)
       | (Prod(fs1)  , Prod(fs2)  ) when t_is_val ->
@@ -322,6 +336,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
             begin
               try
                 let ctx = learn_equivalences ctx (Pos.none wit) a' in
+                (* FIXME do not learn equivalence if a == a' *)
                 let p2 = type_term ctx (bndr_subst f wit) b in
                 Typ_Func_i(p1,Some p2)
               with Contradiction -> Typ_Func_i(p1, None)
@@ -360,7 +375,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
     | VTyp(v,a)   ->
         let t = Pos.make v.pos (Valu(v)) in
         let p1 = subtype ctx t a c in
-        let ctx = learn_equivalences ctx v c in
+        let ctx = learn_equivalences ctx v c in (* TODO: check *)
         let p2 = type_valu ctx v a in
         Typ_VTyp(p1,p2)
     (* Type abstraction. *)
@@ -465,7 +480,7 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
           | None -> ctx
           | Some(v,equations) ->
              let ctx = { ctx with equations } in
-             learn_equivalences ctx v c
+             learn_equivalences ctx v c (* TODO: check *)
         in
         let p2 = type_term ctx t a in
         Typ_TTyp(p1,p2)

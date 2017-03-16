@@ -91,12 +91,12 @@ val rec mul_comm : ∀n m∈nat, mul n m ≡ mul m n = fun n m →
 def deduce<f:ο> : τ = ({} : f)
 def show<f:ο, p:τ> : τ = (p : f)
 
-//val rec mul_comm : ∀n m∈nat, mul n m ≡ mul m n = fun n m →
-//  case n of
-//  | Zero[_] → deduce<mul Zero m ≡ Zero>;
-//              show<mul m Zero ≡ Zero, mul_n_zero m>
-//  | Succ[k] → deduce<mul Succ[k] m ≡ add m (mul k m)>;
-//               show<mul k m ≡ mul m k, mul_comm m k>;
-//               show<mul m Succ[k] ≡ add (mul m k) m, mul_succ m k>;
-//               show<(∃v:ι, mul k m ≡ v), mul_total k m>;
-//               show<add (mul k m) m ≡ add m (mul k m), add_comm (mul k m) m>
+val rec mul_comm : ∀n m∈nat, mul n m ≡ mul m n = fun n m →
+  case n of
+  | Zero[_] → deduce<mul Zero m ≡ Zero>;
+              show<mul m Zero ≡ Zero, mul_n_zero m>
+  | Succ[k] → deduce<mul Succ[k] m ≡ add m (mul k m)>;
+              show<mul k m ≡ mul m k, mul_comm k m>;
+              show<mul m Succ[k] ≡ add (mul m k) m, mul_succ m k>;
+              show<(∃v:ι, mul k m ≡ v), mul_total k m>;
+              show<add (mul k m) m ≡ add m (mul k m), add_comm (mul k m) m>
