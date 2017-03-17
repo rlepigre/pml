@@ -1,11 +1,12 @@
 include lib.list
-include test.mu
 
-val rec exists : ∀a:ο, (a ⇒ bool) ⇒ list<a> ⇒ bool =
-  fun f l →
-    case l of
-    | Nil[_]  → false
-    | Cons[c] → if f c.hd then true else exists f c.tl
+type bot = ∀x, x
+type neg<a> = a ⇒ bot
+
+val rec exists : ∀a:ο, (a ⇒ bool) ⇒ list<a> ⇒ bool = fun f l →
+  case l of
+  | Nil[_]  → false
+  | Cons[c] → if f c.hd then true else exists f c.tl
 
 def total<f:ι, a:ο> : ο = ∀x∈a, ∃y:ι, f x ≡ y
 
@@ -19,7 +20,8 @@ val rec exists_total : ∀a:ο, ∀f∈(a ⇒ bool), total<f,a> ⇒ ∀l∈list<
         if f c.hd then {} else (let lem = exists_total f ftot c.tl in {})
 
 
-val rec find : ∀a:ο, ∀f∈(a ⇒ bool), total<f,a> ⇒ ∀l∈list<a>, neg<(exists f l ≡ false)> ⇒ a =
+val rec find : ∀a:ο, ∀f∈(a ⇒ bool), total<f,a> ⇒
+                       ∀l∈list<a>, neg<(exists f l ≡ false)> ⇒ a =
   fun f ftot l exc →
     case l of
     | Nil[_]  → exc {}
@@ -36,9 +38,10 @@ val notNone : ∀a:ο, option<a> ⇒ bool = fun o →
 
 val rec find2 : ∀a:ο, ∀f∈(a ⇒ bool), total<f,a> ⇒ list<list<a>> ⇒ option<a> =
   fun f ftot ls →
-    case ls of Nil[_]  → none
-             | Cons[c] → let l = c.hd in let tl = c.tl in
-                         save a → Some[find f ftot l (fun _ → restore a (find2 f ftot tl))]
+    case ls of
+    | Nil[_]  → none
+    | Cons[c] → save a → Some[find f ftot c.hd
+                  (fun _ → restore a (find2 f ftot c.tl))]
 
 
 //val find_opt2 : ∀a:ο, ∀f∈(a ⇒ bool), total<f,a> ⇒ ∀l∈list<a>, ∃o:ι, option<a> |
