@@ -3,8 +3,8 @@ include lib.list
 type order<a:ο> = ∃cmp:ι,
   { cmp : cmp ∈ (a ⇒ a ⇒ bool)
   ; tmp : ∀x y∈a, ∃v:ι, v ≡ cmp x y
-  ; tra : ∀x y z∈a, (cmp x y ≡ tru ⇒ cmp y z ≡ tru ⇒ cmp x y ≡ tru)
-  ; tot : ∀x y∈a, or (cmp x y) (cmp y x) ≡ tru }
+//  ; tra : ∀x y z∈a, (cmp x y ≡ tru ⇒ cmp y z ≡ tru ⇒ cmp x y ≡ tru)
+  ; tot : ∀x y∈a, xor (cmp x y) (cmp y x) ≡ tru }
 
 val rec sorted : ∀a:ο, ∀o∈order<a>, ∀l∈list<a>, bool = fun o l →
   case l of
