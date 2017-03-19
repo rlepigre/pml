@@ -869,3 +869,9 @@ let euniv_in _loc x xs a b =
 
 let if_then_else _loc c t e =
   Pos.make (Some _loc) (EVari(Pos.none "cond", [c;t;e]))
+
+let deduce _loc a =
+  Pos.make (Some _loc) (EVari(Pos.none "tac_deduce", [a]))
+
+let show_using _loc a t =
+  Pos.make (Some _loc) (EVari(Pos.none "tac_show", [a]))

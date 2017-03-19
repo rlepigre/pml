@@ -71,6 +71,9 @@ let _let_     = KW.new_keyword "let"
 let _in_      = KW.new_keyword "in"
 let _if_      = KW.new_keyword "if"
 let _else_    = KW.new_keyword "else"
+let _show_    = KW.new_keyword "show"
+let _using_   = KW.new_keyword "using"
+let _deduce_  = KW.new_keyword "deduce"
 
 let parser elipsis = "⋯" | "..."
 
@@ -251,6 +254,14 @@ let parser expr (m : mode) =
       _else_ '{' e:(expr (`Trm`F)) '}'
       when m = `Trm`A
       -> if_then_else _loc c t e
+  (* Deduce tactic *)
+  | _deduce_ a:(expr (`Prp`A))
+      when m = `Trm`A
+      -> deduce _loc a
+  (* Show tactic *)
+  | _show_ a:(expr (`Prp`A)) _using_ t:(expr (`Trm`F))
+      when m = `Trm`A
+      -> show_using _loc a t
   (* Term (fixpoint) *)
   | _fix_ t:(expr (`Trm`F))
       when m = `Trm`F

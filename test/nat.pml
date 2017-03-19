@@ -37,7 +37,7 @@ val rec strong_add_total : ∀n∈nat, ∀m∈(∃x,x), ∃v:ι, add n m ≡ v =
 val rec strong_add_total : ∀m:ι, ∀n∈nat, ∃v:ι, add n m ≡ v = Λm:ι.fun n →
   case n {
     | Z[_] → {}
-    | S[p] → let deduce  : add n m ≡ S[add p m] = {} in
+    | S[p] → let ded  : add n m ≡ S[add p m] = {} in
              let ind_hyp : (∃v:ι, add p m ≡ v) = strong_add_total p in {}
   }
 
@@ -70,9 +70,9 @@ val rec add_asso : ∀n m q∈nat, add n (add m q) ≡ add (add n m) q =
     case n {
       | Z[] → {}
       | S[p] →
-         let deduce : add n (add m q) ≡ succ (add p (add m q)) = {} in
+         let ded : add n (add m q) ≡ succ (add p (add m q)) = {} in
          let tot2 = add_total p m in
-         let deduce : add (add n m) q ≡ succ (add (add p m) q) = {} in
+         let ded : add (add n m) q ≡ succ (add (add p m) q) = {} in
          let ind_hyp = add_asso p m q in {}
     }
 
@@ -118,8 +118,8 @@ val mul_zero : ∀n∈nat, mul n zero ≡ zero = fix fun mul_zero n →
   case n {
     | Z[]  → {}
     | S[p] → let ind_hyp : mul p zero ≡ zero = mul_zero p in
-             let deduce : add zero (mul p zero) ≡ mul n zero = {} in
-             let deduce : add zero (mul p zero) ≡ zero = {} in {}
+             let ded : add zero (mul p zero) ≡ mul n zero = {} in
+             let ded : add zero (mul p zero) ≡ zero = {} in {}
   }
 
 val mul_zero1 : ∀n∈nat, mul n zero ≡ zero = fix fun mul_zero n →
@@ -132,22 +132,22 @@ val mul_succ : ∀n m∈nat, mul n S[m] ≡ add (mul n m) n = fix fun mul_succ n
   case n {
     | Z[]  → {}
     | S[p] →
-       let deduce : add (mul n m) n ≡ add (add m (mul p m)) n = {} in
+       let ded : add (mul n m) n ≡ add (add m (mul p m)) n = {} in
        let ind_hyp : mul p S[m] ≡ add (mul p m) p = mul_succ p m in
        let total = mul_total p m in
        let total = add_total m (mul p m) in
-       let deduce : add (add m (mul p m)) n ≡ succ (add (add m (mul p m)) p) =
+       let ded : add (add m (mul p m)) n ≡ succ (add (add m (mul p m)) p) =
          add_succ (add m (mul p m)) p
        in
-       let deduce : add (add m (mul p m)) n ≡ succ (add m (add (mul p m) p)) =
+       let ded : add (add m (mul p m)) n ≡ succ (add m (add (mul p m) p)) =
          add_asso m (mul p m) p
        in
-       let deduce : add (add m (mul p m)) n ≡ succ (add m (mul p S[m])) =
+       let ded : add (add m (mul p m)) n ≡ succ (add m (mul p S[m])) =
          {}
        in
        let total = mul_total p S[m] in
-       let deduce : add (add m (mul p m)) n ≡ add S[m] (mul p S[m]) = {} in
-       let deduce : add (add m (mul p m)) n ≡ mul n S[m] = {} in {}
+       let ded : add (add m (mul p m)) n ≡ add S[m] (mul p S[m]) = {} in
+       let ded : add (add m (mul p m)) n ≡ mul n S[m] = {} in {}
   }
 
 val mul_comm : ∀n m∈nat, mul n m ≡ mul m n = fix fun mul_comm n m →
@@ -184,8 +184,8 @@ val mul_dist_l : ∀p n m∈nat, mul p (add n m) ≡ add (mul p n) (mul p m) =
        let lem = add_total n m in {}
     | S[p'] →
        let lem = add_total n m in
-       let deduce : mul p (add n m) ≡ add (add n m) (mul p' (add n m)) = {} in
-       let deduce : add (mul p n) (mul p m) ≡
+       let ded : mul p (add n m) ≡ add (add n m) (mul p' (add n m)) = {} in
+       let ded : add (mul p n) (mul p m) ≡
                     add (add n (mul p' n)) (add m (mul p' m)) = {} in
        let ind : mul p' (add n m) ≡ add (mul p' n) (mul p' m) =
           mul_dist p' n m
@@ -233,9 +233,9 @@ val mul_asso : ∀n m p∈nat, mul (mul n m) p ≡ mul n (mul m p) =
     | Z[] →
        let lem = mul_total m p in {}
     | S[n'] →
-       let deduce : mul (mul n m) p ≡ mul (add m (mul n' m)) p = {} in
+       let ded : mul (mul n m) p ≡ mul (add m (mul n' m)) p = {} in
        let lem = mul_total m p in
-       let deduce : mul n (mul m p) ≡ add (mul m p) (mul n' (mul m p)) = {} in
+       let ded : mul n (mul m p) ≡ add (mul m p) (mul n' (mul m p)) = {} in
        let lem = mul_total n' m in
        let lem : mul (mul n m) p ≡ add (mul m p) (mul (mul n' m) p) =
          mul_dist_r m (mul n' m) p in

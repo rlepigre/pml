@@ -13,9 +13,9 @@ val vnil : ∀a:ο, vec<a,zero> = nil
 
 val vcns : ∀a:ο,∀s:ι, ∀x∈a, vec<a,s> ⇒ vec<a,S[s]> =
    Λa:ο. Λs:ι. fun y ls →
-    let deduce : s ≡ length ls = {} in
+    let ded : s ≡ length ls = {} in
     let test : nat = length ls in
-    let deduce : length (cns y ls) ≡ S[s] = {} in
+    let ded : length (cns y ls) ≡ S[s] = {} in
     Cns[{hd = y; tl = ls}]
 
 val vcns : ∀a:ο,∀s:ι, ∀x∈a, vec<a,s> ⇒ vec<a,S[s]> =

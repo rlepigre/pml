@@ -48,8 +48,8 @@ val app_asso : ∀a:ο, ∀x1 x2 x3∈list<a>, app x1 (app x2 x3) ≡ app (app x
          let tl = c.tl in
          let total = app_total tl l2 in
          let total = app_total l2 l3 in
-         let deduce : app l1 (app l2 l3) ≡ cns hd (app tl (app l2 l3)) = {} in
-         let deduce : app (app l1 l2) l3 ≡ cns hd (app (app tl l2) l3) = {} in
+         let ded : app l1 (app l2 l3) ≡ cns hd (app tl (app l2 l3)) = {} in
+         let ded : app (app l1 l2) l3 ≡ cns hd (app (app tl l2) l3) = {} in
          let ind : app tl (app l2 l3) ≡ app (app tl l2) l3 =
            app_asso tl l2 l3
          in {}
