@@ -9,14 +9,16 @@ def omega : τ = delta delta
 def arrow<a:ο, b:ο> : ο = a ⇒ b
 
 def test1 : τ =
-  case C[{}] of
-  | C[z] → z
-  | D[w] → C[w]
+  case C[{}] {
+    | C[z] → z
+    | D[w] → C[w]
+  }
 
 def test2 : τ =
-  case (λx.x) C[{}] of
-  | C[z] → z
-  | D[w] → C[w]
+  case (λx.x) C[{}] {
+    | C[z] → z
+    | D[w] → C[w]
+  }
 
 def fixid : τ = fix (λx.x)
 

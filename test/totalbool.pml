@@ -9,37 +9,26 @@ val fls : bool = F[]
 
 def eq0 : ι =
   fun b1 b2 →
-    case b1 of
-    | F[] → (case b2 of
-              | T[] → fls
-              | F[] → tru)
-    | T[] → (case b2 of
-              | T[] → tru
-              | F[] → fls)
+    case b1 {
+      | F[] → case b2 { T[] → fls | F[] → tru }
+      | T[] → case b2 { T[] → tru | F[] → fls }
+    }
 
 // Equivalence with totality.
 val eq : ∀x y∈bool, ∃ v:ι, v ∈ (bool | eq0 x y ≡ v) = eq0
 
 def not0 : ι =
-  fun b →
-    case b of
-    | F[] → tru
-    | T[] → fls
+  fun b → case b { F[] → tru | T[] → fls }
 
 val not_total : ∀x∈bool, ∃v:ι, not x ≡ v =
-  fun b →
-    case b of
-    | F[] → {}
-    | T[] → {}
+  fun b → case b { F[] → {} | T[] → {} }
 
 val not : bool ⇒ bool = fun b → let x = not_total b in not0 b
 
 //val test0 : ∀x∈bool, not x ≡ not0 x = fun b → {}
 
 val not_idempotent : ∀x∈bool, not (not x) ≡ x = fun b →
-  case b of
-  | F[] → {}
-  | T[] → {}
+  case b { F[] → {} | T[] → {} }
 
 //val test : ∀x∈bool, not (not (not x)) ≡ not x = fun b →
 //  let lem0 = not_total b in
@@ -86,34 +75,40 @@ val not_idempotent : ∀x∈bool, not (not x) ≡ x = fun b →
 // Equivalence is reflexive.
 val eq_refl : ∀ x:ι, x∈bool ⇒ eq x x ≡ tru =
   fun b →
-    case b of
-    | F[x] → {}
-    | T[x] → {}
+    case b {
+      | F[x] → {}
+      | T[x] → {}
+    }
 
 // Equivalence is commutative.
 val eq_comm : ∀ x:ι, ∀ y:ι, x∈bool ⇒ y∈bool ⇒ eq x y ≡ eq y x =
   fun b1 b2 →
-    case b1 of
-    | F[x] → (case b2 of | T[y] → {} | F[y] → {})
-    | T[x] → (case b2 of | T[y] → {} | F[y] → {})
+    case b1 {
+      | F[x] → case b2 { T[y] → {} | F[y] → {} }
+      | T[x] → case b2 { T[y] → {} | F[y] → {} }
+    }
 
 val eq_comm2 : ∀ x:ι, ∀ y:ι, x∈bool ⇒ y∈bool ⇒ eq (eq x y) (eq y x) ≡ tru =
   fun b1 b2 →
-    case b1 of
-    | F[x] → (case b2 of | T[y] → {} | F[y] → {})
-    | T[x] → (case b2 of | T[y] → {} | F[y] → {})
+    case b1 {
+      | F[x] → case b2 { T[y] → {} | F[y] → {} }
+      | T[x] → case b2 { T[y] → {} | F[y] → {} }
+    }
 
 // Equivalence is associative.
 val eq_asso : ∀ x:ι, ∀ y:ι, ∀ z:ι, x∈bool ⇒ y∈bool ⇒ z∈bool ⇒
               eq (eq x y) z ≡ eq x (eq y z) =
   fun b1 b2 b3 →
-    case b1 of
-    | F[x] → (case b2 of
-              | T[y] → (case b3 of | T[z] → {} | F[z] → {})
-              | F[y] → (case b3 of | T[z] → {} | F[z] → {}))
-    | T[x] → (case b2 of
-              | T[y] → (case b3 of | T[z] → {} | F[z] → {})
-              | F[y] → (case b3 of | T[z] → {} | F[z] → {}))
+    case b1 {
+      | F[x] → case b2 {
+                 | T[y] → case b3 { T[z] → {} | F[z] → {} }
+                 | F[y] → case b3 { T[z] → {} | F[z] → {} }
+               }
+      | T[x] → case b2 {
+                 | T[y] → case b3 { T[z] → {} | F[z] → {} }
+                 | F[y] → case b3 { T[z] → {} | F[z] → {} }
+               }
+    }
 
 // Other version using "let".
 //val eq_comm3 : ∀ x:ι, ∀ y:ι, x∈bool ⇒ y∈bool ⇒ eq (eq x y) (eq y x) ≡ tru =

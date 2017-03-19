@@ -10,81 +10,86 @@ val fls : bool = F[]
 // Basic functions.
 val eq : bool ⇒ bool ⇒ bool =
   fun b1 b2 →
-    case b1 of
-    | F[] → (case b2 of
-              | T[] → fls
-              | F[] → tru)
-    | T[] → (case b2 of
-              | T[] → tru
-              | F[] → fls)
+    case b1 {
+      | F[_] → case b2 { T[_] → fls | F[_] → tru }
+      | T[_] → case b2 { T[_] → tru | F[_] → fls }
+    }
 
 val not : bool ⇒ bool =
-  fun b →
-    case b of
-    | F[] → tru
-    | T[] → fls
+  fun b → case b { F[_] → tru | T[_] → fls }
 
 val or : bool ⇒ bool ⇒ bool =
   fun b1 → fun b2 →
-    case b1 of
-    | F[] → b2
-    | T[] → tru
+    case b1 {
+      | F[] → b2
+      | T[] → tru
+    }
 
 val imp : bool ⇒ bool ⇒ bool =
   fun b1 → fun b2 →
-    case b1 of
-    | F[] → tru
-    | T[] → b2
+    case b1 {
+      | F[] → tru
+      | T[] → b2
+    }
 
 def land<b1:τ,b2:τ> =
-  case b1 of
-  | F[] → fls
-  | T[] → b2
+  case b1 {
+    | F[] → fls
+    | T[] → b2
+  }
 
 val and : bool ⇒ bool ⇒ bool =
   fun b1 → fun b2 →
-    case b1 of
-    | F[] → fls
-    | T[] → b2
+    case b1 {
+      | F[] → fls
+      | T[] → b2
+    }
 
 // Proof of the excluded middle
 val excluded_middle : ∀x∈bool, or x (not x) ≡ tru =
   fun b →
-    case b of
-    | F[] → {}
-    | T[] → {}
+    case b {
+      | F[] → {}
+      | T[] → {}
+    }
 
 // Equivalence is reflexive.
 val eq_refl : ∀x∈bool, eq x x ≡ tru =
   fun b →
-    case b of
-    | F[] → {}
-    | T[] → {}
+    case b {
+      | F[] → {}
+      | T[] → {}
+    }
 
 // Equivalence is commutative.
 val eq_comm : ∀x y∈bool, eq x y ≡ eq y x =
   fun b1 b2 →
-    case b1 of
-    | F[] → (case b2 of | T[y] → {} | F[y] → {})
-    | T[] → (case b2 of | T[y] → {} | F[y] → {})
+    case b1 {
+      | F[] → case b2 { T[_] → {} | F[_] → {} }
+      | T[] → case b2 { T[_] → {} | F[_] → {} }
+    }
 
 
 val eq_comm2 : ∀x y∈bool, eq (eq x y) (eq y x) ≡ tru =
   fun b1 b2 →
-    case b1 of
-    | F[] → (case b2 of | T[] → {} | F[] → {})
-    | T[] → (case b2 of | T[] → {} | F[] → {})
+    case b1 {
+      | F[] → case b2 { T[] → {} | F[] → {} }
+      | T[] → case b2 { T[] → {} | F[] → {} }
+    }
 
 // Equivalence is associative.
 val eq_asso : ∀x y z∈bool, eq (eq x y) z ≡ eq x (eq y z) =
   fun b1 b2 b3 →
-    case b1 of
-    | F[] → (case b2 of
-              | T[] → (case b3 of | T[z] → {} | F[z] → {})
-              | F[] → (case b3 of | T[z] → {} | F[z] → {}))
-    | T[] → (case b2 of
-              | T[] → (case b3 of | T[z] → {} | F[z] → {})
-              | F[] → (case b3 of | T[z] → {} | F[z] → {}))
+    case b1 {
+      | F[] → case b2 {
+                | T[] → case b3 { T[_] → {} | F[_] → {} }
+                | F[] → case b3 { T[_] → {} | F[_] → {} }
+              }
+      | T[] → case b2 {
+                | T[] → case b3 { T[_] → {} | F[_] → {} }
+                | F[] → case b3 { T[_] → {} | F[_] → {} }
+              }
+    }
 
 // Other version using "let", not correct without proving totality of eq
 //val eq_comm3 : ∀x y∈bool, eq (eq x y) (eq y x) ≡ tru =
@@ -96,10 +101,13 @@ val eq_asso : ∀x y z∈bool, eq (eq x y) z ≡ eq x (eq y z) =
 
 val eq_asso2 : ∀x y z∈bool, eq (eq (eq x y) z) (eq x (eq y z)) ≡ tru =
   fun b1 b2 b3 →
-    case b1 of
-    | F[] → (case b2 of
-              | T[] → (case b3 of | T[z] → {} | F[z] → {})
-              | F[] → (case b3 of | T[z] → {} | F[z] → {}))
-    | T[] → (case b2 of
-              | T[] → (case b3 of | T[z] → {} | F[z] → {})
-              | F[] → (case b3 of | T[z] → {} | F[z] → {}))
+    case b1 {
+      | F[] → case b2 {
+                | T[] → case b3 { T[_] → {} | F[_] → {} }
+                | F[] → case b3 { T[_] → {} | F[_] → {} }
+              }
+      | T[] → case b2 {
+                | T[] → case b3 { T[_] → {} | F[_] → {} }
+                | F[] → case b3 { T[_] → {} | F[_] → {} }
+              }
+    }

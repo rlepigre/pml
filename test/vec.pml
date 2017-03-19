@@ -2,9 +2,10 @@ include test.nat
 include test.list
 
 val length : ∀a:ο, list<a> ⇒ nat = fix fun length l →
-  case l of
-  | Nil[] → zero
-  | Cns[c] → succ (length c.tl)
+  case l {
+    | Nil[] → zero
+    | Cns[c] → succ (length c.tl)
+  }
 
 type vec<a:ο,s:ι> = ∃l:ι, l∈(list<a> | length l ≡ s)
 
