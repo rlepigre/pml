@@ -255,11 +255,11 @@ let parser expr (m : mode) =
       when m = `Trm`A
       -> if_then_else _loc c t e
   (* Deduce tactic *)
-  | _deduce_ a:(expr (`Prp`A))$
+  | _deduce_ a:(expr (`Prp`F))$
       when m = `Trm`A
       -> deduce _loc a
   (* Show tactic *)
-  | _show_ a:(expr (`Prp`A)) _using_ t:(expr (`Trm`Ap))$
+  | _show_ a:(expr (`Prp`F)) _using_ t:(expr (`Trm`Ap))$
       when m = `Trm`A
       -> show_using _loc a t
   (* Term (fixpoint) *)

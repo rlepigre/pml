@@ -20,7 +20,7 @@ val eq : ∀x y∈bool, ∃ v:ι, v ∈ (bool | eq0 x y ≡ v) = eq0
 def not0 : ι =
   fun b → case b { F[] → tru | T[] → fls }
 
-val not_total : ∀x∈bool, ∃v:ι, not x ≡ v =
+val not_total : ∀x∈bool, ∃v:ι, not0 x ≡ v =
   fun b → case b { F[] → {} | T[] → {} }
 
 val not : bool ⇒ bool = fun b → let x = not_total b in not0 b
