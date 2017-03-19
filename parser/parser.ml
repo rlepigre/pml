@@ -162,14 +162,14 @@ let parser expr (m : mode) =
       when m = `Prp`F
       -> in_pos _loc (EFixN(o,x,a))
   (* Proposition (membership) *)
-  | t:(expr (`Trm`A)) "∈" a:(expr (`Prp`M))
+  | t:(expr (`Trm`Ap)) "∈" a:(expr (`Prp`M))
       when m = `Prp`M
       -> in_pos _loc (EMemb(t,a))
   (* Proposition (restriction) *)
-  | a:(expr (`Prp`M)) "|" t:(expr (`Trm`F)) b:equiv u:(expr (`Trm`F))
+  | a:(expr (`Prp`M)) "|" t:(expr (`Trm`Ap)) b:equiv u:(expr (`Trm`Ap))
       when m = `Prp`R
       -> in_pos _loc (ERest(Some a,(t,b,u)))
-  | t:(expr (`Trm`F)) b:equiv u:(expr (`Trm`F))
+  | t:(expr (`Trm`Ap)) b:equiv u:(expr (`Trm`Ap))
       when m = `Prp`A
       -> in_pos _loc (ERest(None,(t,b,u)))
   (* Proposition (parentheses) *)
@@ -255,11 +255,11 @@ let parser expr (m : mode) =
       when m = `Trm`A
       -> if_then_else _loc c t e
   (* Deduce tactic *)
-  | _deduce_ a:(expr (`Prp`A))
+  | _deduce_ a:(expr (`Prp`A))$
       when m = `Trm`A
       -> deduce _loc a
   (* Show tactic *)
-  | _show_ a:(expr (`Prp`A)) _using_ t:(expr (`Trm`F))
+  | _show_ a:(expr (`Prp`A)) _using_ t:(expr (`Trm`Ap))$
       when m = `Trm`A
       -> show_using _loc a t
   (* Term (fixpoint) *)

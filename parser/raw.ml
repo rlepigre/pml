@@ -874,4 +874,4 @@ let deduce _loc a =
   Pos.make (Some _loc) (EVari(Pos.none "tac_deduce", [a]))
 
 let show_using _loc a t =
-  Pos.make (Some _loc) (EVari(Pos.none "tac_show", [a]))
+  Pos.make (Some _loc) (EVari(Pos.none "tac_show", [a; t]))
