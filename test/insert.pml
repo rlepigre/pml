@@ -145,10 +145,8 @@ val rec isort_sorted : ∀a:ο, ∀o∈order<a>, ∀l∈list<a>,
                   let lem = insert_sorted o c.hd tls in {}
     }
 
-val isort_full : ∀a:ο, ∀o∈order<a>, list<a> ⇒ slist<a,o> = Λa:ο.
+val isort_full : ∀a:ο, ∀o∈order<a>, list<a> ⇒ slist<a,o> =
   fun o l →
     let tot = isort_total o l in
-    let lem : sorted o (isort o l) ≡ tru = isort_sorted o l in
-//    isort o l
-    let res : (list<a> | sorted o (isort o l) ≡ tru) = isort o l in
-    res
+    let lem = isort_sorted o l in
+    isort o l

@@ -13,8 +13,8 @@ val rec mul : nat ⇒ nat ⇒ nat = fun n m →
     | Zero[_] → Zero
     | Succ[k] → add m (mul k m)
   }
-val add_zero_v : ∀v:ι, add Zero v ≡ v    = {}
-val mul_zero_v : ∀v:ι, mul Zero v ≡ Zero = {}
+val add_zero_v : ∀v↓, add Zero v ≡ v    = {}
+val mul_zero_v : ∀v↓, mul Zero v ≡ Zero = {}
 val add_zero_n : ∀n∈nat, add Zero n ≡ n    = fun _ → {}
 val mul_zero_n : ∀n∈nat, mul Zero n ≡ Zero = fun _ → {}
 val rec add_n_zero : ∀n∈nat, add n Zero ≡ n = fun n →
@@ -34,7 +34,7 @@ val rec add_comm : ∀n m∈nat, add n m ≡ add m n = fun n m →
     | Succ[k] → let ih = add_comm k m in
                  let lem = add_succ m k in {}
   }
-val rec add_total : ∀n m∈nat, ∃v:ι, add n m ≡ v = fun n m →
+val rec add_total : ∀n m∈nat, ∃v↓, add n m ≡ v = fun n m →
   case n {
     | Zero[_] → {}
     | Succ[k] → let ih = add_total k m in {}
@@ -53,7 +53,7 @@ val rec mul_n_zero : ∀n∈nat, mul n Zero ≡ Zero = fun n →
     | Succ[k] → let ih = mul_n_zero k in {}
   }
 
-val rec mul_total : ∀n m∈nat, ∃v:ι, mul n m ≡ v = fun n m →
+val rec mul_total : ∀n m∈nat, ∃v↓, mul n m ≡ v = fun n m →
   case n {
     | Zero[_] → {}
     | Succ[k] → let ih = mul_total k m in
@@ -90,7 +90,7 @@ val rec mul_comm : ∀n m∈nat, mul n m ≡ mul m n =
                    let lem : mul m Succ[k] ≡ add (mul m k) m =
                      mul_succ m k
                    in
-                   let tot : (∃v:ι, mul k m ≡ v) = mul_total k m in
+                   let tot : (∃v↓, mul k m ≡ v) = mul_total k m in
                    let lem : add (mul k m) m ≡ add m (mul k m) =
                      add_comm (mul k m) m
                    in {}
@@ -105,7 +105,7 @@ val rec mul_comm : ∀n m∈nat, mul n m ≡ mul m n =
       | Succ[k] → t_deduce<mul Succ[k] m ≡ add m (mul k m)>;
                    t_show<mul k m ≡ mul m k, mul_comm k m>;
                    t_show<mul m Succ[k] ≡ add (mul m k) m, mul_succ m k>;
-                   t_show<(∃v:ι, mul k m ≡ v), mul_total k m>;
+                   t_show<(∃v↓, mul k m ≡ v), mul_total k m>;
                    t_show<add (mul k m) m ≡ add m (mul k m)
                          , add_comm (mul k m) m>
     }
@@ -118,7 +118,7 @@ val rec mul_comm : ∀n m∈nat, mul n m ≡ mul m n =
                    show mul k m ≡ mul m k using mul_comm k m;
                    show mul m Succ[k] ≡ add (mul m k) m
                      using mul_succ m k;
-                   show ∃v:ι, mul k m ≡ v using mul_total k m;
+                   show ∃v↓, mul k m ≡ v using mul_total k m;
                    show add (mul k m) m ≡ add m (mul k m)
                      using add_comm (mul k m) m
     }
@@ -134,10 +134,10 @@ val rec map : ∀a b:ο, (a ⇒ b) ⇒ list<a> ⇒ list<b> = fun f l →
 val rec length : ∀a:ο, list<a> ⇒ nat = fun l →
   case l { Nil[_]  → Zero | Cons[c] → Succ[length c.tl] }
 // total<f,a> means that f is total on the domain a.
-def total<f:ι,a:ο> : ο = ∀x∈a, ∃v:ι, f x ≡ v
+def total<f:ι,a:ο> : ο = ∀x∈a, ∃v↓, f x ≡ v
 
 val rec map_total : ∀a b:ο, ∀f∈(a ⇒ b), total<f,a>
-                    ⇒ ∀l∈list<a>, ∃v:ι, map f l ≡ v =
+                    ⇒ ∀l∈list<a>, ∃v↓, map f l ≡ v =
   fun fn ft ls →
     case ls {
       | Nil[_]  → {}
@@ -145,7 +145,7 @@ val rec map_total : ∀a b:ο, ∀f∈(a ⇒ b), total<f,a>
                    let ih  = map_total fn ft c.tl in {}
     }
 
-val rec length_total : ∀a:ο, ∀l∈list<a>, ∃v:ι, v ≡ length l = fun l →
+val rec length_total : ∀a:ο, ∀l∈list<a>, ∃v↓, v ≡ length l = fun l →
   case l {
     | Nil[_]  → {}
     | Cons[c] → let ind = length_total c.tl in {}
@@ -169,20 +169,21 @@ val map_map : ∀a b c:ο, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c),
                      let ind = map_map tl in {}
       }
 type vec<a:ο, s:τ> = ∃l:ι, l∈(list<a> | length l ≡ s)
-val rec app : ∀a:ο, ∀m n:ι, vec<a, m> ⇒ vec<a, n> ⇒ vec<a, add m n> =
+val rec app : ∀a:ο, ∀m n↓, vec<a, m> ⇒ vec<a, n> ⇒ vec<a, add m n> =
   fun l1 l2 → case l1 { Nil[_] → l2 | Cons[c] →
     let _ = length_total c.tl in
     let r = app c.tl l2 in
     Cons[{hd = c.hd; tl = r}] }
-val app3 : ∀a:ο, ∀m n p:ι, vec<a,m> ⇒ vec<a,n> ⇒ vec<a,p>
+val app3 : ∀a:ο, ∀m n p↓, vec<a,m> ⇒ vec<a,n> ⇒ vec<a,p>
                            ⇒ vec<a, add m (add n p)> =
  fun l1 l2 l3 →
    let lem = add_total (length l2) (length l3) in
    app l1 (app l2 l3)
+
 val vec_to_list : ∀a:ο, ∀s:τ, vec<a,s> ⇒ list<a> = fun x → x
 type ord<a:ο> = ∃cmp:ι,
   { cmp : cmp ∈ (a ⇒ a ⇒ bool)
-  ; tot : ∀x y∈a, ∃v:ι, cmp x y ≡ v
+  ; tot : ∀x y∈a, ∃v↓, cmp x y ≡ v
   ; dis : ∀x y∈a, or (cmp x y) (cmp y x) ≡ true }
 val rec insert : ∀a:ο, ord<a> ⇒ a ⇒ list<a> ⇒ list<a> = fun o x l →
    case l {
@@ -212,7 +213,7 @@ val rec sorted : ∀a:ο, ∀o∈ord<a>, ∀l∈list<a>, bool = fun o l →
   }
 type slist<a:ο,o:τ> = ∃l:ι, l∈(list<a> | sorted o l ≡ true)
 val rec insert_total : ∀a:ο, ∀o∈ord<a>, ∀x∈a, ∀l∈list<a>,
-                       ∃v:ι, insert o x l ≡ v =
+                       ∃v↓, insert o x l ≡ v =
   fun o x l →
     case l {
       | Nil[_]   → {}
@@ -223,7 +224,7 @@ val rec insert_total : ∀a:ο, ∀o∈ord<a>, ∀x∈a, ∀l∈list<a>,
     }
 
 val rec isort_total :  ∀a:ο, ∀o∈ord<a>, ∀l∈list<a>,
-                       ∃v:ι, isort o l ≡ v =
+                       ∃v↓, isort o l ≡ v =
   fun o l →
     case l {
       | Nil[_]  → {}

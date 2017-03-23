@@ -459,9 +459,9 @@ and     add_valu : pool -> valu -> VPtr.t * pool = fun po v ->
   | VDef(d)     -> add_valu po (Erase.to_valu d.value_eval)
   | VTyp(v,_)   -> add_valu po v
   | VLam(_,b)   -> add_valu po (bndr_subst b Dumm)
-  | VWit(f,a,b) -> insert_v_node (VN_VWit((f,a,b))) po
-  | UWit(_,t,b) -> insert_v_node (VN_UWit((t,b))) po
-  | EWit(_,t,b) -> insert_v_node (VN_EWit((t,b))) po
+  | VWit(f,a,b) -> insert_v_node (VN_VWit(f,a,b)) po
+  | UWit(_,t,b) -> insert_v_node (VN_UWit(t,b)) po
+  | EWit(_,t,b) -> insert_v_node (VN_EWit(t,b)) po
   | HApp(s,f,a) -> insert_v_node (VN_HApp(HO_Appl(s,f,a))) po
   | HDef(_,d)   -> add_valu po d.expr_def
   | UVar(_,v)   -> insert_v_node (VN_UVar(v)) po
@@ -842,6 +842,16 @@ let eq_val : eq_ctxt -> valu -> valu -> bool = fun {pool=po} v1 v2 ->
   if VPtr.compare p1 p2 = 0 then true else
   let (t1, po) = canonical (Ptr.V_ptr p1) po in
   let (t2, po) = canonical (Ptr.V_ptr p2) po in
+  log_edp "test term equality %a = %a" Print.print_ex t1 Print.print_ex t2;
+  eq_expr t1 t2
+
+let eq_trm : eq_ctxt -> term -> term -> bool = fun {pool=po} v1 v2 ->
+  if v1 == v2 then true else
+  let (p1, po) = add_term po v1 in
+  let (p2, po) = add_term po v2 in
+  if TPtr.compare p1 p2 = 0 then true else
+  let (t1, po) = canonical (Ptr.T_ptr p1) po in
+  let (t2, po) = canonical (Ptr.T_ptr p2) po in
   log_edp "test term equality %a = %a" Print.print_ex t1 Print.print_ex t2;
   eq_expr t1 t2
 

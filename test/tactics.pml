@@ -12,9 +12,9 @@ val rec mul : nat ⇒ nat ⇒ nat = fun n m →
     | Succ[k] → add m (mul k m)
   }
 
-val add_zero_v : ∀v:ι, add Zero v ≡ v    = {}
+val add_zero_v : ∀v↓, add Zero v ≡ v    = {}
 
-val mul_zero_v : ∀v:ι, mul Zero v ≡ Zero = {}
+val mul_zero_v : ∀v↓, mul Zero v ≡ Zero = {}
 
 val add_zero_n : ∀n∈nat, add Zero n ≡ n    = fun _ → {}
 
@@ -39,7 +39,7 @@ val rec add_comm : ∀n m∈nat, add n m ≡ add m n = fun n m →
                 let lem = add_succ m k in {}
   }
 
-val rec add_total : ∀n m∈nat, ∃v:ι, add n m ≡ v = fun n m →
+val rec add_total : ∀n m∈nat, ∃v↓, add n m ≡ v = fun n m →
   case n {
     | Zero[_] → {}
     | Succ[k] → let ih = add_total k m in {}
@@ -60,7 +60,7 @@ val rec mul_n_zero : ∀n∈nat, mul n Zero ≡ Zero = fun n →
     | Succ[k] → let ih = mul_n_zero k in {}
   }
 
-val rec mul_total : ∀n m∈nat, ∃v:ι, mul n m ≡ v = fun n m →
+val rec mul_total : ∀n m∈nat, ∃v↓, mul n m ≡ v = fun n m →
   case n {
     | Zero[_] → {}
     | Succ[k] → let ih = mul_total k m in

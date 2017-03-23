@@ -163,7 +163,8 @@ let rec get_lam : type a. string -> a sort -> term -> prop -> a ex * prop =
     | _         -> unexpected "Expected ∀ type..."
 
 let oracle ctx = {
-    eq_val = fun v1 v2 -> eq_val ctx.equations v1 v2
+    eq_val = (fun v1 v2 -> eq_val ctx.equations v1 v2);
+    eq_trm = (fun v1 v2 -> eq_trm ctx.equations v1 v2)
   }
 
 let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
@@ -377,7 +378,6 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
                 let ctx = learn_nobox ctx (Pos.none wit) in
                 let ctx = learn_equivalences ctx (Pos.none wit) a in
                 let ctx = learn_neg_equivalences ctx v (Some twit) c in
-                (* FIXME do not learn equivalence if a == a' *)
                 let p2 = type_term ctx (bndr_subst f wit) b in
                 Typ_Func_i(p1,Some p2)
               with Contradiction -> Typ_Func_i(p1, None)

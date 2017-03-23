@@ -119,10 +119,12 @@ let uvar_occurs : type a b. a uvar -> b ex loc -> bool = fun u e ->
 let full_eq = ref false
 
 exception DontKnow
-type oracle = { eq_val :v ex loc -> v ex loc -> bool }
+type oracle = { eq_val :v ex loc -> v ex loc -> bool;
+                eq_trm :t ex loc -> t ex loc -> bool }
 
 let default_oracle = {
-    eq_val = fun _ _ -> raise DontKnow
+    eq_val = (fun _ _ -> raise DontKnow);
+    eq_trm = (fun _ _ -> raise DontKnow)
   }
 
 type eq =
@@ -147,6 +149,7 @@ let {eq_expr; eq_bndr} =
     try
       match (sort e1, sort e2) with
       | (V, e1), (V,e2) -> oracle.eq_val e1 e2
+      | (T, e1), (T,e2) -> oracle.eq_trm e1 e2
       | _ -> raise DontKnow
     with DontKnow ->
     if !full_eq then log_equ "comparing %a and %a" Print.ex e1 Print.ex e2;
@@ -183,6 +186,19 @@ let {eq_expr; eq_bndr} =
     | (FixN(o1,b1)   , FixN(o2,b2)   ) -> eq_expr o1 o2 && eq_bndr P b1 b2
     | (Memb(t1,a1)   , Memb(t2,a2)   ) -> eq_expr t1 t2 && eq_expr a1 a2
     | (Rest(a1,c1)   , Rest(a2,c2)   ) ->
+        eq_expr a1 a2 &&
+          begin
+            match (c1, c2) with
+            | (Equiv(t1,b1,u1), Equiv(t2,b2,u2)) ->
+                b1 = b2 && eq_expr t1 t2 && eq_expr u1 u2
+            | (Posit(o1)      , Posit(o2)      ) ->
+               eq_expr o1 o2
+            | (NoBox(v1)      , NoBox(v2)      ) ->
+               eq_expr v1 v2
+            | (_              , _              ) ->
+                false
+          end
+    | (Impl(c1,a1)   , Impl(c2,a2)   ) ->
         eq_expr a1 a2 &&
           begin
             match (c1, c2) with

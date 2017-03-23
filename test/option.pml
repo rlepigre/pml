@@ -27,7 +27,7 @@ val from_opt : ∀ a:ο, option<a> ⇒ a ⇒ a =
       | Some[v] → v
     }
 
-def total<f:ι,a:ο> : ο = ∀x:ι, x∈a ⇒ ∃v:ι, f x ≡ v
+def total<f:ι,a:ο> : ο = ∀x:ι, x∈a ⇒ ∃v↓, f x ≡ v
 
 val map_map : ∀ a b c:ο, ∀f∈(a⇒b), ∀g∈(b⇒c), ∀o∈option<a>, total<f,a> ⇒
     map g (map f o) ≡ map (fun x → g (f x)) o =
