@@ -182,17 +182,19 @@ let _ =
         | None   -> err_msg "Subtype error: %s." msg
         | Some p -> err_msg "Subtype error in %s." (pos_to_string p);
                     err_msg "Message: %s." msg
-      end
+      end; exit 1
   | Typing.Type_error(p,msg)    ->
       begin
         match p with
         | None   -> err_msg "Type error: %s." msg
         | Some p -> err_msg "Type error in %s." (pos_to_string p);
                     err_msg "Message: %s." msg
-      end
+      end; exit 1
   | Equiv.Failed_to_prove(rel)  ->
       err_msg "Failed to prove an equational relation.";
-      err_msg "  %a" Equiv.print_relation_pos rel
+      err_msg "  %a" Equiv.print_relation_pos rel;
+      exit 1
   | e ->
      err_msg "Uncaught exception [%s]." (Printexc.to_string e);
-     err_msg "%t" Printexc.print_backtrace
+     err_msg "%t" Printexc.print_backtrace;
+     exit 1

@@ -102,9 +102,9 @@ check:
 
 # Test target.
 .PHONY: test
-TEST_FILES = $(wildcard lib/*.pml test/*.pml)
+TEST_FILES = $(wildcard lib/*.pml test/*.pml phd_examples/*.pml)
 test: main.native $(TEST_FILES)
-	./$^
+	for f in $(TEST_FILES); do ./main.native $$f || break ; done
 
 # Cleaning targets.
 clean:
