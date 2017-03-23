@@ -395,8 +395,13 @@ let insert_t_node : t_node -> pool -> TPtr.t * pool = fun nn po ->
   | Not_found ->
       let ptr = TPtr.T po.next in
       let ts = TPtrMap.add ptr (PtrSet.empty, nn) po.ts in
+      let eq_map =
+        match nn with
+        | TN_Valu(pv) -> PtrMap.add (Ptr.T_ptr ptr) (Ptr.V_ptr pv) po.eq_map
+        | _            -> po.eq_map
+      in
       let next = po.next + 1 in
-      let po = { po with ts ; next } in
+      let po = { po with eq_map; ts ; next } in
       let children = children_t_node nn in
       let po = add_parent_t_nodes ptr children po in
       (ptr, po)
@@ -406,10 +411,7 @@ let rec add_term : pool -> term -> TPtr.t * pool = fun po t ->
   match (Norm.whnf t).elt with
   | Valu(v)     -> let (pv, po) = add_valu po v in
                    let (pp, po) = insert_t_node (TN_Valu(pv)) po in
-                   let eq_map =
-                     PtrMap.add (Ptr.T_ptr pp) (Ptr.V_ptr pv) po.eq_map
-                   in
-                   (pp, {po with eq_map})
+                   (pp, po)
   | Appl(t,u)   -> let (pt, po) = add_term po t in
                    let (pu, po) = add_term po u in
                    let (pp, po) = insert_t_node (TN_Appl(pt,pu)) po in
@@ -597,6 +599,7 @@ let insert_appl : Ptr.t -> Ptr.t -> pool -> Ptr.t * pool = fun pt pu po ->
 let rec normalise : ?update:bool -> TPtr.t -> pool -> Ptr.t * pool =
   fun ?(update=false) p po ->
   let normalise = normalise ~update in
+  let find0 = find in
   let find p po = if update then (p,po) else find p po in
   let (p, po) = find (Ptr.T_ptr p) po in
   match p with
@@ -610,10 +613,10 @@ let rec normalise : ?update:bool -> TPtr.t -> pool -> Ptr.t * pool =
             log_edp "normalise in TN_Appl: %a %a" TPtr.print pt TPtr.print pu;
             let (pt, po) = normalise pt po in
             let (pu, po) = normalise pu po in
-            log_edp "normalised in TN_Appl: %a %a" Ptr.print pt Ptr.print pu;
+            let (pu, po) = find0 pu po in (* argument must be really normalised *)
             let (tp, po) = insert_appl pt pu po in
             let po = union p tp po in
-            log_edp "normalised insert(1) TN_Appl: %a" Ptr.print tp;
+            log_edp "normalised in TN_Appl: %a %a => %a" Ptr.print pt Ptr.print pu  Ptr.print tp;
             match (pt, pu) with
             | (Ptr.V_ptr pf, Ptr.V_ptr pv) ->
                begin
@@ -627,9 +630,11 @@ let rec normalise : ?update:bool -> TPtr.t -> pool -> Ptr.t * pool =
                       normalise tp po
                     end
                  | _          ->
+                    log_edp "normalised insert(1) TN_Appl: %a" Ptr.print tp;
                     (tp, po)
                end
             | (_           , _           ) ->
+               log_edp "normalised insert(2) TN_Appl: %a" Ptr.print tp;
                 (tp, po)
           end
        | TN_MAbs(b)     -> (p, po) (* FIXME can do better. *)
@@ -885,7 +890,7 @@ let add_inequiv : inequiv -> eq_ctxt -> eq_ctxt = fun (t,u) {pool} ->
   if eq_expr ~strict:true t u then
     begin
       log_edp "immediate contradiction";
-      raise Contradiction
+      bottom ()
     end;
   let (pt, pool) = add_term pool t in
   let (pu, pool) = add_term pool u in
@@ -898,7 +903,7 @@ let add_inequiv : inequiv -> eq_ctxt -> eq_ctxt = fun (t,u) {pool} ->
   if is_equal pool pt pu then
     begin
       log_edp "contradiction found";
-      raise Contradiction
+      bottom ()
     end;
   {pool} (* TODO store clauses *)
 
@@ -992,7 +997,7 @@ let check_nobox : valu -> eq_ctxt -> eq_ctxt = fun v {pool} ->
   match vp with
   | Ptr.T_ptr(_) -> raise Not_found
   | Ptr.V_ptr(vp) ->
-     if VPtrSet.mem vp pool.bs then raise Contradiction
+     if VPtrSet.mem vp pool.bs then (log_edp "contradiction by NoBox\n%!"; bottom ())
      else { pool }
 
 (* Test whether a term is equivalent to a value or not. *)

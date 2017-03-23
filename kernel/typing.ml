@@ -120,15 +120,29 @@ let rec learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
      end
   | _          -> ctx
 
-let rec learn_neg_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
-  let twit = Pos.none (Valu wit) in
-  match (Norm.whnf a).elt with
-  | HDef(_,e)  -> learn_neg_equivalences ctx wit e.expr_def
-  | Impl(c,a)  -> let equations = learn ctx.equations c in
-                  learn_neg_equivalences {ctx with equations} wit a
-  | Univ(s, f) -> let t = UWit(s,twit,f) in
-                  learn_neg_equivalences ctx wit (bndr_subst f t)
-  | _          -> ctx
+let rec is_singleton : prop -> term option = fun t ->
+  match (Norm.whnf t).elt with
+  | Memb(x,_) -> Some x
+  | Rest(t,_) -> is_singleton t
+  | _ -> None (* TODO: more cases are possible *)
+
+let rec learn_neg_equivalences : ctxt -> valu -> term option -> prop -> ctxt =
+  fun ctx wit arg a ->
+    let twit = Pos.none (Valu wit) in
+    match (Norm.whnf a).elt, arg with
+    | HDef(_,e), _  -> learn_neg_equivalences ctx wit arg e.expr_def
+    | Impl(c,a), _  -> let equations = learn ctx.equations c in
+                       learn_neg_equivalences {ctx with equations} wit arg a
+    | Univ(s, f), _ -> let t = UWit(s,twit,f) in
+                       learn_neg_equivalences ctx wit arg (bndr_subst f t)
+    | Func(a,b), Some arg ->
+       begin
+         match is_singleton a with
+         | Some x -> let equations = learn ctx.equations (Equiv(arg,true,x)) in
+                     {ctx with equations}
+         | None -> ctx
+       end
+    | _          -> ctx
 
 let term_is_value : term -> ctxt -> bool * ctxt = fun t ctx ->
   let (is_val, equations) = is_value t ctx.equations in
@@ -147,12 +161,6 @@ let rec get_lam : type a. string -> a sort -> term -> prop -> a ex * prop =
           | NEq -> unexpected "Sort missmatch between Λ and ∀..."
         end
     | _         -> unexpected "Expected ∀ type..."
-
-let rec is_singleton : type a. a ex loc -> bool = fun t ->
-  match (Norm.whnf t).elt with
-  | Memb(_) -> true
-  | Rest(t,_) -> is_singleton t
-  | _ -> false (* TODO: more cases are possible *)
 
 let oracle ctx = {
     eq_val = fun v1 v2 -> eq_val ctx.equations v1 v2
@@ -177,17 +185,26 @@ let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
           let (_, _, _, r) = subtype ctx t a d.expr_def in r
       (* Arrow types. *)
       | (Func(a1,b1), Func(a2,b2)) when t_is_val ->
-          let fn x = appl None (box t) (valu None (vari None x)) in
-          let f = (None, unbox (vbind mk_free "x" fn)) in
-          let vwit = Pos.none (VWit(f,a2,b2)) in
-          let wit = Pos.none (Valu(vwit)) in
-          let ctx = learn_nobox ctx vwit in
-          let p1, p2 =
-            if is_singleton a1 then
+         let fn x = appl None (box t) (valu None (vari None x)) in
+         let f = (None, unbox (vbind mk_free "x" fn)) in
+         let vwit = Pos.none (VWit(f,a2,b2)) in
+         let ctx = learn_nobox ctx vwit in
+         let wit = Pos.none (Valu(vwit)) in
+         let ctx, wit = match is_singleton a2 with
+           | Some x ->
+             let equations = learn ctx.equations (Equiv(x,true,wit)) in
+             let ctx = { ctx with equations } in
+             (ctx, wit)
+           | None ->
+              (ctx, wit)
+         in
+         let p1, p2 =
+           match is_singleton a1 with
+           | Some _ ->
               let p1 = subtype ctx wit a2 a1 in
               let p2 = subtype ctx (Pos.none (Appl(t, wit))) b1 b2 in
               (p1,p2)
-            else
+           | None ->
               let p2 = subtype ctx (Pos.none (Appl(t, wit))) b1 b2 in
               let p1 = subtype ctx wit a2 a1 in
               (p1,p2)
@@ -353,12 +370,13 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
             (* TODO NuRec ? *)
             let p1 = subtype ctx t c' c in
             let wit = VWit(f, a, b) in
+            let twit = Pos.none(Valu (Pos.none wit)) in
             (* Learn the equivalence that are valid in the witness. *)
             begin
               try
                 let ctx = learn_nobox ctx (Pos.none wit) in
                 let ctx = learn_equivalences ctx (Pos.none wit) a in
-                let ctx = learn_neg_equivalences ctx v c in
+                let ctx = learn_neg_equivalences ctx v (Some twit) c in
                 (* FIXME do not learn equivalence if a == a' *)
                 let p2 = type_term ctx (bndr_subst f wit) b in
                 Typ_Func_i(p1,Some p2)
@@ -398,7 +416,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
     | VTyp(v,a)   ->
         let t = Pos.make v.pos (Valu(v)) in
         let p1 = subtype ctx t a c in
-        let ctx = learn_neg_equivalences ctx v c in
+        let ctx = learn_neg_equivalences ctx v None c in
         let p2 = type_valu ctx v a in
         Typ_VTyp(p1,p2)
     (* Type abstraction. *)
@@ -504,7 +522,7 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
           | None -> ctx
           | Some(v,equations) ->
              let ctx = { ctx with equations } in
-             learn_neg_equivalences ctx v c
+             learn_neg_equivalences ctx v None c
         in
         let p2 = type_term ctx t a in
         Typ_TTyp(p1,p2)

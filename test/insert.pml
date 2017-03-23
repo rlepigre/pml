@@ -97,7 +97,7 @@ type slist<a:ο,ord:τ> = ∃l:ι, l∈(list<a> | sorted ord l ≡ tru)
 
 val rec insert_sorted : ∀a:ο, ∀o∈order<a>, ∀x∈a, ∀l∈slist<a,o>,
     sorted o (insert o x l) ≡ tru =
-  fun o x l →
+  Λa:ο.Λo:ι.fun o → Λx:ι.fun x → Λl:ι.fun l →
     let cmp = o.cmp in
     case l {
       | Nil[_]   → {}
@@ -108,22 +108,25 @@ val rec insert_sorted : ∀a:ο, ∀o∈order<a>, ∀x∈a, ∀l∈slist<a,o>,
          if cmp x hd {
            let lem = tail_sorted o hd tl {} in {}
          } else {
-           let lem : (∃v:ι, v ≡ cmp x hd) = o.tmp x hd in
-           let lem : (∃v:ι, v ≡ cmp hd x) = o.tmp hd x in
+           let lem : (∃v↓, v ≡ cmp x hd) = o.tmp x hd in
+           let lem : (∃v↓, v ≡ cmp hd x) = o.tmp hd x in
            let lem : cmp hd x ≡ tru = o.tot x hd in
            case tl {
              | Nil[_]   → {}
              | Cons[c2] →
                 let hd2 = c2.hd in let tl2 = c2.tl in
                 let lem = insert_total o x tl2 in
-                let lem : (∃v:ι, v ≡ cmp hd hd2) = o.tmp hd hd2 in
-                let lem : (∃v:ι, v ≡ cmp x hd2) = o.tmp x hd2 in
+                let lem : (∃v↓, v ≡ cmp hd hd2) = o.tmp hd hd2 in
+                let lem : (∃v↓, v ≡ cmp x hd2) = o.tmp x hd2 in
                 if cmp hd hd2 {
-                  let lem = insert_sorted o x tl in
-                  if cmp x hd2 { {} } else {
-                    let lem : (∃v:ι, v ≡ cmp hd2 x) = o.tmp hd2 x in
-                    let lem : (cmp hd2 x) ≡ tru = o.tot x hd2 in {}
-                  }
+                   let lem = insert_sorted o x tl in
+                   if cmp x hd2 { {} } else {
+                     let lem : (∃v↓, v ≡ cmp hd2 x) = o.tmp hd2 x in
+                     let lem : (cmp hd2 x) ≡ tru = o.tot x hd2 in
+                     //let lem = sorted_total o (insert o x tl) in
+                     //let lem = sorted_total o (insert o x tl2) in
+                     {}
+                   }
                 } else { ✂ }
            }
          }
@@ -146,5 +149,6 @@ val isort_full : ∀a:ο, ∀o∈order<a>, list<a> ⇒ slist<a,o> = Λa:ο.
   fun o l →
     let tot = isort_total o l in
     let lem : sorted o (isort o l) ≡ tru = isort_sorted o l in
+//    isort o l
     let res : (list<a> | sorted o (isort o l) ≡ tru) = isort o l in
     res

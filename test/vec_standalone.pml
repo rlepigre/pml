@@ -46,22 +46,18 @@ val vcns : ∀a:ο,∀s↓, ∀x∈a, vec<a,s> ⇒ vec<a,succ s> =
 val rec app : ∀a:ο, ∀n1 n2↓, vec<a,n1> ⇒ vec<a,n2> ⇒ vec<a,add n1 n2> =
   Λa:ο. Λn1:ι.Λn2:ι.fun l1 l2 →
   case l1 {
-    | Nil[] →
-       ✂
+    | Nil[] → l2
     | Cns[c] →
        let lem : (∃v↓, length c.tl ≡ v) = length_total c.tl in
        let lem : (∃v↓, length l2 ≡ v) = length_total l2 in
        case length l1 {
           | Z[] → ✂
           | S[p1] →
-                   let lem : length l2 ≡ n2 = {} in
-                   let lem : length l1 ≡ n1 = {} in
-                   let lem : length l1 ≡ S[p1] = {} in
                    let lem : length c.tl ≡ p1 = {} in
-                   ✂ //let r:vec<a,add p1 n2> = app c.tl l2 in
-                   //let lem = length_total (r : list<a>) in
-                   //let r' = vcns c.hd r in
-                   //r'
+                   let r = app c.tl l2 in
+                   let lem = length_total (r : list<a>) in
+                   let r' = vcns c.hd r in
+                   r'
        }
   }
 
