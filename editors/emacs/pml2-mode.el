@@ -25,10 +25,10 @@
 (defconst pml2-font-lock-keywords
   (list (cons (concat "\\<"
 		      (regexp-opt '("case" "of" "val" "let" "in" "rec" "fun" "eval"
-				    "include" "type" "if" "then" "else" "check"
+				    "include" "type" "if" "else" "check"
                                     "fix" "unfold" "clear" "quit" "parse" "latex"
                                     "exit" "set" "html" "such" "that" "abort"
-				    "def" "sort"))
+				    "def" "sort" "show" "deduce"))
                       "\\>") ; FIXME
               'font-lock-keyword-face)
         )
@@ -52,6 +52,7 @@
  ("\\o" ?ο)     ("\\omicron" ?ο)
  ("\\t" ?τ)     ("\\tau" ?τ)
  ("\\i" ?ι)     ("\\iota" ?ι)
+ ("\\v" ?↓)     ("\\downarrow" ?↓)
  ("\\s" ?σ)     ("\\sigme" ?σ)
  ("\\e" ?κ)     ("\\kappa" ?κ)
  ("\\8" ?∞)     ("\\infty" ?∞)
