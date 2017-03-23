@@ -132,6 +132,8 @@ and cond =
   (** Equivalence between terms. *)
   | Posit of o ex loc
   (** Positivity of the given ordinal. *)
+  | NoBox of v ex loc
+  (** Value that are not Box, i.e. real value *)
 
 and 'a expr =
   { expr_name : strloc
@@ -364,6 +366,9 @@ let equiv : tbox -> bool -> tbox -> condbox =
 
 let posit : obox -> condbox =
   box_apply (fun o -> Posit(o))
+
+let nobox : vbox -> condbox =
+  box_apply (fun v -> NoBox(v))
 
 (** {5 Ordinal constructors} *)
 

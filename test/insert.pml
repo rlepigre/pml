@@ -2,7 +2,7 @@ include lib.list
 
 type order<a:ο> = ∃cmp:ι,
   { cmp : cmp ∈ (a ⇒ a ⇒ bool)
-  ; tmp : ∀x y∈a, ∃v:ι, v ≡ cmp x y
+  ; tmp : ∀x y∈a, ∃v↓, v ≡ cmp x y
 //  ; tra : ∀x y z∈a, (cmp x y ≡ tru ⇒ cmp y z ≡ tru ⇒ cmp x y ≡ tru)
   ; tot : ∀x y∈a, or (cmp x y) (cmp y x) ≡ tru }
 
@@ -15,11 +15,26 @@ val rec sorted : ∀a:ο, ∀o∈order<a>, ∀l∈list<a>, bool = fun o l →
          | Nil[_]   → tru
          | Cons[c2] →
             let hd2 = c2.hd in
-            land<(o.cmp) hd hd2, sorted o tl>
+            let c = o.cmp hd hd2 in
+            case c {
+            | Tru[_] → sorted o tl
+            | Fls[_] → false
+            }
        }
   }
 
-val rec sorted_total : ∀a:ο, ∀o∈order<a>, ∀l∈list<a>, ∃v:ι, v ≡ sorted o l =
+val rec tail_sorted : ∀a:ο, ∀o∈order<a>, ∀x∈a, ∀l∈list<a>,
+    sorted o Cons[{hd = x ; tl = l}] ≡ tru ⇒
+    sorted o l ≡ tru =
+  fun o x l _ →
+    case l {
+      | Nil[_]  → {}
+      | Cons[c] →
+          let lem = o.tmp x c.hd in
+          if o.cmp x c.hd { {} } else { ✂ }
+    }
+
+val rec sorted_total : ∀a:ο, ∀o∈order<a>, ∀l∈list<a>, ∃v↓, v ≡ sorted o l =
   fun o l →
     case l {
       | Nil[_]   → {}
@@ -29,7 +44,7 @@ val rec sorted_total : ∀a:ο, ∀o∈order<a>, ∀l∈list<a>, ∃v:ι, v ≡ 
            | Nil[_]   → {}
            | Cons[c2] →
               let hd2 = c2.hd in let tl2 = c2.tl in
-              let ind : (∃v:ι, v ≡ sorted o tl) = sorted_total o tl in
+              let ind : (∃v↓, v ≡ sorted o tl) = sorted_total o tl in
               let lem = o.tmp hd hd2 in
               if o.cmp hd hd2 {
                 let lem : o.cmp hd hd2 ≡ tru = {} in
@@ -52,7 +67,7 @@ val rec insert : ∀a:ο, order<a> ⇒ a ⇒ list<a> ⇒ list<a> = fun o x l →
   }
 
 val rec insert_total :  ∀a:ο, ∀o∈order<a>, ∀x∈a, ∀l∈list<a>,
-     ∃v:ι, insert o x l ≡ v =
+     ∃v↓, insert o x l ≡ v =
   fun o x l →
     case l {
       | Nil[_]   → {}
@@ -68,7 +83,7 @@ val rec isort : ∀a:ο, order<a> ⇒ list<a> ⇒ list<a> = fun o l →
      | Cons[c] → insert o c.hd (isort o c.tl)
    }
 
-val rec isort_total :  ∀a:ο, ∀o∈order<a>, ∀l∈list<a>, ∃v:ι, isort o l ≡ v =
+val rec isort_total :  ∀a:ο, ∀o∈order<a>, ∀l∈list<a>, ∃v↓, isort o l ≡ v =
   fun o l →
     case l {
       | Nil[_]  → {}
@@ -77,28 +92,6 @@ val rec isort_total :  ∀a:ο, ∀o∈order<a>, ∀l∈list<a>, ∃v:ι, isort 
     }
 
 type slist<a:ο,ord:τ> = ∃l:ι, l∈(list<a> | sorted ord l ≡ tru)
-
-val rec tail_sorted : ∀a:ο, ∀o∈order<a>, ∀x∈a, ∀l∈list<a>,
-    sorted o Cons[{hd = x ; tl = l}] ≡ tru ⇒
-    sorted o l ≡ tru =
-  fun o x l hyp →
-    case l {
-      | Nil[_]  → {}
-      | Cons[c] → let lem : (∃v:ι, o.cmp x c.hd ≡ v) = o.tmp x c.hd in
-                  let lem : (∃v:ι, sorted o l ≡ v) = sorted_total o l in
-                  if o.cmp x c.hd { {} } else { ✂ }
-    }
-
-
-val rec tail_sorted2 : ∀a:ο, ∀o∈order<a>, ∀x∈a, ∀l∈list<a>,
-                       sorted o Cons[{hd = x ; tl = l}] ≡ tru ⇒
-                       sorted o l ≡ tru =
-  fun o x l _ →
-    case l {
-      | Nil[_]  → {}
-      | Cons[c] → let lem = o.tmp x c.hd in
-                  if o.cmp x c.hd { {} } else { ✂ }
-    }
 
 
 

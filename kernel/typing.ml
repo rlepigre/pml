@@ -89,31 +89,27 @@ and typ_proof = term * prop * typ_rule
 and stk_proof = stac * prop * stk_rule
 and sub_proof = term * prop * prop * sub_rule
 
+let learn_nobox : ctxt -> valu -> ctxt = fun ctx v ->
+  { ctx with equations =  { pool = add_nobox v ctx.equations.pool } }
+
 let rec learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
   let twit = Pos.none (Valu wit) in
   match (Norm.whnf a).elt with
   | HDef(_,e)  -> learn_equivalences ctx wit e.expr_def
-  | Memb(t,a)  -> let equations = learn ctx.equations (twit, true, t) in
+  | Memb(t,a)  -> let equations = learn ctx.equations (Equiv(twit, true, t)) in
                   learn_equivalences {ctx with equations} wit a
-  | Rest(a,c)  ->
-      begin
-        match c with
-        | Equiv(eq) -> let equations = learn ctx.equations eq in
-                       learn_equivalences {ctx with equations} wit a
-        | Posit(_)  -> ctx (* TODO *)
-      end
+  | Rest(a,c)  -> let equations = learn ctx.equations c in
+                  learn_equivalences {ctx with equations} wit a
   | Exis(s, f) -> let t = EWit(s,twit,f) in
                   learn_equivalences ctx wit (bndr_subst f t)
   | Prod(fs)   ->
      M.fold (fun lbl (_, b) ctx ->
-         match find_proj ctx.equations.pool (Pos.none (Valu wit)) lbl with
-         | None -> ctx
-         | Some (v,pool) ->
-            let ctx = { ctx with equations = { pool } } in
-            learn_equivalences ctx v b) fs ctx
+         let (v,pool) =  find_proj ctx.equations.pool wit lbl in
+         let ctx = { ctx with equations = { pool } } in
+         learn_equivalences ctx v b) fs ctx
   | DSum(fs)   ->
      begin
-       match find_sum ctx.equations.pool (Pos.none (Valu wit)) with
+       match find_sum ctx.equations.pool wit with
        | None -> ctx
        | Some(s,v,pool) ->
           try
@@ -122,6 +118,16 @@ let rec learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
             learn_equivalences ctx v b
           with Not_found -> assert false (* NOTE check *)
      end
+  | _          -> ctx
+
+let rec learn_neg_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
+  let twit = Pos.none (Valu wit) in
+  match (Norm.whnf a).elt with
+  | HDef(_,e)  -> learn_neg_equivalences ctx wit e.expr_def
+  | Impl(c,a)  -> let equations = learn ctx.equations c in
+                  learn_neg_equivalences {ctx with equations} wit a
+  | Univ(s, f) -> let t = UWit(s,twit,f) in
+                  learn_neg_equivalences ctx wit (bndr_subst f t)
   | _          -> ctx
 
 let term_is_value : term -> ctxt -> bool * ctxt = fun t ctx ->
@@ -173,7 +179,9 @@ let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
       | (Func(a1,b1), Func(a2,b2)) when t_is_val ->
           let fn x = appl None (box t) (valu None (vari None x)) in
           let f = (None, unbox (vbind mk_free "x" fn)) in
-          let wit = Pos.none (Valu(Pos.none (VWit(f,a2,b2)))) in
+          let vwit = Pos.none (VWit(f,a2,b2)) in
+          let wit = Pos.none (Valu(vwit)) in
+          let ctx = learn_nobox ctx vwit in
           let p1, p2 =
             if is_singleton a1 then
               let p1 = subtype ctx wit a2 a1 in
@@ -240,39 +248,50 @@ let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
       | (Memb(u,c)  , _          ) ->
          if t_is_val then
            try
-             let equations = learn ctx.equations (t,true,u) in
+             let equations = learn ctx.equations (Equiv(t,true,u)) in
              Sub_Memb_l(Some(subtype {ctx with equations} t c b))
            with Contradiction -> Sub_Memb_l(None)
          (* NOTE may need a backtrack because a right rule could work *)
          else gen_subtype ctx a b
       (* Restriction on the left. *)
       | (Rest(c,e)  , _          ) ->
-          if t_is_val then
-            match e with
-            | Equiv(eq) ->
-               begin
-                 try
-                   let equations = learn ctx.equations eq in
-                   Sub_Rest_l(Some(subtype {ctx with equations} t c b))
-                 with Contradiction -> Sub_Rest_l(None)
-               end
-            | Posit(o)  ->
-               assert false (* TODO *)
+         if t_is_val then
+           begin
+             try
+               let equations = learn ctx.equations e in
+               Sub_Rest_l(Some(subtype {ctx with equations} t c b))
+             with Contradiction -> Sub_Rest_l(None)
+           end
+          (* NOTE may need a backtrack because a right rule could work *)
+          else gen_subtype ctx a b
+      (* Implication on the right. *)
+      | (_          , Impl(e,c)  ) ->
+         if t_is_val then
+           begin
+             try
+               let equations = learn ctx.equations e in
+               Sub_Rest_l(Some(subtype {ctx with equations} t a c))
+             with Contradiction -> Sub_Rest_l(None)
+           end
           (* NOTE may need a backtrack because a right rule could work *)
           else gen_subtype ctx a b
       (* Membership on the right. *)
       | (_          , Memb(u,b)  ) when t_is_val ->
-          let equations = prove ctx.equations (t,true,u) in
+          let equations = prove ctx.equations (Equiv(t,true,u)) in
           Sub_Memb_r(subtype {ctx with equations} t a b)
       (* Restriction on the right. *)
-      | (_          , Rest(b,c)  ) ->
-          begin  (* FIXME: contradiction poss, if ineq ? *)
-            match c with
-            | Equiv(eq) ->
-                let equations = prove ctx.equations eq in
-                Sub_Rest_r(subtype {ctx with equations} t a b)
-            | Posit(o)  ->
-                assert false (* TODO *)
+      | (_          , Rest(c,e)  ) ->
+         begin  (* FIXME: contradiction poss, if ineq ? *)
+            let prf = subtype ctx t a c in
+            let _ = prove ctx.equations e in
+            Sub_Rest_r(prf)
+          end
+      (* Implication on the left. *)
+      | (Impl(e,c)   , _        ) ->
+         begin  (* FIXME: contradiction poss, if ineq ? *)
+            let prf = subtype ctx t c b in
+            let _ = prove ctx.equations e in
+            Sub_Rest_r(prf)
           end
       (* Mu, Nu infinite case. *)
       | (_          , FixM({ elt = Conv },f)) ->
@@ -324,22 +343,22 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
             Typ_FixY(p)
          (* General case for typing λ-abstraction *)
          | _ ->
-            let a' = new_uvar ctx P in
-            let b = new_uvar ctx P in
-            let c' = Pos.none (Func(a',b)) in
-            (* TODO NuRec ? *)
-            let p1 = subtype ctx t c' c in
             let a =
               match ao with
-              | None   -> a'
-              | Some a -> let _p2 = subtype ctx t a' a in (* FIXME: keep p2 *)
-                          a
+              | None   -> new_uvar ctx P
+              | Some a -> a
             in
+            let b = new_uvar ctx P in
+            let c' = Pos.none (Func(a,b)) in
+            (* TODO NuRec ? *)
+            let p1 = subtype ctx t c' c in
             let wit = VWit(f, a, b) in
             (* Learn the equivalence that are valid in the witness. *)
             begin
               try
-                let ctx = learn_equivalences ctx (Pos.none wit) a' in
+                let ctx = learn_nobox ctx (Pos.none wit) in
+                let ctx = learn_equivalences ctx (Pos.none wit) a in
+                let ctx = learn_neg_equivalences ctx v c in
                 (* FIXME do not learn equivalence if a == a' *)
                 let p2 = type_term ctx (bndr_subst f wit) b in
                 Typ_Func_i(p1,Some p2)
@@ -379,7 +398,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
     | VTyp(v,a)   ->
         let t = Pos.make v.pos (Valu(v)) in
         let p1 = subtype ctx t a c in
-        let ctx = learn_equivalences ctx v c in (* TODO: check *)
+        let ctx = learn_neg_equivalences ctx v c in
         let p2 = type_valu ctx v a in
         Typ_VTyp(p1,p2)
     (* Type abstraction. *)
@@ -458,7 +477,8 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
               let w = Valu (Pos.none (Cons(Pos.none d, wit))) in
               (Pos.none (Valu v), true, Pos.none w)
             in
-            let ctx = {ctx with equations = learn ctx.equations eq} in
+            let ctx = {ctx with equations = learn ctx.equations (Equiv(eq))} in
+            let ctx = learn_nobox ctx wit in
             let ctx = learn_equivalences ctx wit a in
             (fun () -> type_term ctx t c :: ps)
           with Contradiction ->
@@ -484,7 +504,7 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
           | None -> ctx
           | Some(v,equations) ->
              let ctx = { ctx with equations } in
-             learn_equivalences ctx v c (* TODO: check *)
+             learn_neg_equivalences ctx v c
         in
         let p2 = type_term ctx t a in
         Typ_TTyp(p1,p2)
@@ -579,6 +599,8 @@ let bind_uvar : type a. a sort -> a uvar -> prop -> (a, p) bndr =
                              equiv (fn sa T uv t x) b (fn sa T uv u x)
                          | Posit(o)     ->
                              posit (fn sa O uv o x)
+                         | NoBox(v)     ->
+                             nobox (fn sa V uv v x)
                        in rest e.pos (fn sa P uv a x) c
       | Impl(c,a)   -> let c =
                          match c with
@@ -586,6 +608,8 @@ let bind_uvar : type a. a sort -> a uvar -> prop -> (a, p) bndr =
                              equiv (fn sa T uv t x) b (fn sa T uv u x)
                          | Posit(o)     ->
                              posit (fn sa O uv o x)
+                         | NoBox(v)     ->
+                             nobox (fn sa V uv v x)
                        in impl e.pos c (fn sa P uv a x)
       | LAbs(ao,b)  -> labs e.pos (Option.map (fun a -> fn sa P uv a x) ao)
                          (bndr_name b)

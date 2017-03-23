@@ -28,6 +28,7 @@ module VPtr =
     let print ch (V i) = Printf.fprintf ch "%i" i
   end
 module VPtrMap = Map.Make(VPtr)
+module VPtrSet = Set.Make(VPtr)
 
 (** Module for pointers on a term node of the graph. *)
 module TPtr =
@@ -80,6 +81,7 @@ type v_node =
   | VN_UVar of v uvar
   | VN_ITag of int
 type v_map = (PtrSet.t * v_node) VPtrMap.t
+type b_map = VPtrSet.t
 
 (** Type of a term node. *)
 type t_node =
@@ -143,6 +145,7 @@ let print_t_node : out_channel -> t_node -> unit = fun ch n ->
 type pool =
   { vs     : v_map
   ; ts     : t_map
+  ; bs     : b_map
   ; next   : int
   ; eq_map : eq_map }
 
@@ -155,7 +158,8 @@ let print_pool : string -> out_channel -> pool -> unit = fun prefix ch po ->
   let {vs ; ts ; eq_map } = po in
   Printf.fprintf ch "%s#### Nodes ####\n" prefix;
   let fn k (ps, n) =
-    Printf.fprintf ch "%s  %a\t→ %a\t← [%a]\n" prefix VPtr.print k
+    let b = if VPtrSet.mem k po.bs then "*" else "" in
+    Printf.fprintf ch "%s  %a%s\t→ %a\t← [%a]\n" prefix VPtr.print k b
       print_v_node n (print_list Ptr.print ",") (PtrSet.elements ps)
   in
   VPtrMap.iter fn vs;
@@ -176,6 +180,7 @@ let print_pool : string -> out_channel -> pool -> unit = fun prefix ch po ->
 let empty_pool : pool =
   { vs     = VPtrMap.empty
   ; ts     = TPtrMap.empty
+  ; bs     = VPtrSet.empty
   ; next   = 0
   ; eq_map = PtrMap.empty }
 
@@ -353,6 +358,19 @@ let eq_t_nodes : pool -> t_node -> t_node -> bool = fun po n1 n2 -> n1 == n2 ||
   | (TN_ITag(n1)     , TN_ITag(n2)     ) -> n1 = n2
   | (_               , _               ) -> false
 
+
+let immediate_nobox : v_node -> bool = function
+  | VN_LAbs _
+  | VN_Cons _
+  | VN_Reco _
+  | VN_Scis   -> true (* Check VN_Scis *)
+  | VN_VWit _
+  | VN_UWit _
+  | VN_EWit _
+  | VN_HApp _
+  | VN_UVar _
+  | VN_ITag _ -> false
+
 (** Insertion function for nodes. *)
 exception FoundV of VPtr.t
 let insert_v_node : v_node -> pool -> VPtr.t * pool = fun nn po ->
@@ -363,7 +381,8 @@ let insert_v_node : v_node -> pool -> VPtr.t * pool = fun nn po ->
       let ptr = VPtr.V po.next in
       let vs = VPtrMap.add ptr (PtrSet.empty, nn) po.vs in
       let next = po.next + 1 in
-      let po = { po with vs ; next } in
+      let bs = if immediate_nobox nn then VPtrSet.add ptr po.bs else po.bs in
+      let po = { po with vs ; bs; next } in
       let children = children_v_node nn in
       let po = add_parent_v_nodes ptr children po in
       (ptr, po)
@@ -577,7 +596,9 @@ let insert_appl : Ptr.t -> Ptr.t -> pool -> Ptr.t * pool = fun pt pu po ->
 (** Normalisation function. *)
 let rec normalise : ?update:bool -> TPtr.t -> pool -> Ptr.t * pool =
   fun ?(update=false) p po ->
-  let (p, po) = if update then (Ptr.T_ptr p,po) else find (Ptr.T_ptr p) po in
+  let normalise = normalise ~update in
+  let find p po = if update then (p,po) else find p po in
+  let (p, po) = find (Ptr.T_ptr p) po in
   match p with
   | Ptr.V_ptr _  -> (p, po)
   | Ptr.T_ptr pt ->
@@ -590,21 +611,26 @@ let rec normalise : ?update:bool -> TPtr.t -> pool -> Ptr.t * pool =
             let (pt, po) = normalise pt po in
             let (pu, po) = normalise pu po in
             log_edp "normalised in TN_Appl: %a %a" Ptr.print pt Ptr.print pu;
+            let (tp, po) = insert_appl pt pu po in
+            let po = union p tp po in
+            log_edp "normalised insert(1) TN_Appl: %a" Ptr.print tp;
             match (pt, pu) with
             | (Ptr.V_ptr pf, Ptr.V_ptr pv) ->
                begin
-                 match snd (VPtrMap.find pf po.vs) with
-                 | VN_LAbs(b) ->
+                 match snd (VPtrMap.find pf po.vs), VPtrSet.mem pv po.bs with
+                 | VN_LAbs(b), true ->
                     begin
                       let (v, po) = canonical_valu pv po in
                       let t = bndr_subst b v.elt in
                       let (tp, po) = add_term po t in
+                      let po = union p (Ptr.T_ptr tp) po in
                       normalise tp po
                     end
-                 | _          -> insert_appl pt pu po
+                 | _          ->
+                    (tp, po)
                end
             | (_           , _           ) ->
-               insert_appl pt pu po
+                (tp, po)
           end
        | TN_MAbs(b)     -> (p, po) (* FIXME can do better. *)
        | TN_Name(s,pt)  -> (p, po) (* FIXME can do better. *)
@@ -614,7 +640,10 @@ let rec normalise : ?update:bool -> TPtr.t -> pool -> Ptr.t * pool =
             match snd (VPtrMap.find pv po.vs) with
             | VN_Reco(m) ->
                begin
-                 try find (Ptr.V_ptr (M.find l.elt m)) po
+                 try
+                   let (tp, po) = find (Ptr.V_ptr (M.find l.elt m)) po in
+                   let po = union p tp po in
+                   (tp, po)
                  with Not_found -> (p, po)
                end
             | _          -> (p, po)
@@ -627,10 +656,10 @@ let rec normalise : ?update:bool -> TPtr.t -> pool -> Ptr.t * pool =
             | VN_Cons(c,pv) ->
                begin
                  try
-                   let (pv, po) = find_valu pv po in
                    let (v, po) = canonical_valu pv po in
                    let t = bndr_subst (M.find c.elt m) v.elt in
                    let (tp, po) = add_term po t in
+                   let po = union p (Ptr.T_ptr tp) po in
                    normalise tp po
                  with
                    Not_found -> (p, po)
@@ -646,6 +675,7 @@ let rec normalise : ?update:bool -> TPtr.t -> pool -> Ptr.t * pool =
             let (pap, po) = insert_t_node (TN_Appl(pt, pf)) po in
             let (pu, po) = insert_t_node (TN_Valu(pv)) po in
             let (pap, po) = insert_t_node (TN_Appl(pap, pu)) po in
+            let po = union p (Ptr.T_ptr pap) po in
             normalise pap po
           end
        | TN_UWit(_)     -> (p, po)
@@ -655,8 +685,9 @@ let rec normalise : ?update:bool -> TPtr.t -> pool -> Ptr.t * pool =
           begin
             match !(v.uvar_val) with
             | None   -> (p, po)
-            | Some t -> let (p, po) = add_term po t in
-                        normalise p po
+            | Some t -> let (tp, po) = add_term po t in
+                        let po = union p (Ptr.T_ptr tp) po in
+                        normalise tp po
           end
        | TN_ITag(n)      -> (p, po)
      end
@@ -685,19 +716,34 @@ and check_parents_eq pp1 pp2 po =
 and reinsert : Ptr.t -> pool -> pool = fun p po ->
   match p with
   | Ptr.T_ptr tp ->
-     log_edp "normalisation of parent %a" TPtr.print tp;
-     let (p', po) = normalise ~update:true tp po in
-     let po = union p p' po in
-     log_edp "normalised parent %a" TPtr.print tp;
-     po
+     let (pp1, n1) = find_t_node tp po in
+     begin
+       match n1 with
+       | TN_Valu(_) | TN_UVar(_) ->
+          PtrSet.fold reinsert pp1 po
+       | _ ->
+          log_edp "normalisation of parent %a" TPtr.print tp;
+          let (p', po) = normalise ~update:true tp po in
+          log_edp "normalised parent %a at %a" TPtr.print tp Ptr.print p';
+          po
+     end
   | _           -> po
+
+and join_nobox : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
+  match p1, p2 with
+  | Ptr.V_ptr pv1, Ptr.V_ptr pv2 ->
+     if VPtrSet.mem pv1 po.bs && not (VPtrSet.mem pv2 po.bs) then
+       { po with bs = VPtrSet.add pv2 po.bs }
+     else
+       po
+  | _ -> po
 
 (** Union operation. *)
 and join : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
   let nps = parents p1 po in
   let pp2 = parents p2 po in
   let po = { po with eq_map = PtrMap.add p1 p2 po.eq_map } in
-  let po = check_parents_eq nps pp2 po in
+  let po = join_nobox p1 p2 po in
   let po = add_parents p2 nps po in
   let po = check_parents_eq nps pp2 po in
   PtrSet.fold reinsert nps po
@@ -756,36 +802,13 @@ and union : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
 let log_ora = Log.register 'o' (Some "ora") "oracle informations"
 let log_ora = Log.(log_ora.p)
 
-let find_proj : pool -> term -> string -> (valu * pool) option = fun po t l ->
-  try
-    let (pt, po) = add_term po t in
-    let (pt, po) = normalise pt po in
-    match pt with
-      | Ptr.T_ptr(_) -> raise Not_found
-      | Ptr.V_ptr(vp) ->
-         let (_, n) = find_v_node vp po in
-         match n with
-         | VN_Reco(m) ->
-            let pt = M.find l m in
-            Some (canonical_valu pt po)
-         | _ -> raise Not_found
-  with Not_found -> None
-
-let find_sum : pool -> term -> (string * valu * pool) option = fun po t ->
-  try
-    let (pt, po) = add_term po t in
-    let (pt, po) = normalise pt po in
-    match pt with
-      | Ptr.T_ptr(_) -> raise Not_found
-      | Ptr.V_ptr(vp) ->
-         let (_, n) = find_v_node vp po in
-         match n with
-         | VN_Cons(c,pt) ->
-            let v, po = canonical_valu pt po in
-            Some (c.elt, v, po)
-         | _ -> raise Not_found
-  with Not_found -> None
-
+let proj_eps : valu -> string -> valu = fun v l ->
+  unbox (ewit None (valu None (reco None M.empty))
+              (Pos.none "x") V (fun x ->
+                (rest None (prod None M.empty)
+                      (equiv (valu None (vari None x))
+                             true (proj None (box v)
+                                        (Pos.none l))))))
 
 let is_equal : pool -> Ptr.t -> Ptr.t -> bool = fun po p1 p2 ->
   if Ptr.compare p1 p2 = 0 then true else
@@ -839,6 +862,21 @@ let add_equiv : equiv -> eq_ctxt -> eq_ctxt = fun (t,u) {pool} ->
   log_edp "obtained context:\n%a" (print_pool "        ") pool;
   {pool}
 
+let add_vptr_nobox : VPtr.t -> pool -> pool = fun vp po ->
+  let (vp, po) = find (Ptr.V_ptr vp) po in
+  match vp with
+  | Ptr.T_ptr(_) -> assert false
+  | Ptr.V_ptr(vp) ->
+     let po = { po with bs = VPtrSet.add vp po.bs } in
+     let nps = parents (Ptr.V_ptr vp) po in
+     PtrSet.fold reinsert nps po
+
+let add_nobox : valu -> pool -> pool = fun v po ->
+  log_edp "inserting %a not box in context\n%a" Print.print_ex v
+    (print_pool "        ") po;
+  let (vp, po) = add_valu po v in
+  add_vptr_nobox vp po
+
 (* Adds an inequivalence to a context, producing a bigger context. The
    exception [Contradiction] is raised when expected. *)
 let add_inequiv : inequiv -> eq_ctxt -> eq_ctxt = fun (t,u) {pool} ->
@@ -866,34 +904,108 @@ let add_inequiv : inequiv -> eq_ctxt -> eq_ctxt = fun (t,u) {pool} ->
 
 (* Main module interface. *)
 
-type relation = term * bool * term (* true means equivalent *)
+let find_proj : pool -> valu -> string -> valu * pool = fun po v l ->
+  try
+    let (vp, po) = add_valu po v in
+    let (vp, po) = find (Ptr.V_ptr vp) po in
+    match vp with
+    | Ptr.T_ptr(_) -> assert false (* Should never happen. *)
+    | Ptr.V_ptr(vp) ->
+       let (_, n) = find_v_node vp po in
+       let (wp, w, po) =
+         match n with
+         | VN_Reco(m) ->
+            let pt = M.find l m in
+            let (w, po) = canonical_valu pt po in
+            (pt, w, po)
+         | _ ->
+            let w = proj_eps v l in
+            let (wp, po) = add_valu po w in
+            let (pt, po) = add_term po (Pos.none (Proj(v,Pos.none l))) in
+            let po = union (Ptr.V_ptr wp) (Ptr.T_ptr pt) po in
+            (wp, w, po)
+       in
+       let po = if (VPtrSet.mem vp po.bs) then add_vptr_nobox wp po else po in
+       (w, po)
 
-let print_relation : out_channel -> relation -> unit = fun ch (t,b,u) ->
-  let sym = if b then "=" else "≠" in
-  Printf.fprintf ch "%a %s %a" Print.print_ex t sym Print.print_ex u
+  with Not_found -> assert false (* TODO: check *)
 
-let print_relation_pos : out_channel -> relation -> unit = fun ch (t,b,u) ->
-  begin
-    match t.pos with
-    | None   -> Print.print_ex ch t
-    | Some p -> Printf.fprintf ch "(%a)" print_short_pos p
-  end;
-  output_string ch (if b then " = " else " ≠ ");
-  begin
-    match u.pos with
-    | None   -> Print.print_ex ch u
-    | Some p -> Printf.fprintf ch "(%a)" print_short_pos p
-  end
+(* TODO: sum with one case should not fail *)
+let find_sum : pool -> valu -> (string * valu * pool) option = fun po v ->
+  try
+    let (vp, po) = add_valu po v in
+    let (vp, po) = find (Ptr.V_ptr vp) po in
+    match vp with
+      | Ptr.T_ptr(_) -> raise Not_found
+      | Ptr.V_ptr(vp) ->
+         let (_, n) = find_v_node vp po in
+         match n with
+         | VN_Cons(c,pt) ->
+            let v, po = canonical_valu pt po in
+            Some (c.elt, v, po)
+         | _ -> raise Not_found
+  with Not_found -> None
+
+
+type relation = cond
+
+(* TODO share with print.ml *)
+let print_relation = fun ch -> let open Printf in let open Print in
+  function
+    | Equiv(t,b,u) -> let sym = if b then "=" else "≠" in
+                      fprintf ch "%a %s %a" print_ex t sym print_ex u
+    | NoBox(v)     -> fprintf ch "%a↓" print_ex v
+    | Posit(o)     -> print_ex ch o
+
+let print_relation_pos : out_channel -> relation -> unit = fun ch c ->
+  match c with
+  | Equiv (t,b,u) ->
+     begin
+       match t.pos with
+       | None   -> Print.print_ex ch t
+       | Some p -> Printf.fprintf ch "(%a)" print_short_pos p
+     end;
+     output_string ch (if b then " = " else " ≠ ");
+     begin
+       match u.pos with
+       | None   -> Print.print_ex ch u
+       | Some p -> Printf.fprintf ch "(%a)" print_short_pos p
+     end
+  | NoBox(v) ->
+     begin
+       match v.pos with
+       | None   -> Print.print_ex ch v
+       | Some p -> Printf.fprintf ch "(%a)" print_short_pos p
+     end
+  | Posit _ -> assert false
 
 exception Failed_to_prove of relation
 let equiv_error : relation -> 'a =
   fun rel -> raise (Failed_to_prove rel)
 
+(* Adds no box to the bool *)
+let check_nobox : valu -> eq_ctxt -> eq_ctxt = fun v {pool} ->
+  log_edp "inserting %a not box in context\n%a" Print.print_ex v
+    (print_pool "        ") pool;
+  let (vp, pool) = add_valu pool v in
+  let (vp, pool) = find (Ptr.V_ptr vp) pool in
+  match vp with
+  | Ptr.T_ptr(_) -> raise Not_found
+  | Ptr.V_ptr(vp) ->
+     if VPtrSet.mem vp pool.bs then raise Contradiction
+     else { pool }
+
 (* Test whether a term is equivalent to a value or not. *)
 let is_value : term -> eq_ctxt -> bool * eq_ctxt = fun t {pool} ->
+  log_edp "inserting %a not box in context\n%a" Print.print_ex t
+    (print_pool "        ") pool;
   let (pt, pool) = add_term pool t in
+  log_edp "insertion at %a" TPtr.print pt;
+  log_edp "obtained context:\n%a" (print_pool "        ") pool;
   let (pt, pool) = normalise pt pool in
   let res = match pt with Ptr.V_ptr(_) -> true | Ptr.T_ptr(_) -> false in
+  log_edp "normalisation to %a" Ptr.print pt;
+  log_edp "obtained context:\n%a" (print_pool "        ") pool;
   log_edp "%a is%s a value" Print.print_ex t (if res then "" else " not");
   (res, {pool})
 
@@ -907,24 +1019,35 @@ let to_value : term -> eq_ctxt -> (valu * eq_ctxt) option = fun t {pool} ->
      Some (v, { pool })
   | Ptr.T_ptr(_) -> None (* FIXME: keep the pool in this case too *)
 
-let learn : eq_ctxt -> relation -> eq_ctxt = fun ctx (t,b,u) ->
-  log_edp "learning %a" print_relation (t,b,u);
+let learn : eq_ctxt -> relation -> eq_ctxt = fun ctx rel ->
+  log_edp "learning %a" print_relation rel;
   try
-    let ctx = (if b then add_equiv else add_inequiv) (t,u) ctx in
-    log_edp "learned  %a" print_relation (t,b,u); ctx
+    let ctx =
+      match rel with
+      | Equiv(t,b,u) ->
+         (if b then add_equiv else add_inequiv) (t,u) ctx
+      | Posit _ -> assert false (* TODO *)
+      | NoBox(v) ->
+         {pool = add_nobox v ctx.pool }
+    in
+    log_edp "learned  %a" print_relation rel; ctx
   with Contradiction ->
     log_edp "contradiction in the context";
     raise Contradiction
 
-let prove : eq_ctxt -> relation -> eq_ctxt = fun ctx (t,b,u) ->
-  log_edp "proving  %a" print_relation (t,b,u);
+let prove : eq_ctxt -> relation -> eq_ctxt = fun ctx rel ->
+  log_edp "proving  %a" print_relation rel;
   try
-    ignore ((if b then add_inequiv else add_equiv) (t,u) ctx);
-    log_edp "failed to prove %a" print_relation (t,b,u);
-    equiv_error (t,b,u)
+    begin
+      match rel with
+      | Equiv(t,b,u) ->
+         ignore ((if b then add_inequiv else add_equiv) (t,u) ctx);
+      | Posit _ -> assert false (* TODO *)
+      | NoBox(v) ->
+         ignore (check_nobox v ctx)
+    end;
+    log_edp "failed to prove %a" print_relation rel;
+    equiv_error rel
   with Contradiction ->
-    log_edp "proved   %a" print_relation (t,b,u);
-    let ctx =
-      try learn ctx (t,b,u)
-      with Contradiction -> assert false (* unexpected. *)
-    in ctx
+    log_edp "proved   %a" print_relation rel;
+    ctx

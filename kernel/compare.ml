@@ -40,6 +40,7 @@ let uvar_iter : type a. uvar_fun -> a ex loc -> unit = fun f e ->
     let uvar_iter_cond f c =
       match c with
       | Equiv(t,_,u) -> uvar_iter t; uvar_iter u
+      | NoBox(v)     -> uvar_iter v;
       | Posit(o)     -> uvar_iter o
     in
     let buvar_iter b = if not_closed b then uvar_iter (bndr_subst b Dumm) in
@@ -188,7 +189,9 @@ let {eq_expr; eq_bndr} =
             | (Equiv(t1,b1,u1), Equiv(t2,b2,u2)) ->
                 b1 = b2 && eq_expr t1 t2 && eq_expr u1 u2
             | (Posit(o1)      , Posit(o2)      ) ->
-                eq_expr o1 o2
+               eq_expr o1 o2
+            | (NoBox(v1)      , NoBox(v2)      ) ->
+               eq_expr v1 v2
             | (_              , _              ) ->
                 false
           end

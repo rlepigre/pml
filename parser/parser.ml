@@ -111,6 +111,15 @@ type t_prio = [`A | `Ap | `S | `F]
 
 type mode = [`Any | `Prp of p_prio | `Trm of t_prio | `Stk | `Ord ]
 
+(* TODO: keep position in l *)
+let erest a l =
+  List.fold_left (fun a x ->
+      none (ERest(Some a,ENoBox(none (EVari(x, [])))))) a l
+
+let eimpl a l =
+  List.fold_left (fun a x ->
+      none (EImpl(ENoBox(none (EVari(x, []))), Some a))) a l
+
 let parser expr (m : mode) =
   (* Any (higher-order function) *)
   | "(" x:llid s:{":" s:sort} "↦" e:(expr `Any)
@@ -149,11 +158,19 @@ let parser expr (m : mode) =
   | "∀" x:llid xs:llid* "∈" a:(expr (`Prp`F)) ',' b:(expr (`Prp`F))
       when m = `Prp`F
       -> euniv_in _loc x xs a b
+   (* Proposition (universal quantification, converging value) *)
+  | "∀" x:llid xs:llid* "↓" ',' a:(expr (`Prp`F))
+      when m = `Prp`F
+      -> in_pos _loc (EUniv((x,xs),_sv, eimpl a (x::xs)))
   (* Proposition (existential quantification) *)
   | "∃" x:llid xs:llid* s:{':' s:sort}?[Pos.none SP] ',' a:(expr (`Prp`F))
       when m = `Prp`F
       -> in_pos _loc (EExis((x,xs),s,a))
-  (* Proposition (least fixpoint) *)
+   (* Proposition (existential quantification, converging value) *)
+  | "∃" x:llid xs:llid* "↓" ',' a:(expr (`Prp`F))
+      when m = `Prp`F
+      -> in_pos _loc (EExis((x,xs),_sv, erest a (x::xs)))
+ (* Proposition (least fixpoint) *)
   | "μ" o:(expr `Ord)?[none EConv] x:llid a:(expr (`Prp`F))
       when m = `Prp`F
       -> in_pos _loc (EFixM(o,x,a))
@@ -168,10 +185,10 @@ let parser expr (m : mode) =
   (* Proposition (restriction) *)
   | a:(expr (`Prp`M)) "|" t:(expr (`Trm`Ap)) b:equiv u:(expr (`Trm`Ap))
       when m = `Prp`R
-      -> in_pos _loc (ERest(Some a,(t,b,u)))
+      -> in_pos _loc (ERest(Some a,EEquiv(t,b,u)))
   | t:(expr (`Trm`Ap)) b:equiv u:(expr (`Trm`Ap))
       when m = `Prp`A
-      -> in_pos _loc (ERest(None,(t,b,u)))
+      -> in_pos _loc (ERest(None,EEquiv(t,b,u)))
   (* Proposition (parentheses) *)
   | "(" (expr (`Prp`F)) ")"
       when m = `Prp`A

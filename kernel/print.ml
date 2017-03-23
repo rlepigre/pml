@@ -166,6 +166,7 @@ let print_ex : type a. a ex loc printer = fun ch e ->
   and print_cond ch = function
     | Equiv(t,b,u) -> let sym = if b then "=" else "≠" in
                       fprintf ch "%a %s %a" print_ex t sym print_ex u
+    | NoBox(v)     -> fprintf ch "%a↓" print_ex v
     | Posit(o)     -> print_ex ch o
 
   and print_sch ch sch =

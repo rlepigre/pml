@@ -128,6 +128,11 @@ type 'a ne_list = 'a * 'a list
 let ne_list_to_list : 'a ne_list -> 'a list = fun (x,xs) -> x::xs
 
 type raw_ex = raw_ex' loc
+and raw_cond =
+  | EEquiv of (raw_ex * bool * raw_ex)
+  | EPosit of raw_ex
+  | ENoBox of raw_ex
+
 and raw_ex' =
   | EVari of strloc * raw_ex list
   | EHOFn of strloc * raw_sort * raw_ex
@@ -141,7 +146,8 @@ and raw_ex' =
   | EFixM of raw_ex * strloc * raw_ex
   | EFixN of raw_ex * strloc * raw_ex
   | EMemb of raw_ex * raw_ex
-  | ERest of raw_ex option * (raw_ex * bool * raw_ex)
+  | ERest of raw_ex option * raw_cond
+  | EImpl of raw_cond * raw_ex option
 
   | ELAbs of (strloc * raw_ex option) ne_list * raw_ex
   | ECons of strloc * (raw_ex * flag) option
@@ -189,6 +195,7 @@ let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
                          print o x.elt print a
     | EMemb(t,a)    -> Printf.fprintf ch "EMemb(%a,%a)" print t print a
     | ERest(a,eq)   -> Printf.fprintf ch "ERest(%a,%a)" aux_opt a aux_eq eq
+    | EImpl(eq,a)   -> Printf.fprintf ch "EImpl(%a,%a)" aux_opt a aux_eq eq
     | ELAbs(args,t) -> Printf.fprintf ch "ELAbs([%a],%a)"
                          (print_list aux_arg "; ")
                          (ne_list_to_list args) print t
@@ -223,7 +230,10 @@ let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
   and aux_opt ch = function
     | None    -> Printf.fprintf ch "None"
     | Some(e) -> Printf.fprintf ch "Some(%a)" print e
-  and aux_eq ch (t,b,u) = Printf.fprintf ch "(%a,%b,%a)" print t b print u
+  and aux_eq ch = function
+    | EEquiv(t,b,u) -> Printf.fprintf ch "(%a,%b,%a)" print t b print u
+    | EPosit(o)     -> Printf.fprintf ch "(%a>0)" print o
+    | ENoBox(v)     -> Printf.fprintf ch "(%a↓)" print v
   and aux_arg ch (s,ao) = Printf.fprintf ch "(%S,%a)" s.elt aux_opt ao
   and aux_patt ch (c,(x,ao),t) =
     Printf.fprintf ch "(%S,(%S,%a),%a)" c.elt x.elt aux_opt ao print t
@@ -352,16 +362,41 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
     | (EMemb(t,a)   , SUni(r)  ) -> r := Some _sp; infer env vars e s
     | (EMemb(_,_)   , _        ) -> sort_clash e s
     | (ERest(a,eq)  , SP       ) ->
-        let (t,_,u) = eq in
-        infer env vars t _st;
-        infer env vars u _st;
-        begin
-          match a with
-          | None   -> ()
-          | Some a -> infer env vars a _sp
-        end
+       begin
+         match eq with
+         | EEquiv(t,_,u) ->
+            infer env vars t _st;
+            infer env vars u _st;
+         | EPosit(o) ->
+            infer env vars o _so;
+         | ENoBox(v) ->
+            infer env vars v _sv;
+       end;
+       begin
+         match a with
+         | None   -> ()
+         | Some a -> infer env vars a _sp
+       end
+    | (EImpl(eq,a)  , SP       ) ->
+       begin
+         match eq with
+         | EEquiv(t,_,u) ->
+            infer env vars t _st;
+            infer env vars u _st;
+         | EPosit(o) ->
+            infer env vars o _so;
+         | ENoBox(v) ->
+            infer env vars v _sv;
+       end;
+       begin
+         match a with
+         | None   -> ()
+         | Some a -> infer env vars a _sp
+       end
     | (ERest(_,_)   , SUni(r)  ) -> r := Some _sp; infer env vars e s
     | (ERest(_,_)   , _        ) -> sort_clash e s
+    | (EImpl(_,_)   , SUni(r)  ) -> r := Some _sp; infer env vars e s
+    | (EImpl(_,_)   , _        ) -> sort_clash e s
     (* Terms / Values. *)
     | (ELAbs(args,t), SV       )
     | (ELAbs(args,t), ST       ) ->
@@ -663,10 +698,38 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
           | None   -> strict_prod e.pos M.empty
           | Some a -> to_prop (unsugar env vars a _sp)
         in
-        let (t,b,u) = eq in
-        let t = to_term (unsugar env vars t _st) in
-        let u = to_term (unsugar env vars u _st) in
-        Box(P, rest e.pos a (equiv t b u))
+        let c =
+          match eq with
+          | EEquiv(t,b,u) ->
+             let t = to_term (unsugar env vars t _st) in
+             let u = to_term (unsugar env vars u _st) in
+             equiv t b u
+          | EPosit _ ->
+             assert false (* TODO *)
+          | ENoBox(v) ->
+             let v = to_valu (unsugar env vars v _sv) in
+             nobox v
+        in
+        Box(P, rest e.pos a c)
+    | (EImpl(eq,a)  , SP       ) ->
+        let a =
+          match a with
+          | None   -> strict_prod e.pos M.empty
+          | Some a -> to_prop (unsugar env vars a _sp)
+        in
+        let c =
+          match eq with
+          | EEquiv(t,b,u) ->
+             let t = to_term (unsugar env vars t _st) in
+             let u = to_term (unsugar env vars u _st) in
+             equiv t b u
+          | EPosit _ ->
+             assert false (* TODO *)
+          | ENoBox(v) ->
+             let v = to_valu (unsugar env vars v _sv) in
+             nobox v
+        in
+        Box(P, impl e.pos c a)
     (* Values. *)
     | (ELAbs(args,t), SV       ) ->
         begin
