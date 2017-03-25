@@ -246,7 +246,6 @@ let parents : Ptr.t -> pool -> PtrSet.t = fun p po ->
   | Ptr.V_ptr vp -> fst (find_v_node vp po)
   | Ptr.T_ptr tp -> fst (find_t_node tp po)
 
-(** FIXME: to remove *)
 let add_parents : Ptr.t -> PtrSet.t -> pool -> pool = fun p nps po ->
   match p with
   | Ptr.V_ptr vp ->
@@ -275,13 +274,13 @@ let find_valu : VPtr.t -> pool -> VPtr.t * pool = fun p po ->
   | Ptr.V_ptr p -> (p, po)
   | Ptr.T_ptr _ -> assert false
 
-(* FIXME: loose path shortening *)
+(* NOTE: loose path shortening, not really a problem ? *)
 let eq_vptr : pool -> VPtr.t -> VPtr.t -> bool = fun po p1 p2 ->
   let (p1, po) = find (Ptr.V_ptr p1) po in
   let (p2, po) = find (Ptr.V_ptr p2) po in
   Ptr.compare p1 p2 = 0
 
-(* FIXME: loose path shortening *)
+(* NOTE: loose path shortening, not really a problem ? *)
 let eq_tptr : pool -> TPtr.t -> TPtr.t -> bool = fun po p1 p2 ->
   let (p1, po) = find (Ptr.T_ptr p1) po in
   let (p2, po) = find (Ptr.T_ptr p2) po in
@@ -733,7 +732,7 @@ and union : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
     match (p1, p2) with
     | (Ptr.T_ptr _  , Ptr.V_ptr _  ) -> join p1 p2 po
     | (Ptr.V_ptr _  , Ptr.T_ptr _  ) -> join p2 p1 po
-    | (Ptr.T_ptr _  , Ptr.T_ptr _  ) -> join p1 p2 po (* TODO Tarjan *)
+    | (Ptr.T_ptr _  , Ptr.T_ptr _  ) -> join p1 p2 po
     | (Ptr.V_ptr vp1, Ptr.V_ptr vp2) ->
        begin
          let (_,n1) = VPtrMap.find vp1 po.vs in
@@ -795,46 +794,55 @@ let empty_ctxt : eq_ctxt =
 type equiv   = term * term
 type inequiv = term * term
 
-let eq_val : eq_ctxt -> valu -> valu -> bool = fun {pool=po} v1 v2 ->
-  if v1 == v2 then true else
-  let (p1, po) = add_valu po v1 in
-  let (p2, po) = add_valu po v2 in
+let eq_val : eq_ctxt -> valu -> valu -> bool = fun {pool} v1 v2 ->
+  if v1 == v2 then true else begin
+  log_edp "eq_val: inserting %a = %a in context\n%a" Print.print_ex v1
+          Print.print_ex v2 (print_pool "        ") pool;
+  let (p1, pool) = add_valu pool v1 in
+  let (p2, pool) = add_valu pool v2 in
+  log_edp "eq_val: insertion at %a and %a" VPtr.print p1 VPtr.print p2;
+  log_edp "eq_val: obtained context:\n%a" (print_pool "        ") pool;
   if VPtr.compare p1 p2 = 0 then true else
-  let (t1, po) = canonical (Ptr.V_ptr p1) po in
-  let (t2, po) = canonical (Ptr.V_ptr p2) po in
-  log_edp "test term equality %a = %a" Print.print_ex t1 Print.print_ex t2;
-  eq_expr t1 t2
+  let (t1, pool) = canonical (Ptr.V_ptr p1) pool in
+  let (t2, pool) = canonical (Ptr.V_ptr p2) pool in
+  log_edp "eq_val: test %a = %a" Print.print_ex t1 Print.print_ex t2;
+  eq_expr t1 t2 end
 
-let eq_trm : eq_ctxt -> term -> term -> bool = fun {pool=po} v1 v2 ->
-  if v1 == v2 then true else
-  let (p1, po) = add_term po v1 in
-  let (p2, po) = add_term po v2 in
+let eq_trm : eq_ctxt -> term -> term -> bool = fun {pool} t1 t2 ->
+  if t1 == t2 then true else begin
+  log_edp "eq_trm: inserting %a = %a in context\n%a" Print.print_ex t1
+          Print.print_ex t2 (print_pool "        ") pool;
+  let (p1, pool) = add_term pool t1 in
+  let (p2, pool) = add_term pool t2 in
+  log_edp "eq_trm: insertion at %a and %a" TPtr.print p1 TPtr.print p2;
+  log_edp "eq_trm: obtained context:\n%a" (print_pool "        ") pool;
   if TPtr.compare p1 p2 = 0 then true else
-  let (t1, po) = canonical (Ptr.T_ptr p1) po in
-  let (t2, po) = canonical (Ptr.T_ptr p2) po in
-  log_edp "test term equality %a = %a" Print.print_ex t1 Print.print_ex t2;
-  eq_expr t1 t2
+  let (t1, pool) = canonical (Ptr.T_ptr p1) pool in
+  let (t2, pool) = canonical (Ptr.T_ptr p2) pool in
+  log_edp "eq_trm: %a = %a" Print.print_ex t1 Print.print_ex t2;
+  eq_expr t1 t2 end
 
 (* Adds an equivalence to a context, producing a bigger context. The
    exception [Contradiction] is raised when expected. *)
 let add_equiv : equiv -> eq_ctxt -> eq_ctxt = fun (t,u) {pool} ->
-  log_edp "inserting %a = %a in context\n%a" Print.print_ex t
+  log_edp "add_equiv: inserting %a = %a in context\n%a" Print.print_ex t
     Print.print_ex u (print_pool "        ") pool;
   if eq_expr ~strict:true t u then
     begin
-      log_edp "trivial proof";
+      log_edp "add_equiv: trivial proof";
       {pool}
     end
   else
   let (pt, pool) = add_term pool t in
   let (pu, pool) = add_term pool u in
-  log_edp "insertion at %a and %a" TPtr.print pt TPtr.print pu;
-  log_edp "obtained context:\n%a" (print_pool "        ") pool;
+  log_edp "add_equiv: insertion at %a and %a" TPtr.print pt TPtr.print pu;
+  log_edp "add_equiv: obtained context:\n%a" (print_pool "        ") pool;
   let (pt, pool) = normalise pt pool in
   let (pu, pool) = normalise pu pool in
   let pool = union pt pu pool in
-  log_edp "normalisation to %a and %a after union" Ptr.print pt Ptr.print pu;
-  log_edp "obtained context:\n%a" (print_pool "        ") pool;
+  log_edp "add_equiv: normalisation to %a and %a after union"
+          Ptr.print pt Ptr.print pu;
+  log_edp "add_equiv: obtained context:\n%a" (print_pool "        ") pool;
   {pool}
 
 let add_vptr_nobox : VPtr.t -> pool -> pool = fun vp po ->
@@ -847,7 +855,7 @@ let add_vptr_nobox : VPtr.t -> pool -> pool = fun vp po ->
      PtrSet.fold reinsert nps po
 
 let add_nobox : valu -> pool -> pool = fun v po ->
-  log_edp "inserting %a not box in context\n%a" Print.print_ex v
+  log_edp "add_nobox: inserting %a not box in context\n%a" Print.print_ex v
     (print_pool "        ") po;
   let (vp, po) = add_valu po v in
   add_vptr_nobox vp po
@@ -855,7 +863,7 @@ let add_nobox : valu -> pool -> pool = fun v po ->
 (* Adds an inequivalence to a context, producing a bigger context. The
    exception [Contradiction] is raised when expected. *)
 let add_inequiv : inequiv -> eq_ctxt -> eq_ctxt = fun (t,u) {pool} ->
-  log_edp "inserting %a ≠ %a in context\n%a" Print.print_ex t
+  log_edp "add_inequiv: inserting %a ≠ %a in context\n%a" Print.print_ex t
     Print.print_ex u (print_pool "        ") pool;
   if eq_expr ~strict:true t u then
     begin
@@ -864,15 +872,15 @@ let add_inequiv : inequiv -> eq_ctxt -> eq_ctxt = fun (t,u) {pool} ->
     end;
   let (pt, pool) = add_term pool t in
   let (pu, pool) = add_term pool u in
-  log_edp "insertion at %a and %a" TPtr.print pt TPtr.print pu;
-  log_edp "obtained context:\n%a" (print_pool "        ") pool;
+  log_edp "add_inequiv: insertion at %a and %a" TPtr.print pt TPtr.print pu;
+  log_edp "add_inequiv: obtained context:\n%a" (print_pool "        ") pool;
   let (pt, pool) = normalise pt pool in
   let (pu, pool) = normalise pu pool in
-  log_edp "normalisation to %a and %a" Ptr.print pt Ptr.print pu;
-  log_edp "obtained context:\n%a" (print_pool "        ") pool;
+  log_edp "add_inequiv: normalisation to %a and %a" Ptr.print pt Ptr.print pu;
+  log_edp "add_inequiv: obtained context:\n%a" (print_pool "        ") pool;
   if is_equal pool pt pu then
     begin
-      log_edp "contradiction found";
+      log_edp "add_inequiv: contradiction found";
       bottom ()
     end;
   {pool} (* TODO store clauses *)
@@ -913,7 +921,7 @@ let find_proj : pool -> valu -> string -> valu * pool = fun po v l ->
        let po = if (VPtrSet.mem vp po.bs) then add_vptr_nobox wp po else po in
        (w, po)
 
-  with Not_found -> assert false (* TODO: check *)
+  with Not_found -> assert false (* TODO: check, could be a contradiction *)
 
 (* TODO: sum with one case should not fail *)
 let find_sum : pool -> valu -> (string * valu * pool) option = fun po v ->
@@ -942,6 +950,7 @@ let print_relation = fun ch -> let open Printf in let open Print in
     | NoBox(v)     -> fprintf ch "%a↓" print_ex v
     | Posit(o)     -> print_ex ch o
 
+(* TODO share with print.ml *)
 let print_relation_pos : out_channel -> relation -> unit = fun ch c ->
   match c with
   | Equiv (t,b,u) ->
