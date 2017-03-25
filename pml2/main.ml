@@ -175,26 +175,43 @@ let files =
   files
 
 let _ =
-  try ignore (List.fold_left handle_file Env.empty files) with
-  | Typing.Subtype_error(p,msg) ->
-      begin
-        match p with
-        | None   -> err_msg "Subtype error: %s." msg
-        | Some p -> err_msg "Subtype error in %s." (pos_to_string p);
+  let rec print_exn = function
+  | Typing.Subtype_error(t,a,b,e) ->
+     begin
+       match t.pos with
+       | None ->
+          err_msg "SubType error at ?";
+       | Some p ->
+          err_msg "SubType error at %s" (pos_to_string p);
+     end;
+     err_msg "%a : %a < %a" Print.print_ex t Print.print_ex a Print.print_ex b;
+     print_exn e
+
+  | Typing.Subtype_msg(p,msg) ->
+     begin
+       match p with
+       | None   -> err_msg "Subtype error: %s." msg
+       | Some p -> err_msg "Subtype error in %s." (pos_to_string p);
                     err_msg "Message: %s." msg
-      end; exit 1
-  | Typing.Type_error(p,msg)    ->
-      begin
-        match p with
-        | None   -> err_msg "Type error: %s." msg
-        | Some p -> err_msg "Type error in %s." (pos_to_string p);
-                    err_msg "Message: %s." msg
-      end; exit 1
+     end;
+  | Typing.Reachable            ->
+     err_msg "Reachable scissors"
   | Equiv.Failed_to_prove(rel)  ->
-      err_msg "Failed to prove an equational relation.";
-      err_msg "  %a" Equiv.print_relation_pos rel;
-      exit 1
+     err_msg "Failed to prove an equational relation.";
+     err_msg "  %a" Equiv.print_relation_pos rel
+  | Type_error(E(s,e),c,exn) ->
+     begin
+       match e.pos with
+       | None ->
+          err_msg "Type error at ?";
+       | Some p ->
+          err_msg "Type error at %s" (pos_to_string p);
+     end;
+    err_msg "%a : %a" Print.print_ex e Print.print_ex c;
+    print_exn exn
   | e ->
-     err_msg "Uncaught exception [%s]." (Printexc.to_string e);
+     err_msg "Unexpected exception [%s]." (Printexc.to_string e);
      err_msg "%t" Printexc.print_backtrace;
-     exit 1
+  in
+  try ignore (List.fold_left handle_file Env.empty files) with
+  | e -> print_exn e; exit 1

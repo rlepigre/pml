@@ -8,14 +8,22 @@ open Equiv
 open Output
 open Compare
 
-(* Exceptions to be used in case of failure. *)
-exception Type_error of pos option * string
-let type_error : pos option -> string -> 'a =
-  fun pos msg -> raise (Type_error(pos, msg))
+type sorted = E : 'a sort * 'a ex loc -> sorted
 
-exception Subtype_error of pos option * string
-let subtype_error : pos option -> string -> 'a =
-  fun pos msg -> raise (Subtype_error(pos, msg))
+(* Exceptions to be used in case of failure. *)
+exception Type_error of sorted * prop * exn
+let type_error : sorted -> prop -> exn -> 'a =
+  fun t p e -> raise (Type_error(t, p, e))
+
+exception Subtype_msg of pos option * string
+let subtype_msg : pos option -> string -> 'a =
+  fun pos msg -> raise (Subtype_msg(pos, msg))
+
+exception Subtype_error of term * prop * prop * exn
+ let subtype_error : term -> prop -> prop -> exn -> 'a =
+  fun t a b e -> raise (Subtype_error(t,a,b,e))
+
+exception Reachable
 
 exception Unexpected_error of string
 let unexpected : string -> 'a =
@@ -187,7 +195,7 @@ let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
     let a = Norm.whnf a in
     let b = Norm.whnf b in
     let (t_is_val, ctx) = term_is_value t ctx in
-    let r =
+    try let r =
       match (a.elt, b.elt) with
       (* Same types.  *)
       | _ when eq_expr ~oracle:(oracle ctx) a b ->
@@ -230,7 +238,7 @@ let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
           let check_field l (p,a2) ps =
             let a1 =
               try snd (M.find l fs1) with Not_found ->
-              subtype_error p ("Product clash on label " ^ l ^ "...")
+              subtype_msg p ("Product clash on label " ^ l ^ "...")
             in
             let t = unbox (t_proj None (box t) (Pos.none l)) in
             let p = subtype ctx t a1 a2 in
@@ -243,7 +251,7 @@ let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
           let check_variant c (p,a1) ps =
             let a2 =
               try snd (M.find c cs2) with Not_found ->
-              subtype_error p ("Sum clash on constructor " ^ c ^ "...")
+              subtype_msg p ("Sum clash on constructor " ^ c ^ "...")
             in
             let t =
               let f x = valu None (vari None x) in
@@ -341,11 +349,12 @@ let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
          gen_subtype ctx a b
       (* No rule apply. *)
       | _                          ->
-          err_msg "cannot show %a ∈ %a ⊆ %a\n%!"
-            Print.ex t Print.ex a Print.ex b;
-          exit 1
+         subtype_msg None "No rule applies"
     in
     (t, a, b, r)
+    with
+    | Subtype_error _ as e -> raise e
+    | e -> subtype_error t a b e
 
 and gen_subtype : ctxt -> prop -> prop -> sub_rule =
   fun ctx a b ->
@@ -359,7 +368,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
   let v = Norm.whnf v in
   let t = Pos.make v.pos (Valu(v)) in
   log_typ "(val) %a : %a" Print.ex v Print.ex c;
-  let r =
+  try let r =
     match v.elt with
     (* λ-abstraction. *)
     | LAbs(ao,f)  ->
@@ -427,7 +436,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
         Typ_Prod_i(p1,p2s)
     (* Scissors. *)
     | Scis        ->
-        type_error v.pos "Reachable scissors..."
+        raise Reachable
     (* Coercion. *)
     | VTyp(v,a)   ->
         let t = Pos.make v.pos (Valu(v)) in
@@ -463,10 +472,13 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
     | ITag(_)     -> unexpected "ITag during typing..."
  in
   (Pos.make v.pos (Valu(v)), c, r)
+  with
+  | Type_error _ as e -> raise e
+  | e -> type_error (E(V,v)) c e
 
 and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
   log_typ "(trm) %a : %a" Print.ex t Print.ex c;
-  let r =
+  try let r =
     match (Norm.whnf t).elt with
     (* Value. *)
     | Valu(v)     ->
@@ -567,10 +579,13 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
     | ITag(_)     -> unexpected "ITag during typing..."
   in
   (t, c, r)
+  with
+  | Type_error _ as e -> raise e
+  | e -> type_error (E(T,t)) c e
 
 and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
   log_typ "(stk) %a : %a" Print.ex s Print.ex c;
-  let r =
+  try let r =
     match (Norm.whnf s).elt with
     | Push(v,pi)  ->
         let a = new_uvar ctx P in
@@ -608,6 +623,9 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
     | ITag(_)     -> unexpected "Tag during typing..."
   in
   (s, c, r)
+  with
+  | Type_error _ as e -> raise e
+  | e -> type_error (E(S,s)) c e
 
 let bind_uvar : type a. a sort -> a uvar -> prop -> (a, p) bndr =
   let rec fn : type a b. a sort -> b sort -> a uvar -> b ex loc
