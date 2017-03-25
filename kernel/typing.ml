@@ -92,6 +92,10 @@ and sub_proof = term * prop * prop * sub_rule
 let learn_nobox : ctxt -> valu -> ctxt = fun ctx v ->
   { ctx with equations =  { pool = add_nobox v ctx.equations.pool } }
 
+(* add to the context some conditions.
+   A condition c is added if c false implies wit in a is false.
+   as wit may be assumed not box, if c false implies a = Box,
+   c can be added *)
 let rec learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
   let twit = Pos.none (Valu wit) in
   match (Norm.whnf a).elt with
@@ -126,6 +130,16 @@ let rec is_singleton : prop -> term option = fun t ->
   | Rest(t,_) -> is_singleton t
   | _ -> None (* TODO: more cases are possible *)
 
+(* add to the context some conditions.
+   A condition c is added if c false implies wit in a is true.
+   as wit may be assumed not box, if c false implies a = Top,
+   c can be added
+
+   The optional argument arg, is given when wit is a lambda.
+   in this case, arg is a term such that (wit arg) not in c.
+   Therefore, if c = Func(t in a,b) one must have arg t, otherwise
+   arg could not be a counter example.
+*)
 let rec learn_neg_equivalences : ctxt -> valu -> term option -> prop -> ctxt =
   fun ctx wit arg a ->
     let twit = Pos.none (Valu wit) in
@@ -384,12 +398,13 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
             end
        end
     (* Constructor. *)
-    | Cons(d,v)   ->
+    | Cons(d,w)   ->
         let a = new_uvar ctx P in
         let c' = Pos.none (DSum(M.singleton d.elt (None, a))) in
         (* TODO NuRec ? *)
         let p1 = subtype ctx t c' c in
-        let p2 = type_valu ctx v a in
+        let ctx = learn_neg_equivalences ctx v None c in
+        let p2 = type_valu ctx w a in
         Typ_DSum_i(p1,p2)
     (* Record. *)
     | Reco(m)     ->
@@ -401,6 +416,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
         let c' = Pos.none (Prod(pm)) in
         (* TODO NuRec ? *)
         let p1 = subtype ctx t c' c in
+        let ctx = learn_neg_equivalences ctx v None c in
         let fn l (p, v) ps =
           log_typ "Checking case %s." l;
           let (_,a) = M.find l pm in
@@ -426,7 +442,9 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
         Typ_VLam(p)
     (* Witness. *)
     | VWit(_,a,_) ->
-        let p = subtype ctx t a c in
+        let (b, equations) = check_nobox v ctx.equations in
+        assert b;
+        let p = subtype {ctx with equations} t a c in
         Typ_VWit(p)
     (* Definition. *)
     | HDef(_,d)   ->
@@ -453,18 +471,20 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
     (* Value. *)
     | Valu(v)     ->
        let (_, _, r) = type_valu ctx v c in r
-
     (* Application or strong application. *)
     | Appl(t,u)   ->
        let a = new_uvar ctx P in
        let (is_val, ctx) = term_is_value u ctx in
        let ae = if is_val then Pos.none (Memb(u, a)) else a in
        let p2 = type_term ctx u a in
+       (* NOTE: should lean_equivalences from the type of t, and
+          use these equivalences while typing u. Would require to
+          type t first and u second which fails currently.
+          Only useful for Scott integer and similar inductive type  *)
        let p1 = type_term ctx t (Pos.none (Func(ae,c))) in
        if is_val then Typ_Func_s(p1,p2) else Typ_Func_e(p1,p2)
-
     (* μ-abstraction. *)
-    | MAbs(b)  ->
+    | MAbs(b)     ->
         let t = bndr_subst b (SWit(b,c)) in
         Typ_Mu(type_term ctx t c)
     (* Named term. *)
@@ -479,12 +499,15 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
         Typ_Prod_e(type_valu ctx v c)
     (* Case analysis. *)
     | Case(v,m)   ->
+        let a = new_uvar ctx P in
+        let p = type_valu ctx v a in (* infer a type to learn equivalences *)
         let fn d (p,_) m =
           let a = new_uvar ctx P in
           M.add d (p,a) m
         in
         let ts = M.fold fn m M.empty in
-        let p = type_valu ctx v (Pos.none (DSum(ts))) in
+        let _p1 = subtype ctx (Pos.none (Valu v)) a (Pos.none (DSum(ts))) in
+        let ctx = learn_equivalences ctx v a in
         let check d (p,f) ps =
           log_typ "Checking case %s." d;
           let (_,a) = M.find d ts in

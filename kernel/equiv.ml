@@ -978,17 +978,14 @@ let equiv_error : relation -> 'a =
   fun rel -> raise (Failed_to_prove rel)
 
 (* Adds no box to the bool *)
-let check_nobox : valu -> eq_ctxt -> eq_ctxt = fun v {pool} ->
+let check_nobox : valu -> eq_ctxt -> bool * eq_ctxt = fun v {pool} ->
   log_edp "inserting %a not box in context\n%a" Print.print_ex v
     (print_pool "        ") pool;
   let (vp, pool) = add_valu pool v in
   let (vp, pool) = find (Ptr.V_ptr vp) pool in
   match vp with
-  | Ptr.T_ptr(_) -> raise Not_found
-  | Ptr.V_ptr(vp) ->
-     if VPtrSet.mem vp pool.bs
-     then (log_edp "contradiction by NoBox\n%!"; bottom ())
-     else { pool }
+  | Ptr.T_ptr(_) -> (false, {pool})
+  | Ptr.V_ptr(vp) -> (VPtrSet.mem vp pool.bs, { pool })
 
 (* Test whether a term is equivalent to a value or not. *)
 let is_value : term -> eq_ctxt -> bool * eq_ctxt = fun t {pool} ->
@@ -1039,7 +1036,8 @@ let prove : eq_ctxt -> relation -> eq_ctxt = fun ctx rel ->
          ignore ((if b then add_inequiv else add_equiv) (t,u) ctx);
       | Posit _ -> assert false (* TODO *)
       | NoBox(v) ->
-         ignore (check_nobox v ctx)
+         let (b, ctx) = check_nobox v ctx in
+         if b then raise Contradiction
     end;
     log_edp "failed to prove %a" print_relation rel;
     equiv_error rel
