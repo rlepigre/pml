@@ -807,14 +807,6 @@ and union : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
 let log_ora = Log.register 'o' (Some "ora") "oracle informations"
 let log_ora = Log.(log_ora.p)
 
-let proj_eps : valu -> string -> valu = fun v l ->
-  unbox (ewit None (valu None (reco None M.empty))
-              (Pos.none "x") V (fun x ->
-                (rest None (prod None M.empty)
-                      (equiv (valu None (vari None x))
-                             true (proj None (box v)
-                                        (Pos.none l))))))
-
 let is_equal : pool -> Ptr.t -> Ptr.t -> bool = fun po p1 p2 ->
   if Ptr.compare p1 p2 = 0 then true else
   let (p1, po) = find p1 po in
@@ -918,6 +910,16 @@ let add_inequiv : inequiv -> eq_ctxt -> eq_ctxt = fun (t,u) {pool} ->
   {pool} (* TODO store clauses *)
 
 (* Main module interface. *)
+
+(* epsilon for projection:
+   proj_eps v l define a value w such v.l = w *)
+let proj_eps : valu -> string -> valu = fun v l ->
+  let eq x = equiv (valu None (vari None x))
+                   true
+                   (proj None (box v) (Pos.none l))
+  in
+  let bndr x = rest None unit_prod (eq x) in
+  unbox (ewit None (valu None unit_reco) (Pos.none "x") V bndr)
 
 let find_proj : pool -> valu -> string -> valu * pool = fun po v l ->
   try

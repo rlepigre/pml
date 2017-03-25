@@ -246,6 +246,7 @@ let reco : popt -> (popt * vbox) M.t -> vbox =
     let f (lpos, v) = box_apply (fun v -> (lpos, v)) v in
     box_apply (fun m -> {elt = Reco(m); pos}) (M.map_box f m)
 
+let unit_reco = reco None M.empty
 let scis : popt -> vbox =
   fun pos -> box {elt = Scis; pos}
 
@@ -321,6 +322,8 @@ let prod : popt -> (popt * pbox) M.t -> pbox =
   fun pos m ->
     let f (lpos, a) = box_apply (fun a -> (lpos, a)) a in
     box_apply (fun m -> {elt = Prod(m); pos}) (M.map_box f m)
+
+let unit_prod = prod None M.empty
 
 let dsum : popt -> (popt * pbox) M.t -> pbox =
   fun pos m ->
