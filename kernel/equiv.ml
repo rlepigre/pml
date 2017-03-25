@@ -579,10 +579,12 @@ let rec normalise : ?update:bool -> TPtr.t -> pool -> Ptr.t * pool =
             log_edp "normalise in TN_Appl: %a %a" TPtr.print pt TPtr.print pu;
             let (pt, po) = normalise pt po in
             let (pu, po) = normalise pu po in
-            let (pu, po) = find0 pu po in (* argument must be really normalised *)
+             (* argument must be really normalised, even is update is true *)
+            let (pu, po) = find0 pu po in
             let (tp, po) = insert_appl pt pu po in
             let po = union p tp po in
-            log_edp "normalised in TN_Appl: %a %a => %a" Ptr.print pt Ptr.print pu  Ptr.print tp;
+            log_edp "normalised in TN_Appl: %a %a => %a"
+                    Ptr.print pt Ptr.print pu  Ptr.print tp;
             match (pt, pu) with
             | (Ptr.V_ptr pf, Ptr.V_ptr pv) ->
                begin
@@ -975,7 +977,8 @@ let check_nobox : valu -> eq_ctxt -> eq_ctxt = fun v {pool} ->
   match vp with
   | Ptr.T_ptr(_) -> raise Not_found
   | Ptr.V_ptr(vp) ->
-     if VPtrSet.mem vp pool.bs then (log_edp "contradiction by NoBox\n%!"; bottom ())
+     if VPtrSet.mem vp pool.bs
+     then (log_edp "contradiction by NoBox\n%!"; bottom ())
      else { pool }
 
 (* Test whether a term is equivalent to a value or not. *)
