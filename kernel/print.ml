@@ -139,6 +139,7 @@ let print_ex : type a. a ex loc printer = fun ch e ->
      when print_full is false *)
     | VWit(f,a,b) -> if !print_full then
                        let (x,t) = unbind mk_free (snd f) in
+                       let (_,a) = unbind mk_free (snd a) in
                        fprintf ch "ει(%s|%a∈%a∉%a)" (name_of x)
                                print_ex t print_ex a print_ex b
                      else fprintf ch "ει%s" (bndr_name f).elt

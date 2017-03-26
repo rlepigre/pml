@@ -116,7 +116,7 @@ type _ ex =
   (** Integer tag (usuful for comparision). *)
   | Dumm :                                            'a ex
   (** Dummy constructor.*)
-  | VWit : (v, t) bndr * p ex loc * p ex loc       -> v  ex
+  | VWit : (v, t) bndr * (v, p) bndr * p ex loc    -> v  ex
   (** Value witness. *)
   | SWit : (s, t) bndr * p ex loc                  -> s  ex
   (** Stack witness. *)
@@ -411,8 +411,15 @@ let schm : Scp.index -> int list -> (int * int) list ->
 
 let vwit : popt -> strloc -> (vvar -> tbox) -> pbox -> pbox -> vbox =
   fun pos x f a c ->
+  let b = vbind mk_free x.elt f in
+  let a = vbind mk_free x.elt (fun _ -> a) in
+  box_apply3 (fun b a c -> {elt = VWit((x.pos, b),(x.pos, a),c); pos}) b a c
+
+let vdwit : popt -> strloc -> (vvar -> tbox) -> (vvar -> pbox) -> pbox -> vbox =
+  fun pos x f a c ->
     let b = vbind mk_free x.elt f in
-    box_apply3 (fun b a c -> {elt = VWit((x.pos, b),a,c); pos}) b a c
+    let a = vbind mk_free x.elt a in
+    box_apply3 (fun b a c -> {elt = VWit((x.pos, b),(x.pos,a),c); pos}) b a c
 
 let swit : popt -> strloc -> (svar -> tbox) -> pbox -> sbox =
   fun pos x f a ->

@@ -919,7 +919,7 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
 type toplevel =
   | Sort_def of strloc * raw_sort
   | Expr_def of strloc * raw_sort * raw_ex
-  | Valu_def of strloc * raw_ex option * raw_ex
+  | Valu_def of strloc * raw_ex * raw_ex
   | Include  of string list
 
 (** syntactic sugars *)

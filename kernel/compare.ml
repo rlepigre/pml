@@ -87,7 +87,7 @@ let uvar_iter : type a. uvar_fun -> a ex loc -> unit = fun f e ->
     | TLam(_,b)   -> buvar_iter b
     | ITag(_)     -> ()
     | Dumm        -> ()
-    | VWit(b,a,c) -> buvar_iter b; uvar_iter a; uvar_iter c
+    | VWit(b,a,c) -> buvar_iter b; buvar_iter a; uvar_iter c
     | SWit(b,a)   -> buvar_iter b; uvar_iter a
     | UWit(_,t,b) -> uvar_iter t; buvar_iter b
     | EWit(_,t,b) -> uvar_iter t; buvar_iter b
@@ -246,7 +246,7 @@ let {eq_expr; eq_bndr} =
     (* NOTE should not be compare dummy expressions. *)
     | (Dumm          , Dumm          ) -> false
     | (VWit(f1,a1,b1), VWit(f2,a2,b2)) ->
-        eq_bndr V f1 f2 && eq_expr a1 a2 && eq_expr b1 b2
+        eq_bndr V f1 f2 && eq_bndr V a1 a2 && eq_expr b1 b2
     | (SWit(f1,a1)   , SWit(f2,a2)   ) -> eq_bndr S f1 f2 && eq_expr a1 a2
     | (UWit(s1,t1,b1), UWit(_,t2,b2) ) -> eq_bndr s1 b1 b2 && eq_expr t1 t2
     | (EWit(s1,t1,b1), EWit(_,t2,b2) ) -> eq_bndr s1 b1 b2 && eq_expr t1 t2

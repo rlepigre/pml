@@ -74,7 +74,7 @@ type v_node =
   | VN_Cons of M.key loc * VPtr.t
   | VN_Reco of VPtr.t M.t
   | VN_Scis
-  | VN_VWit of ((v, t) bndr * p ex loc * p ex loc)
+  | VN_VWit of ((v, t) bndr * (v, p) bndr * p ex loc)
   | VN_UWit of (t ex loc * (v, p) bndr)
   | VN_EWit of (t ex loc * (v, p) bndr)
   | VN_HApp of v ho_appl
@@ -297,7 +297,7 @@ let eq_v_nodes : pool -> v_node -> v_node -> bool = fun po n1 n2 -> n1 == n2 ||
   | (VN_Scis       , VN_Scis       ) -> true
   | (VN_VWit(w1)   , VN_VWit(w2)   ) -> let (f1,a1,b1) = w1 in
                                         let (f2,a2,b2) = w2 in
-                                        eq_bndr V f1 f2 && eq_expr a1 a2 &&
+                                        eq_bndr V f1 f2 && eq_bndr V a1 a2 &&
                                         eq_expr b1 b2
   | (VN_UWit(t1,b1), VN_UWit(t2,b2)) -> eq_expr t1 t2 && eq_bndr V b1 b2
   | (VN_EWit(t1,b1), VN_EWit(t2,b2)) -> eq_expr t1 t2 && eq_bndr V b1 b2
@@ -561,27 +561,19 @@ let insert_appl : Ptr.t -> Ptr.t -> pool -> Ptr.t * pool = fun pt pu po ->
   find (Ptr.T_ptr p) po
 
 (** Normalisation function. *)
-let rec normalise : ?update:bool -> TPtr.t -> pool -> Ptr.t * pool =
-  fun ?(update=false) p po ->
-  let normalise = normalise ~update in
-  let find0 = find in
-  let find p po = if update then (p,po) else find p po in
-  let (p, po) = find (Ptr.T_ptr p) po in
-  match p with
-  | Ptr.V_ptr _  -> (p, po)
-  | Ptr.T_ptr pt ->
-     begin
-       match snd (TPtrMap.find pt po.ts) with
-       | TN_Valu(pv)    -> find (Ptr.V_ptr pv) po
+let rec normalise : TPtr.t -> pool -> Ptr.t * pool =
+  fun p po ->
+    let (p, po) =
+       match snd (TPtrMap.find p po.ts) with
+       | TN_Valu(pv)    -> (Ptr.V_ptr pv, po)
        | TN_Appl(pt,pu) ->
           begin
             log_edp "normalise in TN_Appl: %a %a" TPtr.print pt TPtr.print pu;
             let (pt, po) = normalise pt po in
             let (pu, po) = normalise pu po in
              (* argument must be really normalised, even is update is true *)
-            let (pu, po) = find0 pu po in
             let (tp, po) = insert_appl pt pu po in
-            let po = union p tp po in
+            let po = union (Ptr.T_ptr p)  tp po in
             log_edp "normalised in TN_Appl: %a %a => %a"
                     Ptr.print pt Ptr.print pu  Ptr.print tp;
             match (pt, pu) with
@@ -593,7 +585,7 @@ let rec normalise : ?update:bool -> TPtr.t -> pool -> Ptr.t * pool =
                       let (v, po) = canonical_valu pv po in
                       let t = bndr_subst b v.elt in
                       let (tp, po) = add_term po t in
-                      let po = union p (Ptr.T_ptr tp) po in
+                      let po = union (Ptr.T_ptr p) (Ptr.T_ptr tp) po in
                       normalise tp po
                     end
                  | _          ->
@@ -604,8 +596,8 @@ let rec normalise : ?update:bool -> TPtr.t -> pool -> Ptr.t * pool =
                log_edp "normalised insert(2) TN_Appl: %a" Ptr.print tp;
                 (tp, po)
           end
-       | TN_MAbs(b)     -> (p, po) (* FIXME can do better. *)
-       | TN_Name(s,pt)  -> (p, po) (* FIXME can do better. *)
+       | TN_MAbs(b)     -> (Ptr.T_ptr p, po) (* FIXME can do better. *)
+       | TN_Name(s,pt)  -> (Ptr.T_ptr p, po) (* FIXME can do better. *)
        | TN_Proj(pv,l)  ->
           begin
             let (pv, po) = find_valu pv po in
@@ -614,11 +606,11 @@ let rec normalise : ?update:bool -> TPtr.t -> pool -> Ptr.t * pool =
                begin
                  try
                    let (tp, po) = find (Ptr.V_ptr (M.find l.elt m)) po in
-                   let po = union p tp po in
+                   let po = union (Ptr.T_ptr p) tp po in
                    (tp, po)
-                 with Not_found -> (p, po)
+                 with Not_found -> (Ptr.T_ptr p, po)
                end
-            | _          -> (p, po)
+            | _          -> (Ptr.T_ptr p, po)
           end
        | TN_Case(pv,m)  ->
           begin
@@ -631,12 +623,12 @@ let rec normalise : ?update:bool -> TPtr.t -> pool -> Ptr.t * pool =
                    let (v, po) = canonical_valu pv po in
                    let t = bndr_subst (M.find c.elt m) v.elt in
                    let (tp, po) = add_term po t in
-                   let po = union p (Ptr.T_ptr tp) po in
+                   let po = union (Ptr.T_ptr p) (Ptr.T_ptr tp) po in
                    normalise tp po
                  with
-                   Not_found -> (p, po)
+                   Not_found -> (Ptr.T_ptr p, po)
                end
-            | _            -> (p, po)
+            | _            -> (Ptr.T_ptr p, po)
           end
        | TN_FixY(pt,pv) ->
           begin
@@ -647,22 +639,23 @@ let rec normalise : ?update:bool -> TPtr.t -> pool -> Ptr.t * pool =
             let (pap, po) = insert_t_node (TN_Appl(pt, pf)) po in
             let (pu, po) = insert_t_node (TN_Valu(pv)) po in
             let (pap, po) = insert_t_node (TN_Appl(pap, pu)) po in
-            let po = union p (Ptr.T_ptr pap) po in
+            let po = union (Ptr.T_ptr p) (Ptr.T_ptr pap) po in
             normalise pap po
           end
-       | TN_UWit(_)     -> (p, po)
-       | TN_EWit(_)     -> (p, po)
-       | TN_HApp(_)     -> (p, po)
+       | TN_UWit(_)     -> (Ptr.T_ptr p, po)
+       | TN_EWit(_)     -> (Ptr.T_ptr p, po)
+       | TN_HApp(_)     -> (Ptr.T_ptr p, po)
        | TN_UVar(v)     ->
           begin
             match !(v.uvar_val) with
-            | None   -> (p, po)
+            | None   -> (Ptr.T_ptr p, po)
             | Some t -> let (tp, po) = add_term po t in
-                        let po = union p (Ptr.T_ptr tp) po in
+                        let po = union (Ptr.T_ptr p) (Ptr.T_ptr tp) po in
                         normalise tp po
           end
-       | TN_ITag(n)      -> (p, po)
-     end
+       | TN_ITag(n)      -> (Ptr.T_ptr p, po)
+    in
+    find p po
 
 and check_eq : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
   let (p1, po) = find p1 po in
@@ -695,7 +688,7 @@ and reinsert : Ptr.t -> pool -> pool = fun p po ->
           PtrSet.fold reinsert pp1 po
        | _ ->
           log_edp "normalisation of parent %a" TPtr.print tp;
-          let (p', po) = normalise ~update:true tp po in
+          let (p', po) = normalise tp po in
           log_edp "normalised parent %a at %a" TPtr.print tp Ptr.print p';
           po
      end

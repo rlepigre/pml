@@ -210,7 +210,8 @@ let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
       | (Func(a1,b1), Func(a2,b2)) when t_is_val ->
          let fn x = appl None (box t) (valu None (vari None x)) in
          let f = (None, unbox (vbind mk_free "x" fn)) in
-         let vwit = Pos.none (VWit(f,a2,b2)) in
+         let a2' = (None, unbox (vbind mk_free "x" (fun _ -> box a2))) in
+         let vwit = Pos.none (VWit(f,a2',b2)) in
          let ctx = learn_nobox ctx vwit in
          let wit = Pos.none (Valu(vwit)) in
          let ctx, wit = match is_singleton a2 with
@@ -360,6 +361,7 @@ and gen_subtype : ctxt -> prop -> prop -> sub_rule =
   fun ctx a b ->
     let wit =
       let f = bndr_from_fun "x" (fun x -> Valu(Pos.none x)) in
+      let a = bndr_from_fun "x" (fun x -> a.elt) in
       Pos.none (Valu(Pos.none (VWit(f, a, b))))
     in
     Sub_Gene(subtype ctx wit a b)
@@ -393,7 +395,8 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
             let c' = Pos.none (Func(a,b)) in
             (* TODO NuRec ? *)
             let p1 = subtype ctx t c' c in
-            let wit = VWit(f, a, b) in
+            let a' = bndr_from_fun "x" (fun x -> a.elt) in (* TODO binder name *)
+            let wit = VWit(f, a', b) in
             let twit = Pos.none(Valu (Pos.none wit)) in
             (* Learn the equivalence that are valid in the witness. *)
             begin
@@ -453,7 +456,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
     | VWit(_,a,_) ->
         let (b, equations) = check_nobox v ctx.equations in
         assert b;
-        let p = subtype {ctx with equations} t a c in
+        let p = subtype {ctx with equations} t (bndr_subst a v.elt) c in
         Typ_VWit(p)
     (* Definition. *)
     | HDef(_,d)   ->
@@ -523,16 +526,16 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
         let check d (p,f) ps =
           log_typ "Checking case %s." d;
           let (_,a) = M.find d ts in
-          let wit = Pos.none (VWit(f, a, c)) in
+          let eq x =
+            let w = Valu (Pos.none (Cons(Pos.none d, Pos.none x))) in
+            Equiv(Pos.none (Valu v), true, Pos.none w)
+          in
+          let fa = bndr_from_fun "x" (fun x -> Rest(a, (eq x))) in
+          let wit = Pos.none (VWit(f, fa, c)) in
           let t = bndr_subst f wit.elt in
           (try
-            let eq =
-              let w = Valu (Pos.none (Cons(Pos.none d, wit))) in
-              (Pos.none (Valu v), true, Pos.none w)
-            in
-            let ctx = {ctx with equations = learn ctx.equations (Equiv(eq))} in
             let ctx = learn_nobox ctx wit in
-            let ctx = learn_equivalences ctx wit a in
+            let ctx = learn_equivalences ctx wit (bndr_subst fa wit.elt) in
             (fun () -> type_term ctx t c :: ps)
           with Contradiction ->
              if not (is_scis t) then
@@ -592,7 +595,8 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
         let b = new_uvar ctx P in
         let wit =
           let f = bndr_from_fun "x" (fun x -> Valu(Pos.none x)) in
-          Pos.none (Valu(Pos.none (VWit(f, a, b))))
+          let fa = bndr_from_fun "x" (fun x -> a.elt) in
+          Pos.none (Valu(Pos.none (VWit(f, fa, b))))
         in
         let p1 = subtype ctx wit (Pos.none (Func(a,b))) c in
         let p2 = type_valu ctx v a in
@@ -606,7 +610,8 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
     | SWit(_,a)   ->
         let wit =
           let f = bndr_from_fun "x" (fun x -> Valu(Pos.none x)) in
-          Pos.none (Valu(Pos.none (VWit(f, a, c))))
+          let fa = bndr_from_fun "x" (fun x -> a.elt) in
+          Pos.none (Valu(Pos.none (VWit(f, fa, c))))
         in
          Stk_SWit(subtype ctx wit c a)
     (* Definition. *)
@@ -627,115 +632,11 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
   | Type_error _ as e -> raise e
   | e -> type_error (E(S,s)) c e
 
-let bind_uvar : type a. a sort -> a uvar -> prop -> (a, p) bndr =
-  let rec fn : type a b. a sort -> b sort -> a uvar -> b ex loc
-               -> a ex bindbox -> b box =
-    fun sa sb uv e x ->
-      let e = Norm.whnf e in
-      match e.elt with
-      | Vari(x)     -> vari None x
-      | HFun(s,t,b) -> hfun e.pos s t (bndr_name b)
-                         (fun y -> fn sa t uv (bndr_subst b (mk_free y)) x)
-      | HApp(s,a,b) -> happ e.pos s (fn sa (F(s,sb)) uv a x) (fn sa s uv b x)
-      | HDef(_,_)   -> box e (* NOTE no unification variables in defs. *)
-      | Func(a,b)   -> func e.pos (fn sa P uv a x) (fn sa P uv b x)
-      | Prod(m)     -> let gn (l,a) = (l, fn sa P uv a x) in
-                       prod e.pos (M.map gn m)
-      | DSum(m)     -> let gn (c,a) = (c, fn sa P uv a x) in
-                       dsum e.pos (M.map gn m)
-      | Univ(s,b)   -> univ e.pos (bndr_name b) s
-                         (fun y -> fn sa sb uv (bndr_subst b (mk_free y)) x)
-      | Exis(s,b)   -> exis e.pos (bndr_name b) s
-                         (fun y -> fn sa sb uv (bndr_subst b (mk_free y)) x)
-      | FixM(o,b)   -> fixm e.pos (fn sa O uv o x) (bndr_name b)
-                         (fun y -> fn sa P uv (bndr_subst b (mk_free y)) x)
-      | FixN(o,b)   -> fixm e.pos (fn sa O uv o x) (bndr_name b)
-                         (fun y -> fn sa P uv (bndr_subst b (mk_free y)) x)
-      | Memb(t,a)   -> memb e.pos (fn sa T uv t x) (fn sa P uv a x)
-      | Rest(a,c)   -> let c =
-                         match c with
-                         | Equiv(t,b,u) ->
-                             equiv (fn sa T uv t x) b (fn sa T uv u x)
-                         | Posit(o)     ->
-                             posit (fn sa O uv o x)
-                         | NoBox(v)     ->
-                             nobox (fn sa V uv v x)
-                       in rest e.pos (fn sa P uv a x) c
-      | Impl(c,a)   -> let c =
-                         match c with
-                         | Equiv(t,b,u) ->
-                             equiv (fn sa T uv t x) b (fn sa T uv u x)
-                         | Posit(o)     ->
-                             posit (fn sa O uv o x)
-                         | NoBox(v)     ->
-                             nobox (fn sa V uv v x)
-                       in impl e.pos c (fn sa P uv a x)
-      | LAbs(ao,b)  -> labs e.pos (Option.map (fun a -> fn sa P uv a x) ao)
-                         (bndr_name b)
-                         (fun y -> fn sa T uv (bndr_subst b (mk_free y)) x)
-      | Cons(c,v)   -> cons e.pos c (fn sa V uv v x)
-      | Reco(m)     -> let gn (l,v) = (l, fn sa V uv v x) in
-                       reco e.pos (M.map gn m)
-      | Scis        -> scis e.pos
-      | VDef(_)     -> box e (* NOTE no unification variables in defs. *)
-      | Valu(v)     -> valu e.pos (fn sa V uv v x)
-      | Appl(t,u)   -> appl e.pos (fn sa T uv t x) (fn sa T uv u x)
-      | MAbs(b)     -> mabs e.pos (bndr_name b)
-                         (fun y -> fn sa T uv (bndr_subst b (mk_free y)) x)
-      | Name(s,t)   -> name e.pos (fn sa S uv s x) (fn sa T uv t x)
-      | Proj(v,l)   -> proj e.pos (fn sa V uv v x) l
-      | Case(v,m)   -> let gn (p,b) =
-                         let f y = fn sa T uv (bndr_subst b (mk_free y)) x in
-                         (p, bndr_name b, f)
-                       in
-                       case e.pos (fn sa V uv v x) (M.map gn m)
-      | FixY(t,v)   -> fixy e.pos (fn sa T uv t x) (fn sa V uv v x)
-      | Epsi        -> box e
-      | Push(v,s)   -> push e.pos (fn sa V uv v x) (fn sa S uv s x)
-      | Fram(t,s)   -> fram e.pos (fn sa T uv t x) (fn sa S uv s x)
-      | Conv        -> box e
-      | Succ(o)     -> succ e.pos (fn sa O uv o x)
-      | VTyp(v,a)   -> vtyp e.pos (fn sa V uv v x) (fn sa P uv a x)
-      | TTyp(t,a)   -> ttyp e.pos (fn sa T uv t x) (fn sa P uv a x)
-      | VLam(s,b)   -> vlam e.pos (bndr_name b) s
-                         (fun y -> fn sa V uv (bndr_subst b (mk_free y)) x)
-      | TLam(s,b)   -> tlam e.pos (bndr_name b) s
-                         (fun y -> fn sa T uv (bndr_subst b (mk_free y)) x)
-      | ITag(_)     -> box e
-      | Dumm        -> box e
-      | VWit(b,a,c) -> vwit e.pos (bndr_name b)
-                         (fun y -> fn sa T uv (bndr_subst b (mk_free y)) x)
-                         (fn sa P uv a x) (fn sa P uv c x)
-      | SWit(b,a)   -> swit e.pos (bndr_name b)
-                         (fun y -> fn sa T uv (bndr_subst b (mk_free y)) x)
-                         (fn sa P uv a x)
-      | UWit(s,t,b) -> uwit e.pos (fn sa T uv t x) (bndr_name b) s
-                         (fun y -> fn sa P uv (bndr_subst b (mk_free y)) x)
-      | EWit(s,t,b) -> ewit e.pos (fn sa T uv t x) (bndr_name b) s
-                            (fun y -> fn sa P uv (bndr_subst b (mk_free y)) x)
-      | OWit(o,i,s) -> owit e.pos (fn sa O uv o x) i (gn sa uv s x)
-      | UVar(t,v)   ->
-          begin
-            match eq_sort sa t with
-            | Eq  -> if uvar_eq uv v then box_apply Pos.none x else box e
-            | NEq -> box e
-          end
-  and gn : type a. a sort -> a uvar -> schema -> a ex bindbox
-                                            -> schema Bindlib.bindbox =
-    fun s uv sch x -> assert false (* FIXME *)
-  in
-  fun s uv e -> (None, unbox (bind mk_free "X0" (fn s P uv e)))
-
-let type_check : term -> prop option -> prop * typ_proof = fun t ao ->
+let type_check : term -> prop -> prop * typ_proof = fun t a ->
   let ctx = empty_ctxt in
-  let a =
-    match ao with
-    | None   -> new_uvar ctx P
-    | Some a -> a
-  in
   let prf = type_term ctx t a in
-  let bind_uvar a (U(s,u)) = Pos.none (Univ(s, bind_uvar s u a)) in
-  let a = List.fold_left bind_uvar a (uvars a) in
+  let l = uvars a in
+  assert(l = []); (* FIXME *)
   (Norm.whnf a, prf)
 
 (* FIXME hack to compile the SCP. *)

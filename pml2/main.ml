@@ -37,15 +37,11 @@ let rec interpret : Env.env -> Raw.toplevel -> Env.env = fun env top ->
       let ee = Bindlib.unbox e in
       out "expr %s : %a ≔ %a\n%!" id.elt Print.sort s Print.ex ee;
       add_expr id s e env
-  | Valu_def(id,ao,t) ->
+  | Valu_def(id,a,t) ->
       let open Env in
-      let ao =
-        match ao with
-        | None   -> None
-        | Some a -> Some(unbox (to_prop (unsugar_expr env a _sp)))
-      in
+      let a = unbox (to_prop (unsugar_expr env a _sp)) in
       let t = unbox (to_term (unsugar_expr env t _st)) in
-      let (a, prf) = type_check t ao in
+      let (a, prf) = type_check t a in
       let v = Eval.eval (Erase.term_erasure t) in
       out "val %s : %a\n%!" id.elt Print.ex a;
       (* out "  = %a\n%!" Print.print_ex (Erase.to_valu v); *)
