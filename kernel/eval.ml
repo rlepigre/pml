@@ -2,13 +2,14 @@
 
 open Bindlib
 open Pos
-module M = Strmap
+
+module A = Assoc
 
 type e_valu =
   | VVari of e_valu var
   | VLAbs of (e_valu, e_term) binder
   | VCons of string * e_valu
-  | VReco of e_valu M.t
+  | VReco of e_valu A.t
   | VScis
 and  e_term =
   | TVari of e_term var
@@ -17,7 +18,7 @@ and  e_term =
   | TMAbs of (e_stac, e_term) binder
   | TName of e_stac * e_term
   | TProj of e_valu * string
-  | TCase of e_valu * (e_valu, e_term) binder M.t
+  | TCase of e_valu * (e_valu, e_term) binder A.t
   | TFixY of e_term * e_valu
 and  e_stac =
   | SVari of e_stac var
@@ -49,8 +50,8 @@ let vlabs : string -> (e_vvar -> e_tbox) -> e_vbox =
 let vcons : string -> e_vbox -> e_vbox =
   fun c -> box_apply (fun v -> VCons(c,v))
 
-let vreco : e_vbox M.t -> e_vbox =
-  fun m -> box_apply (fun m -> VReco(m)) (M.lift_box m)
+let vreco : e_vbox A.t -> e_vbox =
+  fun m -> box_apply (fun m -> VReco(m)) (A.lift_box m)
 
 let vscis : e_vbox =
   box VScis
@@ -71,10 +72,10 @@ let tname : e_sbox -> e_tbox -> e_tbox =
 let tproj : e_vbox -> string -> e_tbox =
   fun v l -> box_apply (fun v -> TProj(v,l)) v
 
-let tcase : e_vbox -> (string * (e_vvar -> e_tbox)) M.t -> e_tbox =
+let tcase : e_vbox -> (string * (e_vvar -> e_tbox)) A.t -> e_tbox =
   fun v m ->
     let f (x,f) = vbind mk_vvari x f in
-    box_apply2 (fun v m -> TCase(v,m)) v (M.map_box f m)
+    box_apply2 (fun v m -> TCase(v,m)) v (A.map_box f m)
 
 let tfixy : e_tbox -> e_vbox -> e_tbox =
   box_apply2 (fun t v -> TFixY(t,v))
@@ -105,12 +106,12 @@ let step : proc -> proc option = function
   | (TName(pi,t)       , _          ) -> Some (t, pi)
   | (TProj(VReco(m),l) , pi         ) ->
       begin
-        try Some (TValu(M.find l m), pi)
+        try Some (TValu(A.find l m), pi)
         with Not_found -> runtime_error "Unknown record field"
       end
   | (TCase(VCons(c,v),m), pi        ) ->
       begin
-        try Some (subst (M.find c m) v, pi)
+        try Some (subst (A.find c m) v, pi)
         with Not_found -> runtime_error "Unknown constructor"
       end
   | (TFixY(t,v)        , pi         ) ->

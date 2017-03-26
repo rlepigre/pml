@@ -71,8 +71,8 @@ type _ ho_appl =
 (** Type of a value node. *)
 type v_node =
   | VN_LAbs of (v, t) bndr
-  | VN_Cons of M.key loc * VPtr.t
-  | VN_Reco of VPtr.t M.t
+  | VN_Cons of A.key loc * VPtr.t
+  | VN_Reco of VPtr.t A.t
   | VN_Scis
   | VN_VWit of ((v, t) bndr * (v, p) bndr * p ex loc)
   | VN_UWit of (t ex loc * (v, p) bndr)
@@ -89,8 +89,8 @@ type t_node =
   | TN_Appl of TPtr.t * TPtr.t
   | TN_MAbs of (s, t) bndr
   | TN_Name of s ex loc * TPtr.t
-  | TN_Proj of VPtr.t * M.key loc
-  | TN_Case of VPtr.t * (v, t) bndr M.t
+  | TN_Proj of VPtr.t * A.key loc
+  | TN_Case of VPtr.t * (v, t) bndr A.t
   | TN_FixY of TPtr.t * VPtr.t
   | TN_UWit of (t ex loc * (t, p) bndr)
   | TN_EWit of (t ex loc * (t, p) bndr)
@@ -204,7 +204,7 @@ let children_v_node : v_node -> Ptr.t list = fun n ->
   | VN_HApp _ (* TODO check *)
   | VN_EWit _     -> []
   | VN_Cons(_,pv) -> [Ptr.V_ptr pv]
-  | VN_Reco(m)    -> M.fold (fun _ p s -> Ptr.V_ptr p :: s) m []
+  | VN_Reco(m)    -> A.fold (fun _ p s -> Ptr.V_ptr p :: s) m []
 
 let children_t_node : t_node -> Ptr.t list = fun n ->
   match n with
@@ -293,7 +293,7 @@ let eq_v_nodes : pool -> v_node -> v_node -> bool = fun po n1 n2 -> n1 == n2 ||
   match (n1, n2) with
   | (VN_LAbs(b1)   , VN_LAbs(b2)   ) -> eq_bndr V b1 b2
   | (VN_Cons(c1,p1), VN_Cons(c2,p2)) -> c1.elt = c2.elt && eq_vptr po p1 p2
-  | (VN_Reco(m1)   , VN_Reco(m2)   ) -> M.equal (eq_vptr po) m1 m2
+  | (VN_Reco(m1)   , VN_Reco(m2)   ) -> A.equal (eq_vptr po) m1 m2
   | (VN_Scis       , VN_Scis       ) -> true
   | (VN_VWit(w1)   , VN_VWit(w2)   ) -> let (f1,a1,b1) = w1 in
                                         let (f2,a2,b2) = w2 in
@@ -315,7 +315,7 @@ let eq_t_nodes : pool -> t_node -> t_node -> bool = fun po n1 n2 -> n1 == n2 ||
   | (TN_Name(s1,p1)  , TN_Name(s2,p2)  ) -> eq_expr s1 s2 && eq_tptr po p1 p2
   | (TN_Proj(p1,l1)  , TN_Proj(p2,l2)  ) -> eq_vptr po p1 p2 && l1.elt = l2.elt
   | (TN_Case(p1,m1)  , TN_Case(p2,m2)  ) -> eq_vptr po p1 p2 &&
-                                              M.equal (eq_bndr V) m1 m2
+                                              A.equal (eq_bndr V) m1 m2
   | (TN_FixY(p11,p12), TN_FixY(p21,p22)) -> eq_tptr po p11 p21 &&
                                               eq_vptr po p12 p22
   | (TN_UWit(t1,b1)  , TN_UWit(t2,b2)  ) -> eq_expr t1 t2 && eq_bndr T b1 b2
@@ -389,7 +389,7 @@ let rec add_term : pool -> term -> TPtr.t * pool = fun po t ->
                    let (pp, po) = insert_t_node (TN_Proj(pv,l)) po in
                    (pp, po)
   | Case(v,m)   -> let (pv, po) = add_valu po v in
-                   let m = M.map snd m in
+                   let m = A.map snd m in
                    let (pp, po) = insert_t_node (TN_Case(pv,m)) po in
                    (pp, po)
   | FixY(t,v)   -> let (pt, po) = add_term po t in
@@ -415,9 +415,9 @@ and     add_valu : pool -> valu -> VPtr.t * pool = fun po v ->
                    (pp, po)
   | Reco(m)     -> let fn l (_, v) (m, po) =
                      let (pv, po) = add_valu po v in
-                     (M.add l pv m, po)
+                     (A.add l pv m, po)
                    in
-                   let (m, po) = M.fold fn m (M.empty, po) in
+                   let (m, po) = A.fold fn m (A.empty, po) in
                    let (pp, po) = insert_v_node (VN_Reco(m)) po in
                    (pp, po)
   | Scis        -> insert_v_node VN_Scis po
@@ -484,7 +484,7 @@ let rec canonical_term : TPtr.t -> pool -> term * pool = fun p po ->
         | TN_Proj(pv,l)  -> let (v, po) = canonical_valu pv po in
                             (Pos.none (Proj(v,l)), po)
         | TN_Case(pv,m)  -> let (v, po) = canonical_valu pv po in
-                            let t = Case(v, M.map (fun b -> (None, b)) m) in
+                            let t = Case(v, A.map (fun b -> (None, b)) m) in
                             (Pos.none t, po)
         | TN_FixY(pt,pv) -> let (t, po) = canonical_term pt po in
                             let (v, po) = canonical_valu pv po in
@@ -518,9 +518,9 @@ and     canonical_valu : VPtr.t -> pool -> valu * pool = fun p po ->
                             (Pos.none (Cons(c,v)), po)
         | VN_Reco(m)     -> let fn l pv (m, po) =
                               let (v, po) = canonical_valu pv po in
-                              (M.add l (None,v) m, po)
+                              (A.add l (None,v) m, po)
                             in
-                            let (m, po) = M.fold fn m (M.empty, po) in
+                            let (m, po) = A.fold fn m (A.empty, po) in
                             (Pos.none (Reco(m)), po)
         | VN_Scis        -> (Pos.none Scis, po)
         | VN_VWit(w)     -> let (f,a,b) = w in (Pos.none (VWit(f,a,b)), po)
@@ -605,7 +605,7 @@ let rec normalise : TPtr.t -> pool -> Ptr.t * pool =
             | VN_Reco(m) ->
                begin
                  try
-                   let (tp, po) = find (Ptr.V_ptr (M.find l.elt m)) po in
+                   let (tp, po) = find (Ptr.V_ptr (A.find l.elt m)) po in
                    let po = union (Ptr.T_ptr p) tp po in
                    (tp, po)
                  with Not_found -> (Ptr.T_ptr p, po)
@@ -621,7 +621,7 @@ let rec normalise : TPtr.t -> pool -> Ptr.t * pool =
                begin
                  try
                    let (v, po) = canonical_valu pv po in
-                   let t = bndr_subst (M.find c.elt m) v.elt in
+                   let t = bndr_subst (A.find c.elt m) v.elt in
                    let (tp, po) = add_term po t in
                    let po = union (Ptr.T_ptr p) (Ptr.T_ptr tp) po in
                    normalise tp po
@@ -749,7 +749,7 @@ and union : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
             let test vp1 vp2 =
               po := union (Ptr.V_ptr vp1) (Ptr.V_ptr vp2) !po; true
             in
-            if not (M.equal test m1 m2) then bottom ();
+            if not (A.equal test m1 m2) then bottom ();
             !po
          (* Prefer real values as equivalence class representatives. *)
          | (VN_LAbs(_)     , _              )
@@ -901,7 +901,7 @@ let find_proj : pool -> valu -> string -> valu * pool = fun po v l ->
        let (wp, w, po) =
          match n with
          | VN_Reco(m) ->
-            let pt = M.find l m in
+            let pt = A.find l m in
             let (w, po) = canonical_valu pt po in
             (pt, w, po)
          | _ ->

@@ -159,7 +159,7 @@ let parser expr (m : mode) =
       when m = `Prp`F
       -> euniv_in _loc x xs a b
    (* Proposition (universal quantification, converging value) *)
-  | "∀" x:llid xs:llid* "↓" ',' a:(expr (`Prp`F))
+  | "∀" x:llid xs:llid* {':' "ι"}? "↓" ',' a:(expr (`Prp`F))
       when m = `Prp`F
       -> in_pos _loc (EUniv((x,xs),_sv, eimpl a (x::xs)))
   (* Proposition (existential quantification) *)
@@ -167,7 +167,7 @@ let parser expr (m : mode) =
       when m = `Prp`F
       -> in_pos _loc (EExis((x,xs),s,a))
    (* Proposition (existential quantification, converging value) *)
-  | "∃" x:llid xs:llid* "↓" ',' a:(expr (`Prp`F))
+  | "∃" x:llid xs:llid* {':' "ι"}? "↓" ',' a:(expr (`Prp`F))
       when m = `Prp`F
       -> in_pos _loc (EExis((x,xs),_sv, erest a (x::xs)))
  (* Proposition (least fixpoint) *)

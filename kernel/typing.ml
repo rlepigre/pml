@@ -115,7 +115,7 @@ let rec learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
   | Exis(s, f) -> let t = EWit(s,twit,f) in
                   learn_equivalences ctx wit (bndr_subst f t)
   | Prod(fs)   ->
-     M.fold (fun lbl (_, b) ctx ->
+     A.fold (fun lbl (_, b) ctx ->
          let (v,pool) =  find_proj ctx.equations.pool wit lbl in
          let ctx = { ctx with equations = { pool } } in
          learn_equivalences ctx v b) fs ctx
@@ -125,7 +125,7 @@ let rec learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
        | None -> ctx
        | Some(s,v,pool) ->
           try
-            let (_, b) = M.find s fs in
+            let (_, b) = A.find s fs in
             let ctx = { ctx with equations = { pool } } in
             learn_equivalences ctx v b
           with Not_found -> assert false (* NOTE check *)
@@ -238,31 +238,31 @@ let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
       | (Prod(fs1)  , Prod(fs2)  ) when t_is_val ->
           let check_field l (p,a2) ps =
             let a1 =
-              try snd (M.find l fs1) with Not_found ->
+              try snd (A.find l fs1) with Not_found ->
               subtype_msg p ("Product clash on label " ^ l ^ "...")
             in
             let t = unbox (t_proj None (box t) (Pos.none l)) in
             let p = subtype ctx t a1 a2 in
             p::ps
           in
-          let ps = M.fold check_field fs2 [] in
+          let ps = A.fold check_field fs2 [] in
           Sub_Prod(ps)
       (* Disjoint sum types. *)
       | (DSum(cs1)  , DSum(cs2)  ) when t_is_val ->
           let check_variant c (p,a1) ps =
             let a2 =
-              try snd (M.find c cs2) with Not_found ->
+              try snd (A.find c cs2) with Not_found ->
               subtype_msg p ("Sum clash on constructor " ^ c ^ "...")
             in
             let t =
               let f x = valu None (vari None x) in
               let id = (None, Pos.none "x", f) in
-              unbox (t_case None (box t) (M.singleton c id))
+              unbox (t_case None (box t) (A.singleton c id))
             in
             let p = subtype ctx t a1 a2 in
             p::ps
           in
-          let ps = M.fold check_variant cs1 [] in
+          let ps = A.fold check_variant cs1 [] in
           Sub_DSum(ps)
       (* Universal quantification on the right. *)
       | (_          , Univ(s,f)  ) ->
@@ -412,7 +412,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
     (* Constructor. *)
     | Cons(d,w)   ->
         let a = new_uvar ctx P in
-        let c' = Pos.none (DSum(M.singleton d.elt (None, a))) in
+        let c' = Pos.none (DSum(A.singleton d.elt (None, a))) in
         (* TODO NuRec ? *)
         let p1 = subtype ctx t c' c in
         let ctx = learn_neg_equivalences ctx v None c in
@@ -422,20 +422,20 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
     | Reco(m)     ->
         let fn l _ m =
           let a = new_uvar ctx P in
-          M.add l (None, a) m
+          A.add l (None, a) m
         in
-        let pm = M.fold fn m M.empty in
+        let pm = A.fold fn m A.empty in
         let c' = Pos.none (Prod(pm)) in
         (* TODO NuRec ? *)
         let p1 = subtype ctx t c' c in
         let ctx = learn_neg_equivalences ctx v None c in
         let fn l (p, v) ps =
           log_typ "Checking case %s." l;
-          let (_,a) = M.find l pm in
+          let (_,a) = A.find l pm in
           let p = type_valu ctx v a in
           p::ps
         in
-        let p2s = M.fold fn m [] in
+        let p2s = A.fold fn m [] in
         Typ_Prod_i(p1,p2s)
     (* Scissors. *)
     | Scis        ->
@@ -510,7 +510,7 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
         Typ_Name(p1,p2)
     (* Projection. *)
     | Proj(v,l)   ->
-        let c = Pos.none (Prod(M.singleton l.elt (None, c))) in
+        let c = Pos.none (Prod(A.singleton l.elt (None, c))) in
         Typ_Prod_e(type_valu ctx v c)
     (* Case analysis. *)
     | Case(v,m)   ->
@@ -518,14 +518,14 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
         let p = type_valu ctx v a in (* infer a type to learn equivalences *)
         let fn d (p,_) m =
           let a = new_uvar ctx P in
-          M.add d (p,a) m
+          A.add d (p,a) m
         in
-        let ts = M.fold fn m M.empty in
+        let ts = A.fold fn m A.empty in
         let _p1 = subtype ctx (Pos.none (Valu v)) a (Pos.none (DSum(ts))) in
         let ctx = learn_equivalences ctx v a in
         let check d (p,f) ps =
           log_typ "Checking case %s." d;
-          let (_,a) = M.find d ts in
+          let (_,a) = A.find d ts in
           let eq x =
             let w = Valu (Pos.none (Cons(Pos.none d, Pos.none x))) in
             Equiv(Pos.none (Valu v), true, Pos.none w)
@@ -547,7 +547,7 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
                end;
              (fun () -> (t,c,Typ_Scis)::ps)) ()
         in
-        let ps = M.fold check m [] in
+        let ps = A.fold check m [] in
         Typ_DSum_e(p,List.rev ps)
     (* Fixpoint. FIXME temporary code *)
     | FixY(t,v)   ->

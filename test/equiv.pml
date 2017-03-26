@@ -24,4 +24,4 @@ val cons_neq : ∀ x:ι, ∀ y:ι, C[x] ≠ D[y] = {}
 val cons_eq  : ∀ x:ι, ∀ y:ι, x ≡ y ⇒ C[x] ≡ C[y] = λx.{}
 val cons_eq2 : ∀ x:ι, ∀ y:ι, x ≡ y ⇒ C[x] ≡ C[y] = λx.x
 
-val id_eq : ∀ x:ι, ∀ y↓, ((λx.x) y) ≡ y = {}
+val id_eq : ∀ y↓, ((λx.x) y) ≡ y = {}

@@ -6,7 +6,8 @@ open Sorts
 open Eval
 open Pos
 
-module M = Strmap
+module M = Map.Make(String)
+module A = Assoc
 
 (** {6 Main abstract syntax tree type} *)
 
@@ -32,9 +33,9 @@ type _ ex =
 
   | Func : p ex loc * p ex loc                     -> p  ex
   (** Arrow type. *)
-  | Prod : (pos option * p ex loc) M.t             -> p  ex
+  | Prod : (pos option * p ex loc) A.t             -> p  ex
   (** Product (or record) type. *)
-  | DSum : (pos option * p ex loc) M.t             -> p  ex
+  | DSum : (pos option * p ex loc) A.t             -> p  ex
   (** Disjoint sum type. *)
   | Univ : 'a sort * ('a, p) bndr                  -> p  ex
   (** Universal quantification. *)
@@ -55,9 +56,9 @@ type _ ex =
 
   | LAbs : p ex loc option * (v, t) bndr           -> v  ex
   (** Lambda abstraction. *)
-  | Cons : M.key loc * v ex loc                    -> v  ex
+  | Cons : A.key loc * v ex loc                    -> v  ex
   (** Constructor with exactly one argument. *)
-  | Reco : (popt * v ex loc) M.t                   -> v  ex
+  | Reco : (popt * v ex loc) A.t                   -> v  ex
   (** Record. *)
   | Scis :                                            v  ex
   (** PML scisors. *)
@@ -74,9 +75,9 @@ type _ ex =
   (** Mu abstraction. *)
   | Name : s ex loc * t ex loc                     -> t  ex
   (** Named term. *)
-  | Proj : v ex loc * M.key loc                    -> t  ex
+  | Proj : v ex loc * A.key loc                    -> t  ex
   (** Record projection. *)
-  | Case : v ex loc * (popt * (v, t) bndr) M.t     -> t  ex
+  | Case : v ex loc * (popt * (v, t) bndr) A.t     -> t  ex
   (** Case analysis. *)
   | FixY : t ex loc * v ex loc                     -> t  ex
   (** Fixpoint combinator. *)
@@ -241,12 +242,12 @@ let labs : popt -> pbox option -> strloc -> (vvar -> tbox) -> vbox =
 let cons : popt -> strloc -> vbox -> vbox =
   fun pos c -> box_apply (fun v -> {elt = Cons(c,v); pos})
 
-let reco : popt -> (popt * vbox) M.t -> vbox =
+let reco : popt -> (popt * vbox) A.t -> vbox =
   fun pos m ->
     let f (lpos, v) = box_apply (fun v -> (lpos, v)) v in
-    box_apply (fun m -> {elt = Reco(m); pos}) (M.map_box f m)
+    box_apply (fun m -> {elt = Reco(m); pos}) (A.map_box f m)
 
-let unit_reco = reco None M.empty
+let unit_reco = reco None A.empty
 let scis : popt -> vbox =
   fun pos -> box {elt = Scis; pos}
 
@@ -279,13 +280,13 @@ let name : popt -> sbox -> tbox -> tbox =
 let proj : popt -> vbox -> strloc -> tbox =
   fun pos v l -> box_apply (fun v -> {elt = Proj(v,l); pos}) v
 
-let case : popt -> vbox -> (popt * strloc * (vvar -> tbox)) M.t -> tbox =
+let case : popt -> vbox -> (popt * strloc * (vvar -> tbox)) A.t -> tbox =
   fun pos v m ->
     let f (cpos, x, f) =
       let b = vbind mk_free x.elt f in
       box_apply (fun b -> (cpos, (x.pos, b))) b
     in
-    box_apply2 (fun v m -> {elt = Case(v,m); pos}) v (M.map_box f m)
+    box_apply2 (fun v m -> {elt = Case(v,m); pos}) v (A.map_box f m)
 
 let fixy : popt -> tbox -> vbox -> tbox =
   fun pos -> box_apply2 (fun t v -> {elt = FixY(t,v); pos})
@@ -318,17 +319,17 @@ let p_vari : popt -> pvar -> pbox = vari
 let func : popt -> pbox -> pbox -> pbox =
   fun pos -> box_apply2 (fun a b -> {elt = Func(a,b); pos})
 
-let prod : popt -> (popt * pbox) M.t -> pbox =
+let prod : popt -> (popt * pbox) A.t -> pbox =
   fun pos m ->
     let f (lpos, a) = box_apply (fun a -> (lpos, a)) a in
-    box_apply (fun m -> {elt = Prod(m); pos}) (M.map_box f m)
+    box_apply (fun m -> {elt = Prod(m); pos}) (A.map_box f m)
 
-let unit_prod = prod None M.empty
+let unit_prod = prod None A.empty
 
-let dsum : popt -> (popt * pbox) M.t -> pbox =
+let dsum : popt -> (popt * pbox) A.t -> pbox =
   fun pos m ->
     let f (lpos, a) = box_apply (fun a -> (lpos, a)) a in
-    box_apply (fun m -> {elt = DSum(m); pos}) (M.map_box f m)
+    box_apply (fun m -> {elt = DSum(m); pos}) (A.map_box f m)
 
 let univ : type a. popt -> strloc -> a sort -> (a var -> pbox) -> pbox =
   fun pos x s f ->
@@ -436,7 +437,7 @@ let t_proj : popt -> tbox -> strloc -> tbox =
     appl pos u t
 
 (** Syntactic sugar for the case analysis on a term. *)
-let t_case : popt -> tbox -> (popt * strloc * (vvar -> tbox)) M.t -> tbox =
+let t_case : popt -> tbox -> (popt * strloc * (vvar -> tbox)) A.t -> tbox =
   fun pos t m ->
     let f x = case pos (vari None x) m in
     let u = valu pos (labs pos None (Pos.none "x") f) in
@@ -450,10 +451,10 @@ let t_cons : popt -> strloc -> tbox -> tbox =
     appl pos u t
 
 (** Syntactic sugar for records containing terms. *)
-let t_reco : popt -> (string * (popt*tbox)) list -> (popt*vbox) M.t -> tbox =
+let t_reco : popt -> (string * (popt*tbox)) list -> (popt*vbox) A.t -> tbox =
   fun pos tfs m ->
     let fn env =
-      let add m (l,_) = M.add l (None, List.assoc l env) m in
+      let add m (l,_) = A.add l (None, List.assoc l env) m in
       valu pos (reco pos (List.fold_left add m tfs))
     in
     let rec build env xs =
@@ -467,16 +468,16 @@ let t_reco : popt -> (string * (popt*tbox)) list -> (popt*vbox) M.t -> tbox =
     List.fold_left (appl None) f ts
 
 (** Syntactic sugar for strict product type. *)
-let strict_prod : popt -> (popt * pbox) M.t -> pbox =
+let strict_prod : popt -> (popt * pbox) A.t -> pbox =
   fun pos m ->
-    let fn env = reco None (M.mapi (fun l _ -> (None, List.assoc l env)) m) in
+    let fn env = reco None (A.mapi (fun l _ -> (None, List.assoc l env)) m) in
     let rec build env ls =
       match ls with
       | []    -> memb None (valu None (fn env)) (prod pos m)
       | l::ls -> let fn (x:vvar) = build ((l, vari None x) :: env) ls in
                  exis None (Pos.none l) V fn
     in
-    build [] (List.map fst (M.bindings m))
+    build [] (List.map fst (A.bindings m))
 
 (** {5 useful functions} *)
 

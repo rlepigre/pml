@@ -20,7 +20,7 @@ let rec valu_erasure : valu -> e_vbox = fun v ->
                    term_erasure (bndr_subst b (free_of x))
                  in vlabs (binder_name (snd b)) f
   | Cons(c,v) -> vcons c.elt (valu_erasure v)
-  | Reco(m)   -> vreco (M.map (fun (_,v) -> valu_erasure v) m)
+  | Reco(m)   -> vreco (A.map (fun (_,v) -> valu_erasure v) m)
   | Scis      -> vscis
   | VDef(d)   -> box d.value_eval
   | VTyp(v,_) -> valu_erasure v
@@ -51,7 +51,7 @@ and     term_erasure : term -> e_tbox = fun t ->
                      let x = copy_var x (name_of x) mk_free in
                      term_erasure (bndr_subst b (free_of x))
                    in (binder_name (snd b), f)
-                 in tcase (valu_erasure v) (M.map f m)
+                 in tcase (valu_erasure v) (A.map f m)
   | FixY(t,v) -> tfixy (term_erasure t) (valu_erasure v)
   | TTyp(t,_) -> term_erasure t
   | TLam(_,f) -> term_erasure (bndr_subst f Dumm)
@@ -97,7 +97,7 @@ let rec to_valu : e_valu -> vbox = fun v ->
                     to_term (subst b (free_of x))
                   in labs None None (Pos.none (binder_name b)) f
   | VCons(c,v) -> cons None (Pos.none c) (to_valu v)
-  | VReco(m)   -> reco None (M.map (fun v -> (None, to_valu v)) m)
+  | VReco(m)   -> reco None (A.map (fun v -> (None, to_valu v)) m)
   | VScis      -> scis None
 
 and to_term : e_term -> tbox = fun t ->
@@ -116,7 +116,7 @@ and to_term : e_term -> tbox = fun t ->
                       let x = copy_var x (name_of x) mk_vvari in
                       to_term (subst b (free_of x))
                     in (None, Pos.none (binder_name b), f)
-                  in case None (to_valu v) (M.map f m)
+                  in case None (to_valu v) (A.map f m)
   | TFixY(t,v) -> fixy None (to_term t) (to_valu v)
 
 and to_stac : e_stac -> sbox = fun s ->

@@ -7,8 +7,8 @@ open Ast
 open Output
 open Printf
 
-let print_map : (string * 'a) printer -> string -> 'a M.t printer =
-  fun pelem sep ch m -> print_list pelem sep ch (M.bindings m)
+let print_map : (string * 'a) printer -> string -> 'a A.t printer =
+  fun pelem sep ch m -> print_list pelem sep ch (A.bindings m)
 
 let is_tuple ls =
   try
@@ -50,7 +50,7 @@ let print_ex : type a. a ex loc printer = fun ch e ->
   in
   let is_unit a =
     false
-    (* match a.elt with Prod(m) -> M.is_empty m | _ -> false *)
+    (* match a.elt with Prod(m) -> A.is_empty m | _ -> false *)
   in
   let rec print_ex : type a. a ex loc printer = fun ch e ->
     let e = Norm.repr e in

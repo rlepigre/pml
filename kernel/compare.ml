@@ -51,8 +51,8 @@ let uvar_iter : type a. uvar_fun -> a ex loc -> unit = fun f e ->
     | HApp(_,a,b) -> uvar_iter a; uvar_iter b
     | HDef(_)     -> () (* NOTE no unification variable in definition. *)
     | Func(a,b)   -> uvar_iter a; uvar_iter b
-    | Prod(m)     -> M.iter (fun _ (_,a) -> uvar_iter a) m
-    | DSum(m)     -> M.iter (fun _ (_,a) -> uvar_iter a) m
+    | Prod(m)     -> A.iter (fun _ (_,a) -> uvar_iter a) m
+    | DSum(m)     -> A.iter (fun _ (_,a) -> uvar_iter a) m
     | Univ(_,b)   -> buvar_iter b
     | Exis(_,b)   -> buvar_iter b
     | FixM(o,b)   -> uvar_iter o; buvar_iter b
@@ -63,7 +63,7 @@ let uvar_iter : type a. uvar_fun -> a ex loc -> unit = fun f e ->
     (* NOTE type annotation ignored. *)
     | LAbs(_,b)   -> buvar_iter b
     | Cons(_,v)   -> uvar_iter v
-    | Reco(m)     -> M.iter (fun _ (_,a) -> uvar_iter a) m
+    | Reco(m)     -> A.iter (fun _ (_,a) -> uvar_iter a) m
     | Scis        -> ()
     | VDef(_)     -> () (* NOTE no unification variable in definition. *)
     | Valu(v)     -> uvar_iter v
@@ -73,7 +73,7 @@ let uvar_iter : type a. uvar_fun -> a ex loc -> unit = fun f e ->
     | Name(s,t)   -> uvar_iter s; uvar_iter t
     | Proj(v,_)   -> uvar_iter v
     | Case(v,m)   -> let fn _ (_,b) = buvar_iter b in
-                     uvar_iter v; M.iter fn m
+                     uvar_iter v; A.iter fn m
     | FixY(t,v)   -> uvar_iter t; uvar_iter v
     | Epsi        -> ()
     | Push(v,s)   -> uvar_iter v; uvar_iter s
@@ -167,9 +167,9 @@ let {eq_expr; eq_bndr} =
     | (_             , HDef(_,d)     ) -> eq_expr e1 d.expr_def
     | (Func(a1,b1)   , Func(a2,b2)   ) -> eq_expr a1 a2 && eq_expr b1 b2
     | (DSum(m1)      , DSum(m2)      ) ->
-        M.equal (fun (_,a1) (_,a2) -> eq_expr a1 a2) m1 m2
+        A.equal (fun (_,a1) (_,a2) -> eq_expr a1 a2) m1 m2
     | (Prod(m1)      , Prod(m2)      ) ->
-        M.equal (fun (_,a1) (_,a2) -> eq_expr a1 a2) m1 m2
+        A.equal (fun (_,a1) (_,a2) -> eq_expr a1 a2) m1 m2
     | (Univ(s1,b1)   , Univ(s2,b2)   ) ->
         begin
           match eq_sort s1 s2 with
@@ -215,7 +215,7 @@ let {eq_expr; eq_bndr} =
     | (LAbs(_,b1)   , LAbs(_,b2)    )  -> eq_bndr V b1 b2
     | (Cons(c1,v1)   , Cons(c2,v2)   ) -> c1.elt = c2.elt && eq_expr v1 v2
     | (Reco(m1)      , Reco(m2)      ) ->
-        M.equal (fun (_,v1) (_,v2) -> eq_expr v1 v2) m1 m2
+        A.equal (fun (_,v1) (_,v2) -> eq_expr v1 v2) m1 m2
     | (Scis          , Scis          ) -> true
     | (VDef(d1)      , VDef(d2)      ) -> d1 == d2 (* FIXME ? *)
     | (Valu(v1)      , Valu(v2)      ) -> eq_expr v1 v2
@@ -226,7 +226,7 @@ let {eq_expr; eq_bndr} =
     | (Proj(v1,l1)   , Proj(v2,l2)   ) -> l1.elt = l2.elt && eq_expr v1 v2
     | (Case(v1,m1)   , Case(v2,m2)   ) ->
         let cmp (_,b1) (_,b2) = eq_bndr V b1 b2 in
-        eq_expr v1 v2 && M.equal cmp m1 m2
+        eq_expr v1 v2 && A.equal cmp m1 m2
     | (FixY(t1,v1)   , FixY(t2,v2)   ) -> eq_expr t1 t2 && eq_expr v1 v2
     | (Epsi          , Epsi          ) -> true
     | (Push(v1,s1)   , Push(v2,s2)   ) -> eq_expr v1 v2 && eq_expr s1 s2

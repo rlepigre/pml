@@ -621,28 +621,28 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
         let a = unsugar env vars a s in
         let b = unsugar env vars b s in
         Box(P, func e.pos (to_prop a) (to_prop b))
-    | (EUnit        , SP       ) -> Box(P, strict_prod e.pos M.empty)
-    | (EUnit        , SV       ) -> Box(V, reco e.pos M.empty)
-    | (EUnit        , ST       ) -> Box(T, valu e.pos (reco e.pos M.empty))
+    | (EUnit        , SP       ) -> Box(P, strict_prod e.pos A.empty)
+    | (EUnit        , SV       ) -> Box(V, reco e.pos A.empty)
+    | (EUnit        , ST       ) -> Box(T, valu e.pos (reco e.pos A.empty))
     | (EProd(l,str) , SP       ) ->
         let fn (p, a) = (p.elt, (p.pos, to_prop (unsugar env vars a s))) in
         let gn m (k,v) =
-          if M.mem k m then assert false;
-          M.add k v m
+          if A.mem k m then assert false;
+          A.add k v m
         in
-        let m = List.fold_left gn M.empty (List.map fn l) in
+        let m = List.fold_left gn A.empty (List.map fn l) in
         Box(P, (if str then strict_prod else prod) e.pos m)
     | (EDSum(l)     , SP       ) ->
         let fn (p, a) =
           match a with
-          | None   -> (p.elt, (p.pos, strict_prod p.pos M.empty))
+          | None   -> (p.elt, (p.pos, strict_prod p.pos A.empty))
           | Some a -> (p.elt, (p.pos, to_prop (unsugar env vars a s)))
         in
         let gn m (k,v) =
-          if M.mem k m then assert false;
-          M.add k v m
+          if A.mem k m then assert false;
+          A.add k v m
         in
-        let m = List.fold_left gn M.empty (List.map fn l) in
+        let m = List.fold_left gn A.empty (List.map fn l) in
         Box(P, dsum e.pos m)
     | (EUniv(xs,k,e), SP       ) ->
         let Sort k = unsugar_sort env k in
@@ -695,7 +695,7 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
     | (ERest(a,eq)  , SP       ) ->
         let a =
           match a with
-          | None   -> strict_prod e.pos M.empty
+          | None   -> strict_prod e.pos A.empty
           | Some a -> to_prop (unsugar env vars a _sp)
         in
         let c =
@@ -714,7 +714,7 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
     | (EImpl(eq,a)  , SP       ) ->
         let a =
           match a with
-          | None   -> strict_prod e.pos M.empty
+          | None   -> strict_prod e.pos A.empty
           | Some a -> to_prop (unsugar env vars a _sp)
         in
         let c =
@@ -751,17 +751,17 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
     | (ECons(c,vo)  , SV       ) ->
         let v =
           match vo with
-          | None       -> reco None M.empty
+          | None       -> reco None A.empty
           | Some (v,_) -> to_valu (unsugar env vars v _sv)
         in
         Box(V, cons e.pos c v)
     | (EReco(l)     , SV       ) ->
         let fn (p,v,_) = (p.elt, (p.pos, to_valu (unsugar env vars v _sv))) in
         let gn m (k,v) =
-          if M.mem k m then assert false;
-          M.add k v m
+          if A.mem k m then assert false;
+          A.add k v m
         in
-        let m = List.fold_left gn M.empty (List.map fn l) in
+        let m = List.fold_left gn A.empty (List.map fn l) in
         Box(V, reco e.pos m)
     | (EScis        , SV       ) -> Box(V, scis e.pos)
     (* Values as terms. *)
@@ -796,10 +796,10 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
               (p.elt, (p.pos, to_valu (unsugar env vars v _sv)))
             in
             let gn m (k,v) =
-              if M.mem k m then assert false;
-              M.add k v m
+              if A.mem k m then assert false;
+              A.add k v m
             in
-            let vm = List.fold_left gn M.empty (List.map fn vs) in
+            let vm = List.fold_left gn A.empty (List.map fn vs) in
             let fn (p,v,_) =
               (p.elt, (p.pos, to_term (unsugar env vars v _st)))
             in
@@ -856,10 +856,10 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
             (c.elt, (c.pos, x, f))
           in
           let gn m (k,v) =
-            if M.mem k m then assert false; (* FIXME handle error *)
-            M.add k v m
+            if A.mem k m then assert false; (* FIXME handle error *)
+            A.add k v m
           in
-          let m = List.fold_left gn M.empty (List.map fn l) in
+          let m = List.fold_left gn A.empty (List.map fn l) in
           match !r with
           | `V -> let v = to_valu (unsugar env vars v _sv) in
                   Box(T, case e.pos v m)

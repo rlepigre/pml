@@ -265,7 +265,7 @@ val isort_full : ∀a:ο, ∀o∈ord<a>, list<a> ⇒ slist<a,o> = Λa:ο.
   fun o l →
     let tot = isort_total o l in
     let lem = isort_sorted o l in
-    (isort o l : list<a> | sorted o (isort o l) ≡ true)
+    isort o l
 val rec exists : ∀a, (a ⇒ bool) ⇒ list<a> ⇒ bool = fun pred l →
   case l {
     | Nil[_]  → false

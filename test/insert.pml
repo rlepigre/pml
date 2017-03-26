@@ -97,7 +97,7 @@ type slist<a:ο,ord:τ> = ∃l:ι, l∈(list<a> | sorted ord l ≡ tru)
 
 val rec insert_sorted : ∀a:ο, ∀o∈order<a>, ∀x∈a, ∀l∈slist<a,o>,
     sorted o (insert o x l) ≡ tru =
-  Λa:ο.Λo:ι.fun o → Λx:ι.fun x → Λl:ι.fun l →
+  Λa:ο.fun o x l →
     let cmp = o.cmp in
     case l {
       | Nil[_]   → {}
