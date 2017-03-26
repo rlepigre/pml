@@ -70,11 +70,13 @@ type typ_rule =
   | Typ_Mu     of typ_proof
   | Typ_Scis
   | Typ_FixY   of typ_proof
+  | Typ_Goal   of string
 
 and  stk_rule =
   | Stk_Push   of sub_proof * typ_proof * stk_proof
   | Stk_Fram   of typ_proof * stk_proof
   | Stk_SWit   of sub_proof
+  | Stk_Goal   of string
 
 and  sub_rule =
   | Sub_Equal
@@ -395,7 +397,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
             let c' = Pos.none (Func(a,b)) in
             (* TODO NuRec ? *)
             let p1 = subtype ctx t c' c in
-            let a' = bndr_from_fun "x" (fun x -> a.elt) in (* TODO binder name *)
+            let a' = bndr_from_fun (bndr_name f).elt (fun x -> a.elt) in
             let wit = VWit(f, a', b) in
             let twit = Pos.none(Valu (Pos.none wit)) in
             (* Learn the equivalence that are valid in the witness. *)
@@ -465,6 +467,11 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
     | VDef(d)     ->
         let p = subtype ctx t d.value_type c in
         Typ_VDef(d,p)
+    (* Goal *)
+    | Goal(_,str) ->
+        wrn_msg "goal %s %a" str Pos.print_pos_opt v.pos;
+        Typ_Goal(str)
+
     (* Constructors that cannot appear in user-defined terms. *)
     | UWit(_,_,_) -> unexpected "∀-witness during typing..."
     | EWit(_,_,_) -> unexpected "∃-witness during typing..."
@@ -571,7 +578,11 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
         Typ_TLam(p)
     (* Definition. *)
     | HDef(_,d)   ->
-        let (_, _, r) = type_term ctx d.expr_def c in r
+       let (_, _, r) = type_term ctx d.expr_def c in r
+    (* Goal *)
+    | Goal(_,str) ->
+        wrn_msg "goal %s %a" str Pos.print_pos_opt t.pos;
+        Typ_Goal(str)
     (* Constructors that cannot appear in user-defined terms. *)
     | UWit(_,_,_) -> unexpected "∀-witness during typing..."
     | EWit(_,_,_) -> unexpected "∃-witness during typing..."
@@ -613,10 +624,14 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
           let fa = bndr_from_fun "x" (fun x -> a.elt) in
           Pos.none (Valu(Pos.none (VWit(f, fa, c))))
         in
-         Stk_SWit(subtype ctx wit c a)
+        Stk_SWit(subtype ctx wit c a)
     (* Definition. *)
     | HDef(_,d)   ->
         let (_, _, r) = type_stac ctx d.expr_def c in r
+    (* Goal *)
+    | Goal(_,str) ->
+        wrn_msg "goal %s at %a" str Pos.print_pos_opt s.pos;
+        Stk_Goal(str)
     (* Constructors that cannot appear in user-defined stacks. *)
     | Epsi        -> unexpected "Empty stack during typing..."
     | UWit(_,_,_) -> unexpected "∀-witness during typing..."

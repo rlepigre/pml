@@ -22,6 +22,7 @@ let rec valu_erasure : valu -> e_vbox = fun v ->
   | Cons(c,v) -> vcons c.elt (valu_erasure v)
   | Reco(m)   -> vreco (A.map (fun (_,v) -> valu_erasure v) m)
   | Scis      -> vscis
+  | Goal(_,s) -> vscis
   | VDef(d)   -> box d.value_eval
   | VTyp(v,_) -> valu_erasure v
   | VLam(_,f) -> valu_erasure (bndr_subst f Dumm)
@@ -60,6 +61,7 @@ and     term_erasure : term -> e_tbox = fun t ->
   | UWit(_)   -> erasure_error "a witness cannot be erased (term)"
   | EWit(_)   -> erasure_error "a witness cannot be erased (term)"
   | UVar(_)   -> erasure_error "unif. variables cannot be erased (term)"
+  | Goal(_)   -> erasure_error "a goal cannot be erased (term)"
 
 and     stac_erasure : stac -> e_sbox = fun s ->
   let s = Norm.whnf s in
@@ -68,6 +70,7 @@ and     stac_erasure : stac -> e_sbox = fun s ->
   | HApp(_)   -> erasure_error "not a normalisation value (stack)"
   | HDef(_,d) -> stac_erasure d.expr_def
   | Epsi      -> sepsi
+  | Goal(_)   -> sepsi
   | Push(v,s) -> spush (valu_erasure v) (stac_erasure s)
   | Fram(t,s) -> sfram (term_erasure t) (stac_erasure s)
   | ITag(_)   -> erasure_error "a tag cannot be erased (stack)"
@@ -76,6 +79,7 @@ and     stac_erasure : stac -> e_sbox = fun s ->
   | UWit(_)   -> erasure_error "a witness cannot be erased (stack)"
   | EWit(_)   -> erasure_error "a witness cannot be erased (stack)"
   | UVar(_)   -> erasure_error "unif. variables cannot be erased (stack)"
+
 
 let valu_erasure : valu -> e_valu =
   fun v -> unbox (valu_erasure v)

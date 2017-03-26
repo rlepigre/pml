@@ -87,6 +87,7 @@ let uvar_iter : type a. uvar_fun -> a ex loc -> unit = fun f e ->
     | TLam(_,b)   -> buvar_iter b
     | ITag(_)     -> ()
     | Dumm        -> ()
+    | Goal(_)     -> ()
     | VWit(b,a,c) -> buvar_iter b; buvar_iter a; uvar_iter c
     | SWit(b,a)   -> buvar_iter b; uvar_iter a
     | UWit(_,t,b) -> uvar_iter t; buvar_iter b

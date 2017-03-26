@@ -120,6 +120,9 @@ let eimpl a l =
   List.fold_left (fun a x ->
       none (EImpl(ENoBox(none (EVari(x, []))), Some a))) a l
 
+let parser goal =
+  | "{-" str:''\([^-]\|\(-[^}]\)\)*'' "-}" -> in_pos _loc (EGoal(str))
+
 let parser expr (m : mode) =
   (* Any (higher-order function) *)
   | "(" x:llid s:{":" s:sort} "↦" e:(expr `Any)
@@ -340,6 +343,10 @@ let parser expr (m : mode) =
   (* Ordinal (from anything) *)
   | (expr `Ord)
       when m = `Any
+  | g:goal
+      when m = `Stk || m = `Trm`A
+      -> g
+
 and fun_arg =
   | '_'                                   -> (Pos.none "_", None)
   | id:llid                               -> (id, None  )

@@ -127,6 +127,7 @@ type _ ex =
   (** Existential quantifier witness. *)
   | UVar : 'a sort * 'a uvar                       -> 'a ex
   (** Unification variable. *)
+  | Goal : 'a sort * string                        -> 'a ex
 
 and cond =
   | Equiv of (t ex loc * bool * t ex loc)
@@ -404,6 +405,9 @@ let ewit : type a. popt -> tbox -> strloc -> a sort -> (a var -> pbox)
 let owit : type a. popt -> obox -> int -> schema Bindlib.bindbox -> obox =
   fun pos o i sch ->
     box_apply2 (fun o sch -> Pos.make pos (OWit(o,i,sch))) o sch
+
+let goal : type a. popt -> a sort -> string -> a ex loc bindbox =
+  fun pos s str -> box (Pos.make pos (Goal(s,str)))
 
 let schm : Scp.index -> int list -> (int * int) list ->
            (o ex, t ex loc * p ex loc) mbinder bindbox -> schema bindbox =

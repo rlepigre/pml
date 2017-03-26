@@ -169,6 +169,8 @@ and raw_ex' =
   | EConv
   | ESucc of raw_ex
 
+  | EGoal of string
+
 let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
   let rec print ch e =
     match e.elt with
@@ -220,6 +222,7 @@ let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
     | EFram(t,s)    -> Printf.fprintf ch "EFram(%a,%a)" print t print s
     | EConv         -> Printf.fprintf ch "EConv"
     | ESucc(o)      -> Printf.fprintf ch "ESucc(%a)" print o
+    | EGoal(str)    -> Printf.fprintf ch "EGoal(%s)" str
   and aux_ls ch (l,e) = Printf.fprintf ch "(%S,%a)" l.elt print e
   and aux_ps ch (l,e) = Printf.fprintf ch "(%S,%a)" l.elt aux_opt e
   and aux_rec ch (l,e,_) = Printf.fprintf ch "(%S,%a)" l.elt print e
@@ -474,6 +477,11 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
     | (EScis        , ST       ) -> ()
     | (EScis        , SUni(r)  ) -> r := Some _sv; infer env vars e s
     | (EScis        , _        ) -> sort_clash e s
+    | (EGoal(str)   , SV       )
+    | (EGoal(str)   , ST       )
+    | (EGoal(str)   , SS       ) -> ()
+    | (EGoal(str)   , SUni(r)  ) -> r := Some _sv; infer env vars e s
+    | (EGoal(_)     , _        ) -> sort_clash e s
     | (EAppl(t,u)   , ST       ) -> infer env vars t s; infer env vars u s
     | (EAppl(_,_)   , SUni(r)  ) -> r := Some _st; infer env vars e s
     | (EAppl(_,_)   , _        ) -> sort_clash e s
@@ -912,6 +920,9 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
     | (ESucc(o)     , SO       ) ->
         let o = to_ordi (unsugar env vars o _so) in
         Box(O, succ e.pos o)
+    | (EGoal(str)   , SV       ) -> Box(V, goal e.pos V str)
+    | (EGoal(str)   , ST       ) -> Box(T, to_term (Box(V, goal e.pos V str)))
+    | (EGoal(str)   , SS       ) -> Box(S, goal e.pos S str)
     | (_            , _        ) -> assert false
   in
   unsugar env M.empty e s

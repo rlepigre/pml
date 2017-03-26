@@ -93,6 +93,12 @@ let pos_to_string : pos -> string =
 let print_pos : out_channel -> pos -> unit =
   fun ch p -> output_string ch (pos_to_string p)
 
+(** [print_pos oc pos] prints the position [pos] to the channel [oc]. *)
+let print_pos_opt : out_channel -> pos option -> unit =
+  fun ch p -> match p with
+              | None -> ()
+              | Some p -> Printf.fprintf ch "at %a" print_pos p
+
 (** [short_pos_to_string pos] is similar to [pos_to_string pos] but uses
     a shorter format. *)
 let short_pos_to_string : pos -> string =

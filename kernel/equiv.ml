@@ -404,6 +404,7 @@ let rec add_term : pool -> term -> TPtr.t * pool = fun po t ->
   | HDef(_,d)   -> add_term po d.expr_def
   | UVar(_,v)   -> insert_t_node (TN_UVar(v)) po
   | ITag(_,n)   -> insert_t_node (TN_ITag(n)) po
+  | Goal(_)     -> failwith "goal in the pool (term)"
   | Vari(_)     -> invalid_arg "free variable in the pool"
   | Dumm        -> invalid_arg "dummy terms forbidden in the pool"
 
@@ -432,6 +433,7 @@ and     add_valu : pool -> valu -> VPtr.t * pool = fun po v ->
   | UVar(_,v)   -> insert_v_node (VN_UVar(v)) po
   | ITag(_,n)   -> insert_v_node (VN_ITag(n)) po
 
+  | Goal(_)     -> failwith "goal in the pool (term)"
   | Vari(_)     -> invalid_arg "free variable in the pool"
   | Dumm        -> invalid_arg "dummy terms forbidden in the pool"
 

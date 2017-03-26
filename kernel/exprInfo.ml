@@ -18,6 +18,7 @@ let rec sort : type a b. a ex loc ->  a sort * a ex loc= fun e ->
   | EWit(s,_,_) -> (s,e)
   | UVar(s,_)   -> (s,e)
   | ITag(s,_)   -> (s,e)
+  | Goal(s,_)   -> (s,e)
 
   | Func _      -> (P,e)
   | Prod _      -> (P,e)

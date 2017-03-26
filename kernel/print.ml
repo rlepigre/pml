@@ -161,8 +161,8 @@ let print_ex : type a. a ex loc printer = fun ch e ->
     | OWit(o,i,s) -> if !print_full then
                        fprintf ch "εκ%d(<%a,%a)" i print_ex o print_sch s
                      else fprintf ch "εκ%d(<%a)" i print_ex o
-
     | UVar(_,uv)  -> fprintf ch "?%i" uv.uvar_key
+    | Goal(_,str) -> fprintf ch "{- %s -}" str
 
   and print_cond ch = function
     | Equiv(t,b,u) -> let sym = if b then "=" else "≠" in
