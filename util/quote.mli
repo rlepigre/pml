@@ -2,7 +2,7 @@
 
 (** [get_lines fname off len] returns a list of lines from file [fname]. It
     starts at the [off]-th line (starting at 1) for a number of [len] lines
-    (these values should designate a valid range of lines). *)
+    (lines out of the range of the file are ignored). *)
 val get_lines : string -> int -> int -> string list
 
 (** [get_from_to fname off1 off2] returns the list of the lines of the file

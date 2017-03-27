@@ -2,7 +2,13 @@ let get_lines : string -> int -> int -> string list = fun fname off nbl ->
   let ch = open_in fname in
   for i = 1 to off - 1 do ignore (input_line ch) done;
   let lines = ref [] in
-  for i = 0 to nbl-1 do lines := input_line ch :: !lines done;
+  begin
+    try
+      for i = 0 to nbl-1 do
+        lines := input_line ch :: !lines
+      done
+    with End_of_file -> ()
+  end;
   close_in ch;
   List.rev !lines
 
@@ -42,7 +48,7 @@ let quote_file : ?config:config -> out_channel -> Pos.pos -> unit =
     | Some fname ->
         if pos.start_line > pos.end_line then
           quote_error pos "Invalid position (start after end)";
-        let off1 = pos.start_line - config.leading  in
+        let off1 = max 0 (pos.start_line - config.leading)  in
         let off2 = pos.end_line   + config.trailing in
         let lines =
           try get_from_to fname off1 off2 with _ ->
