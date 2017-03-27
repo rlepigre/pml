@@ -92,8 +92,12 @@ pml2/main.byte:
 	$(OCAMLBUILD) -package unix,bindlib,earley,earley.str $@
 
 check:
-	@echo FIXME:`grep FIXME */*.ml */*.mli | wc -l`
-	@echo TODO:`grep TODO */*.ml */*.mli | wc -l`
+	@f=`grep FIXME */*.ml */*.mli | wc -l`;\
+	 ft=`grep FIXME */*.ml */*.mli | grep -P -v '#[0-9]+' | wc -l`;\
+	 echo FIXME: $$ft/$$f '(without ticket/all)'
+	@f=`grep TODO */*.ml */*.mli | wc -l`;\
+	 ft=`grep TODO */*.ml */*.mli | grep -P -v '#[0-9]+' | wc -l`;\
+	 echo TODO: $$ft/$$f '(without ticket/all)'
 	@echo Lines with TAB:
 	@grep -P "\t" */*.ml */*.mli; true
 	@echo Lines too long:

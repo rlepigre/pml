@@ -324,14 +324,14 @@ let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
           Sub_Memb_r(subtype {ctx with equations} t a b)
       (* Restriction on the right. *)
       | (_          , Rest(c,e)  ) ->
-         begin  (* FIXME: contradiction poss, if ineq ? *)
+         begin  (* FIXME #42 contradiction poss, if ineq ? *)
             let prf = subtype ctx t a c in
             let _ = prove ctx.equations e in
             Sub_Rest_r(prf)
           end
       (* Implication on the left. *)
       | (Impl(e,c)   , _        ) ->
-         begin  (* FIXME: contradiction poss, if ineq ? *)
+         begin  (* FIXME #42 contradiction poss, if ineq ? *)
             let prf = subtype ctx t c b in
             let _ = prove ctx.equations e in
             Sub_Rest_r(prf)
@@ -341,7 +341,7 @@ let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
          Sub_FixM_i(subtype ctx t a (bndr_subst f b.elt))
       | (FixN({ elt = Conv },f), _) ->
          Sub_FixN_i(subtype ctx t (bndr_subst f a.elt) b)
-      (* Mu, Nu tempory wrong rules FIXME . *)
+      (* Mu, Nu tempory wrong rules FIXME #32 *)
       | (_          , FixN({ elt = Conv },f)) ->
          Sub_FixN_i(subtype ctx t a (bndr_subst f b.elt))
       | (FixM({ elt = Conv },f), _) ->
@@ -556,9 +556,9 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
         in
         let ps = A.fold check m [] in
         Typ_DSum_e(p,List.rev ps)
-    (* Fixpoint. FIXME temporary code *)
+    (* Fixpoint. FIXME #32 temporary code *)
     | FixY(t,v)   ->
-       assert false (* FIXME prevent by parsing *)
+       assert false (* FIXME #43 prevent by parsing *)
     (* Coercion. *)
     | TTyp(t,a)   ->
         let p1= subtype ctx t a c in
@@ -651,9 +651,9 @@ let type_check : term -> prop -> prop * typ_proof = fun t a ->
   let ctx = empty_ctxt in
   let prf = type_term ctx t a in
   let l = uvars a in
-  assert(l = []); (* FIXME *)
+  assert(l = []); (* FIXME #44 *)
   (Norm.whnf a, prf)
 
-(* FIXME hack to compile the SCP. *)
+(* FIXME #32 hack to compile the SCP. *)
 open Scp
 open Ordinal

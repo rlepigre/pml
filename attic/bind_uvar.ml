@@ -95,6 +95,6 @@ let bind_uvar : type a. a sort -> a uvar -> prop -> (a, p) bndr =
           end
   and gn : type a. a sort -> a uvar -> schema -> a ex bindbox
                                             -> schema Bindlib.bindbox =
-    fun s uv sch x -> assert false (* FIXME *)
+    fun s uv sch x -> assert false
   in
   fun s uv e -> (None, unbox (bind mk_free "X0" (fn s P uv e)))

@@ -598,8 +598,8 @@ let rec normalise : TPtr.t -> pool -> Ptr.t * pool =
                log_edp "normalised insert(2) TN_Appl: %a" Ptr.print tp;
                 (tp, po)
           end
-       | TN_MAbs(b)     -> (Ptr.T_ptr p, po) (* FIXME can do better. *)
-       | TN_Name(s,pt)  -> (Ptr.T_ptr p, po) (* FIXME can do better. *)
+       | TN_MAbs(b)     -> (Ptr.T_ptr p, po) (* FIXME #45 can do better. *)
+       | TN_Name(s,pt)  -> (Ptr.T_ptr p, po) (* FIXME #45 can do better. *)
        | TN_Proj(pv,l)  ->
           begin
             let (pv, po) = find_valu pv po in
