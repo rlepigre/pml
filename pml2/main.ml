@@ -194,7 +194,8 @@ let _ =
        match p with
        | None   -> err_msg "Subtype error: %s." msg
        | Some p -> err_msg "Subtype error in %s." (pos_to_string p);
-                    err_msg "Message: %s." msg
+                   err_msg "Message: %s." msg;
+                   Quote.quote_file stderr p
      end;
   | Typing.Reachable            ->
      err_msg "Reachable scissors"
@@ -208,6 +209,7 @@ let _ =
           err_msg "Type error at ?";
        | Some p ->
           err_msg "Type error at %s" (pos_to_string p);
+          Quote.quote_file stderr p
      end;
     err_msg "%a : %a" Print.print_ex e Print.print_ex c;
     print_exn exn
