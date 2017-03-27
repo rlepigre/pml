@@ -25,6 +25,9 @@ val rec add_asso : ∀n m q∈nat, add n (add m q) ≡ add (add n m) q =
          | S[p] →
            let _ = add p (add m q) in
            let _ = add p m in
-           let ind_hyp = add_asso p m q in
+           let _ = add (add p m) q in
+           deduce add n (add m q) ≡ succ (add p (add m q));
+           deduce add (add n m) q ≡ succ (add (add p m) q);
+           show add p (add m q) ≡ add (add p m) q using add_asso p m q;
            {}
       }
