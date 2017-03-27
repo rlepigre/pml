@@ -71,7 +71,7 @@ let locate buf1 pos1 buf2 pos2 =
   ; start_col
   ; end_line     = Input.line_num buf2
   ; end_col      = max start_col (Input.utf8_col_num buf2 pos2)
-  ; r_start_col  = pos1
+  ; r_start_col  = 1 + pos1
   ; r_end_col    = pos2 }
 
 (** [pos_to_string pos] transforms the position [pos] into a readable

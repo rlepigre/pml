@@ -72,9 +72,15 @@ let quote_file : ?config:config -> out_channel -> Pos.pos -> unit =
             if num = pos.start_line && num = pos.end_line then
               let len = String.length line in
               let n = pos.r_end_col - pos.r_start_col + 1 in
-              let l = String.sub line 0 pos.r_start_col in
-              let c = String.sub line pos.r_start_col n in
-              let r = String.sub line (pos.r_end_col + 1) (len - pos.r_end_col - 1) in
+              (*
+              Printf.eprintf ">>> %i-%i (%i)\n%!"
+                pos.r_start_col pos.r_end_col n;
+              *)
+              let l = String.sub line 0 (pos.r_start_col-1) in
+              let c = String.sub line (pos.r_start_col-1) n in
+              let r =
+                String.sub line pos.r_end_col (len - pos.r_end_col-1)
+              in
               l ^ red c ^ r
             else if num = pos.start_line then
               let n = pos.r_start_col - 1 in
