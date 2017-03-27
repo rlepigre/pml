@@ -997,14 +997,14 @@ let is_value : term -> eq_ctxt -> bool * eq_ctxt = fun t {pool} ->
   (res, {pool})
 
 (* Test whether a term is equivalent to a value or not. *)
-let to_value : term -> eq_ctxt -> (valu * eq_ctxt) option = fun t {pool} ->
+let to_value : term -> eq_ctxt -> valu option * eq_ctxt = fun t {pool} ->
   let (pt, pool) = add_term pool t in
   let (pt, pool) = normalise pt pool in
   match pt with
   | Ptr.V_ptr(v) ->
      let (v, pool) = canonical_valu v pool in
-     Some (v, { pool })
-  | Ptr.T_ptr(_) -> None (* FIXME #47 keep the pool in this case too *)
+     Some v, { pool }
+  | Ptr.T_ptr(_) -> None, { pool }
 
 let learn : eq_ctxt -> relation -> eq_ctxt = fun ctx rel ->
   log_edp "learning %a" print_relation rel;

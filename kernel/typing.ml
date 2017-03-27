@@ -561,8 +561,8 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
         let p1= subtype ctx t a c in
         let ctx =
           match to_value t ctx.equations with
-          | None -> ctx
-          | Some(v,equations) ->
+          | (None, equations)    -> { ctx with equations }
+          | (Some(v), equations) ->
              let ctx = { ctx with equations } in
              learn_neg_equivalences ctx v None c
         in
