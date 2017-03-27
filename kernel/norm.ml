@@ -34,9 +34,5 @@ let rec whnf : type a. a ex loc -> a ex loc = fun exp ->
       end
   (* Unfolding of a unification variable. *)
   | UVar(_, {uvar_val = {contents = Some exp}}) -> whnf exp
-  (* FIXME should we enable this ?
-  (* Unfolding of a definition. *)
-  | HDef(_,exp)                                 -> whnf exp.expr_def
-  *)
   (* No possible surface reduction. *)
   | _                                           -> exp

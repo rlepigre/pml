@@ -138,7 +138,7 @@ let rec is_singleton : prop -> term option = fun t ->
   match (Norm.whnf t).elt with
   | Memb(x,_) -> Some x
   | Rest(t,_) -> is_singleton t
-  | _ -> None (* TODO: more cases are possible *)
+  | _ -> None (* TODO #52: more cases are possible *)
 
 (* add to the context some conditions.
    A condition c is added if c false implies wit in a is true.
@@ -395,7 +395,6 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
             in
             let b = new_uvar ctx P in
             let c' = Pos.none (Func(a,b)) in
-            (* TODO NuRec ? *)
             let p1 = subtype ctx t c' c in
             let a' = bndr_from_fun (bndr_name f).elt (fun x -> a.elt) in
             let wit = VWit(f, a', b) in
@@ -415,7 +414,6 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
     | Cons(d,w)   ->
         let a = new_uvar ctx P in
         let c' = Pos.none (DSum(A.singleton d.elt (None, a))) in
-        (* TODO NuRec ? *)
         let p1 = subtype ctx t c' c in
         let ctx = learn_neg_equivalences ctx v None c in
         let p2 = type_valu ctx w a in
@@ -428,7 +426,6 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
         in
         let pm = A.fold fn m A.empty in
         let c' = Pos.none (Prod(pm)) in
-        (* TODO NuRec ? *)
         let p1 = subtype ctx t c' c in
         let ctx = learn_neg_equivalences ctx v None c in
         let fn l (p, v) ps =
@@ -499,9 +496,9 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
        let (is_val, ctx) = term_is_value u ctx in
        let ae = if is_val then Pos.none (Memb(u, a)) else a in
        let p2 = type_term ctx u a in
-       (* NOTE: should lean_equivalences from the type of t, and
+       (* NOTE: should learn_equivalences from the type of t, and
           use these equivalences while typing u. Would require to
-          type t first and u second which fails currently.
+          type t first and u second which breaks a lot of examples currently.
           Only useful for Scott integer and similar inductive type  *)
        let p1 = type_term ctx t (Pos.none (Func(ae,c))) in
        if is_val then Typ_Func_s(p1,p2) else Typ_Func_e(p1,p2)

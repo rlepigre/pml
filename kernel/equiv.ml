@@ -200,8 +200,8 @@ let children_v_node : v_node -> Ptr.t list = fun n ->
   | VN_VWit _
   | VN_UWit _
   | VN_ITag _
-  | VN_UVar _ (* TODO check *)
-  | VN_HApp _ (* TODO check *)
+  | VN_UVar _ (* TODO #50 check *)
+  | VN_HApp _ (* TODO #50 check *)
   | VN_EWit _     -> []
   | VN_Cons(_,pv) -> [Ptr.V_ptr pv]
   | VN_Reco(m)    -> A.fold (fun _ p s -> Ptr.V_ptr p :: s) m []
@@ -217,9 +217,9 @@ let children_t_node : t_node -> Ptr.t list = fun n ->
   | TN_MAbs _
   | TN_UWit _
   | TN_EWit _
-  | TN_HApp _
-  | TN_ITag _
-  | TN_UVar _      -> []
+  | TN_HApp _  (* TODO #50 check *)
+  | TN_UVar _  (* TODO #50 check *)
+  | TN_ITag _    -> []
 
 (** Adding a parent to a given node. *)
 let add_parent_nodes : Ptr.t -> Ptr.t list-> pool -> pool = fun np ps po ->
@@ -878,7 +878,7 @@ let add_inequiv : inequiv -> eq_ctxt -> eq_ctxt = fun (t,u) {pool} ->
       log_edp "add_inequiv: contradiction found";
       bottom ()
     end;
-  {pool} (* TODO store clauses *)
+  {pool} (* TODO #51 store clauses *)
 
 (* Main module interface. *)
 
@@ -916,9 +916,9 @@ let find_proj : pool -> valu -> string -> valu * pool = fun po v l ->
        let po = if (VPtrSet.mem vp po.bs) then add_vptr_nobox wp po else po in
        (w, po)
 
-  with Not_found -> assert false (* TODO: check, could be a contradiction *)
+  with Not_found -> assert false (* TODO #42: check, could be a contradiction *)
 
-(* TODO: sum with one case should not fail *)
+(* NOTE: sum with one case should not fail and could be treated as projection *)
 let find_sum : pool -> valu -> (string * valu * pool) option = fun po v ->
   try
     let (vp, po) = add_valu po v in
@@ -937,7 +937,7 @@ let find_sum : pool -> valu -> (string * valu * pool) option = fun po v ->
 
 type relation = cond
 
-(* TODO share with print.ml *)
+(* TODO #49 share with print.ml *)
 let print_relation = fun ch -> let open Printf in let open Print in
   function
     | Equiv(t,b,u) -> let sym = if b then "=" else "≠" in
@@ -945,7 +945,7 @@ let print_relation = fun ch -> let open Printf in let open Print in
     | NoBox(v)     -> fprintf ch "%a↓" print_ex v
     | Posit(o)     -> print_ex ch o
 
-(* TODO share with print.ml *)
+(* TODO #49 share with print.ml *)
 let print_relation_pos : out_channel -> relation -> unit = fun ch c ->
   match c with
   | Equiv (t,b,u) ->
@@ -1013,7 +1013,7 @@ let learn : eq_ctxt -> relation -> eq_ctxt = fun ctx rel ->
       match rel with
       | Equiv(t,b,u) ->
          (if b then add_equiv else add_inequiv) (t,u) ctx
-      | Posit _ -> assert false (* TODO *)
+      | Posit _ -> assert false (* TODO #32 *)
       | NoBox(v) ->
          {pool = add_nobox v ctx.pool }
     in
@@ -1029,7 +1029,7 @@ let prove : eq_ctxt -> relation -> eq_ctxt = fun ctx rel ->
       match rel with
       | Equiv(t,b,u) ->
          ignore ((if b then add_inequiv else add_equiv) (t,u) ctx);
-      | Posit _ -> assert false (* TODO *)
+      | Posit _ -> assert false (* TODO #32 *)
       | NoBox(v) ->
          let (b, ctx) = check_nobox v ctx in
          if b then raise Contradiction

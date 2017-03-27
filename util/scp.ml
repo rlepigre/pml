@@ -164,7 +164,7 @@ open Output
 let log_scp = Log.register 'y' (Some "scp") "size change principle"
 let log_scp = Log.(log_scp.p)
 
-(* FIXME use the right printing function (from output) *)
+(* TODO #49 use the right printing function (from output) *)
 let print_call : out_channel -> symbol IMap.t -> call -> unit = fun ff tbl c ->
   let caller_sym = IMap.find c.caller tbl in
   let callee_sym = IMap.find c.callee tbl in
@@ -267,7 +267,6 @@ let insert_call rec_call n call =
     | _ -> More
 
 (** inline function that calls only one function. *)
-(* TODO: inline function that are called at most once *)
 let inline : t -> t = fun g ->
   if not !do_inline then g else
   let calls = !(g.calls) in

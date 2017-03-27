@@ -135,7 +135,7 @@ let print_ex : type a. a ex loc printer = fun ch e ->
                      fprintf ch "Λ%s.%a" (name_of x) print_ex t
     | ITag(_,i)   -> fprintf ch "#%i" i
     | Dumm        -> output_string ch "∅"
-    (* TODO give a number to all witnesses to distinguish equal ones even
+    (* TODO #53 give a number to all witnesses to distinguish equal ones even
      when print_full is false *)
     | VWit(f,a,b) -> if !print_full then
                        let (x,t) = unbind mk_free (snd f) in

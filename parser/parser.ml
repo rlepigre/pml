@@ -111,7 +111,7 @@ type t_prio = [`A | `Ap | `S | `F]
 
 type mode = [`Any | `Prp of p_prio | `Trm of t_prio | `Stk | `Ord ]
 
-(* TODO: keep position in l *)
+(* TODO #33: keep position in l *)
 let erest a l =
   List.fold_left (fun a x ->
       none (ERest(Some a,ENoBox(none (EVari(x, [])))))) a l

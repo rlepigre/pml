@@ -713,7 +713,7 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
              let u = to_term (unsugar env vars u _st) in
              equiv t b u
           | EPosit _ ->
-             assert false (* TODO *)
+             assert false (* TODO #32 *)
           | ENoBox(v) ->
              let v = to_valu (unsugar env vars v _sv) in
              nobox v
@@ -732,7 +732,7 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
              let u = to_term (unsugar env vars u _st) in
              equiv t b u
           | EPosit _ ->
-             assert false (* TODO *)
+             assert false (* TODO #32 *)
           | ENoBox(v) ->
              let v = to_valu (unsugar env vars v _sv) in
              nobox v
