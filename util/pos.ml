@@ -4,7 +4,8 @@
 
 
 (** Type of a position corresponding to a continuous range of characters in
-    a (utf8 encoded) source file. *)
+    a (utf8 encoded) source file. For denoting a zero-length position is to
+    have [end_col] equal to [start_col - 1]. *)
 type pos =
   { fname       : string option (** File name for the position.       *)
   ; start_line  : int (** Line number of the starting point.          *)
