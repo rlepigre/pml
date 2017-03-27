@@ -264,7 +264,7 @@ let parser expr (m : mode) =
       -> in_pos _loc (EProj(t, ref `T, l))
   (* Term (case analysis) *)
   | _case_ t:(expr (`Trm`F)) '{' '|'? ps:(lsep "|" pattern) '}'
-      when m = `Trm`F
+      when m = `Trm`A
       -> in_pos _loc (ECase(t, ref `T, ps))
   | "[" "?" t:(expr (`Trm`F)) '|' ps:(lsep "|" pattern) "]"
       when m = `Trm`A
