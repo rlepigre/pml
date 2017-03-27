@@ -6,12 +6,13 @@
 (** Type of a position corresponding to a continuous range of characters in
     a (utf8 encoded) source file. *)
 type pos =
-  { fname      : string option (** File name associated to the position. *)
-  ; start_line : int    (** Line number of the starting point.           *)
-  ; start_col  : int    (** Column number (utf8) of the starting point.  *)
-  ; end_line   : int    (** Line number of the ending point.             *)
-  ; end_col    : int    (** Column number (utf8) of the ending point.    *)
-  }
+  { fname       : string option (** File name for the position.       *)
+  ; start_line  : int (** Line number of the starting point.          *)
+  ; start_col   : int (** Column number (utf8) of the starting point. *)
+  ; end_line    : int (** Line number of the ending point.            *)
+  ; end_col     : int (** Column number (utf8) of the ending point.   *)
+  ; r_start_col : int (** Raw column number of the starting point.    *)
+  ; r_end_col   : int (** Raw column number of the ending point.      *) }
 
 (** Convenient short name for an optional position. *)
 type popt = pos option
@@ -64,11 +65,14 @@ let locate buf1 pos1 buf2 pos2 =
     | ""    -> None
     | fname -> Some fname
   in
-  let start_line = Input.line_num buf1 in
-  let start_col  = 1 + Input.utf8_col_num buf1 pos1 in
-  let end_line   = Input.line_num buf2 in
-  let end_col    = max start_col (Input.utf8_col_num buf2 pos2) in
-  { fname ; start_line ; start_col ; end_line ; end_col }
+  let start_col = 1 + Input.utf8_col_num buf1 pos1 in
+  { fname
+  ; start_line   = Input.line_num buf1
+  ; start_col
+  ; end_line     = Input.line_num buf2
+  ; end_col      = max start_col (Input.utf8_col_num buf2 pos2)
+  ; r_start_col  = pos1
+  ; r_end_col    = pos2 }
 
 (** [pos_to_string pos] transforms the position [pos] into a readable
     format. *)

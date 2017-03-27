@@ -62,11 +62,13 @@ and handle_file env fn =
   | No_parse(p, None)       ->
       begin
         err_msg "No parse %a." Pos.print_short_pos p;
+        Quote.quote_file stderr p;
         exit 1
       end
   | No_parse(p, Some msg)   ->
       begin
         err_msg "No parse %a (%s)." Pos.print_short_pos p msg;
+        Quote.quote_file stderr p;
         exit 1
       end
   | Unbound_sort(s, None  ) ->
@@ -77,6 +79,7 @@ and handle_file env fn =
   | Unbound_sort(s, Some p) ->
       begin
         err_msg "Unbound sort %s (%a)." s Pos.print_short_pos p;
+        Quote.quote_file stderr p;
         exit 1
       end
   | Sort_clash(t,s) ->
@@ -86,18 +89,21 @@ and handle_file env fn =
           | None   -> err_msg "Sort %a expected for %a."
                         pretty_print_raw_sort s print_raw_expr t
           | Some p -> err_msg "Sort %a expected at %a."
-                        pretty_print_raw_sort s Pos.print_short_pos p
+                        pretty_print_raw_sort s Pos.print_short_pos p;
+                      Quote.quote_file stderr p
         in
         exit 1
       end
   | Unbound_variable(x,p)   ->
       begin
-        match p with
-        | None   -> err_msg "Unbound variable %s." x;
-                    exit 1
-        | Some p -> err_msg "Unbound variable %s at %a." x
+        let _ =
+          match p with
+          | None   -> err_msg "Unbound variable %s." x;
+          | Some p -> err_msg "Unbound variable %s at %a." x
                       Pos.print_short_pos p;
-                    exit 1
+                      Quote.quote_file stderr p
+        in
+        exit 1
       end
 
 (* Command line argument parsing. *)
