@@ -117,6 +117,12 @@ let uvar_occurs : type a b. a uvar -> b ex loc -> bool = fun u e ->
   in
   try uvar_iter {f} e; false with Exit -> true
 
+let uvar_occurs_cond : type a. a uvar -> cond -> bool = fun u c ->
+  match c with
+  | Equiv(t,_,s) -> uvar_occurs u t || uvar_occurs u s
+  | NoBox(v)     -> uvar_occurs u v;
+  | Posit(o)     -> uvar_occurs u o
+
 let full_eq = ref false
 
 exception DontKnow
@@ -259,13 +265,33 @@ let {eq_expr; eq_bndr} =
            if u1.uvar_key <> u2.uvar_key then uvar_set u1 e2; (* arbitrary *)
            true
          end
-    (* FIXME #48 experimental. *)
-    | (UVar(_,u1)    , Func({elt = Memb(t,a)}, b))
-                   when not strict && uvar_occurs u1 t ->
-       eq_expr e1 (Pos.none (Func(a,b)))
     | (UVar(_,u1)    , _             ) when not strict ->
+       let rec remove_occur_check : type a. a ex loc -> a ex loc = fun b ->
+         let b = Norm.whnf b in
+         match b.elt with
+         | Impl(c,e) when uvar_occurs_cond u1 c
+             -> remove_occur_check e
+         | Func({elt = Memb(t,a)}, b) when uvar_occurs u1 t
+           -> remove_occur_check (Pos.none (Func(a,b)))
+         | Func({elt = Rest(a,c)}, b) when uvar_occurs_cond u1 c
+           -> remove_occur_check (Pos.none (Func(a,b)))
+         | _ -> b (* NOTE #48: more cases are possible *)
+       in
+       let e2 = remove_occur_check e2 in
        if uvar_occurs u1 e2 then false else (uvar_set u1 e2; true)
     | (_             , UVar(_,u2)    ) when not strict ->
+       let rec remove_occur_check : type a. a ex loc -> a ex loc = fun b ->
+         let b = Norm.whnf b in
+         match b.elt with
+         | Rest(e,c) when uvar_occurs_cond u2 c
+             -> remove_occur_check e
+         | Memb(t,a) when uvar_occurs u2 t
+           -> remove_occur_check a
+         | Func({elt = Impl(c,a)}, b) when uvar_occurs_cond u2 c
+           -> remove_occur_check (Pos.none (Func(a,b)))
+         | _ -> b (* NOTE #48: more cases are possible *)
+       in
+       let e1 = remove_occur_check e1 in
        if uvar_occurs u2 e1 then false else (uvar_set u2 e1; true)
     | _                                -> false)
 
