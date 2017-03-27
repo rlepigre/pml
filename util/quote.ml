@@ -49,7 +49,7 @@ let quote_file : ?config:config -> out_channel -> Pos.pos -> unit =
     | None       -> quote_error pos "Unable to quote (no filename)"
     | Some fname ->
         if pos.start_line > pos.end_line then
-          quote_error pos "Invalid position (start after end)";
+          quote_error pos "Invalid position (start line after end line)";
         let off1 = max 1 (pos.start_line - config.leading)  in
         let off2 = pos.end_line   + config.trailing in
         let lines =
@@ -70,6 +70,8 @@ let quote_file : ?config:config -> out_channel -> Pos.pos -> unit =
           let line =
             if not in_pos then line else
             if num = pos.start_line && num = pos.end_line then
+              if pos.r_end_col < pos.r_start_col then
+                quote_error pos "Invalid position (start col after end col)"
               let len = String.length line in
               let n = pos.r_end_col - pos.r_start_col + 1 in
               (*
