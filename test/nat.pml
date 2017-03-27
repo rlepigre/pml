@@ -46,7 +46,7 @@ val rec strong_add_total : ∀n∈nat, ∀m∈(∃x,x), ∃v↓, add n m ≡ v =
 val rec add_total : ∀n m∈nat, ∃v↓, add n m ≡ v = fun n m →
   case n {
     | Z[] → {}
-    | S[p] → let ind_hyp = add_total p m in {}
+    | S[p] → let ind_hyp = dd_total p m in {}
   }
 
 def addt<x:τ,y:τ> : τ =

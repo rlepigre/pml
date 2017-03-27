@@ -11,7 +11,7 @@ val fls : bool = F[]
 val eq : bool ⇒ bool ⇒ bool =
   fun b1 b2 →
     case b1 {
-      | F[_] → case b { T[_] → fls | F[_] → tru }
+      | F[_] → case b2 { T[_] → fls | F[_] → tru }
       | T[_] → case b2 { T[_] → tru | F[_] → fls }
     }
 

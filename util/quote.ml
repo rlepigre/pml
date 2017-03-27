@@ -34,9 +34,8 @@ let header : string -> string = fun s ->
 let red : string -> string =
   fun s -> "\027[31m" ^ s ^ "\027[0m"
 
-(* DEBUG
-let red s = "[" ^ red s ^ "]"
-*)
+let ulined : string -> string =
+  fun s -> "\027[4m" ^ s ^ "\027[0m"
 
 exception Quote_error of Pos.pos * string
 let quote_error : type a. Pos.pos -> string -> a = fun pos msg ->
@@ -72,7 +71,13 @@ let quote_file : ?config:config -> out_channel -> Pos.pos -> unit =
             if num = pos.start_line && num = pos.end_line then
               let len = String.length line in
               if pos.r_end_col < pos.r_start_col then
+                begin
+                  Printf.eprintf ">>> pos.start_col   = %i\n" pos.start_col;
+                  Printf.eprintf ">>> pos.end_col     = %i\n" pos.end_col;
+                  Printf.eprintf ">>> pos.r_start_col = %i\n" pos.r_start_col;
+                  Printf.eprintf ">>> pos.r_end_col   = %i\n" pos.r_end_col;
                 quote_error pos "Invalid position (start col after end col)";
+                end;
               let n = pos.r_end_col - pos.r_start_col + 1 in
               (*
               Printf.eprintf ">>> %i-%i (%i)\n%!"
@@ -81,19 +86,19 @@ let quote_file : ?config:config -> out_channel -> Pos.pos -> unit =
               let l = String.sub line 0 (pos.r_start_col-1) in
               let c = String.sub line (pos.r_start_col-1) n in
               let r =
-                String.sub line pos.r_end_col (len - pos.r_end_col-1)
+                String.sub line pos.r_end_col (len - pos.r_end_col)
               in
-              l ^ red c ^ r
+              l ^ ulined (red c) ^ r
             else if num = pos.start_line then
               let n = pos.r_start_col - 1 in
               let l = String.sub line 0 n in
               let r = String.sub line n (String.length line - n) in
-              l ^ red r (* FIXME not tested *)
+              l ^ ulined (red r) (* FIXME not tested *)
             else if num = pos.end_line then
               let n = pos.r_end_col - 1 in
               let l = String.sub line 0 n in
               let r = String.sub line n (String.length line - n) in
-              red l ^ r (* FIXME not tested *)
+              ulined (red l) ^ r (* FIXME not tested *)
             else red line
           in
           Printf.fprintf oc "%s%s%s\n" config.prefix number line

@@ -48,8 +48,8 @@ let parser path = ps:{path_atom '.'}* f:path_atom -> ps @ [f]
 let parser lid = id:''[a-z][a-zA-Z0-9_']*'' -> KW.check_not_keyword id; id
 let parser uid = id:''[A-Z][a-zA-Z0-9_']*'' -> KW.check_not_keyword id; id
 
-let parser llid = id:lid -> in_pos _loc id
-let parser luid = id:uid -> in_pos _loc id
+let parser llid = id:lid -> in_pos _loc_id id
+let parser luid = id:uid -> in_pos _loc_id id
 
 let parser llid_wc =
   | id:lid -> in_pos _loc id
