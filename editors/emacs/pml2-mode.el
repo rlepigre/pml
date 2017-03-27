@@ -28,7 +28,7 @@
 				    "include" "type" "if" "else" "check"
                                     "fix" "unfold" "clear" "quit" "parse" "latex"
                                     "exit" "set" "html" "such" "that" "abort"
-				    "def" "sort" "show" "deduce"))
+				    "def" "sort" "show" "deduce" "using"))
                       "\\>") ; FIXME
               'font-lock-keyword-face)
         )
