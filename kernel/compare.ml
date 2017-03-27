@@ -218,7 +218,7 @@ let {eq_expr; eq_bndr} =
     | (Reco(m1)      , Reco(m2)      ) ->
         A.equal (fun (_,v1) (_,v2) -> eq_expr v1 v2) m1 m2
     | (Scis          , Scis          ) -> true
-    | (VDef(d1)      , VDef(d2)      ) -> d1 == d2 (* FIXME ? *)
+    | (VDef(d1)      , VDef(d2)      ) -> d1 == d2 (* FIXME #48 ? *)
     | (Valu(v1)      , Valu(v2)      ) -> eq_expr v1 v2
     | (Appl(t1,u1)   , Appl(t2,u2)   ) -> eq_expr t1 t2 && eq_expr u1 u2
     (* NOTE type annotation ignored. *)
@@ -257,7 +257,7 @@ let {eq_expr; eq_bndr} =
            if u1.uvar_key <> u2.uvar_key then uvar_set u1 e2; (* arbitrary *)
            true
          end
-    (* FIXME experimental. *)
+    (* FIXME #48 experimental. *)
     | (UVar(_,u1)    , Func({elt = Memb(t,a)}, b))
                    when not strict && uvar_occurs u1 t ->
        eq_expr e1 (Pos.none (Func(a,b)))

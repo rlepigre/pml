@@ -1004,7 +1004,7 @@ let to_value : term -> eq_ctxt -> (valu * eq_ctxt) option = fun t {pool} ->
   | Ptr.V_ptr(v) ->
      let (v, pool) = canonical_valu v pool in
      Some (v, { pool })
-  | Ptr.T_ptr(_) -> None (* FIXME: keep the pool in this case too *)
+  | Ptr.T_ptr(_) -> None (* FIXME #47 keep the pool in this case too *)
 
 let learn : eq_ctxt -> relation -> eq_ctxt = fun ctx rel ->
   log_edp "learning %a" print_relation rel;

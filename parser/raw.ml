@@ -563,7 +563,7 @@ let rec sort_filter : type a b. a sort -> boxed -> a box =
           | Eq  -> e
           | NEq -> Printf.printf "ERROR: %a ≠ %a\n%!" Print.print_sort s
                      Print.print_sort k;
-                   assert false (* FIXME error management. *)
+                   assert false (* FIXME #46 error management. *)
         end
 
 let to_valu : boxed -> v box = sort_filter V
@@ -612,7 +612,7 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
                 end
           with Not_found ->
             let d = find_value x.elt env in
-            if args <> [] then assert false; (* FIXME *)
+            if args <> [] then assert false; (* FIXME #46 *)
             Box(V, box (Pos.make x.pos (VDef(d))))
         end
     | (EHOFn(x,k,f) , SFun(a,b)) ->
@@ -864,7 +864,7 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
             (c.elt, (c.pos, x, f))
           in
           let gn m (k,v) =
-            if A.mem k m then assert false; (* FIXME handle error *)
+            if A.mem k m then assert false; (* FIXME #46 handle error *)
             A.add k v m
           in
           let m = List.fold_left gn A.empty (List.map fn l) in
