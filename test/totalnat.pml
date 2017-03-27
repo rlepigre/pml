@@ -9,13 +9,13 @@ def add0 = fix fun add n m →
   case n {
     | Z[] → m
     | S[p] → let _ = add p m in
-             let x = add p m in
-             succ x
+             S[add p m] // succ (add p m) fails ?
+                        // it should be exactly the same
   }
 
 val add : ∀n m∈nat, ∃v↓, v∈nat | v ≡ add0 n m = add0
 
-val test : add ≡ add0 = {}
+val test : add ≡ add0 = {} // did not work before 23/3/2017 patch
 
 val rec add_asso : ∀n m q∈nat, add n (add m q) ≡ add (add n m) q =
     fun n m q →
