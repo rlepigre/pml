@@ -70,9 +70,9 @@ let quote_file : ?config:config -> out_channel -> Pos.pos -> unit =
           let line =
             if not in_pos then line else
             if num = pos.start_line && num = pos.end_line then
-              if pos.r_end_col < pos.r_start_col then
-                quote_error pos "Invalid position (start col after end col)"
               let len = String.length line in
+              if pos.r_end_col < pos.r_start_col then
+                quote_error pos "Invalid position (start col after end col)";
               let n = pos.r_end_col - pos.r_start_col + 1 in
               (*
               Printf.eprintf ">>> %i-%i (%i)\n%!"
