@@ -224,9 +224,12 @@ let {eq_expr; eq_bndr} =
     | (Reco(m1)      , Reco(m2)      ) ->
         A.equal (fun (_,v1) (_,v2) -> eq_expr v1 v2) m1 m2
     | (Scis          , Scis          ) -> true
-    | (VDef(d1)      , VDef(d2)      ) -> d1 == d2 ||
-                                            eq_expr (Erase.to_valu d1.value_eval)
-                                                    (Erase.to_valu d2.value_eval)
+    | (VDef(d1)      , VDef(d2)      ) when d1 == d2
+                                       -> true
+    | (VDef(d1)      , _             ) ->
+        eq_expr (Erase.to_valu d1.value_eval) e2
+    | (_             , VDef(d2)      ) ->
+        eq_expr e1 (Erase.to_valu d2.value_eval)
     | (Valu(v1)      , Valu(v2)      ) -> eq_expr v1 v2
     | (Appl(t1,u1)   , Appl(t2,u2)   ) -> eq_expr t1 t2 && eq_expr u1 u2
     (* NOTE type annotation ignored. *)
