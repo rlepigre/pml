@@ -1,13 +1,9 @@
 (** A module for quoting extracts of a text file. *)
 
-(** [get_lines fname off len] returns a list of lines from file [fname]. It
-    starts at the [off]-th line (starting at 1) for a number of [len] lines
-    (lines out of the range of the file are ignored). *)
-val get_lines : string -> int -> int -> string list
-
 (** [get_from_to fname off1 off2] returns the list of the lines of the file
-    [fname] starting at the [off1]-th line to the [off2]-th line. *)
-val get_from_to : string -> int -> int -> string list
+    [fname] starting at the [off1]-th line to the [off2]-th line. Lines not
+    in range are ignored. *)
+val get_lines : string -> int -> int -> string list
 
 (** Type for the configuration of the quoting function. *)
 type config =

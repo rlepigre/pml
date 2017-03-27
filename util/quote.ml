@@ -1,19 +1,16 @@
-let get_lines : string -> int -> int -> string list = fun fname off nbl ->
+let get_lines : string -> int -> int -> string list = fun fname off1 off2 ->
   let ch = open_in fname in
-  for i = 1 to off - 1 do ignore (input_line ch) done;
+  for i = 1 to off1 - 1 do ignore (input_line ch) done;
   let lines = ref [] in
   begin
     try
-      for i = 0 to nbl-1 do
+      for i = max 1 off1 to off2 do
         lines := input_line ch :: !lines
       done
     with End_of_file -> ()
   end;
   close_in ch;
   List.rev !lines
-
-let get_from_to : string -> int -> int -> string list = fun fname off1 off2 ->
-  get_lines fname off1 (max (off2 - off1 + 1) 0) 
 
 
 type config =
@@ -34,7 +31,12 @@ let separator : string = String.make 78 '='
 let header : string -> string = fun s ->
   "== " ^ s ^ " " ^ (String.make (74 - String.length s) '=')
 
-let red : string -> string = fun s -> "\027[31m" ^ s ^ "\027[0m"
+let red : string -> string =
+  fun s -> "\027[31m" ^ s ^ "\027[0m"
+
+(* DEBUG
+let red s = "[" ^ red s ^ "]"
+*)
 
 exception Quote_error of Pos.pos * string
 let quote_error : type a. Pos.pos -> string -> a = fun pos msg ->
@@ -48,10 +50,10 @@ let quote_file : ?config:config -> out_channel -> Pos.pos -> unit =
     | Some fname ->
         if pos.start_line > pos.end_line then
           quote_error pos "Invalid position (start after end)";
-        let off1 = max 0 (pos.start_line - config.leading)  in
+        let off1 = max 1 (pos.start_line - config.leading)  in
         let off2 = pos.end_line   + config.trailing in
         let lines =
-          try get_from_to fname off1 off2 with _ ->
+          try get_lines fname off1 off2 with _ ->
             quote_error pos "Cannot obtain the lines from the file"
         in
         let max_num = String.length (string_of_int off2) in
@@ -70,9 +72,9 @@ let quote_file : ?config:config -> out_channel -> Pos.pos -> unit =
             if num = pos.start_line && num = pos.end_line then
               let len = String.length line in
               let n = pos.r_end_col - pos.r_start_col + 1 in
-              let l = String.sub line 0 (pos.r_start_col - 1) in
-              let c = String.sub line (pos.r_start_col - 1) n in
-              let r = String.sub line pos.r_end_col (len - pos.r_end_col) in
+              let l = String.sub line 0 pos.r_start_col in
+              let c = String.sub line pos.r_start_col n in
+              let r = String.sub line (pos.r_end_col + 1) (len - pos.r_end_col - 1) in
               l ^ red c ^ r
             else if num = pos.start_line then
               let n = pos.r_start_col - 1 in
