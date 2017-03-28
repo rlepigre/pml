@@ -14,8 +14,8 @@ val false : bool = Fls[{}]
 
 def cond<c:τ,t:τ,e:τ> =
   case (c : bool) {
-    | Tru[_] → t
-    | Fls[_] → e
+    Tru[_] → t
+    Fls[_] → e
   }
 
 def land<a:τ,b:τ> = cond<a,b,fls>
@@ -39,8 +39,8 @@ val some : ∀a, a ⇒ option<a> = fun e → Some[e]
 
 val map_option : ∀a b, (a ⇒ b) ⇒ option<a> ⇒ option<b> = fun fn o →
   case o {
-    | None[_] → none
-    | Some[e] → some (fn e)
+    None[_] → none
+    Some[e] → some (fn e)
   }
 
 // Either type.
@@ -51,15 +51,15 @@ val inr : ∀a b, b ⇒ either<a,b> = fun x → InR[x]
 
 val gather : ∀a b c, (a ⇒ c) ⇒ (b ⇒ c) ⇒ either<a,b> ⇒ c = fun f g e →
   case e {
-    | InL[x] → f x
-    | InR[x] → g x
+    InL[x] → f x
+    InR[x] → g x
   }
 
 val map_either : ∀a b c d, (a ⇒ c) ⇒ (b ⇒ d) ⇒ either<a,b> ⇒ either<c,d> =
   fun f g e →
     case e {
-      | InL[x] → InL[f x]
-      | InR[x] → InR[g x]
+      InL[x] → InL[f x]
+      InR[x] → InR[g x]
     }
 
 // Minimal tactics

@@ -265,10 +265,7 @@ let parser expr (m : mode) =
       when m = `Trm`A
       -> in_pos _loc (EProj(t, ref `T, l))
   (* Term (case analysis) *)
-  | _case_ t:(expr (`Trm`F)) '{' '|'? ps:(lsep "|" pattern) '}'
-      when m = `Trm`A
-      -> in_pos _loc (ECase(t, ref `T, ps))
-  | "[" "?" t:(expr (`Trm`F)) '|' ps:(lsep "|" pattern) "]"
+  | _case_ t:(expr (`Trm`F)) '{' ps:pattern* '}'
       when m = `Trm`A
       -> in_pos _loc (ECase(t, ref `T, ps))
   (* Term (conditional) *)
@@ -361,9 +358,9 @@ and fun_arg =
   | id:llid                               -> (id, None  )
   | "(" id:llid ":" a:(expr (`Prp`A)) ")" -> (id, Some a)
 and pattern =
-  | c:luid "[" x:{ llid {":" (expr (`Prp`F))}?
-                 | { EMPTY | '_' } -> (Pos.in_pos _loc "_", None)}
-               "]" arrow t:(expr (`Trm`F))
+  | '|'? c:luid "[" x:{ llid {":" (expr (`Prp`F))}?
+                      | { EMPTY | '_' } -> (Pos.in_pos _loc "_", None)}
+                "]" arrow t:(expr (`Trm`F))
     -> (c, x, t)
 let expr = expr `Any
 

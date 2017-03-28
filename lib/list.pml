@@ -8,32 +8,32 @@ val cons : ∀a:ο, ∀x∈a, list<a> ⇒ list<a> = fun hd tl → Cons[{hd = hd;
 
 val hd : ∀a:ο, list<a> ⇒ option<a> = fun l →
   case l {
-    | Nil[_]  → none
-    | Cons[c] → some c.hd
+    Nil[_]  → none
+    Cons[c] → some c.hd
   }
 
 val tl : ∀a:ο, list<a> ⇒ option<list<a>> = fun l →
   case l {
-    | Nil[_]  → none
-    | Cons[c] → some c.tl
+    Nil[_]  → none
+    Cons[c] → some c.tl
   }
 
 val rec length : ∀a:ο, list<a> ⇒ nat = fun l →
   case l {
-    | Nil[_]  → zero
-    | Cons[c] → succ (length c.tl)
+    Nil[_]  → zero
+    Cons[c] → succ (length c.tl)
   }
 
 val rec map : ∀a b:ο, (a ⇒ b) ⇒ list<a> ⇒ list<b> = fun fn l →
   case l {
-    | Nil[_]  → nil
-    | Cons[c] → cons (fn c.hd) (map fn c.tl)
+    Nil[_]  → nil
+    Cons[c] → cons (fn c.hd) (map fn c.tl)
   }
 
 val rec fold_left : ∀a b:ο, (a ⇒ b ⇒ a) ⇒ a ⇒ list<b> ⇒ a = fun fn acc l →
   case l {
-    | Nil[_]  → acc
-    | Cons[c] → fold_left fn (fn acc c.hd) c.tl
+    Nil[_]  → acc
+    Cons[c] → fold_left fn (fn acc c.hd) c.tl
   }
 
 val sum : list<nat> ⇒ nat = fold_left add zero
