@@ -12,6 +12,12 @@
     ; This is added so entity names with underscores can be more easily parsed
     (modify-syntax-entry ?_ "w" pml2-mode-syntax-table)
     (modify-syntax-entry ?' "w" pml2-mode-syntax-table)
+    (modify-syntax-entry ?( "(" pml2-mode-syntax-table)
+    (modify-syntax-entry ?{ "(" pml2-mode-syntax-table)
+    (modify-syntax-entry ?[ "(" pml2-mode-syntax-table)
+    (modify-syntax-entry ?) "w" pml2-mode-syntax-table)
+    (modify-syntax-entry ?} "w" pml2-mode-syntax-table)
+    (modify-syntax-entry ?] "w" pml2-mode-syntax-table)
     ; comments definition
     ; . means punctuation
     ; // 12 means first and second char of one line comments
@@ -65,6 +71,61 @@
 
 )
 
+; test if current position must be indented in a fixed
+; from the parenthesis level
+(defun lvl-keyword ()
+       (or
+            (equal (char-after) ?|)
+            (equal (char-after) ?\;)
+            (equal (char-after) ?\))
+            (equal (char-after) ?])
+            (equal (char-after) ?})
+            (equal (buffer-substring (point) (+ (point) 3)) "def")
+            (equal (buffer-substring (point) (+ (point) 3)) "val")
+            (equal (buffer-substring (point) (+ (point) 4)) "type")))
+
+; move to the first non blank char at the beginning of a
+; line. Return nil if the line has only blank
+(defun move-to-first-non-blank ()
+       (end-of-line)
+       (setq pos2 (point))
+       (beginning-of-line)
+       (if (search-forward-regexp "[^ \t\n\r]" pos2 t)
+         (progn (backward-char) t)))
+
+
+(defun pml2-indent-function ()
+       (save-excursion
+            ; ppss = parenthesis level computed
+            ; for the line beginning.
+            (beginning-of-line)
+	    (let ((ppss (syntax-ppss))
+		  (pos1 (point))
+		  (lvl nil)
+		  (pos2 nil)
+		  (pos3 nil))
+		 (setq lvl (car ppss))
+                 ; special cases indented directly from lvl
+                 (move-to-first-non-blank)
+		 (if (lvl-keyword)
+                     (indent-line-to (* 2 lvl))
+                 ; general cases indented from the previous
+                 ; non empty line
+                 (previous-line)
+                 (while (not (move-to-first-non-blank)) (previous-line))
+		 (setq pos3 (point))
+  		 (beginning-of-line)
+		 (setq pos2 (point))
+                 ; indent on the chat after the keywords below,
+                 ; if the line is non empty
+		 (if (search-forward-regexp
+		          "\\(\\(→\\)\\|\\(⇒\\)\\)[ \t]*[^ \t\n\r]"
+		          pos1 t)
+		     (setq pos3 (- (match-end 0) 1)))
+		 (setq pos3 (- pos3 pos2))
+		 (setq pos3 (max pos3 (+ 2 (* 2 lvl))))
+		 (goto-char pos1)
+		 (indent-line-to pos3)))))
 
  ;;;###autoload
 (define-derived-mode pml2-mode fundamental-mode "Pml2"
@@ -72,31 +133,19 @@
   (set-syntax-table pml2-mode-syntax-table)
   (setq-local font-lock-defaults '(pml2-font-lock-keywords))
   (setq-local comment-start "//")
+  (setq-default indent-tabs-mode nil)
   ;(setq-local font-lock-defaults
   ;            '(pml2-font-lock-keywords))
-  (setq-local indent-line-function 'pml2-indent-line)
   (set-input-method "Pml2")
                                         ;(setq-local imenu-generic-expression
                                         ;pml2-imenu-generic-expression)
                                         ;(setq-local outline-regexp pml2-outline-regexp)
-  )
+
 
  ;;; Indentation
 
-                                        ; (defun pml2-indent-line ()
-                                        ;   "Indent current line of Pml2 code."
-                                        ;   (interactive)
-                                        ;   (let ((savep (> (current-column) (current-indentation)))
-;;       (indent (condition-case nil (max (pml2-calculate-indentation) 0)
-;;                 (error 0))))
-;;     (if savep
-;;       (save-excursion (indent-line-to indent))
-;;       (indent-line-to indent))))
-
-;; (defun pml2-calculate-indentation ()
-;;   "Return the column to which the current line should be indented."
-;;   ...)
+  (set (make-local-variable 'indent-line-function) #'pml2-indent-function))
 
 (add-to-list 'auto-mode-alist '("\\.pml\\'" . pml2-mode))
 
- ;;; pml2.el ends here
+;;; pml2.el ends here
