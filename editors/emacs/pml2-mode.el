@@ -73,46 +73,92 @@
 
 ; test if current position must be indented in a fixed
 ; from the parenthesis level
-(defun lvl-keyword ()
+(defun pml2-lvl-keyword ()
        (or
             (equal (char-after) ?|)
             (equal (char-after) ?\;)
             (equal (char-after) ?\))
-            (equal (char-after) ?])
+            (equal (char-after) ?\])
             (equal (char-after) ?})
             (equal (buffer-substring (point) (+ (point) 3)) "def")
             (equal (buffer-substring (point) (+ (point) 3)) "val")
             (equal (buffer-substring (point) (+ (point) 4)) "type")))
 
+(defun pml2-extra-indent-keyword ()
+       (or
+            (equal (buffer-substring (point) (+ (point) 3)) "fun")))
+
+(defun pml2-closing ()
+       (or
+            (equal (char-after) ?|)
+            (equal (char-after) ?\;)
+            (equal (char-after) ?\))
+            (equal (char-after) ?\])
+            (equal (char-after) ?})))
+
+(defun pml2-is-comment ()
+       (equal (buffer-substring (point) (+ (point) 2)) "//"))
+
 ; move to the first non blank char at the beginning of a
 ; line. Return nil if the line has only blank
-(defun move-to-first-non-blank ()
+(defun pml2-move-to-first-non-blank ()
        (end-of-line)
        (setq pos2 (point))
        (beginning-of-line)
        (if (search-forward-regexp "[^ \t\n\r]" pos2 t)
          (progn (backward-char) t)))
 
-
 (defun pml2-indent-function ()
        (save-excursion
             ; ppss = parenthesis level computed
             ; for the line beginning.
             (beginning-of-line)
+            (if (equal (point) 1) ; particular case for the first line
+                (indent-line-to 0)   ; to avoid error
 	    (let ((ppss (syntax-ppss))
 		  (pos1 (point))
 		  (lvl nil)
 		  (pos2 nil)
-		  (pos3 nil))
-		 (setq lvl (car ppss))
-                 ; special cases indented directly from lvl
-                 (move-to-first-non-blank)
-		 (if (lvl-keyword)
-                     (indent-line-to (* 2 lvl))
+		  (pos3 nil)
+                  (extra 2))
+                 ; compute in plvl the column of the first non blanlk
+                 ; on the opening parenthesis
+                 (if (car (cdr ppss))
+                     (progn
+                          (goto-char (car (cdr ppss)))
+                          (pml2-move-to-first-non-blank)
+                          (setq pos3 (point))
+                          (beginning-of-line)
+                          (setq plvl (- pos3 (point)))
+                          (goto-char pos1))
+                     (setq plvl 0))
+                 ; special cases indented directly from plvl
+                 (pml2-move-to-first-non-blank)
+		 (if (pml2-lvl-keyword)
+                     (indent-line-to plvl)
+                 ; special case for comments indented from
+                 ; the next line if non empty,
+                 ; otherwise back to default
+                 (if (and (pml2-is-comment)
+                          (let ((res nil))
+                               (next-line)
+                               (setq res
+                                     (and (pml2-move-to-first-non-blank)
+                                          (not (pml2-closing))))
+                               (if (not res) (previous-line))
+                               res))
+                     (progn
+                          (setq pos3 (point))
+                          (beginning-of-line)
+		          (setq pos2 (point))
+                          (setq pos3 (- pos3 pos2))
+                          (goto-char pos1)
+		          (indent-line-to pos3))
                  ; general cases indented from the previous
                  ; non empty line
                  (previous-line)
-                 (while (not (move-to-first-non-blank)) (previous-line))
+                 (while (not (pml2-move-to-first-non-blank)) (previous-line))
+                 (if (pml2-extra-indent-keyword) (setq extra 4))
 		 (setq pos3 (point))
   		 (beginning-of-line)
 		 (setq pos2 (point))
@@ -123,9 +169,9 @@
 		          pos1 t)
 		     (setq pos3 (- (match-end 0) 1)))
 		 (setq pos3 (- pos3 pos2))
-		 (setq pos3 (max pos3 (+ 2 (* 2 lvl))))
+		 (setq pos3 (max pos3 (+ extra plvl)))
 		 (goto-char pos1)
-		 (indent-line-to pos3)))))
+		 (indent-line-to pos3)))))))
 
  ;;;###autoload
 (define-derived-mode pml2-mode fundamental-mode "Pml2"
