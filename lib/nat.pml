@@ -163,3 +163,14 @@ val rec add_comm : ∀m n∈nat, add m n ≡ add n m = fun m n →
              deduce add S[k] n ≡ add n S[k];
              qed
   }
+
+//// Properties of multiplication ////////////////////////////////////////////
+
+// Totality of multiplication.
+val rec mul_total : ∀n m∈nat, ∃v:ι↓, mul n m ≡ v = fun n m →
+  case n {
+    | Z[_] → qed
+    | S[k] → use mul_total k m;
+             use add_total m (mul k m)
+  }
+

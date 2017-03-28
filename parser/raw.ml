@@ -557,6 +557,9 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
 
 type boxed = Box : 'a sort * 'a ex loc bindbox -> boxed
 
+let box_set_pos : boxed -> Pos.popt -> boxed = fun (Box(s,e)) pos ->
+  Box(s, Bindlib.box_apply (fun e -> {e with pos}) e)
+
 let rec sort_filter : type a b. a sort -> boxed -> a box =
   fun s bx ->
     match (s, bx) with
@@ -591,9 +594,10 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
         begin
           try
             let box =
-              try snd (M.find x.elt vars) with Not_found ->
-              let Expr(sx, d) = find_expr x.elt env in
-              Box(sx, box (Pos.make x.pos (HDef(sx,d))))
+              try box_set_pos (snd (M.find x.elt vars)) e.pos
+              with Not_found ->
+                let Expr(sx, d) = find_expr x.elt env in
+                Box(sx, box (Pos.make x.pos (HDef(sx,d))))
             in
             let rec build_app (Box(se,e)) args =
               match (se, args) with
