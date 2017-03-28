@@ -93,12 +93,12 @@ let quote_file : ?config:config -> out_channel -> Pos.pos -> unit =
               let n = pos.r_start_col - 1 in
               let l = String.sub line 0 n in
               let r = String.sub line n (String.length line - n) in
-              l ^ ulined (red r) (* FIXME not tested *)
+              l ^ ulined (red r)
             else if num = pos.end_line then
               let n = pos.r_end_col in
               let l = String.sub line 0 n in
               let r = String.sub line n (String.length line - n) in
-              ulined (red l) ^ r (* FIXME not tested *)
+              ulined (red l) ^ r
             else ulined (red line)
           in
           Printf.fprintf oc "%s%s%s\n" config.prefix number line
