@@ -110,14 +110,13 @@ val rec add_total : ∀n m∈nat, ∃v:ι↓, add n m ≡ v = fun n m →
     | S[k] → use add_total k m; qed
   }
 
-// Associativity of addition.
+// Associativity of addition (detailed proof).
 val rec add_assoc : ∀m n p∈nat, add m (add n p) ≡ add (add m n) p =
   fun m n p →
     use add_total n p;
     case m {
-      | Z[_] → deduce add Z (add n p) ≡ add (add Z n) p;
-               deduce add n p ≡ add (add Z n) p;
-               deduce add n p ≡ add n p;
+      | Z[_] → deduce add n p ≡ add (add Z n) p;
+               deduce add Z (add n p) ≡ add (add Z n) p;
                qed
       | S[k] → show add k (add n p) ≡ add (add k n) p using add_assoc k n p;
                deduce S[add k (add n p)] ≡ S[add (add k n) p];
@@ -128,9 +127,39 @@ val rec add_assoc : ∀m n p∈nat, add m (add n p) ≡ add (add m n) p =
                qed
     }
 
-// Zero as a neutral element on the right (left is trivial).
-val rec add_zero_n : ∀n∈nat, add n zero ≡ n = fun n →
+// Zero as a neutral element on the right (detailed proof).
+val rec add_n_zero : ∀n∈nat, add n zero ≡ n = fun n →
   case n {
-    | Z[_] → qed
-    | S[k] → use add_zero_n k; qed
+    | Z[_] → deduce add Z Z ≡ Z;
+             deduce Z ≡ Z;
+             qed
+    | S[k] → show add k Z ≡ k using add_n_zero k;
+             deduce S[add k Z] ≡ S[k];
+             deduce add S[k] Z ≡ S[k];
+             qed
+  }
+
+// Successor on the right can be taken out (detailed proof).
+val rec add_n_succ : ∀m n∈nat, add m S[n] ≡ S[add m n] = fun m n →
+  case m {
+    | Z[_] → deduce add Z S[n] ≡ S[add Z n];
+             qed
+    | S[k] → show add k S[n] ≡ S[add k n] using add_n_succ k n;
+             deduce S[add k S[n]] ≡ S[S[add k n]];
+             deduce add S[k] S[n] ≡ S[S[add k n]];
+             deduce add S[k] S[n] ≡ S[add S[k] n];
+             qed
+  }
+
+// Commutativity of addition (detailed proof).
+val rec add_comm : ∀m n∈nat, add m n ≡ add n m = fun m n →
+  case m {
+    | Z[_] → show add n Z ≡ add Z n using add_n_zero n;
+             deduce add Z n ≡ add n Z;
+             qed
+    | S[k] → show add k n ≡ add n k using add_comm k n;
+             deduce S[add k n] ≡ S[add n k];
+             show S[add k n] ≡ add n S[k] using add_n_succ n k;
+             deduce add S[k] n ≡ add n S[k];
+             qed
   }
