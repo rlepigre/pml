@@ -48,7 +48,7 @@ let quote_file : ?config:config -> out_channel -> Pos.pos -> unit =
     | None       -> quote_error pos "Unable to quote (no filename)"
     | Some fname ->
         if pos.start_line > pos.end_line then
-          quote_error pos "Invalid position (start line after end line)";
+          quote_error pos "Invalid line position (start after end)";
         let off1 = max 1 (pos.start_line - config.leading)  in
         let off2 = pos.end_line   + config.trailing in
         let lines =
@@ -67,37 +67,29 @@ let quote_file : ?config:config -> out_channel -> Pos.pos -> unit =
             else ""
           in
           let line =
+            let len = Utf8.len line in
             if not in_pos then line else
             if num = pos.start_line && num = pos.end_line then
-              let len = String.length line in
-              if pos.r_end_col < pos.r_start_col then
+              let n = pos.end_col - pos.start_col + 1 in
+              if pos.end_col < pos.start_col then
                 begin
                   Printf.eprintf ">>> pos.start_col   = %i\n" pos.start_col;
                   Printf.eprintf ">>> pos.end_col     = %i\n" pos.end_col;
-                  Printf.eprintf ">>> pos.r_start_col = %i\n" pos.r_start_col;
-                  Printf.eprintf ">>> pos.r_end_col   = %i\n" pos.r_end_col;
-                quote_error pos "Invalid position (start col after end col)";
+                  quote_error pos "Invalid column position (start after end)";
                 end;
-              let n = pos.r_end_col - pos.r_start_col + 1 in
-              (*
-              Printf.eprintf ">>> %i-%i (%i)\n%!"
-                pos.r_start_col pos.r_end_col n;
-              *)
-              let l = String.sub line 0 (pos.r_start_col-1) in
-              let c = String.sub line (pos.r_start_col-1) n in
-              let r =
-                String.sub line pos.r_end_col (len - pos.r_end_col)
-              in
+              let l = Utf8.sub line 0 (pos.start_col-1) in
+              let c = Utf8.sub line (pos.start_col-1) n in
+              let r = Utf8.sub line pos.end_col (len - pos.end_col) in
               l ^ ulined (red c) ^ r
             else if num = pos.start_line then
-              let n = pos.r_start_col - 1 in
-              let l = String.sub line 0 n in
-              let r = String.sub line n (String.length line - n) in
+              let n = pos.start_col - 1 in
+              let l = Utf8.sub line 0 n in
+              let r = Utf8.sub line n (len - n) in
               l ^ ulined (red r)
             else if num = pos.end_line then
-              let n = pos.r_end_col in
-              let l = String.sub line 0 n in
-              let r = String.sub line n (String.length line - n) in
+              let n = pos.end_col in
+              let l = Utf8.sub line 0 n in
+              let r = Utf8.sub line n (len - n) in
               ulined (red l) ^ r
             else ulined (red line)
           in
