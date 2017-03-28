@@ -100,11 +100,20 @@ and handle_file env fn =
           match p with
           | None   -> err_msg "Unbound variable %s." x;
           | Some p -> err_msg "Unbound variable %s at %a." x
-                      Pos.print_short_pos p;
+                        Pos.print_short_pos p;
                       Quote.quote_file stderr p
         in
         exit 1
       end
+  | Already_matched(c)      ->
+      begin
+        match c.pos with
+        | None   -> err_msg "%s has already been matched." c.elt;
+        | Some p -> err_msg "%s (at %a) has already been matched." c.elt
+                      Pos.print_short_pos p;
+                    Quote.quote_file stderr p
+      end;
+      exit 1
 
 (* Command line argument parsing. *)
 let files =

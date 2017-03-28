@@ -258,6 +258,10 @@ exception Too_many_args of strloc
 let too_many_args : strloc -> 'a =
   fun s -> raise (Too_many_args(s))
 
+exception Already_matched of strloc
+let already_matched : strloc -> 'a =
+  fun s -> raise (Already_matched(s))
+
 let rec eq_sort : env -> raw_sort -> raw_sort -> bool = fun env s1 s2 ->
   log_par "eq_sort %a %a" print_raw_sort s1 print_raw_sort s2;
   match ((sort_repr env s1).elt, (sort_repr env s2).elt) with
@@ -863,8 +867,9 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
             in
             (c.elt, (c.pos, x, f))
           in
+          let get_pos (p,_,_) = p in
           let gn m (k,v) =
-            if A.mem k m then assert false; (* FIXME #46 handle error *)
+            if A.mem k m then already_matched (Pos.make (get_pos v) k);
             A.add k v m
           in
           let m = List.fold_left gn A.empty (List.map fn l) in
