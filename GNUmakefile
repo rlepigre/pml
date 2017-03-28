@@ -119,6 +119,16 @@ clean:
 distclean: clean
 	rm -f *~ pml2/*~ kernel/*~ parser/*~ editor/*~ doc/*~ test/*~ util/*~
 
+# Install for the vim mode.
+install_vim: editors/vim/indent/pml.vim editors/vim/syntax/pml.vim
+	cp editors/vim/syntax/pml.vim ~/.vim/syntax/pml.vim
+	cp editors/vim/indent/pml.vim ~/.vim/indent/pml.vim
+	@echo -e "\e[36m==== Add the following to '$(HOME)/.vimrc'\e[39m"
+	@echo "au BufRead,BufNewFile *.pml set filetype=pml"
+	@echo "au! Syntax pml source $(HOME)/.vim/syntax/pml.vim"
+	@echo "autocmd BufEnter *.pml source $(HOME)/.vim/indent/pml.vim"
+	@echo -e "\e[36m==== Add the above to '$(HOME)/.vimrc'\e[39m"
+
 # Install.
 install: main.native $(wldcard lib/*.pml)
 	install -d /usr/local/bin
