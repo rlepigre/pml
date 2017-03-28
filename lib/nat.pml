@@ -18,15 +18,23 @@ val rec mul : nat ⇒ nat ⇒ nat = fun n m →
     | S[k] → add m (mul k m)
   }
 
-val rec eq : nat ⇒ nat ⇒ bool = fun n m →
+val rec compare : nat ⇒ nat ⇒ [Ls ; Eq ; Gr] = fun n m →
   case n {
     | Z[_] → case m {
-               | S[_] → false
+               | Z[_] → Eq
+               | S[_] → Ls
              }
     | S[n] → case m {
-               | Z[_] → false
-               | S[m] → eq n m
+               | Z[_] → Gr
+               | S[m] → compare n m
              }
+  }
+
+val eq : nat ⇒ nat ⇒ bool = fun n m →
+  case compare n m {
+    | Ls[_] → false
+    | Eq[_] → true
+    | Gr[_] → false
   }
 
 // Examples
