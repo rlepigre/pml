@@ -65,3 +65,5 @@ val map_either : ∀a b c d, (a ⇒ c) ⇒ (b ⇒ d) ⇒ either<a,b> ⇒ either<
 // Minimal tactics
 def tac_deduce<f:ο> : τ = ({} : f)
 def tac_show<f:ο, p:τ> : τ = (p : f)
+def tac_use<p:τ> : τ = p
+def tac_qed : τ = {}

@@ -72,6 +72,8 @@ let _in_      = KW.new_keyword "in"
 let _if_      = KW.new_keyword "if"
 let _else_    = KW.new_keyword "else"
 let _show_    = KW.new_keyword "show"
+let _use_     = KW.new_keyword "use"
+let _qed_     = KW.new_keyword "qed"
 let _using_   = KW.new_keyword "using"
 let _deduce_  = KW.new_keyword "deduce"
 
@@ -282,6 +284,13 @@ let parser expr (m : mode) =
   | _show_ a:(expr (`Prp`F)) _using_ t:(expr (`Trm`Ap))$
       when m = `Trm`A
       -> show_using _loc a t
+  (* Use tactic *)
+  | _use_ t:(expr (`Trm`Ap))$
+      when m = `Trm`A
+      -> use _loc t
+  | _qed_
+      when m = `Trm`A
+      -> qed _loc
   (* Term (fixpoint) *)
   | _fix_ t:(expr (`Trm`F))
       when m = `Trm`F
