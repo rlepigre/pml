@@ -206,3 +206,18 @@ val rec mul_n_succ : ∀n m∈nat, mul n S[m] ≡ add n (mul n m) = fun n m →
            deduce mul S[k] S[m] ≡ add S[k] (mul S[k] m);
            qed
   }
+
+// Multiplication is commutative (detailed proof).
+val rec mul_comm : ∀n m∈nat, mul n m ≡ mul m n = fun n m →
+  case n {
+    Z[_] → deduce mul Z m ≡ Z;
+           show mul m Z ≡ Z using mul_n_zero m;
+           deduce mul Z m ≡ mul m Z;
+           qed
+    S[k] → show mul k m ≡ mul m k using mul_comm k m;
+           deduce add m (mul k m) ≡ add m (mul m k);
+           deduce mul S[k] m ≡ add m (mul m k);
+           show mul m S[k] ≡ add m (mul k m) using mul_n_succ m k;
+           deduce mul S[k] m ≡ mul m S[k];
+           qed
+  }
