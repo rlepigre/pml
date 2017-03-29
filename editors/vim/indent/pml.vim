@@ -52,6 +52,6 @@ function! GetPMLIndent()
   endif
 
   " Defaults to zero.
-  return 0
+  return ind
 
 endfunction

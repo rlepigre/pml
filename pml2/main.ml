@@ -187,41 +187,38 @@ let files =
 
 let _ =
   let rec print_exn = function
+  | Type_error(E(_,t),c,exc) ->
+      begin
+        match t.pos with
+        | None   -> err_msg "Type error:\n%a : %a"
+                      Print.print_ex t Print.print_ex c
+        | Some p -> err_msg "Type error at %a:\n%a : %a"
+                      Pos.print_short_pos p Print.print_ex t Print.print_ex c;
+                    Quote.quote_file stderr p
+     end; print_exn exc
   | Typing.Subtype_error(t,a,b,e) ->
-     begin
-       match t.pos with
-       | None ->
-          err_msg "SubType error at ?";
-       | Some p ->
-          err_msg "SubType error at %s" (pos_to_string p);
-     end;
-     err_msg "%a : %a < %a" Print.print_ex t Print.print_ex a Print.print_ex b;
-     print_exn e
-
+      begin
+        match t.pos with
+        | None   -> err_msg "Subtype error:\n%a ∈ %a ⊂ %a"
+                      Print.print_ex t Print.print_ex a Print.print_ex b
+        | Some p -> err_msg "SubType error at %a:\n  %a ∈ %a ⊂ %a"
+                      Pos.print_short_pos p Print.print_ex t
+                      Print.print_ex a Print.print_ex b;
+                    Quote.quote_file stderr p
+      end; print_exn e
   | Typing.Subtype_msg(p,msg) ->
-     begin
-       match p with
-       | None   -> err_msg "Subtype error: %s." msg
-       | Some p -> err_msg "Subtype error in %s." (pos_to_string p);
-                   err_msg "Message: %s." msg;
-                   Quote.quote_file stderr p
-     end;
+      begin
+        match p with
+        | None   -> err_msg "Subtype error:\n%s." msg
+        | Some p -> err_msg "Subtype error at %a:\n%s."
+                      Pos.print_short_pos p msg;
+                    Quote.quote_file stderr p
+      end
   | Typing.Reachable            ->
-     err_msg "Reachable scissors"
+      err_msg "Reachable scissors"
   | Equiv.Failed_to_prove(rel)  ->
-     err_msg "Failed to prove an equational relation.";
-     err_msg "  %a" Equiv.print_relation_pos rel
-  | Type_error(E(s,e),c,exn) ->
-     begin
-       match e.pos with
-       | None ->
-          err_msg "Type error at ?";
-       | Some p ->
-          err_msg "Type error at %s" (pos_to_string p);
-          Quote.quote_file stderr p
-     end;
-    err_msg "%a : %a" Print.print_ex e Print.print_ex c;
-    print_exn exn
+      err_msg "Failed to prove an equational relation.";
+      err_msg "  %a" Equiv.print_relation_pos rel
   | e ->
      err_msg "Unexpected exception [%s]." (Printexc.to_string e);
      err_msg "%t" Printexc.print_backtrace;

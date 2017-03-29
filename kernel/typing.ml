@@ -369,11 +369,17 @@ and gen_subtype : ctxt -> prop -> prop -> sub_rule =
     Sub_Gene(subtype ctx wit a b)
 
 and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
-  let v = Norm.whnf v in
   let t = Pos.make v.pos (Valu(v)) in
   log_typ "(val) %a : %a" Print.ex v Print.ex c;
-  try let r =
+  try
+  let r =
     match v.elt with
+    (* Higher-order application. *)
+    | HApp(_,_,_) ->
+        begin
+          try let (_, _, r) = type_valu ctx (Norm.whnf v) c in r
+          with e -> type_error (E(V,v)) c e
+        end
     (* λ-abstraction. *)
     | LAbs(ao,f)  ->
        begin
@@ -474,34 +480,39 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
     | EWit(_,_,_) -> unexpected "∃-witness during typing..."
     | UVar(_)     -> unexpected "unification variable during typing..."
     | Vari(_)     -> unexpected "Free variable during typing..."
-    | HApp(_)     -> unexpected "Higher-order application during typing..."
     | Dumm        -> unexpected "Dummy value during typing..."
     | ITag(_)     -> unexpected "ITag during typing..."
- in
-  (Pos.make v.pos (Valu(v)), c, r)
+  in (Pos.make v.pos (Valu(v)), c, r)
   with
   | Type_error _ as e -> raise e
   | e -> type_error (E(V,v)) c e
 
 and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
   log_typ "(trm) %a : %a" Print.ex t Print.ex c;
-  try let r =
-    match (Norm.whnf t).elt with
+  try
+  let r =
+    match t.elt with
+    (* Higher-order application. *)
+    | HApp(_,_,_) ->
+        begin
+          try let (_, _, r) = type_term ctx (Norm.whnf t) c in r
+          with e -> type_error (E(T,t)) c e
+        end
     (* Value. *)
     | Valu(v)     ->
-       let (_, _, r) = type_valu ctx v c in r
+        let (_, _, r) = type_valu ctx v c in r
     (* Application or strong application. *)
     | Appl(t,u)   ->
-       let a = new_uvar ctx P in
-       let (is_val, ctx) = term_is_value u ctx in
-       let ae = if is_val then Pos.none (Memb(u, a)) else a in
-       let p2 = type_term ctx u a in
-       (* NOTE: should learn_equivalences from the type of t, and
-          use these equivalences while typing u. Would require to
-          type t first and u second which breaks a lot of examples currently.
-          Only useful for Scott integer and similar inductive type  *)
-       let p1 = type_term ctx t (Pos.none (Func(ae,c))) in
-       if is_val then Typ_Func_s(p1,p2) else Typ_Func_e(p1,p2)
+        let a = new_uvar ctx P in
+        let (is_val, ctx) = term_is_value u ctx in
+        let ae = if is_val then Pos.none (Memb(u, a)) else a in
+        let p2 = type_term ctx u a in
+        (* NOTE: should learn_equivalences from the type of t, and
+           use these equivalences while typing u. Would require to
+           type t first and u second which breaks a lot of examples currently.
+           Only useful for Scott integer and similar inductive type  *)
+        let p1 = type_term ctx t (Pos.none (Func(ae,c))) in
+        if is_val then Typ_Func_s(p1,p2) else Typ_Func_e(p1,p2)
     (* μ-abstraction. *)
     | MAbs(b)     ->
         let t = bndr_subst b (SWit(b,c)) in
@@ -575,7 +586,7 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
         Typ_TLam(p)
     (* Definition. *)
     | HDef(_,d)   ->
-       let (_, _, r) = type_term ctx d.expr_def c in r
+        let (_, _, r) = type_term ctx d.expr_def c in r
     (* Goal *)
     | Goal(_,str) ->
         wrn_msg "goal %s %a" str Pos.print_pos_opt t.pos;
@@ -585,19 +596,24 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
     | EWit(_,_,_) -> unexpected "∃-witness during typing..."
     | UVar(_)     -> unexpected "unification variable during typing..."
     | Vari(_)     -> unexpected "Free variable during typing..."
-    | HApp(_)     -> unexpected "Higher-order application during typing..."
     | Dumm        -> unexpected "Dummy value during typing..."
     | ITag(_)     -> unexpected "ITag during typing..."
-  in
-  (t, c, r)
+  in (t, c, r)
   with
   | Type_error _ as e -> raise e
-  | e -> type_error (E(T,t)) c e
+  | e                 -> type_error (E(T,t)) c e
 
 and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
   log_typ "(stk) %a : %a" Print.ex s Print.ex c;
-  try let r =
-    match (Norm.whnf s).elt with
+  try
+  let r =
+    match s.elt with
+    (* Higher-order application. *)
+    | HApp(_,_,_) ->
+        begin
+          try let (_, _, r) = type_stac ctx (Norm.whnf s) c in r
+          with e -> type_error (E(S,s)) c e
+        end
     | Push(v,pi)  ->
         let a = new_uvar ctx P in
         let b = new_uvar ctx P in
@@ -635,11 +651,9 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
     | EWit(_,_,_) -> unexpected "∃-witness during typing..."
     | UVar(_)     -> unexpected "unification variable during typing..."
     | Vari(_)     -> unexpected "Free variable during typing..."
-    | HApp(_)     -> unexpected "Higher-order application during typing..."
     | Dumm        -> unexpected "Dummy value during typing..."
     | ITag(_)     -> unexpected "Tag during typing..."
-  in
-  (s, c, r)
+  in (s, c, r)
   with
   | Type_error _ as e -> raise e
   | e -> type_error (E(S,s)) c e

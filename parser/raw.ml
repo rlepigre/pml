@@ -599,13 +599,13 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
                 let Expr(sx, d) = find_expr x.elt env in
                 Box(sx, box (Pos.make x.pos (HDef(sx,d))))
             in
-            let rec build_app (Box(se,e)) args =
+            let rec build_app (Box(se,ex)) args =
               match (se, args) with
               | (F(sa,sb), a::args) ->
                   let sa' = sort_from_ast sa in
                   let a = sort_filter sa (unsugar env vars a sa') in
-                  build_app (Box(sb, happ None sa e a)) args
-              | (_       , []     ) -> Box(se,e)
+                  build_app (Box(sb, happ e.pos sa ex a)) args
+              | (_       , []     ) -> Box(se,ex)
               | (_       , _      ) -> assert false
             in
             let Box(se,ex) = build_app box args in
