@@ -597,7 +597,8 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
               try box_set_pos (snd (M.find x.elt vars)) e.pos
               with Not_found ->
                 let Expr(sx, d) = find_expr x.elt env in
-                Box(sx, box (Pos.make x.pos (HDef(sx,d))))
+                let bx = Box(sx, box (Pos.make x.pos (HDef(sx,d)))) in
+                box_set_pos bx e.pos
             in
             let rec build_app (Box(se,ex)) args =
               match (se, args) with

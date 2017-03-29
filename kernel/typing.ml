@@ -465,7 +465,10 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
         Typ_VWit(p)
     (* Definition. *)
     | HDef(_,d)   ->
-        let (_, _, r) = type_valu ctx d.expr_def c in r
+        begin
+          try let (_, _, r) = type_valu ctx d.expr_def c in r
+          with e -> type_error (E(V,v)) c e
+        end
     (* Value definition. *)
     | VDef(d)     ->
         let p = subtype ctx t d.value_type c in
@@ -586,7 +589,10 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
         Typ_TLam(p)
     (* Definition. *)
     | HDef(_,d)   ->
-        let (_, _, r) = type_term ctx d.expr_def c in r
+        begin
+          try let (_, _, r) = type_term ctx d.expr_def c in r
+          with e -> type_error (E(T,t)) c e
+        end
     (* Goal *)
     | Goal(_,str) ->
         wrn_msg "goal %s %a" str Pos.print_pos_opt t.pos;
@@ -640,7 +646,10 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
         Stk_SWit(subtype ctx wit c a)
     (* Definition. *)
     | HDef(_,d)   ->
-        let (_, _, r) = type_stac ctx d.expr_def c in r
+        begin
+          try let (_, _, r) = type_stac ctx d.expr_def c in r
+          with e -> type_error (E(S,s)) c e
+        end
     (* Goal *)
     | Goal(_,str) ->
         wrn_msg "goal %s at %a" str Pos.print_pos_opt s.pos;
