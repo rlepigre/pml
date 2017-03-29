@@ -183,3 +183,26 @@ val rec mul_n_zero : ∀n∈nat, mul n Z ≡ Z = fun n →
            deduce add Z (mul k Z) ≡ Z;
            qed
   }
+
+// Successor on the right can be taken out (detailed proof).
+val rec mul_n_succ : ∀n m∈nat, mul n S[m] ≡ add n (mul n m) = fun n m →
+  case n {
+    Z[_] → deduce mul Z S[m] ≡ add Z (mul Z m);
+           qed
+    S[k] → show mul k S[m] ≡ add k (mul k m) using mul_n_succ k m;
+           deduce add S[m] (mul k S[m]) ≡ add S[m] (add k (mul k m));
+           use mul_total k S[m];
+           deduce mul S[k] S[m] ≡ add S[m] (add k (mul k m));
+           deduce mul S[k] S[m] ≡ S[add m (add k (mul k m))];
+           use mul_total k m;
+           show add m (add k (mul k m)) ≡ add (add m k) (mul k m)
+             using add_assoc m k (mul k m);
+           show add m k ≡ add k m using add_comm m k;
+           show add m (add k (mul k m)) ≡ add k (add m (mul k m))
+             using add_assoc k m (mul k m);
+           deduce mul S[k] S[m] ≡ S[add k (add m (mul k m))];
+           deduce mul S[k] S[m] ≡ S[add k (mul S[k] m)];
+           use mul_total S[k] m;
+           deduce mul S[k] S[m] ≡ add S[k] (mul S[k] m);
+           qed
+  }
