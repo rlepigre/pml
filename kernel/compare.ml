@@ -29,14 +29,17 @@ let uvar_eq : type a. a uvar -> a uvar -> bool =
 
 type uvar_fun = { f : 'a. 'a sort -> 'a uvar -> unit }
 
+type b = A : 'a ex -> b
+
 let uvar_iter : type a. uvar_fun -> a ex loc -> unit = fun f e ->
   let not_closed b = not (Bindlib.binder_closed (snd b)) in
-  let adone = Ahash.create 101 in
-  let todo e =
-    if Ahash.mem adone (Obj.repr e) then false
-    else (
-      Ahash.add adone (Obj.repr e) ();
-      true)
+  let adone = Ahash.create 67 in
+  let todo : type a . a ex loc -> bool =
+    fun e ->
+      if Ahash.mem adone (A e.elt) then false
+      else (
+        Ahash.add adone (A e.elt) ();
+        true)
   in
   let rec uvar_iter : type a. a ex loc -> unit = fun e ->
     let uvar_iter_cond c =
