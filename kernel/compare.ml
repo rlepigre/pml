@@ -111,6 +111,8 @@ let uvars : type a. a ex loc -> s_elt list = fun e ->
   in
   uvar_iter {f} e; !uvars
 
+let chrono_occur = Chrono.create "occur"
+
 let uvar_occurs : type a b. a uvar -> b ex loc -> bool = fun u e ->
   let f _ v =
     if v.uvar_key == u.uvar_key then
@@ -119,7 +121,7 @@ let uvar_occurs : type a b. a uvar -> b ex loc -> bool = fun u e ->
         raise Exit
       end
   in
-  try uvar_iter {f} e; false with Exit -> true
+  try Chrono.add_time chrono_occur (uvar_iter {f}) e; false with Exit -> true
 
 let uvar_occurs_cond : type a. a uvar -> cond -> bool = fun u c ->
   match c with
