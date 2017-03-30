@@ -12,6 +12,8 @@ open Output
 open ExprInfo
 open Compare
 
+let equiv_chrono = Chrono.create_chrono "equiv"
+
 (* Log function registration. *)
 let log_edp = Log.register 'e' (Some "equ") "equivalence decision procedure"
 let log_edp = Log.(log_edp.p)
@@ -1039,3 +1041,6 @@ let prove : eq_ctxt -> relation -> eq_ctxt = fun ctx rel ->
   with Contradiction ->
     log_edp "proved   %a" print_relation rel;
     ctx
+
+let learn ctx rel = Chrono.cumulative_chrono2 equiv_chrono learn ctx rel
+let prove ctx rel = Chrono.cumulative_chrono2 equiv_chrono prove ctx rel

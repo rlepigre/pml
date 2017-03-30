@@ -225,3 +225,6 @@ let _ =
   in
   try ignore (List.fold_left handle_file Env.empty files) with
   | e -> print_exn e; exit 1
+
+
+let _ = Chrono.display_all ()
