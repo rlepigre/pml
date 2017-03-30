@@ -140,8 +140,7 @@ type eq =
   { eq_expr : 'a. ?oracle:oracle -> ?strict:bool ->
                 'a ex loc -> 'a ex loc -> bool
   ; eq_bndr : 'a 'b. ?oracle:oracle -> ?strict:bool -> 'a sort ->
-                ('a,'b) bndr -> ('a,'b) bndr -> bool
-  }
+                ('a,'b) bndr -> ('a,'b) bndr -> bool }
 
 (* Comparison function with unification variable instantiation. *)
 let {eq_expr; eq_bndr} =
