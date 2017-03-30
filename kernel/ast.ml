@@ -220,148 +220,146 @@ let mk_free : 'a var -> 'a ex =
 (** {5 Higher order stuff} *)
 
 let vari : type a. popt -> a var -> a ex loc bindbox =
-  fun pos x -> box_apply (fun x -> {elt = x; pos}) (box_of_var x)
+  fun p x -> box_apply (fun x -> Pos.make p x) (box_of_var x)
 
 let hfun : type a b. popt -> a sort -> b sort -> strloc -> (a var -> b box)
              -> (a -> b) box =
-  fun pos sa sb x f ->
+  fun p sa sb x f ->
     let b = vbind mk_free x.elt f in
-    box_apply (fun b -> {elt = HFun(sa, sb, (x.pos, b)); pos}) b
+    box_apply (fun b -> Pos.make p (HFun(sa, sb, (x.pos, b)))) b
 
 let happ : type a b. popt -> a sort -> (a -> b) box -> a box -> b box =
-  fun pos s -> box_apply2 (fun f a -> {elt = HApp(s,f,a); pos})
+  fun p s -> box_apply2 (fun f a -> Pos.make p (HApp(s,f,a)))
 
 (** {5 Value constructors} *)
 
 let v_vari : popt -> vvar -> vbox = vari
 
 let labs : popt -> pbox option -> strloc -> (vvar -> tbox) -> vbox =
-  fun pos ao x f ->
+  fun p ao x f ->
     let b = vbind mk_free x.elt f in
-    box_apply2 (fun ao b -> {elt = LAbs(ao, (x.pos, b)); pos}) (box_opt ao) b
+    box_apply2 (fun ao b -> Pos.make p (LAbs(ao, (x.pos, b)))) (box_opt ao) b
 
 let cons : popt -> strloc -> vbox -> vbox =
-  fun pos c -> box_apply (fun v -> {elt = Cons(c,v); pos})
+  fun p c -> box_apply (fun v -> Pos.make p (Cons(c,v)))
 
 let reco : popt -> (popt * vbox) A.t -> vbox =
-  fun pos m ->
+  fun p m ->
     let f (lpos, v) = box_apply (fun v -> (lpos, v)) v in
-    box_apply (fun m -> {elt = Reco(m); pos}) (A.map_box f m)
+    box_apply (fun m -> Pos.make p (Reco(m))) (A.map_box f m)
 
 let unit_reco = reco None A.empty
 let scis : popt -> vbox =
-  fun pos -> box {elt = Scis; pos}
+  fun pos -> box (Pos.make pos Scis)
 
 let vtyp : popt -> vbox -> pbox -> vbox =
-  fun pos -> box_apply2 (fun v p -> {elt = VTyp(v,p); pos})
+  fun p -> box_apply2 (fun v a -> Pos.make p (VTyp(v,a)))
 
 let vlam : type a. popt -> strloc -> a sort -> (a var -> vbox) -> vbox =
-  fun pos x s f ->
+  fun p x s f ->
     let b = vbind mk_free x.elt f in
-    box_apply (fun b -> {elt = VLam(s, (x.pos, b)); pos}) b
+    box_apply (fun b -> Pos.make p (VLam(s, (x.pos, b)))) b
 
 (** {5 Term constructors} *)
 
 let t_vari : popt -> tvar -> tbox = vari
 
 let valu : popt -> vbox -> tbox =
-  fun pos -> box_apply (fun v -> {elt = Valu(v); pos})
+  fun p -> box_apply (fun v -> Pos.make p (Valu v))
 
 let appl : popt -> tbox -> tbox -> tbox =
-  fun pos -> box_apply2 (fun t u -> {elt = Appl(t,u); pos})
+  fun p -> box_apply2 (fun t u -> Pos.make p (Appl(t,u)))
 
 let mabs : popt -> strloc -> (svar -> tbox) -> tbox =
-  fun pos x f ->
+  fun p x f ->
     let b = vbind mk_free x.elt f in
-    box_apply (fun b -> {elt = MAbs(x.pos, b); pos}) b
+    box_apply (fun b -> Pos.make p (MAbs(x.pos, b))) b
 
 let name : popt -> sbox -> tbox -> tbox =
-  fun pos -> box_apply2 (fun s t -> {elt = Name(s,t); pos})
+  fun p -> box_apply2 (fun s t -> Pos.make p (Name(s,t)))
 
 let proj : popt -> vbox -> strloc -> tbox =
-  fun pos v l -> box_apply (fun v -> {elt = Proj(v,l); pos}) v
+  fun p v l -> box_apply (fun v -> Pos.make p (Proj(v,l))) v
 
 let case : popt -> vbox -> (popt * strloc * (vvar -> tbox)) A.t -> tbox =
-  fun pos v m ->
+  fun p v m ->
     let f (cpos, x, f) =
       let b = vbind mk_free x.elt f in
       box_apply (fun b -> (cpos, (x.pos, b))) b
     in
-    box_apply2 (fun v m -> {elt = Case(v,m); pos}) v (A.map_box f m)
+    box_apply2 (fun v m -> Pos.make p (Case(v,m))) v (A.map_box f m)
 
 let fixy : popt -> tbox -> vbox -> tbox =
-  fun pos -> box_apply2 (fun t v -> {elt = FixY(t,v); pos})
+  fun p -> box_apply2 (fun t v -> Pos.make p (FixY(t,v)))
 
 let ttyp : popt -> tbox -> pbox -> tbox =
-  fun pos -> box_apply2 (fun t p -> {elt = TTyp(t,p); pos})
+  fun p -> box_apply2 (fun t a -> Pos.make p (TTyp(t,a)))
 
 let tlam : type a. popt -> strloc -> a sort -> (a var -> tbox) -> tbox =
-  fun pos x s f ->
+  fun p x s f ->
     let b = vbind mk_free x.elt f in
-    box_apply (fun b -> {elt = TLam(s, (x.pos, b)); pos}) b
+    box_apply (fun b -> Pos.make p (TLam(s, (x.pos, b)))) b
 
 (** {5 Stack constructors} *)
 
 let s_vari : popt -> svar -> sbox = vari
 
 let epsi : popt -> sbox =
-  fun pos -> box {elt = Epsi; pos}
+  fun p -> box (Pos.make p Epsi)
 
 let push : popt -> vbox -> sbox -> sbox =
-  fun pos -> box_apply2 (fun v s -> {elt = Push(v,s); pos})
+  fun p -> box_apply2 (fun v s -> Pos.make p (Push(v,s)))
 
 let fram : popt -> tbox -> sbox -> sbox =
-  fun pos -> box_apply2 (fun t s -> {elt = Fram(t,s); pos})
+  fun p -> box_apply2 (fun t s -> Pos.make p (Fram(t,s)))
 
 (** {5 Proposition constructors} *)
 
 let p_vari : popt -> pvar -> pbox = vari
 
 let func : popt -> pbox -> pbox -> pbox =
-  fun pos -> box_apply2 (fun a b -> {elt = Func(a,b); pos})
+  fun p -> box_apply2 (fun a b -> Pos.make p (Func(a,b)))
 
 let prod : popt -> (popt * pbox) A.t -> pbox =
-  fun pos m ->
+  fun p m ->
     let f (lpos, a) = box_apply (fun a -> (lpos, a)) a in
-    box_apply (fun m -> {elt = Prod(m); pos}) (A.map_box f m)
+    box_apply (fun m -> Pos.make p (Prod(m))) (A.map_box f m)
 
 let unit_prod = prod None A.empty
 
 let dsum : popt -> (popt * pbox) A.t -> pbox =
-  fun pos m ->
+  fun p m ->
     let f (lpos, a) = box_apply (fun a -> (lpos, a)) a in
-    box_apply (fun m -> {elt = DSum(m); pos}) (A.map_box f m)
+    box_apply (fun m -> Pos.make p (DSum(m))) (A.map_box f m)
 
 let univ : type a. popt -> strloc -> a sort -> (a var -> pbox) -> pbox =
-  fun pos x s f ->
+  fun p x s f ->
     let b = vbind mk_free x.elt f in
-    box_apply (fun b -> {elt = Univ(s, (x.pos, b)); pos}) b
+    box_apply (fun b -> Pos.make p (Univ(s, (x.pos, b)))) b
 
 let exis : type a. popt -> strloc -> a sort -> (a var -> pbox) -> pbox =
-  fun pos x s f ->
+  fun p x s f ->
     let b = vbind mk_free x.elt f in
-    box_apply (fun b -> {elt = Exis(s, (x.pos, b)); pos}) b
+    box_apply (fun b -> Pos.make p (Exis(s, (x.pos, b)))) b
 
 let fixm : popt -> obox -> strloc -> (pvar -> pbox) -> pbox =
-  fun pos o x f ->
+  fun p o x f ->
     let b = vbind mk_free x.elt f in
-    box_apply2 (fun o b -> {elt = FixM(o, (x.pos, b)); pos}) o b
+    box_apply2 (fun o b -> Pos.make p (FixM(o, (x.pos, b)))) o b
 
 let fixn : popt -> obox -> strloc -> (pvar -> pbox) -> pbox =
-  fun pos o x f ->
+  fun p o x f ->
     let b = vbind mk_free x.elt f in
-    box_apply2 (fun o b -> {elt = FixN(o, (x.pos, b)); pos}) o b
+    box_apply2 (fun o b -> Pos.make p (FixN(o, (x.pos, b)))) o b
 
 let memb : popt -> tbox -> pbox -> pbox =
-  fun pos -> box_apply2 (fun t a -> {elt = Memb(t,a); pos})
+  fun p -> box_apply2 (fun t a -> Pos.make p (Memb(t,a)))
 
 let rest : popt -> pbox -> condbox -> pbox =
-  fun pos a c ->
-    box_apply2 (fun a c -> {elt = Rest(a,c); pos}) a c
+  fun p -> box_apply2 (fun a c -> Pos.make p (Rest(a,c)))
 
 let impl : popt -> condbox -> pbox -> pbox =
-  fun pos c a ->
-    box_apply2 (fun c a -> {elt = Impl(c,a); pos}) c a
+  fun p -> box_apply2 (fun c a -> Pos.make p (Impl(c,a)))
 
 (** {5 Condition constructors} *)
 
@@ -380,34 +378,31 @@ let nobox : vbox -> condbox =
 let o_vari : popt -> ovar -> obox = vari
 
 let conv : popt -> obox =
-  fun pos -> box {elt = Conv; pos}
+  fun p -> box (Pos.make p Conv)
 
 let succ : popt -> obox -> obox =
-  fun pos -> box_apply (fun o -> {elt = Succ(o); pos})
+  fun p -> box_apply (fun o -> Pos.make p (Succ(o)))
 
 (** {5 other constructors} *)
 
-let dumm : 'a ex loc =
-  {elt = Dumm; pos = None}
-
 let uwit : type a. popt -> tbox -> strloc -> a sort -> (a var -> pbox)
              -> a box =
-  fun pos t x s f ->
+  fun p t x s f ->
     let b = vbind mk_free x.elt f in
-    box_apply2 (fun t b -> {elt = UWit(s, t, (x.pos, b)); pos}) t b
+    box_apply2 (fun t b -> Pos.make p (UWit(s, t, (x.pos, b)))) t b
 
 let ewit : type a. popt -> tbox -> strloc -> a sort -> (a var -> pbox)
              -> a box =
-  fun pos t x s f ->
+  fun p t x s f ->
     let b = vbind mk_free x.elt f in
-    box_apply2 (fun t b -> {elt = EWit(s, t, (x.pos, b)); pos}) t b
+    box_apply2 (fun t b -> Pos.make p (EWit(s, t, (x.pos, b)))) t b
 
 let owit : type a. popt -> obox -> int -> schema Bindlib.bindbox -> obox =
-  fun pos o i sch ->
-    box_apply2 (fun o sch -> Pos.make pos (OWit(o,i,sch))) o sch
+  fun p o i sch ->
+    box_apply2 (fun o sch -> Pos.make p (OWit(o,i,sch))) o sch
 
 let goal : type a. popt -> a sort -> string -> a ex loc bindbox =
-  fun pos s str -> box (Pos.make pos (Goal(s,str)))
+  fun p s str -> box (Pos.make p (Goal(s,str)))
 
 let schm : Scp.index -> int list -> (int * int) list ->
            (o ex, t ex loc * p ex loc) mbinder bindbox -> schema bindbox =
@@ -415,51 +410,51 @@ let schm : Scp.index -> int list -> (int * int) list ->
     box_apply (fun sch_judge -> { sch_index; sch_posit; sch_relat; sch_judge})
 
 let vwit : popt -> strloc -> (vvar -> tbox) -> pbox -> pbox -> vbox =
-  fun pos x f a c ->
+  fun p x f a c ->
   let b = vbind mk_free x.elt f in
   let a = vbind mk_free x.elt (fun _ -> a) in
-  box_apply3 (fun b a c -> {elt = VWit((x.pos, b),(x.pos, a),c); pos}) b a c
+  box_apply3 (fun b a c -> Pos.make p (VWit((x.pos, b),(x.pos, a),c))) b a c
 
-let vdwit : popt -> strloc -> (vvar -> tbox) -> (vvar -> pbox) -> pbox -> vbox =
-  fun pos x f a c ->
+let vdwit : popt -> strloc -> (vvar->tbox) -> (vvar->pbox) -> pbox -> vbox =
+  fun p x f a c ->
     let b = vbind mk_free x.elt f in
     let a = vbind mk_free x.elt a in
-    box_apply3 (fun b a c -> {elt = VWit((x.pos, b),(x.pos,a),c); pos}) b a c
+    box_apply3 (fun b a c -> Pos.make p (VWit((x.pos, b),(x.pos,a),c))) b a c
 
 let swit : popt -> strloc -> (svar -> tbox) -> pbox -> sbox =
-  fun pos x f a ->
+  fun p x f a ->
     let b = vbind mk_free x.elt f in
-    box_apply2 (fun b a -> {elt = SWit((x.pos, b),a); pos}) b a
+    box_apply2 (fun b a -> Pos.make p (SWit((x.pos, b),a))) b a
 
 (** {5 syntactic sugars} *)
 
 (** Syntactic sugar for the projection of a term. *)
 let t_proj : popt -> tbox -> strloc -> tbox =
-  fun pos t l ->
-    let f x = proj pos (v_vari None x) l in
-    let u = valu pos (labs pos None (Pos.none "x") f) in
-    appl pos u t
+  fun p t l ->
+    let f x = proj p (v_vari None x) l in
+    let u = valu p (labs p None (Pos.none "x") f) in
+    appl p u t
 
 (** Syntactic sugar for the case analysis on a term. *)
 let t_case : popt -> tbox -> (popt * strloc * (vvar -> tbox)) A.t -> tbox =
-  fun pos t m ->
-    let f x = case pos (vari None x) m in
-    let u = valu pos (labs pos None (Pos.none "x") f) in
-    appl pos u t
+  fun p t m ->
+    let f x = case p (vari None x) m in
+    let u = valu p (labs p None (Pos.none "x") f) in
+    appl p u t
 
 (** Syntactic sugar for a constructor applied to a term. *)
 let t_cons : popt -> strloc -> tbox -> tbox =
-  fun pos c t ->
-    let f x = valu pos (cons pos c (vari None x)) in
-    let u = valu pos (labs pos None (Pos.none "x") f) in
-    appl pos u t
+  fun p c t ->
+    let f x = valu p (cons p c (vari None x)) in
+    let u = valu p (labs p None (Pos.none "x") f) in
+    appl p u t
 
 (** Syntactic sugar for records containing terms. *)
 let t_reco : popt -> (string * (popt*tbox)) list -> (popt*vbox) A.t -> tbox =
-  fun pos tfs m ->
+  fun p tfs m ->
     let fn env =
       let add m (l,_) = A.add l (None, List.assoc l env) m in
-      valu pos (reco pos (List.fold_left add m tfs))
+      valu p (reco p (List.fold_left add m tfs))
     in
     let rec build env xs =
       match xs with
@@ -473,11 +468,11 @@ let t_reco : popt -> (string * (popt*tbox)) list -> (popt*vbox) A.t -> tbox =
 
 (** Syntactic sugar for strict product type. *)
 let strict_prod : popt -> (popt * pbox) A.t -> pbox =
-  fun pos m ->
+  fun p m ->
     let fn env = reco None (A.mapi (fun l _ -> (None, List.assoc l env)) m) in
     let rec build env ls =
       match ls with
-      | []    -> memb None (valu None (fn env)) (prod pos m)
+      | []    -> memb None (valu None (fn env)) (prod p m)
       | l::ls -> let fn (x:vvar) = build ((l, vari None x) :: env) ls in
                  exis None (Pos.none l) V fn
     in
