@@ -39,7 +39,7 @@ let uvar_iter : type a. uvar_fun -> a ex loc -> unit = fun f e ->
       true)
   in
   let rec uvar_iter : type a. a ex loc -> unit = fun e ->
-    let uvar_iter_cond f c =
+    let uvar_iter_cond c =
       match c with
       | Equiv(t,_,u) -> uvar_iter t; uvar_iter u
       | NoBox(v)     -> uvar_iter v;
@@ -60,8 +60,8 @@ let uvar_iter : type a. uvar_fun -> a ex loc -> unit = fun f e ->
     | FixM(o,b)   -> uvar_iter o; buvar_iter b
     | FixN(o,b)   -> uvar_iter o; buvar_iter b
     | Memb(t,a)   -> uvar_iter t; uvar_iter a
-    | Rest(a,c)   -> uvar_iter a; uvar_iter_cond f c
-    | Impl(c,a)   -> uvar_iter_cond f c; uvar_iter a
+    | Rest(a,c)   -> uvar_iter a; uvar_iter_cond c
+    | Impl(c,a)   -> uvar_iter_cond c; uvar_iter a
     (* NOTE type annotation ignored. *)
     | LAbs(_,b)   -> buvar_iter b
     | Cons(_,v)   -> uvar_iter v
@@ -94,8 +94,10 @@ let uvar_iter : type a. uvar_fun -> a ex loc -> unit = fun f e ->
     | SWit(b,a)   -> if todo e then (buvar_iter b; uvar_iter a)
     | UWit(_,t,b) -> if todo e then (uvar_iter t; buvar_iter b)
     | EWit(_,t,b) -> if todo e then (uvar_iter t; buvar_iter b)
-    | OWit(o,i,s) -> if todo e then (let (_,(t,k)) = Bindlib.unmbind mk_free s.sch_judge in
-                     uvar_iter o; uvar_iter t; uvar_iter k)
+    | OWit(o,i,s) -> if todo e then begin
+                         let (_,(t,k)) = Bindlib.unmbind mk_free s.sch_judge in
+                         uvar_iter o; uvar_iter t; uvar_iter k
+                       end
     | UVar(s,u)   -> f.f s u
   in uvar_iter e
 
