@@ -221,3 +221,84 @@ val rec mul_comm : ∀n m∈nat, mul n m ≡ mul m n = fun n m →
            deduce mul S[k] m ≡ mul m S[k];
            qed
   }
+
+// Left distributivity of multiplication over addition (detailed proof).
+val rec mul_dist_l : ∀m n p∈nat, mul m (add n p) ≡ add (mul m n) (mul m p) =
+  fun m n p →
+    case m {
+      Z[_] → use add_total n p;
+             deduce mul Z (add n p) ≡ Z;
+             deduce add (mul Z n) (mul Z p) ≡ Z;
+             deduce mul Z (add n p) ≡ add (mul Z n) (mul Z p);
+             qed
+      S[k] → show mul k (add n p) ≡ add (mul k n) (mul k p)
+               using mul_dist_l k n p;
+             deduce add (add n p) (mul k (add n p))
+                  ≡ add (add n p) (add (mul k n) (mul k p));
+             use add_total n p;
+             deduce mul S[k] (add n p)
+                  ≡ add (add n p) (add (mul k n) (mul k p));
+             use mul_total k n;
+             use mul_total k p;
+             use add_total (mul k n) (mul k p);
+             show add (add n p) (add (mul k n) (mul k p))
+                ≡ add n (add p (add (mul k n) (mul k p)))
+               using add_assoc n p (add (mul k n) (mul k p));
+             show add p (add (mul k n) (mul k p))
+                ≡ add (add p (mul k n)) (mul k p)
+               using add_assoc p (mul k n) (mul k p);
+             show add p (mul k n) ≡ add (mul k n) p
+               using add_comm p (mul k n);
+             deduce add (add n p) (add (mul k n) (mul k p))
+                  ≡ add n (add (add (mul k n) p) (mul k p));
+             show add (add (mul k n) p) (mul k p)
+                ≡ add (mul k n) (add p (mul k p))
+               using add_assoc (mul k n) p (mul k p);
+             deduce add (add n p) (add (mul k n) (mul k p))
+                  ≡ add n (add (mul k n) (add p (mul k p)));
+             deduce add (add n p) (add (mul k n) (mul k p))
+                  ≡ add n (add (mul k n) (mul S[k] p));
+             use mul_total S[k] p;
+             show add n (add (mul k n) (mul S[k] p))
+                ≡ add (add n (mul k n)) (mul S[k] p)
+               using add_assoc n (mul k n) (mul S[k] p);
+             deduce add (add n p) (add (mul k n) (mul k p))
+                  ≡ add (mul S[k] n) (mul S[k] p);
+             qed
+    }
+
+// Right distributivity of multiplication over addition (detailed proof).
+val rec mul_dist_r : ∀m n p∈nat, mul (add m n) p ≡ add (mul m p) (mul n p) =
+  fun m n p →
+    show mul p (add m n) ≡ add (mul p m) (mul p n) using mul_dist_l p m n;
+    use add_total m n;
+    show mul p (add m n) ≡ mul (add m n) p using mul_comm p (add m n);
+    deduce mul (add m n) p ≡ add (mul p m) (mul p n);
+    show mul p m ≡ mul m p using mul_comm p m;
+    deduce mul (add m n) p ≡ add (mul m p) (mul p n);
+    show mul p n ≡ mul n p using mul_comm p n;
+    deduce mul (add m n) p ≡ add (mul m p) (mul n p);
+    qed
+
+// Associativity of multiplication (detailed proof).
+val rec mul_assoc : ∀m n p∈nat, mul m (mul n p) ≡ mul (mul m n) p =
+  fun m n p →
+    case m {
+      Z[_] → use mul_total n p;
+             deduce mul Z (mul n p) ≡ Z;
+             deduce mul (mul Z n) p ≡ mul Z p;
+             deduce mul (mul Z n) p ≡ Z;
+             deduce mul Z (mul n p) ≡ mul (mul Z n) p;
+             qed
+      S[k] → show mul k (mul n p) ≡ mul (mul k n) p using mul_assoc k n p;
+             deduce add (mul n p) (mul k (mul n p))
+                  ≡ add (mul n p) (mul (mul k n) p);
+             use mul_total n p;
+             deduce mul S[k] (mul n p) ≡ add (mul n p) (mul (mul k n) p);
+             use mul_total k n;
+             show add (mul n p) (mul (mul k n) p) ≡ mul (add n (mul k n)) p
+               using mul_dist_r n (mul k n) p;
+             deduce mul S[k] (mul n p) ≡ mul (add n (mul k n)) p;
+             deduce mul S[k] (mul n p) ≡ mul (mul S[k] n) p;
+             qed
+    }
