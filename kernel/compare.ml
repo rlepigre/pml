@@ -8,7 +8,7 @@ open Output
 open Print
 open ExprInfo
 
-let compare_chrono = Chrono.create_chrono "compare"
+let compare_chrono = Chrono.create "compare"
 
 (* Log functions registration. *)
 let log_equ = Log.register 'c' (Some "cmp") "comparing informations"
@@ -315,7 +315,7 @@ let {eq_expr; eq_bndr} =
     fun ?(oracle=default_oracle) ?(strict=false) e1 e2 ->
       c := -1; (* Reset. *)
       log_equ "trying to show %a === %a" Print.ex e1 Print.ex e2;
-      let res = Chrono.cumulative_chrono compare_chrono
+      let res = Chrono.add_time compare_chrono
                   (Timed.pure_test (eq_expr oracle strict e1)) e2 in
       log_equ "we have %a %s %a"
               Print.ex e1 (if res then "=" else "≠") Print.ex e2;
@@ -326,7 +326,7 @@ let {eq_expr; eq_bndr} =
                      a sort -> (a,b) bndr -> (a,b) bndr -> bool =
     fun ?(oracle=default_oracle) ?(strict=false) s1 b1 b2 ->
       c := -1; (* Reset. *)
-      let res = Chrono.cumulative_chrono compare_chrono
+      let res = Chrono.add_time compare_chrono
                   (Timed.pure_test (eq_bndr oracle strict s1 b1)) b2 in
       res
   in

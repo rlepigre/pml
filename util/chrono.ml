@@ -1,83 +1,65 @@
+(** Small timer library for timing the application of functions. *)
 
-(* Le petit programme suivant chronomètre le temps nécessaire pour
-appliquer une fonction à un argument (le temps de calcul de l'argument
-n'étant pas compris). *)
+let unix_time : unit -> float = fun () ->
+  Unix.(let t = times () in t.tms_utime +. t.tms_stime)
 
-(* necessite la librairie UNIX *)
+let time : (float -> unit) -> ('a -> 'b) -> 'a -> 'b = fun rt fn x ->
+  let t = unix_time () in
+  try let res = fn x in rt (unix_time () -. t); res
+  with e -> rt (unix_time () -. t); raise e
 
-let chrono s f x =
-  let {Unix.tms_utime = ut;Unix.tms_stime = st} = Unix.times () in
+type t_aux = { name : string ; active : bool ; time : float ; count : int }
+type t = t_aux ref
+type chrono = t
+
+let get_name  : t -> string = fun p -> (!p).name
+let get_time  : t -> float  = fun p -> (!p).time
+let get_count : t -> int    = fun p -> (!p).count
+
+let all_chronos : t list ref = ref []
+
+let create name =
+  let st = { name ; active = false ; time = 0.0 ; count = 0 } in
+  let chr = ref st in all_chronos := chr :: !all_chronos; chr
+
+type state = t_aux list
+
+let save_state () =
+  let fn chr =
+    let r = !chr in
+    chr := { r with active = false ; time = 0.0 ; count = 0 }; r
+  in
+  List.map fn !all_chronos
+
+let restore_state backup =
+  List.iter2 (:=) !all_chronos backup
+
+let chrono_stack = ref 0.0
+
+let pop_time t0 t1 =
+  let t2 = unix_time () in
+  let s = !chrono_stack in
+  let d = t2 -. t1 +. t0 in
+  chrono_stack := d; d -. s
+
+let add_time p f x =
+  let st = !p in
+  if st.active then f x else
+  let ut = unix_time () in
+  p := { st with active = true ; count = st.count + 1 };
+  let ud0 = !chrono_stack in
   try
     let r = f x in
-    let {Unix.tms_utime = ut';Unix.tms_stime = st'} = Unix.times () in
-    Printf.printf "%s: %.2fs ... " s ((ut' -. ut) +. (st' -. st));
-    flush stdout;
+    let t = pop_time ud0 ut in
+    let st = !p in
+    p := { st with active = false ; time = st.time +. t };
     r
   with e ->
-    let {Unix.tms_utime = ut';Unix.tms_stime = st'} = Unix.times () in
-    Printf.printf "%s: %.2fs ... " s ((ut' -. ut) +. (st' -. st));
-    flush stdout;
+    let t = pop_time ud0 ut in
+    let st = !p in
+    p := { st with active = false ; time = st.time +. t };
     raise e
 
-let all_chronos = ref []
-
-let create_chrono (name:string) =
-  let chrono = ref (name, false, 0.0, 0) in
-  all_chronos:=chrono::!all_chronos;
-  chrono
-
-let save_chronos () =
-  List.map (fun chr -> let (name, _ , _, _) as r = !chr in
-                       chr := name, false, 0.0, 0; r) !all_chronos
-
-let restore_chronos backup =
-  List.iter2 (fun chr saved -> chr:=saved) !all_chronos backup
-
-let chrono_stack = ref (0.0, 0.0)
-
-let pop_time ud0 sd0 ut st =
-  let {Unix.tms_utime = ut';Unix.tms_stime = st'} = Unix.times () in
-  let (ud1, sd1) = !chrono_stack in
-  let ud = ut' -. ut +. ud0 and sd = st' -. st +. sd0 in
-  chrono_stack := (ud, sd);
-  (ud -. ud1) +. (sd -. sd1)
-
-let cumulative_chrono p f x =
-  let name, active, cur, count = !p in
-  if active then f x else begin
-    p:= name, true, cur, count+1;
-    let {Unix.tms_utime = ut;Unix.tms_stime = st} = Unix.times () in
-    let (ud0, sd0) = !chrono_stack in
-    let ut = ut and st = st in
-    try
-      let r = f x in
-      let t = pop_time ud0 sd0 ut st in
-      let _, _, cur, count = !p in
-      p := (name, false, cur +. t, count);
-      r
-    with e ->
-      let t = pop_time ud0 sd0 ut st in
-      let _, _, cur, count = !p in
-      p := (name, false, cur +. t, count);
-      raise e
-  end
-
-let cumulative_chrono2 p f x1 x2 =
-  cumulative_chrono p (f x1) x2
-
-let cumulative_chrono3 p f x1 x2 x3 =
-  cumulative_chrono p (f x1 x2) x3
-
-let cumulative_chrono4 p f x1 x2 x3 x4 =
-  cumulative_chrono p (f x1 x2 x3) x4
-
-let get_time p =
-  let active, cur, count = !p in cur
-
-let get_count p =
-  let active, cur, count = !p in count
-
-let display_all () =
-  List.iter (fun c ->
-      let (name, _, cur, count) = !c in
-      Printf.eprintf "%s: %f %d\n" name cur count) !all_chronos
+let iter fn =
+  let gn { contents = st } = fn st.name st.time st.count in
+  List.iter gn !all_chronos

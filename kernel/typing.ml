@@ -674,9 +674,9 @@ let type_check : term -> prop -> prop * typ_proof = fun t a ->
   assert(l = []); (* FIXME #44 *)
   (Norm.whnf a, prf)
 
-let type_chrono = Chrono.create_chrono "typing"
+let type_chrono = Chrono.create "typing"
 
-let type_check = Chrono.cumulative_chrono2 type_chrono type_check
+let type_check t = Chrono.add_time type_chrono (type_check t)
 
 (* FIXME #32 hack to compile the SCP. *)
 open Scp

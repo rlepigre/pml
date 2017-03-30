@@ -227,4 +227,4 @@ let _ =
   | e -> print_exn e; exit 1
 
 
-let _ = Chrono.display_all ()
+let _ = Chrono.iter (Printf.eprintf "%s: %f %d\n")
