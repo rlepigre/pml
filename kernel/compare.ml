@@ -32,11 +32,11 @@ type uvar_fun = { f : 'a. 'a sort -> 'a uvar -> unit }
 let uvar_iter : type a. uvar_fun -> a ex loc -> unit = fun f e ->
   let not_closed b = not (Bindlib.binder_closed (snd b)) in
   let adone = Ahash.create 101 in
-  let test_done e =
-    if Ahash.mem adone (Obj.repr e) then true
+  let todo e =
+    if Ahash.mem adone (Obj.repr e) then false
     else (
       Ahash.add adone (Obj.repr e) ();
-      false)
+      true)
   in
   let rec uvar_iter : type a. a ex loc -> unit = fun e ->
     let uvar_iter_cond f c =
@@ -47,7 +47,7 @@ let uvar_iter : type a. uvar_fun -> a ex loc -> unit = fun f e ->
     in
     let buvar_iter b = if not_closed b then uvar_iter (bndr_subst b Dumm) in
     let e = Norm.whnf e in
-    if not (test_done e) then match e.elt with
+    match e.elt with
     | Vari(_)     -> ()
     | HFun(_,_,b) -> buvar_iter b
     | HApp(_,a,b) -> uvar_iter a; uvar_iter b
@@ -90,12 +90,12 @@ let uvar_iter : type a. uvar_fun -> a ex loc -> unit = fun f e ->
     | ITag(_)     -> ()
     | Dumm        -> ()
     | Goal(_)     -> ()
-    | VWit(b,a,c) -> buvar_iter b; buvar_iter a; uvar_iter c
-    | SWit(b,a)   -> buvar_iter b; uvar_iter a
-    | UWit(_,t,b) -> uvar_iter t; buvar_iter b
-    | EWit(_,t,b) -> uvar_iter t; buvar_iter b
-    | OWit(o,i,s) -> let (_,(t,k)) = Bindlib.unmbind mk_free s.sch_judge in
-                     uvar_iter o; uvar_iter t; uvar_iter k
+    | VWit(b,a,c) -> if todo e then (buvar_iter b; buvar_iter a; uvar_iter c)
+    | SWit(b,a)   -> if todo e then (buvar_iter b; uvar_iter a)
+    | UWit(_,t,b) -> if todo e then (uvar_iter t; buvar_iter b)
+    | EWit(_,t,b) -> if todo e then (uvar_iter t; buvar_iter b)
+    | OWit(o,i,s) -> if todo e then (let (_,(t,k)) = Bindlib.unmbind mk_free s.sch_judge in
+                     uvar_iter o; uvar_iter t; uvar_iter k)
     | UVar(s,u)   -> f.f s u
   in uvar_iter e
 
@@ -292,7 +292,8 @@ let {eq_expr; eq_bndr} =
          | Memb(t,a) when uvar_occurs u2 t
            -> remove_occur_check a
          | Func({elt = Impl(c,a)}, b) when uvar_occurs_cond u2 c
-           -> remove_occur_check (Pos.none (Func(a,b)))
+           ->
+            remove_occur_check (Pos.none (Func(a,b)))
          | _ -> b (* NOTE #48: more cases are possible *)
        in
        let e1 = remove_occur_check e1 in

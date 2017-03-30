@@ -1044,3 +1044,9 @@ let prove : eq_ctxt -> relation -> eq_ctxt = fun ctx rel ->
 
 let learn ctx rel = Chrono.cumulative_chrono2 equiv_chrono learn ctx rel
 let prove ctx rel = Chrono.cumulative_chrono2 equiv_chrono prove ctx rel
+let to_value t eqs = Chrono.cumulative_chrono2 equiv_chrono to_value t eqs
+let is_value t eqs = Chrono.cumulative_chrono2 equiv_chrono is_value t eqs
+let check_nobox v eqs = Chrono.cumulative_chrono2 equiv_chrono check_nobox v eqs
+let add_nobox v eqs = Chrono.cumulative_chrono2 equiv_chrono add_nobox v eqs
+let find_proj eqs v = Chrono.cumulative_chrono2 equiv_chrono find_proj eqs v
+let find_sum eqs v = Chrono.cumulative_chrono2 equiv_chrono find_sum eqs v
