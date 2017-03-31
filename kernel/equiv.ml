@@ -250,6 +250,7 @@ let parents : Ptr.t -> pool -> PtrSet.t = fun p po ->
 
 let add_parents : Ptr.t -> PtrSet.t -> pool -> pool = fun p nps po ->
   match p with
+
   | Ptr.V_ptr vp ->
      let (ps, n) = find_v_node vp po in
      {po with vs = VPtrMap.add vp (PtrSet.union nps ps, n) po.vs}
@@ -341,8 +342,20 @@ let immediate_nobox : v_node -> bool = function
 (** Insertion function for nodes. *)
 exception FoundV of VPtr.t
 let insert_v_node : v_node -> pool -> VPtr.t * pool = fun nn po ->
-  let fn p (_,n) = if eq_v_nodes po n nn then raise (FoundV p) in
-  try VPtrMap.iter fn po.vs; raise Not_found with
+  let children = children_v_node nn in
+  try
+    match children with
+    | [] ->
+       let fn p (_,n) = if eq_v_nodes po n nn then raise (FoundV p) in
+       VPtrMap.iter fn po.vs; raise Not_found
+    | n::_ ->
+       let fn n = match n with
+         | Ptr.T_ptr _ -> ()
+         | Ptr.V_ptr n ->
+            if eq_v_nodes po (snd (find_v_node n po)) nn then raise (FoundV n)
+       in
+       PtrSet.iter fn (parents n po); raise Not_found
+  with
   | FoundV(p) -> (p, po)
   | Not_found ->
       let ptr = VPtr.V po.next in
@@ -350,14 +363,25 @@ let insert_v_node : v_node -> pool -> VPtr.t * pool = fun nn po ->
       let next = po.next + 1 in
       let bs = if immediate_nobox nn then VPtrSet.add ptr po.bs else po.bs in
       let po = { po with vs ; bs; next } in
-      let children = children_v_node nn in
       let po = add_parent_v_nodes ptr children po in
       (ptr, po)
 
 exception FoundT of TPtr.t
 let insert_t_node : t_node -> pool -> TPtr.t * pool = fun nn po ->
-  let fn p (_,n) = if eq_t_nodes po n nn then raise (FoundT p) in
-  try TPtrMap.iter fn po.ts; raise Not_found with
+  let children = children_t_node nn in
+  try
+    match children with
+    | [] ->
+       let fn p (_,n) = if eq_t_nodes po n nn then raise (FoundT p) in
+       TPtrMap.iter fn po.ts; raise Not_found
+    | n::_ ->
+       let fn n = match n with
+         | Ptr.V_ptr _ -> ()
+         | Ptr.T_ptr n ->
+            if eq_t_nodes po (snd (find_t_node n po)) nn then raise (FoundT n)
+       in
+       PtrSet.iter fn (parents n po); raise Not_found
+  with
   | FoundT(p) -> (p, po)
   | Not_found ->
       let ptr = TPtr.T po.next in
@@ -369,7 +393,6 @@ let insert_t_node : t_node -> pool -> TPtr.t * pool = fun nn po ->
       in
       let next = po.next + 1 in
       let po = { po with eq_map; ts ; next } in
-      let children = children_t_node nn in
       let po = add_parent_t_nodes ptr children po in
       (ptr, po)
 
