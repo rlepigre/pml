@@ -115,6 +115,10 @@ and handle_file env fn =
       end;
       exit 1
 
+let parsing_chrono = Chrono.create "parsing"
+
+let handle_file = Chrono.add_time parsing_chrono handle_file
+
 (* Command line argument parsing. *)
 let files =
   let files = ref [] in
@@ -227,4 +231,10 @@ let _ =
   | e -> print_exn e; exit 1
 
 
-let _ = Chrono.iter (Printf.eprintf "%s: %f %d\n")
+let _ =
+  let total = ref 0.0 in
+  Chrono.iter (
+      fun name t c ->
+        total := !total +. t;
+        Printf.eprintf "%8s: %8.2fs %8d\n" name t c);
+  Printf.eprintf "%8s: %8.2fs\n" "total" !total

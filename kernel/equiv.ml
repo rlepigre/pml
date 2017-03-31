@@ -792,7 +792,7 @@ type equiv   = term * term
 type inequiv = term * term
 
 let eq_val : eq_ctxt -> valu -> valu -> bool = fun {pool} v1 v2 ->
-  if v1 == v2 then true else begin
+  if v1.elt == v2.elt then true else begin
   log_edp "eq_val: inserting %a = %a in context\n%a" Print.print_ex v1
           Print.print_ex v2 (print_pool "        ") pool;
   let (p1, pool) = add_valu pool v1 in
@@ -806,7 +806,7 @@ let eq_val : eq_ctxt -> valu -> valu -> bool = fun {pool} v1 v2 ->
   eq_expr t1 t2 end
 
 let eq_trm : eq_ctxt -> term -> term -> bool = fun {pool} t1 t2 ->
-  if t1 == t2 then true else begin
+  if t1.elt == t2.elt then true else begin
   log_edp "eq_trm: inserting %a = %a in context\n%a" Print.print_ex t1
           Print.print_ex t2 (print_pool "        ") pool;
   let (p1, pool) = add_term pool t1 in

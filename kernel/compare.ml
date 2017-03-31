@@ -8,8 +8,6 @@ open Output
 open Print
 open ExprInfo
 
-let compare_chrono = Chrono.create "compare"
-
 (* Log functions registration. *)
 let log_equ = Log.register 'c' (Some "cmp") "comparing informations"
 let log_equ = Log.(log_equ.p)
@@ -160,7 +158,7 @@ let {eq_expr; eq_bndr} =
     let eq_bndr b1 b2 = eq_bndr oracle strict b1 b2 in
     let e1 = Norm.whnf e1 in
     let e2 = Norm.whnf e2 in
-    if e1 == e2 then true else (
+    if e1.elt == e2.elt then true else (
     try
       match (sort e1, sort e2) with
       | (V, e1), (V,e2) -> oracle.eq_val e1 e2
@@ -314,6 +312,8 @@ let {eq_expr; eq_bndr} =
         let t = new_itag s1 in
         eq_expr oracle strict (bndr_subst b1 t) (bndr_subst b2 t)
   in
+
+  let compare_chrono = Chrono.create "compare" in
 
   let eq_expr : type a. ?oracle:oracle -> ?strict:bool ->
                           a ex loc -> a ex loc -> bool =
