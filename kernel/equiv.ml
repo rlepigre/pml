@@ -236,11 +236,11 @@ let add_parent_nodes : Ptr.t -> Ptr.t list-> pool -> pool = fun np ps po ->
   in
   List.fold_left fn po ps
 
-let add_parent_v_nodes : VPtr.t -> Ptr.t list -> pool -> pool = fun vp ps po ->
-  add_parent_nodes (Ptr.V_ptr vp) ps po
+let add_parent_v_nodes : VPtr.t -> Ptr.t list -> pool -> pool =
+  fun vp ps po -> add_parent_nodes (Ptr.V_ptr vp) ps po
 
-let add_parent_t_nodes : TPtr.t -> Ptr.t list -> pool -> pool = fun tp ps po ->
-  add_parent_nodes (Ptr.T_ptr tp) ps po
+let add_parent_t_nodes : TPtr.t -> Ptr.t list -> pool -> pool =
+  fun tp ps po -> add_parent_nodes (Ptr.T_ptr tp) ps po
 
 (** Obtain the parents of a pointed node. *)
 let parents : Ptr.t -> pool -> PtrSet.t = fun p po ->
@@ -290,41 +290,45 @@ let eq_tptr : pool -> TPtr.t -> TPtr.t -> bool = fun po p1 p2 ->
   Ptr.compare p1 p2 = 0
 
 (** Equality functions on nodes. *)
-let eq_v_nodes : pool -> v_node -> v_node -> bool = fun po n1 n2 -> n1 == n2 ||
-  let eq_expr e1 e2 = eq_expr ~strict:true e1 e2 in
-  let eq_bndr b1 b2 = eq_bndr ~strict:true b1 b2 in
-  match (n1, n2) with
-  | (VN_LAbs(b1)   , VN_LAbs(b2)   ) -> eq_bndr V b1 b2
-  | (VN_Cons(c1,p1), VN_Cons(c2,p2)) -> c1.elt = c2.elt && eq_vptr po p1 p2
-  | (VN_Reco(m1)   , VN_Reco(m2)   ) -> A.equal (eq_vptr po) m1 m2
-  | (VN_Scis       , VN_Scis       ) -> true
-  | (VN_VWit(w1)   , VN_VWit(w2)   ) -> let (f1,a1,b1) = w1 in
-                                        let (f2,a2,b2) = w2 in
-                                        eq_bndr V f1 f2 && eq_bndr V a1 a2 &&
-                                        eq_expr b1 b2
-  | (VN_UWit(t1,b1), VN_UWit(t2,b2)) -> eq_expr t1 t2 && eq_bndr V b1 b2
-  | (VN_EWit(t1,b1), VN_EWit(t2,b2)) -> eq_expr t1 t2 && eq_bndr V b1 b2
-  | (VN_ITag(n1)   , VN_ITag(n2)   ) -> n1 = n2
-  | (_             , _             ) -> false
+let eq_v_nodes : pool -> v_node -> v_node -> bool =
+  fun po n1 n2 -> n1 == n2 ||
+    let eq_expr e1 e2 = eq_expr ~strict:true e1 e2 in
+    let eq_bndr b1 b2 = eq_bndr ~strict:true b1 b2 in
+    match (n1, n2) with
+    | (VN_LAbs(b1)   , VN_LAbs(b2)   ) -> eq_bndr V b1 b2
+    | (VN_Cons(c1,p1), VN_Cons(c2,p2)) -> c1.elt = c2.elt && eq_vptr po p1 p2
+    | (VN_Reco(m1)   , VN_Reco(m2)   ) -> A.equal (eq_vptr po) m1 m2
+    | (VN_Scis       , VN_Scis       ) -> true
+    | (VN_VWit(w1)   , VN_VWit(w2)   ) -> let (f1,a1,b1) = w1 in
+                                          let (f2,a2,b2) = w2 in
+                                          eq_bndr V f1 f2 && eq_bndr V a1 a2
+                                          && eq_expr b1 b2
+    | (VN_UWit(t1,b1), VN_UWit(t2,b2)) -> eq_expr t1 t2 && eq_bndr V b1 b2
+    | (VN_EWit(t1,b1), VN_EWit(t2,b2)) -> eq_expr t1 t2 && eq_bndr V b1 b2
+    | (VN_ITag(n1)   , VN_ITag(n2)   ) -> n1 = n2
+    | (_             , _             ) -> false
 
-let eq_t_nodes : pool -> t_node -> t_node -> bool = fun po n1 n2 -> n1 == n2 ||
-  let eq_expr e1 e2 = eq_expr ~strict:true e1 e2 in
-  let eq_bndr b1 b2 = eq_bndr ~strict:true b1 b2 in
-  match (n1, n2) with
-  | (TN_Valu(p1)     , TN_Valu(p2)     ) -> eq_vptr po p1 p2
-  | (TN_Appl(p11,p12), TN_Appl(p21,p22)) -> eq_tptr po p11 p21 &&
-                                              eq_tptr po p12 p22
-  | (TN_MAbs(b1)     , TN_MAbs(b2)     ) -> eq_bndr S b1 b2
-  | (TN_Name(s1,p1)  , TN_Name(s2,p2)  ) -> eq_expr s1 s2 && eq_tptr po p1 p2
-  | (TN_Proj(p1,l1)  , TN_Proj(p2,l2)  ) -> eq_vptr po p1 p2 && l1.elt = l2.elt
-  | (TN_Case(p1,m1)  , TN_Case(p2,m2)  ) -> eq_vptr po p1 p2 &&
-                                              A.equal (eq_bndr V) m1 m2
-  | (TN_FixY(p11,p12), TN_FixY(p21,p22)) -> eq_tptr po p11 p21 &&
-                                              eq_vptr po p12 p22
-  | (TN_UWit(t1,b1)  , TN_UWit(t2,b2)  ) -> eq_expr t1 t2 && eq_bndr T b1 b2
-  | (TN_EWit(t1,b1)  , TN_EWit(t2,b2)  ) -> eq_expr t1 t2 && eq_bndr T b1 b2
-  | (TN_ITag(n1)     , TN_ITag(n2)     ) -> n1 = n2
-  | (_               , _               ) -> false
+let eq_t_nodes : pool -> t_node -> t_node -> bool =
+  fun po n1 n2 -> n1 == n2 ||
+    let eq_expr e1 e2 = eq_expr ~strict:true e1 e2 in
+    let eq_bndr b1 b2 = eq_bndr ~strict:true b1 b2 in
+    match (n1, n2) with
+    | (TN_Valu(p1)     , TN_Valu(p2)     ) -> eq_vptr po p1 p2
+    | (TN_Appl(p11,p12), TN_Appl(p21,p22)) -> eq_tptr po p11 p21
+                                              && eq_tptr po p12 p22
+    | (TN_MAbs(b1)     , TN_MAbs(b2)     ) -> eq_bndr S b1 b2
+    | (TN_Name(s1,p1)  , TN_Name(s2,p2)  ) -> eq_expr s1 s2
+                                              && eq_tptr po p1 p2
+    | (TN_Proj(p1,l1)  , TN_Proj(p2,l2)  ) -> eq_vptr po p1 p2
+                                              && l1.elt = l2.elt
+    | (TN_Case(p1,m1)  , TN_Case(p2,m2)  ) -> eq_vptr po p1 p2
+                                              && A.equal (eq_bndr V) m1 m2
+    | (TN_FixY(p11,p12), TN_FixY(p21,p22)) -> eq_tptr po p11 p21
+                                              && eq_vptr po p12 p22
+    | (TN_UWit(t1,b1)  , TN_UWit(t2,b2)  ) -> eq_expr t1 t2 && eq_bndr T b1 b2
+    | (TN_EWit(t1,b1)  , TN_EWit(t2,b2)  ) -> eq_expr t1 t2 && eq_bndr T b1 b2
+    | (TN_ITag(n1)     , TN_ITag(n2)     ) -> n1 = n2
+    | (_               , _               ) -> false
 
 
 let immediate_nobox : v_node -> bool = function
@@ -940,10 +944,9 @@ let find_proj : pool -> valu -> string -> valu * pool = fun po v l ->
        in
        let po = if (VPtrSet.mem vp po.bs) then add_vptr_nobox wp po else po in
        (w, po)
+  with Not_found -> assert false (* TODO #42: check for contradiction ? *)
 
-  with Not_found -> assert false (* TODO #42: check, could be a contradiction *)
-
-(* NOTE: sum with one case should not fail and could be treated as projection *)
+(* NOTE: sum with one case should not fail, and be treated as projection *)
 let find_sum : pool -> valu -> (string * valu * pool) option = fun po v ->
   try
     let (vp, po) = add_valu po v in
