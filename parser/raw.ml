@@ -527,8 +527,8 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
         end
     | (ECase(_,_,_) , SUni(r)  ) -> r := Some _st; infer env vars e s
     | (ECase(_,_,_) , _        ) -> sort_clash e s
-    | (EFixY(t)     , ST       )
-    | (EFixY(t)     , SV       ) -> infer env vars t _st
+    | (EFixY(v)     , ST       )
+    | (EFixY(v)     , SV       ) -> infer env vars v _st
     | (EFixY(_)     , SUni(r)  ) -> r := Some _sv; infer env vars e s
     | (EFixY(_)     , _        ) -> sort_clash e s
     | (ECoer(t,a)   , SV       )
@@ -884,11 +884,32 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
           | `T -> let t = to_term (unsugar env vars v _st) in
                   Box(T, t_case e.pos t m)
         end
-    | (EFixY(t)     , SV       ) ->
-        let t = to_term (unsugar env vars t _st) in
-        let f xx = fixy e.pos t (vari None xx) in
-        Box(V, labs e.pos None (Pos.none "x") f)
-    | (EFixY(t)     , ST       ) ->
+    | (EFixY(v)     , SV       ) ->
+        begin
+          match v.elt with
+          | ELAbs(((x,ao), []   ), t) ->
+              if ao <> None then assert false; (* FIXME #46 *)
+              let fn xx =
+                let xx = (x.pos, Box(V, vari x.pos xx)) in
+                let vars = M.add x.elt xx vars in
+                to_term (unsugar env vars t _st)
+              in
+              let fn xx = fixy e.pos x fn (vari None xx) in
+              Box(V, labs e.pos None (Pos.none "x") fn)
+          | ELAbs(((x,ao), y::ys), t) ->
+              if ao <> None then assert false; (* FIXME #46 *)
+              let t = Pos.none (ELAbs((y,ys), t)) in
+              let fn xx =
+                let xx = (x.pos, Box(V, vari x.pos xx)) in
+                let vars = M.add x.elt xx vars in
+                to_term (unsugar env vars t _st)
+              in
+              let fn xx = fixy e.pos x fn (vari None xx) in
+              Box(V, labs e.pos None (Pos.none "x") fn)
+          | _                         ->
+              assert false (* FIXME #46 *)
+        end
+    | (EFixY(_)     , ST       ) ->
         let v = to_valu (unsugar env vars e _sv) in
         Box(T, valu e.pos v)
     | (ECoer(v,a)   , SV       ) ->

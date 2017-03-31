@@ -79,8 +79,8 @@ type _ ex =
   (** Record projection. *)
   | Case : v ex loc * (popt * (v, t) bndr) A.t     -> t  ex
   (** Case analysis. *)
-  | FixY : t ex loc * v ex loc                     -> t  ex
-  (** Fixpoint combinator. *)
+  | FixY : (v, t) bndr * v ex loc                  -> t  ex
+  (** Fixpoint combinator Y(λx.t, v). *)
 
   (* Stack constructors. *)
 
@@ -289,8 +289,10 @@ let case : popt -> vbox -> (popt * strloc * (vvar -> tbox)) A.t -> tbox =
     in
     box_apply2 (fun v m -> Pos.make p (Case(v,m))) v (A.map_box f m)
 
-let fixy : popt -> tbox -> vbox -> tbox =
-  fun p -> box_apply2 (fun t v -> Pos.make p (FixY(t,v)))
+let fixy : popt -> strloc -> (vvar -> tbox) -> vbox -> tbox =
+  fun p x f v ->
+    let b = vbind mk_free x.elt f in
+    box_apply2 (fun b v -> Pos.make p (FixY((x.pos, b),v))) b v
 
 let ttyp : popt -> tbox -> pbox -> tbox =
   fun p -> box_apply2 (fun t a -> Pos.make p (TTyp(t,a)))

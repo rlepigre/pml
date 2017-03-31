@@ -19,7 +19,7 @@ and  e_term =
   | TName of e_stac * e_term
   | TProj of e_valu * string
   | TCase of e_valu * (e_valu, e_term) binder A.t
-  | TFixY of e_term * e_valu
+  | TFixY of (e_valu, e_term) binder * e_valu
 and  e_stac =
   | SVari of e_stac var
   | SEpsi
@@ -77,8 +77,8 @@ let tcase : e_vbox -> (string * (e_vvar -> e_tbox)) A.t -> e_tbox =
     let f (x,f) = vbind mk_vvari x f in
     box_apply2 (fun v m -> TCase(v,m)) v (A.map_box f m)
 
-let tfixy : e_tbox -> e_vbox -> e_tbox =
-  box_apply2 (fun t v -> TFixY(t,v))
+let tfixy : string -> (e_vvar -> e_tbox) -> e_vbox -> e_tbox =
+  fun x f -> box_apply2 (fun b v -> TFixY(b,v)) (vbind mk_vvari x f)
 
 (* Smart constructors for stacks. *)
 let sepsi : e_sbox =
@@ -114,11 +114,10 @@ let step : proc -> proc option = function
         try Some (subst (A.find c m) v, pi)
         with Not_found -> runtime_error "Unknown constructor"
       end
-  | (TFixY(t,v)        , pi         ) ->
+  | (TFixY(b,v)        , pi         ) ->
       begin
-        let f = fun x -> TFixY(t,x) in
-        let b = binder_from_fun "x" f in
-        Some (t, SPush(VLAbs(b),SPush(v,pi)))
+        let f = binder_from_fun "x" (fun x -> TFixY(b,x)) in
+        Some (TValu(VLAbs(b)), SPush(VLAbs(f),SPush(v,pi)))
       end
   (* Runtime errors. *)
   | (TProj(_)          , _          ) -> runtime_error "invalid projection"

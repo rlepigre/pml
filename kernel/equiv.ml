@@ -92,7 +92,7 @@ type t_node =
   | TN_Name of s ex loc * TPtr.t
   | TN_Proj of VPtr.t * A.key loc
   | TN_Case of VPtr.t * (v, t) bndr A.t
-  | TN_FixY of TPtr.t * VPtr.t
+  | TN_FixY of (v, t) bndr * VPtr.t
   | TN_UWit of (t ex loc * (t, p) bndr)
   | TN_EWit of (t ex loc * (t, p) bndr)
   | TN_HApp of t ho_appl
@@ -133,7 +133,8 @@ let print_t_node : out_channel -> t_node -> unit = fun ch n ->
                       in
                       let pmap = Print.print_map pelt "|" in
                       prnt ch "TN_Case(%a|%a)" VPtr.print pv pmap m
-  | TN_FixY(pt,pv) -> prnt ch "TN_FixY(%a,%a)" TPtr.print pt VPtr.print pv
+  | TN_FixY(b,pv)  -> prnt ch "TN_FixY(%a,%a)" pex (Pos.none (LAbs(None,b)))
+                        VPtr.print pv
   | TN_UWit(_,b)   -> prnt ch "TN_UWit(ε∀%s)" (bndr_name b).elt
   | TN_EWit(_,b)   -> prnt ch "TN_EWit(ε∃%s)" (bndr_name b).elt
   | TN_HApp(e)     -> let HO_Appl(s,f,a) = e in
@@ -214,7 +215,7 @@ let children_t_node : t_node -> Ptr.t list = fun n ->
   | TN_Name(_,pt)  -> [Ptr.T_ptr pt]
   | TN_Proj(pv,_)  -> [Ptr.V_ptr pv]
   | TN_Case(pv,_)  -> [Ptr.V_ptr pv]
-  | TN_FixY(pt,pv) -> [Ptr.T_ptr pt; Ptr.V_ptr pv]
+  | TN_FixY(_,pv)  -> [Ptr.V_ptr pv]
   | TN_MAbs _
   | TN_UWit _
   | TN_EWit _
@@ -322,8 +323,8 @@ let eq_t_nodes : pool -> t_node -> t_node -> bool =
                                               && l1.elt = l2.elt
     | (TN_Case(p1,m1)  , TN_Case(p2,m2)  ) -> eq_vptr po p1 p2
                                               && A.equal (eq_bndr V) m1 m2
-    | (TN_FixY(p11,p12), TN_FixY(p21,p22)) -> eq_tptr po p11 p21
-                                              && eq_vptr po p12 p22
+    | (TN_FixY(b1,p1)  , TN_FixY(b2,p2)  ) -> eq_bndr V b1 b2
+                                              && eq_vptr po p1 p2
     | (TN_UWit(t1,b1)  , TN_UWit(t2,b2)  ) -> eq_expr t1 t2 && eq_bndr T b1 b2
     | (TN_EWit(t1,b1)  , TN_EWit(t2,b2)  ) -> eq_expr t1 t2 && eq_bndr T b1 b2
     | (TN_ITag(n1)     , TN_ITag(n2)     ) -> n1 = n2
@@ -420,9 +421,8 @@ let rec add_term : pool -> term -> TPtr.t * pool = fun po t ->
                    let m = A.map snd m in
                    let (pp, po) = insert_t_node (TN_Case(pv,m)) po in
                    (pp, po)
-  | FixY(t,v)   -> let (pt, po) = add_term po t in
-                   let (pv, po) = add_valu po v in
-                   let (pp, po) = insert_t_node (TN_FixY(pt,pv)) po in
+  | FixY(b,v)   -> let (pv, po) = add_valu po v in
+                   let (pp, po) = insert_t_node (TN_FixY(b,pv)) po in
                    (pp, po)
   | TTyp(t,_)   -> add_term po t
   | TLam(_,b)   -> add_term po (bndr_subst b Dumm)
@@ -516,9 +516,8 @@ let rec canonical_term : TPtr.t -> pool -> term * pool = fun p po ->
         | TN_Case(pv,m)  -> let (v, po) = canonical_valu pv po in
                             let t = Case(v, A.map (fun b -> (None, b)) m) in
                             (Pos.none t, po)
-        | TN_FixY(pt,pv) -> let (t, po) = canonical_term pt po in
-                            let (v, po) = canonical_valu pv po in
-                            (Pos.none (FixY(t,v)), po)
+        | TN_FixY(b,pv)  -> let (v, po) = canonical_valu pv po in
+                            (Pos.none (FixY(b,v)), po)
         | TN_UWit(w)     -> let (t,b) = w in (Pos.none (UWit(T,t,b)), po)
         | TN_EWit(w)     -> let (t,b) = w in (Pos.none (EWit(T,t,b)), po)
         | TN_HApp(e)     -> let HO_Appl(s,f,a) = e in
@@ -660,15 +659,13 @@ let rec normalise : TPtr.t -> pool -> Ptr.t * pool =
                end
             | _            -> (Ptr.T_ptr p, po)
           end
-       | TN_FixY(pt,pv) ->
+       | TN_FixY(f,pv)  ->
           begin
-            let (t, po) = canonical_term pt po in
-            let b = bndr_from_fun "x" (fun x -> FixY(t, Pos.none x)) in
-            let (pf, po) = insert_v_node (VN_LAbs(b)) po in
-            let (pf, po) = insert_t_node (TN_Valu(pf)) po in
-            let (pap, po) = insert_t_node (TN_Appl(pt, pf)) po in
+            let b = bndr_from_fun "x" (fun x -> FixY(f, Pos.none x)) in
+            let t = bndr_subst f (LAbs(None, b)) in
+            let (pt, po) = add_term po t in
             let (pu, po) = insert_t_node (TN_Valu(pv)) po in
-            let (pap, po) = insert_t_node (TN_Appl(pap, pu)) po in
+            let (pap, po) = insert_t_node (TN_Appl(pt, pu)) po in
             let po = union (Ptr.T_ptr p) (Ptr.T_ptr pap) po in
             normalise pap po
           end

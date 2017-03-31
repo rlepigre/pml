@@ -384,18 +384,17 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
         end
     (* λ-abstraction. *)
     | LAbs(ao,f)  ->
-       begin
        let (x,tx) = unbind mk_free (snd f) in
+       begin
          match tx.elt with
          (* Fixpoint. Temporary code *)
-         | FixY(t,{ elt = Vari y})   ->
-            assert(eq_vars x y);
-            (* x must not be free in t *)
-            let b = Pos.none (Func(c,c)) in
-            let p = type_term ctx t b in
+         | FixY(b,{elt = Vari y}) ->
+            assert(eq_vars x y); (* NOTE x must not be free in b *)
+            let cc = Pos.none (Func(c,c)) in
+            let p = type_valu ctx (Pos.none (LAbs(None,b))) cc in
             Typ_FixY(p)
          (* General case for typing λ-abstraction *)
-         | _ ->
+         | _                      ->
             let a =
               match ao with
               | None   -> new_uvar ctx P
@@ -569,9 +568,6 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
         in
         let ps = A.fold check m [] in
         Typ_DSum_e(p,List.rev ps)
-    (* Fixpoint. FIXME #32 temporary code *)
-    | FixY(t,v)   ->
-       assert false (* FIXME #43 prevent by parsing *)
     (* Coercion. *)
     | TTyp(t,a)   ->
         let p1= subtype ctx t a c in
@@ -600,6 +596,7 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
         wrn_msg "goal %s %a" str Pos.print_pos_opt t.pos;
         Typ_Goal(str)
     (* Constructors that cannot appear in user-defined terms. *)
+    | FixY(_,_)   -> unexpected "Fixpoint at the toplevel..."
     | UWit(_,_,_) -> unexpected "∀-witness during typing..."
     | EWit(_,_,_) -> unexpected "∃-witness during typing..."
     | UVar(_)     -> unexpected "unification variable during typing..."

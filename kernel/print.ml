@@ -121,7 +121,9 @@ let print_ex : type a. a ex loc printer = fun ch e ->
                      in
                      let pcase = print_map pelt " | " in
                      fprintf ch "[%a | %a]" print_ex v pcase m
-    | FixY(t,v)   -> fprintf ch "Y(%a, %a)" print_ex t print_ex v
+    | FixY(f,v)   -> let (x,t) = unbind mk_free (snd f) in
+                     fprintf ch "Y(λ%s.%a, %a)" (name_of x)
+                       print_ex t print_ex v
     | Epsi        -> output_string ch "ε"
     | Push(v,s)   -> fprintf ch "%a · %a" print_ex v print_ex s
     | Fram(t,s)   -> fprintf ch "[%a] %a" print_ex t print_ex s
