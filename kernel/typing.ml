@@ -37,14 +37,16 @@ let log_typ = Log.register 't' (Some "typ") "typing informations"
 let log_typ = Log.(log_typ.p)
 
 type ctxt  =
-  { uvarcount    : int ref
-  ; equations    : eq_ctxt
-  ; positives    : ordi list }
+  { uvarcount : int ref
+  ; equations : eq_ctxt
+  ; positives : ordi list
+  ; fix_ihs   : ((v,t) bndr, unit) Buckets.t }
 
 let empty_ctxt =
-  { uvarcount    = ref 0
-  ; equations    = empty_ctxt
-  ; positives    = [] }
+  { uvarcount = ref 0
+  ; equations = empty_ctxt
+  ; positives = []
+  ; fix_ihs   = Buckets.empty (==) }
 
 let new_uvar : type a. ctxt -> a sort -> a ex loc = fun ctx s ->
   let c = ctx.uvarcount in
@@ -370,6 +372,11 @@ and gen_subtype : ctxt -> prop -> prop -> sub_rule =
     in
     Sub_Gene(subtype ctx wit a b)
 
+and check_fix : ctxt -> (v, t) bndr -> prop -> typ_proof = fun ctx b c ->
+  let cc = Pos.none (Func(c,c)) in
+  type_valu ctx (Pos.none (LAbs(None,b))) cc
+  (* FIXME #32 *)
+
 and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
   let t = Pos.make v.pos (Valu(v)) in
   log_typ "(val) %a : %a" Print.ex v Print.ex c;
@@ -389,9 +396,8 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
          match tx.elt with
          (* Fixpoint. Temporary code *)
          | FixY(b,{elt = Vari y}) ->
-            assert(eq_vars x y); (* NOTE x must not be free in b *)
-            let cc = Pos.none (Func(c,c)) in
-            let p = type_valu ctx (Pos.none (LAbs(None,b))) cc in
+            assert(eq_vars x y); (* x must not be free in b *)
+            let p = check_fix ctx b c in
             Typ_FixY(p)
          (* General case for typing λ-abstraction *)
          | _                      ->
