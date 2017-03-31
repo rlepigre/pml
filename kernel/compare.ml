@@ -6,7 +6,6 @@ open Pos
 open Ast
 open Output
 open Print
-open ExprInfo
 
 (* Log functions registration. *)
 let log_equ = Log.register 'c' (Some "cmp") "comparing informations"
@@ -160,7 +159,7 @@ let {eq_expr; eq_bndr} =
     let e2 = Norm.whnf e2 in
     if e1.elt == e2.elt then true else (
     try
-      match (sort e1, sort e2) with
+      match (Misc.sort e1, Misc.sort e2) with
       | (V, e1), (V,e2) -> oracle.eq_val e1 e2
       | (T, e1), (T,e2) -> oracle.eq_trm e1 e2
       | _ -> raise DontKnow

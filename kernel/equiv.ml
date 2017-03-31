@@ -9,7 +9,6 @@ open Sorts
 open Pos
 open Ast
 open Output
-open ExprInfo
 open Compare
 
 let equiv_chrono = Chrono.create "equiv"

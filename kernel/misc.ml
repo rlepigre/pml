@@ -165,7 +165,7 @@ type ('a, 'b) mbndr = ('a ex, 'b ex loc) mbinder
 
 exception Found_index of int
 
-let generalise : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
+let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
   (* Compute the list of all the surface ordinal witnesses. *)
   let rec owits : type a. ordi list -> a ex loc -> ordi list = fun acc e ->
     let from_cond acc c =
