@@ -187,8 +187,10 @@ let rec get_lam : type a. string -> a sort -> term -> prop -> a ex * prop =
     | _         -> unexpected "Expected ∀ type..."
 
 let oracle ctx = {
-    eq_val = (fun v1 v2 -> eq_val ctx.equations v1 v2);
-    eq_trm = (fun v1 v2 -> eq_trm ctx.equations v1 v2)
+    eq_val = (fun v1 v2 ->
+      Chrono.add_time equiv_chrono (eq_val ctx.equations v1) v2);
+    eq_trm = (fun v1 v2 ->
+      Chrono.add_time equiv_chrono (eq_trm ctx.equations v1) v2)
   }
 
 let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
