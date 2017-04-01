@@ -36,11 +36,13 @@ let log_sub = Log.(log_sub.p)
 let log_typ = Log.register 't' (Some "typ") "typing informations"
 let log_typ = Log.(log_typ.p)
 
+type fix_ih = unit (* FIXME #32 *)
+
 type ctxt  =
   { uvarcount : int ref
   ; equations : eq_ctxt
   ; positives : ordi list
-  ; fix_ihs   : ((v,t) bndr, unit) Buckets.t }
+  ; fix_ihs   : ((v,t) bndr, fix_ih) Buckets.t }
 
 let empty_ctxt =
   { uvarcount = ref 0
@@ -72,6 +74,7 @@ type typ_rule =
   | Typ_Mu     of typ_proof
   | Typ_Scis
   | Typ_FixY   of typ_proof
+  | Typ_Ind
   | Typ_Goal   of string
 
 and  stk_rule =
@@ -373,9 +376,26 @@ and gen_subtype : ctxt -> prop -> prop -> sub_rule =
     Sub_Gene(subtype ctx wit a b)
 
 and check_fix : ctxt -> (v, t) bndr -> prop -> typ_proof = fun ctx b c ->
-  let cc = Pos.none (Func(c,c)) in
-  type_valu ctx (Pos.none (LAbs(None,b))) cc
-  (* FIXME #32 *)
+  type_valu ctx (Pos.none (LAbs(None, b))) (Pos.none (Func(c,c)))
+  (*
+  let (v, t) =
+    let f x = box_apply (fun x -> Pos.none (FixY(b, x))) (v_vari None x) in
+    let v = labs None None (Pos.none "x") f in
+    (unbox v, unbox (valu None v))
+  in
+  let ihs = Buckets.find b ctx.fix_ihs in
+  if ihs <> [] then
+    begin
+      (* FIXME #32 *)
+      log_typ "induction hypothesis applies";
+      (t, c, Typ_Ind)
+    end
+  else
+    begin
+      let ctx = { ctx with fix_ihs = Buckets.add b () ctx.fix_ihs } in
+      type_term ctx (bndr_subst b v.elt) c
+    end
+    *)
 
 and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
   let t = Pos.make v.pos (Valu(v)) in
