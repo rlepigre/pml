@@ -173,7 +173,8 @@ let print_ex : type a. a ex loc printer = fun ch e ->
     | Posit(o)     -> print_ex ch o
 
   and print_sch ch sch =
-    let (vars,(t,k)) = unmbind mk_free sch.sch_judge in
+    let (x,t) = unbind mk_free (snd (fst sch.sch_judge)) in
+    let (vars,k) = unmbind mk_free (snd sch.sch_judge) in
     let vars = Array.map (fun x -> Pos.none (mk_free x)) vars in
     let print_vars = print_list print_ex "," in
     let pos = List.map (fun i -> vars.(i)) sch.sch_posit in
@@ -183,9 +184,9 @@ let print_ex : type a. a ex loc printer = fun ch e ->
     let sep =
       if sch.sch_posit <> [] && sch.sch_relat <> [] then ", " else ""
     in
-    fprintf ch "%a (%a%s%a ⊢ %a:%a)"
+    fprintf ch "%a (%a%s%a ⊢ λx.Y(λ%s.%a,x) : %a)"
             print_vars (Array.to_list vars) print_vars pos sep
-            print_rel rel print_ex t print_ex k
+            print_rel rel (name_of x) print_ex t print_ex k
 
   in print_ex ch e
 

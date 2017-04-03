@@ -151,7 +151,10 @@ and schema =
   { sch_index : Scp.index (** index of the schema in the call graph *)
   ; sch_posit : int list  (** the index of positive ordinals        *)
   ; sch_relat : (int * int) list (** relation between ordinals      *)
-  ; sch_judge : (o ex, t ex loc * p ex loc) mbinder (** judgement   *) }
+  ; sch_judge : (v,t) bndr * (o ex, p ex loc) mbinder (** judgement *) }
+  (* NOTE: [sch_judge = (vb,mob)] represents "λx.Y(λr.t, x) : a" where
+     [mob] corresponds to "λr.t" and "mob" corresponds to "a", which is
+     the only part of the judgment which can contain parameters. *)
 
 (** Type of unification variables. *)
 and 'a uvar =
@@ -201,6 +204,8 @@ type tvar = t var    (** Term    variable type. *)
 type svar = s var    (** Stack   variable type. *)
 type pvar = p var    (** Type    variable type. *)
 type ovar = o var    (** Ordinal variable type. *)
+
+type omvar = ovar array (** Ordinal multiple variable type. *)
 
 (** {5 Bindlib bindboxes containing expressions of base sort} *)
 
@@ -407,9 +412,14 @@ let goal : type a. popt -> a sort -> string -> a ex loc bindbox =
   fun p s str -> box (Pos.make p (Goal(s,str)))
 
 let schm : Scp.index -> int list -> (int * int) list ->
-           (o ex, t ex loc * p ex loc) mbinder bindbox -> schema bindbox =
-  fun sch_index sch_posit sch_relat ->
-    box_apply (fun sch_judge -> { sch_index; sch_posit; sch_relat; sch_judge})
+             strloc -> (vvar -> tbox) ->
+             string array -> (omvar -> pbox) -> schema bindbox =
+  fun sch_index sch_posit sch_relat x fx xs fxs ->
+    let fn vb ob =
+      let sch_judge = ((x.pos, vb), ob) in
+      { sch_index; sch_posit; sch_relat; sch_judge }
+    in
+    box_apply2 fn (vbind mk_free x.elt fx) (mvbind mk_free xs fxs)
 
 let vwit : popt -> strloc -> (vvar -> tbox) -> pbox -> pbox -> vbox =
   fun p x f a c ->

@@ -94,8 +94,11 @@ let uvar_iter : type a. uvar_fun -> a ex loc -> unit = fun f e ->
     | SWit(b,a)   -> if todo e then (buvar_iter b; uvar_iter a)
     | UWit(_,t,b) -> if todo e then (uvar_iter t; buvar_iter b)
     | EWit(_,t,b) -> if todo e then (uvar_iter t; buvar_iter b)
-    | OWit(o,i,s) -> if todo e then begin
-                         let (_,(t,k)) = Bindlib.unmbind mk_free s.sch_judge in
+    | OWit(o,i,s) -> if todo e then
+                       begin
+                         let (t,b) = s.sch_judge in
+                         let (_,t) = Bindlib.unbind mk_free (snd t) in
+                         let (_,k) = Bindlib.unmbind mk_free b in
                          uvar_iter o; uvar_iter t; uvar_iter k
                        end
     | UVar(s,u)   -> f.f s u
@@ -141,13 +144,17 @@ let default_oracle = {
   }
 
 type eq =
-  { eq_expr : 'a. ?oracle:oracle -> ?strict:bool ->
-                'a ex loc -> 'a ex loc -> bool
-  ; eq_bndr : 'a 'b. ?oracle:oracle -> ?strict:bool -> 'a sort ->
-                ('a,'b) bndr -> ('a,'b) bndr -> bool }
+  { eq_expr     : 'a. ?oracle:oracle -> ?strict:bool ->
+                    'a ex loc -> 'a ex loc -> bool
+  ; eq_bndr     : 'a 'b. ?oracle:oracle -> ?strict:bool -> 'a sort ->
+                    ('a,'b) bndr ->
+                    ('a,'b) bndr -> bool
+  ; eq_ombinder : 'a. ?oracle:oracle -> ?strict:bool ->
+                    (o ex, 'a ex loc) mbinder ->
+                    (o ex, 'a ex loc) mbinder -> bool }
 
 (* Comparison function with unification variable instantiation. *)
-let {eq_expr; eq_bndr} =
+let {eq_expr; eq_bndr; eq_ombinder} =
   let c = ref (-1) in
   let new_itag : type a. a sort -> a ex = fun s -> incr c; ITag(s,!c) in
 
@@ -155,6 +162,15 @@ let {eq_expr; eq_bndr} =
     fun oracle strict e1 e2 ->
     let eq_expr e1 e2 = eq_expr oracle strict e1 e2 in
     let eq_bndr b1 b2 = eq_bndr oracle strict b1 b2 in
+    let eq_ombinder omb1 omb2 = eq_ombinder oracle strict omb1 omb2 in
+    let eq_schema sch1 sch2 =
+      sch1.sch_index = sch2.sch_index &&
+      sch1.sch_posit = sch2.sch_posit &&
+      sch1.sch_relat = sch2.sch_relat &&
+      let (b1, omb1) = sch1.sch_judge in
+      let (b2, omb2) = sch2.sch_judge in
+      eq_bndr V b1 b2 && eq_ombinder omb1 omb2
+    in
     let e1 = Norm.whnf e1 in
     let e2 = Norm.whnf e2 in
     if e1.elt == e2.elt then true else (
@@ -267,6 +283,8 @@ let {eq_expr; eq_bndr} =
     | (SWit(f1,a1)   , SWit(f2,a2)   ) -> eq_bndr S f1 f2 && eq_expr a1 a2
     | (UWit(s1,t1,b1), UWit(_,t2,b2) ) -> eq_bndr s1 b1 b2 && eq_expr t1 t2
     | (EWit(s1,t1,b1), EWit(_,t2,b2) ) -> eq_bndr s1 b1 b2 && eq_expr t1 t2
+    | (OWit(o1,i1,s1), OWit(o2,i2,s2)) -> i1 = i2 && eq_expr o1 o2 &&
+                                          eq_schema s1 s2
     | (UVar(_,u1)    , UVar(_,u2)    ) ->
        if strict then u1.uvar_key = u2.uvar_key else
          begin
@@ -310,6 +328,17 @@ let {eq_expr; eq_bndr} =
       if b1 == b2 then true else
         let t = new_itag s1 in
         eq_expr oracle strict (bndr_subst b1 t) (bndr_subst b2 t)
+
+  and eq_ombinder : type a. oracle -> bool ->
+                            (o ex, a ex loc) mbinder ->
+                            (o ex, a ex loc) mbinder -> bool =
+    fun oracle strict omb1 omb2 ->
+      if omb1 == omb2 then true else
+      let ar1 = mbinder_arity omb1 in
+      let ar2 = mbinder_arity omb2 in
+      if ar1 <> ar2 then false else
+      let ta = Array.init ar1 (fun _ -> new_itag O) in
+      eq_expr oracle strict (msubst omb1 ta) (msubst omb2 ta)
   in
 
   let compare_chrono = Chrono.create "compare" in
@@ -330,8 +359,17 @@ let {eq_expr; eq_bndr} =
                      a sort -> (a,b) bndr -> (a,b) bndr -> bool =
     fun ?(oracle=default_oracle) ?(strict=false) s1 b1 b2 ->
       c := -1; (* Reset. *)
-      let res = Chrono.add_time compare_chrono
-                  (Timed.pure_test (eq_bndr oracle strict s1 b1)) b2 in
-      res
+      Chrono.add_time compare_chrono
+        (Timed.pure_test (eq_bndr oracle strict s1 b1)) b2
   in
-  {eq_expr; eq_bndr}
+
+  let eq_ombinder : type a. ?oracle:oracle -> ?strict:bool ->
+                      (o ex, a ex loc) mbinder ->
+                      (o ex, a ex loc) mbinder -> bool =
+    fun ?(oracle=default_oracle) ?(strict=false) omb1 omb2 ->
+      c := -1; (* Reset. *)
+      Chrono.add_time compare_chrono
+        (Timed.pure_test (eq_ombinder oracle strict omb1)) omb2
+  in
+
+  {eq_expr; eq_bndr; eq_ombinder}

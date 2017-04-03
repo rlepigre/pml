@@ -37,13 +37,11 @@ let log_sub = Log.(log_sub.p)
 let log_typ = Log.register 't' (Some "typ") "typing informations"
 let log_typ = Log.(log_typ.p)
 
-type fix_ih = unit (* FIXME #32 *)
-
 type ctxt  =
   { uvarcount : int ref
   ; equations : eq_ctxt
   ; positives : ordi list
-  ; fix_ihs   : ((v,t) bndr, fix_ih) Buckets.t }
+  ; fix_ihs   : ((v,t) bndr, schema) Buckets.t }
 
 let empty_ctxt =
   { uvarcount = ref 0
@@ -376,18 +374,40 @@ and gen_subtype : ctxt -> prop -> prop -> sub_rule =
     in
     Sub_Gene(subtype ctx wit a b)
 
+(* Old version. *)
 and check_fix : ctxt -> (v, t) bndr -> prop -> typ_proof = fun ctx b c ->
   type_valu ctx (Pos.none (LAbs(None, b))) (Pos.none (Func(c,c)))
-  (*
+
+(* New version. *)
+(*
+and check_fix : ctxt -> (v, t) bndr -> prop -> typ_proof = fun ctx b c ->
+  (* Extracting ordinal parameters from the goal type. *)
+  let (omb, os) = Misc.bind_ordinals c in
+  (* Looking for potential induction hypotheses. *)
+  let ihs = Buckets.find b ctx.fix_ihs in
+  log_typ "there are %i potential induction hypotheses" (List.length ihs);
+  (* Function for finding a suitable induction hypothesis. *)
+  let is_suitable ih = eq_ombinder omb (snd ih.sch_judge) in
+  match List.find_first is_suitable ihs with
+  | Some(ih) ->
+      (* An induction hypothesis has been found. *)
+      log_typ "an induction hypothesis has been found";
+      assert false (* FIXME #32 work in progress *)
+  | None     ->
+      (* No matching induction hypothesis. *)
+      log_typ "no suitable induction hypothesis";
+      assert false (* FIXME #32 work in progress *)
+*)
+
+(* NOTE Some junk *)
+(*
   let (v, t) =
     let f x = box_apply (fun x -> Pos.none (FixY(b, x))) (v_vari None x) in
     let v = labs None None (Pos.none "x") f in
     (unbox v, unbox (valu None v))
   in
-  let ihs = Buckets.find b ctx.fix_ihs in
   if ihs <> [] then
     begin
-      (* FIXME #32 *)
       log_typ "induction hypothesis applies";
       (t, c, Typ_Ind)
     end
@@ -396,7 +416,7 @@ and check_fix : ctxt -> (v, t) bndr -> prop -> typ_proof = fun ctx b c ->
       let ctx = { ctx with fix_ihs = Buckets.add b () ctx.fix_ihs } in
       type_term ctx (bndr_subst b v.elt) c
     end
-    *)
+*)
 
 and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
   let t = Pos.make v.pos (Valu(v)) in

@@ -83,12 +83,10 @@ let rec lift : type a. a ex loc -> a box = fun e ->
     | NoBox(v)     -> nobox (lift v)
   in
   let lift_schema { sch_index ; sch_posit ; sch_relat ; sch_judge } =
-    let fn sch_judg = { sch_index ; sch_posit ; sch_relat ; sch_judge } in
-    let gn x =
-      let (t, a) = msubst sch_judge (Array.map mk_free x) in
-      box_pair (lift t) (lift a)
-    in
-    box_apply fn (mvbind mk_free (mbinder_names sch_judge) gn)
+    let (vb, ob) = sch_judge in
+    let fv x = lift (bndr_subst vb (mk_free x)) in
+    let fo xs = lift (msubst ob (Array.map mk_free xs)) in
+    schm sch_index sch_posit sch_relat (bndr_name vb) fv (mbinder_names ob) fo
   in
   match (Norm.whnf e).elt with
   | HDef(_,_)   -> box e (* Assumed closed *)
