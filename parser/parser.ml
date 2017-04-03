@@ -1,5 +1,6 @@
 #define LOCATE locate
 
+open Extra
 open Pos
 open Blank
 open Raw

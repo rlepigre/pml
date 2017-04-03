@@ -1,6 +1,7 @@
 (** Parser level abstract syntax tree. This module defines the low level AST
     for the language. *)
 
+open Extra
 open Bindlib
 open Sorts
 open Pos

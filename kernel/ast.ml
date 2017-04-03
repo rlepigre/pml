@@ -148,10 +148,10 @@ and value =
   ; value_eval : e_valu }
 
 and schema =
-  { sch_index : Scp.index (** index of the schema in the sct call graph *)
-  ; sch_posit : int list  (** the index of positive ordinals *)
-  ; sch_relat : (int * int) list (** relation between ordinals *)
-  ; sch_judge : (o ex, t ex loc * p ex loc) mbinder (** judgement *) }
+  { sch_index : Scp.index (** index of the schema in the call graph *)
+  ; sch_posit : int list  (** the index of positive ordinals        *)
+  ; sch_relat : (int * int) list (** relation between ordinals      *)
+  ; sch_judge : (o ex, t ex loc * p ex loc) mbinder (** judgement   *) }
 
 (** Type of unification variables. *)
 and 'a uvar =

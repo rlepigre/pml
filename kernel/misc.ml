@@ -1,5 +1,6 @@
 (** Function to retreive information from expression *)
 
+open Extra
 open Bindlib
 open Sorts
 open Pos

@@ -1,5 +1,6 @@
 (** Main type-checking and subtyping functions. *)
 
+open Extra
 open Bindlib
 open Sorts
 open Pos
