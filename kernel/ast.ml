@@ -156,6 +156,11 @@ and schema =
      [mob] corresponds to "λr.t" and "mob" corresponds to "a", which is
      the only part of the judgment which can contain parameters. *)
 
+and specialised =
+  { spe_param : o ex loc array
+  ; spe_posit : o ex loc list
+  ; spe_judge : (v,t) bndr * p ex loc }
+
 (** Type of unification variables. *)
 and 'a uvar =
   { uvar_key : int
@@ -498,3 +503,10 @@ let rec is_scis : type a. a ex loc -> bool =
     | Scis    -> true
     | Valu(v) -> is_scis v
     | _       -> false
+
+let build_v_fixy : (v,t) bndr -> valu = fun b ->
+  let f x = box_apply (fun x -> Pos.none (FixY(b,x))) (v_vari None x) in
+  unbox (labs None None (Pos.none "x") f)
+
+let build_t_fixy : (v,t) bndr -> term = fun b ->
+  Pos.none (Valu(build_v_fixy b))

@@ -9,6 +9,9 @@ open Equiv
 open Output
 open Compare
 
+(* Enable circular proofs? *)
+let circular = ref false
+
 type sorted = E : 'a sort * 'a ex loc -> sorted
 
 (* Exceptions to be used in case of failure. *)
@@ -21,8 +24,12 @@ let subtype_msg : pos option -> string -> 'a =
   fun pos msg -> raise (Subtype_msg(pos, msg))
 
 exception Subtype_error of term * prop * prop * exn
- let subtype_error : term -> prop -> prop -> exn -> 'a =
+let subtype_error : term -> prop -> prop -> exn -> 'a =
   fun t a b e -> raise (Subtype_error(t,a,b,e))
+
+exception Bad_schema of string
+let bad_schema : string -> 'a =
+  fun msg -> raise (Bad_schema(msg))
 
 exception Reachable
 
@@ -41,13 +48,17 @@ type ctxt  =
   { uvarcount : int ref
   ; equations : eq_ctxt
   ; positives : ordi list
-  ; fix_ihs   : ((v,t) bndr, schema) Buckets.t }
+  ; fix_ihs   : ((v,t) bndr, schema) Buckets.t
+  ; top_ih    : Scp.index * ordi array
+  ; callgraph : Scp.t }
 
 let empty_ctxt =
   { uvarcount = ref 0
   ; equations = empty_ctxt
   ; positives = []
-  ; fix_ihs   = Buckets.empty (==) }
+  ; fix_ihs   = Buckets.empty (==)
+  ; top_ih    = (Scp.root, [| |])
+  ; callgraph = Scp.create () }
 
 let new_uvar : type a. ctxt -> a sort -> a ex loc = fun ctx s ->
   let c = ctx.uvarcount in
@@ -73,7 +84,7 @@ type typ_rule =
   | Typ_Mu     of typ_proof
   | Typ_Scis
   | Typ_FixY   of typ_proof
-  | Typ_Ind
+  | Typ_Ind    of schema
   | Typ_Goal   of string
 
 and  stk_rule =
@@ -374,13 +385,11 @@ and gen_subtype : ctxt -> prop -> prop -> sub_rule =
     in
     Sub_Gene(subtype ctx wit a b)
 
-(* Old version. *)
 and check_fix : ctxt -> (v, t) bndr -> prop -> typ_proof = fun ctx b c ->
-  type_valu ctx (Pos.none (LAbs(None, b))) (Pos.none (Func(c,c)))
-
-(* New version. *)
-(*
-and check_fix : ctxt -> (v, t) bndr -> prop -> typ_proof = fun ctx b c ->
+  if not !circular then
+    (* Old version. *)
+    type_valu ctx (Pos.none (LAbs(None, b))) (Pos.none (Func(c,c)))
+  else
   (* Extracting ordinal parameters from the goal type. *)
   let (omb, os) = Misc.bind_ordinals c in
   (* Looking for potential induction hypotheses. *)
@@ -392,31 +401,96 @@ and check_fix : ctxt -> (v, t) bndr -> prop -> typ_proof = fun ctx b c ->
   | Some(ih) ->
       (* An induction hypothesis has been found. *)
       log_typ "an induction hypothesis has been found";
-      assert false (* FIXME #32 work in progress *)
+      (* Elimination of the schema, and unification with goal type. *)
+      let spe = elim_schema ctx ih in
+      let ok = eq_expr (snd spe.spe_judge) c in
+      if not ok then bad_schema "cannot unify";
+      (* Check positivity of ordinals. *)
+      let ok = List.for_all (Ordinal.is_pos ctx.positives) spe.spe_posit in
+      if not ok then bad_schema "cannot show positivity";
+      (* Add call to call-graph and build the proof. *)
+      add_call ctx (ih.sch_index, spe.spe_param) true;
+      (build_t_fixy b, c, Typ_Ind(ih))
   | None     ->
       (* No matching induction hypothesis. *)
       log_typ "no suitable induction hypothesis";
-      assert false (* FIXME #32 work in progress *)
-*)
+      (* Construction of a new schema. *)
+      let (sch, os) = generalise ctx b c in
+      (* Recording of the new induction hypothesis. *)
+      let ctx =
+        if os = [||] then ctx
+        else { ctx with fix_ihs = Buckets.add b sch ctx.fix_ihs }
+      in
+      (* Elimination of the schema. *)
+      let spe = elim_schema ctx sch in
+      let ctx = {ctx with positives = spe.spe_posit} in
+      (* Registration of the new top induction hypothesis and call. *)
+      let top_ih = (sch.sch_index, os) in
+      add_call ctx top_ih false;
+      let ctx = {ctx with top_ih } in
+      (* Unrolling of the fixpoint and proof continued. *)
+      let t = bndr_subst b (build_v_fixy b).elt in
+      type_term ctx t (snd spe.spe_judge)
 
-(* NOTE Some junk *)
-(*
-  let (v, t) =
-    let f x = box_apply (fun x -> Pos.none (FixY(b, x))) (v_vari None x) in
-    let v = labs None None (Pos.none "x") f in
-    (unbox v, unbox (valu None v))
-  in
-  if ihs <> [] then
-    begin
-      log_typ "induction hypothesis applies";
-      (t, c, Typ_Ind)
-    end
-  else
-    begin
-      let ctx = { ctx with fix_ihs = Buckets.add b () ctx.fix_ihs } in
-      type_term ctx (bndr_subst b v.elt) c
-    end
-*)
+(* Generalisation (construction of a schema). *)
+and generalise : ctxt -> (v, t) bndr -> prop -> schema * ordi array =
+  fun ctx b c ->
+    (* Extracting ordinal parameters from the goal type. *)
+    let (omb, os) = Misc.bind_ordinals c in
+
+    let sch_posit = [] in (* FIXME #32 *)
+    let sch_relat = [] in (* FIXME #32 *)
+
+    (* Build the judgment. *)
+    let sch_judge = (b, omb) in
+    (* Ask for a fresh symbol index. *)
+    let sch_index =
+      let name  = (bndr_name b).elt in
+      let names = mbinder_names omb in
+      Scp.create_symbol ctx.callgraph name names
+    in
+    (* Assemble the schema. *)
+    ({sch_index ; sch_posit ; sch_relat ; sch_judge}, os)
+
+(* Instantiation of a schema with ordinal unification variables. *)
+and elim_schema : ctxt -> schema -> specialised = fun ctx sch ->
+  let arity = mbinder_arity (snd sch.sch_judge) in
+  let spe_param = Array.init arity (fun _ -> new_uvar ctx O) in
+  let xs = Array.map (fun e -> e.elt) spe_param in
+  let a = msubst (snd sch.sch_judge) xs in
+  let spe_judge = (fst sch.sch_judge, a) in
+  let spe_posit = List.map (fun i -> spe_param.(i)) sch.sch_posit in
+  { spe_param ; spe_posit ; spe_judge }
+
+(* Add a call to the call-graph. *)
+and add_call : ctxt -> (Scp.index * ordi array) -> bool -> unit =
+  fun ctx callee is_rec ->
+    let caller = ctx.top_ih in
+    let matrix = build_matrix ctx.callgraph ctx.positives callee caller in
+    let callee = fst callee in
+    let caller = fst caller in
+    Scp.(add_call ctx.callgraph { callee ; caller ; matrix ; is_rec })
+
+(* Build a call-matrix given the caller and the callee. *)
+and build_matrix : Scp.t -> ordi list ->
+                     (Scp.index * ordi array) ->
+                     (Scp.index * ordi array) ->
+                     Scp.matrix = fun calls pos callee caller ->
+  let open Scp in
+  let w = Scp.arity (fst callee) calls in
+  let h = Scp.arity (fst caller) calls in
+  let tab = Array.init h (fun _ -> Array.make w Infi) in
+  Array.iteri (fun j oj ->
+    Array.iteri (fun i oi ->
+      assert(j < h); assert(i < w);
+      let r =
+        if Ordinal.less_ordi pos oi oj then Min1
+        else if Ordinal.leq_ordi pos oi oj then Zero
+        else Infi
+      in
+      tab.(j).(i) <- r
+    ) (snd callee)) (snd caller);
+  { w ; h ; tab }
 
 and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
   let t = Pos.make v.pos (Valu(v)) in
@@ -723,7 +797,3 @@ let type_check : term -> prop -> prop * typ_proof = fun t a ->
 let type_chrono = Chrono.create "typing"
 
 let type_check t = Chrono.add_time type_chrono (type_check t)
-
-(* FIXME #32 hack to compile the SCP. *)
-open Scp
-open Ordinal
