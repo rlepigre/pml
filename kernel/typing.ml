@@ -107,8 +107,10 @@ and  sub_rule =
   | Sub_Memb_l of sub_proof option (* None means contradictory context. *)
   | Sub_Memb_r of sub_proof
   | Sub_Gene   of sub_proof
-  | Sub_FixM_i of sub_proof
-  | Sub_FixN_i of sub_proof
+  | Sub_FixM_r of bool * sub_proof (* boolean true if infinite rule *)
+  | Sub_FixN_l of bool * sub_proof (* boolean true if infinite rule *)
+  | Sub_FixM_l of bool * sub_proof (* boolean true if infinite rule *)
+  | Sub_FixN_r of bool * sub_proof (* boolean true if infinite rule *)
 
 and typ_proof = term * prop * typ_rule
 and stk_proof = stac * prop * stk_rule
@@ -353,16 +355,32 @@ let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
             let _ = prove ctx.equations e in
             Sub_Rest_r(prf)
           end
-      (* Mu, Nu infinite case. *)
+      (* Mu right and Nu Left, infinite case. *)
       | (_          , FixM({ elt = Conv },f)) ->
-         Sub_FixM_i(subtype ctx t a (bndr_subst f b.elt))
+          Sub_FixM_r(true, subtype ctx t a (bndr_subst f b.elt))
       | (FixN({ elt = Conv },f), _) ->
-         Sub_FixN_i(subtype ctx t (bndr_subst f a.elt) b)
-      (* Mu, Nu tempory wrong rules FIXME #32 *)
-      | (_          , FixN({ elt = Conv },f)) ->
-         Sub_FixN_i(subtype ctx t a (bndr_subst f b.elt))
-      | (FixM({ elt = Conv },f), _) ->
-         Sub_FixM_i(subtype ctx t (bndr_subst f a.elt) b)
+          Sub_FixN_l(true, subtype ctx t (bndr_subst f a.elt) b)
+      (* Mu left and Nu right, infinite rules (wrong). *)
+      | (FixM({ elt = Conv },f), _          ) when not !circular ->
+          Sub_FixM_l(true, subtype ctx t (bndr_subst f a.elt) b)
+      | (_          , FixN({ elt = Conv },f)) when not !circular ->
+          Sub_FixN_r(true, subtype ctx t a (bndr_subst f b.elt))
+      (* Mu right and Nu left rules, general case. *)
+      | (_          , FixM(o,f)  ) when !circular ->
+          let b = assert false in (* FIXME #32 *)
+          Sub_FixM_r(false, subtype ctx t a b)
+      | (FixN(o,f)  , _          ) when !circular ->
+          let a = assert false in (* FIXME #32 *)
+          Sub_FixN_l(false, subtype ctx t a b)
+      (* Mu left and Nu right rules. *)
+      | (FixM(o,f)  , _          ) when t_is_val && !circular ->
+          let ctx = {ctx with positives = o :: ctx.positives} in
+          let p = assert false in (* FIXME #32 predecessor *)
+          Sub_FixM_l(false, subtype ctx t (Pos.none (FixM(p,f))) b)
+      | (_          , FixN(o,f)  ) when t_is_val && !circular ->
+          let ctx = {ctx with positives = o :: ctx.positives} in
+          let p = assert false in (* FIXME #32 predecessor *)
+          Sub_FixN_r(false, subtype ctx t a (Pos.none (FixN(p,f))))
       (* Fallback to general witness. *)
       | (_          , _          ) when not t_is_val ->
          log_sub "general subtyping";
@@ -417,6 +435,7 @@ and check_fix : ctxt -> (v, t) bndr -> prop -> typ_proof = fun ctx b c ->
       (* Construction of a new schema. *)
       let (sch, os) = generalise ctx b c in
       (* Recording of the new induction hypothesis. *)
+      log_typ "the schema has %i arguments" (Array.length os);
       let ctx =
         if os = [||] then ctx
         else { ctx with fix_ihs = Buckets.add b sch ctx.fix_ihs }
