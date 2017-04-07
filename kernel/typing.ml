@@ -367,20 +367,44 @@ let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
           Sub_FixN_r(true, subtype ctx t a (bndr_subst f b.elt))
       (* Mu right and Nu left rules, general case. *)
       | (_          , FixM(o,f)  ) when !circular ->
-          let b = assert false in (* FIXME #32 *)
+          let rec find_le os =
+            match os with
+            | []    -> subtype_msg b.pos "no suitable ordinal for μr"
+            | k::os -> if Ordinal.less_ordi os k o then k
+                       else find_le os
+          in
+          let o = find_le ctx.positives in
+          let b = bndr_subst f (FixM(o,f)) in
           Sub_FixM_r(false, subtype ctx t a b)
       | (FixN(o,f)  , _          ) when !circular ->
-          let a = assert false in (* FIXME #32 *)
+          let rec find_le os =
+            match os with
+            | []    -> subtype_msg b.pos "no suitable ordinal for μr"
+            | k::os -> if Ordinal.less_ordi os k o then k
+                       else find_le os
+          in
+          let o = find_le ctx.positives in
+          let a = bndr_subst f (FixN(o,f)) in
           Sub_FixN_l(false, subtype ctx t a b)
       (* Mu left and Nu right rules. *)
       | (FixM(o,f)  , _          ) when t_is_val && !circular ->
           let ctx = {ctx with positives = o :: ctx.positives} in
-          let p = assert false in (* FIXME #32 predecessor *)
-          Sub_FixM_l(false, subtype ctx t (Pos.none (FixM(p,f))) b)
+          let o =
+            let f o = bndr_subst f (FixM(Pos.none o, f)) in
+            let f = binder_from_fun "o" f in
+            Pos.none (OWMu(o,t,(None,f)))
+          in
+          let a = bndr_subst f (FixM(o,f)) in
+          Sub_FixM_l(false, subtype ctx t a b)
       | (_          , FixN(o,f)  ) when t_is_val && !circular ->
           let ctx = {ctx with positives = o :: ctx.positives} in
-          let p = assert false in (* FIXME #32 predecessor *)
-          Sub_FixN_r(false, subtype ctx t a (Pos.none (FixN(p,f))))
+          let o =
+            let f o = bndr_subst f (FixN(Pos.none o, f)) in
+            let f = binder_from_fun "o" f in
+            Pos.none (OWNu(o,t,(None, f)))
+          in
+          let b = bndr_subst f (FixM(o,f)) in
+          Sub_FixN_r(false, subtype ctx t a b)
       (* Fallback to general witness. *)
       | (_          , _          ) when not t_is_val ->
          log_sub "general subtyping";

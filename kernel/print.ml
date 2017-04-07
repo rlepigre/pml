@@ -160,7 +160,17 @@ let print_ex : type a. a ex loc printer = fun ch e ->
                        fprintf ch "ε∃(%s:%a|%a∈%a)" (name_of x)
                                print_sort s print_ex t print_ex a
                      else fprintf ch "ε∃%s" (bndr_name f).elt
-    | OWit(o,i,s) -> if !print_full then
+    | OWMu(o,t,b) -> if !print_full then
+                       let (x,a) = unbind mk_free (snd b) in
+                       fprintf ch "εκ%s(<%a,%a∈%a)" (name_of x) print_ex o
+                         print_ex t print_ex a
+                     else fprintf ch "εκμ%s" (bndr_name b).elt
+    | OWNu(o,t,b) -> if !print_full then
+                       let (x,a) = unbind mk_free (snd b) in
+                       fprintf ch "εκ%s(<%a,%a∉%a)" (name_of x) print_ex o
+                         print_ex t print_ex a
+                     else fprintf ch "εκν%s" (bndr_name b).elt
+    | OSch(o,i,s) -> if !print_full then
                        fprintf ch "εκ%d(<%a,%a)" i print_ex o print_sch s
                      else fprintf ch "εκ%d(<%a)" i print_ex o
     | UVar(_,uv)  -> fprintf ch "?%i" uv.uvar_key

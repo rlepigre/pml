@@ -94,7 +94,9 @@ let uvar_iter : type a. uvar_fun -> a ex loc -> unit = fun f e ->
     | SWit(b,a)   -> if todo e then (buvar_iter b; uvar_iter a)
     | UWit(_,t,b) -> if todo e then (uvar_iter t; buvar_iter b)
     | EWit(_,t,b) -> if todo e then (uvar_iter t; buvar_iter b)
-    | OWit(o,i,s) -> if todo e then
+    | OWMu(o,t,b) -> if todo e then (uvar_iter o; uvar_iter t; buvar_iter b)
+    | OWNu(o,t,b) -> if todo e then (uvar_iter o; uvar_iter t; buvar_iter b)
+    | OSch(o,i,s) -> if todo e then
                        begin
                          let (t,b) = s.sch_judge in
                          let (_,t) = Bindlib.unbind mk_free (snd t) in
@@ -283,7 +285,11 @@ let {eq_expr; eq_bndr; eq_ombinder} =
     | (SWit(f1,a1)   , SWit(f2,a2)   ) -> eq_bndr S f1 f2 && eq_expr a1 a2
     | (UWit(s1,t1,b1), UWit(_,t2,b2) ) -> eq_bndr s1 b1 b2 && eq_expr t1 t2
     | (EWit(s1,t1,b1), EWit(_,t2,b2) ) -> eq_bndr s1 b1 b2 && eq_expr t1 t2
-    | (OWit(o1,i1,s1), OWit(o2,i2,s2)) -> i1 = i2 && eq_expr o1 o2 &&
+    | (OWMu(o1,t1,b1), OWMu(o2,t2,b2)) -> eq_expr o1 o2 && eq_expr t1 t2
+                                          && eq_bndr O b1 b2
+    | (OWNu(o1,t1,b1), OWNu(o2,t2,b2)) -> eq_expr o1 o2 && eq_expr t1 t2
+                                          && eq_bndr O b1 b2
+    | (OSch(o1,i1,s1), OSch(o2,i2,s2)) -> i1 = i2 && eq_expr o1 o2 &&
                                           eq_schema s1 s2
     | (UVar(_,u1)    , UVar(_,u2)    ) ->
        if strict then u1.uvar_key = u2.uvar_key else

@@ -58,7 +58,9 @@ let rec sort : type a b. a ex loc ->  a sort * a ex loc= fun e ->
 
   | Conv        -> (O,e)
   | Succ _      -> (O,e)
-  | OWit _      -> (O,e)
+  | OWMu _      -> (O,e)
+  | OWNu _      -> (O,e)
+  | OSch _      -> (O,e)
 
   | Vari _      -> assert false
   | Dumm        -> assert false
@@ -156,7 +158,11 @@ let rec lift : type a. a ex loc -> a box = fun e ->
 
   | Conv        -> box e
   | Succ(o)     -> succ e.pos (lift o)
-  | OWit(o,i,s) -> owit e.pos (lift o) i (lift_schema s)
+  | OWMu(o,t,b) -> owmu e.pos (lift o) (lift t) (bndr_name b)
+                     (fun x -> lift (bndr_subst b (mk_free x)))
+  | OWNu(o,t,b) -> ownu e.pos (lift o) (lift t) (bndr_name b)
+                     (fun x -> lift (bndr_subst b (mk_free x)))
+  | OSch(o,i,s) -> osch e.pos (lift o) i (lift_schema s)
 
   | Vari(x)     -> vari e.pos x
   | Dumm        -> box e
@@ -232,7 +238,9 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
 
     | Conv        -> acc
     | Succ(o)     -> owits acc o
-    | OWit(_)     -> if List.memq e acc then e :: acc else acc
+    | OWMu(_,_,_) -> if List.memq e acc then e :: acc else acc
+    | OWNu(_,_,_) -> if List.memq e acc then e :: acc else acc
+    | OSch(_,_,_) -> if List.memq e acc then e :: acc else acc
 
     | Vari _      -> acc
     | Dumm        -> acc
@@ -332,7 +340,9 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
 
     | Conv        -> box e
     | Succ(o)     -> succ e.pos (bind_all o)
-    | OWit(_)     -> var_of_ordi_wit e
+    | OWMu(_,_,_) -> var_of_ordi_wit e
+    | OWNu(_,_,_) -> var_of_ordi_wit e
+    | OSch(_,_,_) -> var_of_ordi_wit e
 
     | Vari(x)     -> vari e.pos x
     | Dumm        -> box e

@@ -97,8 +97,12 @@ type _ ex =
   (** Convergent ordinal. *)
   | Succ : o ex loc                                -> o  ex
   (** Successor of an ordinal. *)
-  | OWit : o ex loc * int * schema                 -> o  ex
-  (** Ordinal witness. *)
+  | OWMu : o ex loc * t ex loc * (o, p) bndr       -> o  ex
+  (** Ordinal mu witness. *)
+  | OWNu : o ex loc * t ex loc * (o, p) bndr       -> o  ex
+  (** Ordinal nu witness. *)
+  | OSch : o ex loc * int * schema                 -> o  ex
+  (** Ordinal schema witness. *)
 
   (* Type annotations. *)
 
@@ -409,9 +413,19 @@ let ewit : type a. popt -> tbox -> strloc -> a sort -> (a var -> pbox)
     let b = vbind mk_free x.elt f in
     box_apply2 (fun t b -> Pos.make p (EWit(s, t, (x.pos, b)))) t b
 
-let owit : type a. popt -> obox -> int -> schema Bindlib.bindbox -> obox =
+let owmu : popt -> obox -> tbox -> strloc -> (ovar -> pbox) -> obox =
+  fun p o t x f ->
+    let b = vbind mk_free x.elt f in
+    box_apply3 (fun o t b -> Pos.make p (OWMu(o,t,(x.pos, b)))) o t b
+
+let ownu : popt -> obox -> tbox -> strloc -> (ovar -> pbox) -> obox =
+  fun p o t x f ->
+    let b = vbind mk_free x.elt f in
+    box_apply3 (fun o t b -> Pos.make p (OWNu(o,t,(x.pos, b)))) o t b
+
+let osch : type a. popt -> obox -> int -> schema Bindlib.bindbox -> obox =
   fun p o i sch ->
-    box_apply2 (fun o sch -> Pos.make p (OWit(o,i,sch))) o sch
+    box_apply2 (fun o sch -> Pos.make p (OSch(o,i,sch))) o sch
 
 let goal : type a. popt -> a sort -> string -> a ex loc bindbox =
   fun p s str -> box (Pos.make p (Goal(s,str)))
