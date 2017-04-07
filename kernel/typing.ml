@@ -367,23 +367,33 @@ let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
           Sub_FixN_r(true, subtype ctx t a (bndr_subst f b.elt))
       (* Mu right and Nu left rules, general case. *)
       | (_          , FixM(o,f)  ) when !circular ->
-          let rec find_le os =
-            match os with
-            | []    -> subtype_msg b.pos "no suitable ordinal for μr"
-            | k::os -> if Ordinal.less_ordi os k o then k
-                       else find_le os
+          let is_suitable k =
+            match (Norm.whnf k).elt with
+            | OWMu(m,_,_)
+            | OWNu(m,_,_)
+            | OSch(m,_,_) -> m == o || Ordinal.less_ordi ctx.positives k o
+            | _           -> assert false (* NOTE no others. *)
           in
-          let o = find_le ctx.positives in
+          let o =
+            match List.find_first is_suitable ctx.positives with
+            | None   -> subtype_msg b.pos "no suitable ordinal for μr"
+            | Some o -> o
+          in
           let b = bndr_subst f (FixM(o,f)) in
           Sub_FixM_r(false, subtype ctx t a b)
       | (FixN(o,f)  , _          ) when !circular ->
-          let rec find_le os =
-            match os with
-            | []    -> subtype_msg b.pos "no suitable ordinal for μr"
-            | k::os -> if Ordinal.less_ordi os k o then k
-                       else find_le os
+          let is_suitable k =
+            match (Norm.whnf k).elt with
+            | OWMu(m,_,_)
+            | OWNu(m,_,_)
+            | OSch(m,_,_) -> m == o || Ordinal.less_ordi ctx.positives k o
+            | _           -> assert false (* NOTE no others. *)
           in
-          let o = find_le ctx.positives in
+          let o =
+            match List.find_first is_suitable ctx.positives with
+            | None   -> subtype_msg b.pos "no suitable ordinal for μr"
+            | Some o -> o
+          in
           let a = bndr_subst f (FixN(o,f)) in
           Sub_FixN_l(false, subtype ctx t a b)
       (* Mu left and Nu right rules. *)
