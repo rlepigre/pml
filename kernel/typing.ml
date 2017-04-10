@@ -66,6 +66,14 @@ let new_uvar : type a. ctxt -> a sort -> a ex loc = fun ctx s ->
   log_uni "?%i : %a" i Print.print_sort s;
   Pos.none (UVar(s, {uvar_key = i; uvar_val = ref None}))
 
+let add_positive : ctxt -> ordi -> ctxt = fun ctx o ->
+  let o = Norm.whnf o in
+  match o.elt with
+  | Conv    -> ctx
+  | Succ(_) -> ctx
+  | _       -> if List.memq o ctx.positives then ctx
+               else {ctx with positives = o :: ctx.positives}
+
 type typ_rule =
   | Typ_VTyp   of sub_proof * typ_proof
   | Typ_TTyp   of sub_proof * typ_proof
@@ -149,6 +157,7 @@ let rec learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
             learn_equivalences ctx v b
           with Not_found -> assert false (* NOTE check *)
      end
+  | FixM(o,f)  -> add_positive ctx o
   | _          -> ctx
 
 let rec is_singleton : prop -> term option = fun t ->
@@ -378,6 +387,8 @@ let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
             | OWMu(m,_,_)
             | OWNu(m,_,_)
             | OSch(m,_,_) -> m == o || Ordinal.less_ordi ctx.positives k o
+            | UWit(_,_,_) -> Ordinal.less_ordi ctx.positives k o
+            | EWit(_,_,_) -> Ordinal.less_ordi ctx.positives k o
             | _           -> assert false (* NOTE no others. *)
           in
           let o =
@@ -393,6 +404,8 @@ let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
             | OWMu(m,_,_)
             | OWNu(m,_,_)
             | OSch(m,_,_) -> m == o || Ordinal.less_ordi ctx.positives k o
+            | UWit(_,_,_) -> Ordinal.less_ordi ctx.positives k o
+            | EWit(_,_,_) -> Ordinal.less_ordi ctx.positives k o
             | _           -> assert false (* NOTE no others. *)
           in
           let o =
@@ -404,7 +417,7 @@ let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
           Sub_FixN_l(false, subtype ctx t a b)
       (* Mu left and Nu right rules. *)
       | (FixM(o,f)  , _          ) when t_is_val && !circular ->
-          let ctx = {ctx with positives = o :: ctx.positives} in
+          let ctx = add_positive ctx o in
           let o =
             let f o = bndr_subst f (FixM(Pos.none o, f)) in
             let f = binder_from_fun "o" f in
@@ -413,7 +426,7 @@ let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
           let a = bndr_subst f (FixM(o,f)) in
           Sub_FixM_l(false, subtype ctx t a b)
       | (_          , FixN(o,f)  ) when t_is_val && !circular ->
-          let ctx = {ctx with positives = o :: ctx.positives} in
+          let ctx = add_positive ctx o in
           let o =
             let f o = bndr_subst f (FixN(Pos.none o, f)) in
             let f = binder_from_fun "o" f in
