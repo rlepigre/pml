@@ -410,7 +410,7 @@ let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
           in
           let o =
             match List.find_first is_suitable ctx.positives with
-            | None   -> subtype_msg b.pos "no suitable ordinal for μr"
+            | None   -> subtype_msg b.pos "no suitable ordinal for νl"
             | Some o -> o
           in
           let a = bndr_subst f (FixN(o,f)) in
