@@ -1,6 +1,8 @@
+open Extra
 open Ast
 open Pos
 open Compare
+open Sorts
 
 type positives = ordi list
 

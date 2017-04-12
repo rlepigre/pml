@@ -224,6 +224,11 @@ let print_pos : out_channel -> ordi list -> unit = fun ch os ->
   | [] -> output_string ch "∅"
   | os -> print_list Print.ex "," ch os
 
+let is_conv : ordi -> bool = fun o ->
+  match (Norm.whnf o).elt with
+  | Conv -> true
+  | _    -> false
+
 let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
   fun ctx t a b ->
     log_sub "%a\n      ⊢ %a\n      ∈ %a\n      ⊆ %a"
@@ -371,50 +376,30 @@ let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
             Sub_Rest_r(prf)
           end
       (* Mu right and Nu Left, infinite case. *)
-      | (_          , FixM({ elt = Conv },f)) ->
+      | (_          , FixM(o,f) ) when is_conv o ->
           Sub_FixM_r(true, subtype ctx t a (bndr_subst f b.elt))
-      | (FixN({ elt = Conv },f), _) ->
+      | (FixN(o,f)  , _         ) when is_conv o ->
           Sub_FixN_l(true, subtype ctx t (bndr_subst f a.elt) b)
       (* Mu left and Nu right, infinite rules (wrong). *)
-      | (FixM({ elt = Conv },f), _          ) when not !circular ->
+      | (FixM(o,f)  , _         ) when is_conv o && not !circular ->
           Sub_FixM_l(true, subtype ctx t (bndr_subst f a.elt) b)
-      | (_          , FixN({ elt = Conv },f)) when not !circular ->
+      | (_          , FixN(o,f) ) when is_conv o && not !circular ->
           Sub_FixN_r(true, subtype ctx t a (bndr_subst f b.elt))
       (* Mu right and Nu left rules, general case. *)
       | (_          , FixM(o,f)  ) when !circular ->
-          let is_suitable k =
-            match (Norm.whnf k).elt with
-            | OWMu(m,_,_)
-            | OWNu(m,_,_)
-            | OSch(m,_,_) -> m == o || Ordinal.less_ordi ctx.positives k o
-            | UWit(_,_,_) -> Ordinal.less_ordi ctx.positives k o
-            | EWit(_,_,_) -> Ordinal.less_ordi ctx.positives k o
-            | _           -> assert false (* NOTE no others. *)
-          in
-          let o =
-            match List.find_first is_suitable ctx.positives with
-            | None   -> subtype_msg b.pos "no suitable ordinal for μr"
-            | Some o -> o
-          in
-          let b = bndr_subst f (FixM(o,f)) in
-          Sub_FixM_r(false, subtype ctx t a b)
+          let u = new_uvar ctx O in
+          let b = bndr_subst f (FixM(u,f)) in
+          let prf = subtype ctx t a b in
+          if not (Ordinal.less_ordi ctx.positives u o) then
+            subtype_msg b.pos "ordinal not suitable (μr rule)";
+          Sub_FixM_r(false, prf)
       | (FixN(o,f)  , _          ) when !circular ->
-          let is_suitable k =
-            match (Norm.whnf k).elt with
-            | OWMu(m,_,_)
-            | OWNu(m,_,_)
-            | OSch(m,_,_) -> m == o || Ordinal.less_ordi ctx.positives k o
-            | UWit(_,_,_) -> Ordinal.less_ordi ctx.positives k o
-            | EWit(_,_,_) -> Ordinal.less_ordi ctx.positives k o
-            | _           -> assert false (* NOTE no others. *)
-          in
-          let o =
-            match List.find_first is_suitable ctx.positives with
-            | None   -> subtype_msg b.pos "no suitable ordinal for νl"
-            | Some o -> o
-          in
-          let a = bndr_subst f (FixN(o,f)) in
-          Sub_FixN_l(false, subtype ctx t a b)
+          let u = new_uvar ctx O in
+          let a = bndr_subst f (FixN(u,f)) in
+          let prf = subtype ctx t a b in
+          if not (Ordinal.less_ordi ctx.positives u o) then
+            subtype_msg b.pos "ordinal not suitable (μr rule)";
+          Sub_FixN_l(false, prf)
       (* Mu left and Nu right rules. *)
       | (FixM(o,f)  , _          ) when t_is_val && !circular ->
           let ctx = add_positive ctx o in
