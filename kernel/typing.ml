@@ -478,8 +478,8 @@ and check_fix : ctxt -> (v, t) bndr -> prop -> typ_proof = fun ctx b c ->
         if os = [||] then ctx
         else { ctx with fix_ihs = Buckets.add b sch ctx.fix_ihs }
       in
-      (* Elimination of the schema. *)
-      let spe = elim_schema ctx sch in
+      (* Instantiation of the schema. *)
+      let spe = inst_schema ctx sch os in
       let ctx = {ctx with positives = spe.spe_posit} in
       (* Registration of the new top induction hypothesis and call. *)
       let top_ih = (sch.sch_index, os) in
@@ -509,15 +509,28 @@ and generalise : ctxt -> (v, t) bndr -> prop -> schema * ordi array =
     (* Assemble the schema. *)
     ({sch_index ; sch_posit ; sch_relat ; sch_judge}, os)
 
-(* Instantiation of a schema with ordinal unification variables. *)
-and elim_schema : ctxt -> schema -> specialised = fun ctx sch ->
-  let arity = mbinder_arity (snd sch.sch_judge) in
-  let spe_param = Array.init arity (fun _ -> new_uvar ctx O) in
-  let xs = Array.map (fun e -> e.elt) spe_param in
-  let a = msubst (snd sch.sch_judge) xs in
-  let spe_judge = (fst sch.sch_judge, a) in
-  let spe_posit = List.map (fun i -> spe_param.(i)) sch.sch_posit in
-  { spe_param ; spe_posit ; spe_judge }
+(* Elimination of a schema using ordinal unification variables. *)
+and elim_schema : ctxt -> schema -> specialised =
+  fun ctx sch ->
+    let arity = mbinder_arity (snd sch.sch_judge) in
+    let spe_param = Array.init arity (fun _ -> new_uvar ctx O) in
+    let xs = Array.map (fun e -> e.elt) spe_param in
+    let a = msubst (snd sch.sch_judge) xs in
+    let spe_judge = (fst sch.sch_judge, a) in
+    let spe_posit = List.map (fun i -> spe_param.(i)) sch.sch_posit in
+    { spe_param ; spe_posit ; spe_judge }
+
+(* Instantiation of a schema with ordinal witnesses. *)
+and inst_schema : ctxt -> schema -> ordi array -> specialised =
+  fun ctx sch os ->
+    let arity = mbinder_arity (snd sch.sch_judge) in
+    let fn i = Pos.none (OSch(os.(i), i, sch)) in
+    let spe_param = Array.init arity fn in
+    let xs = Array.map (fun e -> e.elt) spe_param in
+    let a = msubst (snd sch.sch_judge) xs in
+    let spe_judge = (fst sch.sch_judge, a) in
+    let spe_posit = List.map (fun i -> spe_param.(i)) sch.sch_posit in
+    { spe_param ; spe_posit ; spe_judge }
 
 (* Add a call to the call-graph. *)
 and add_call : ctxt -> (Scp.index * ordi array) -> bool -> unit =
