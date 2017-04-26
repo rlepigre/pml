@@ -187,13 +187,13 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
     | UWit(s,t,a) ->
         begin
           match s with
-          | O -> if List.memq e acc then e :: acc else acc
+          | O -> if List.memq e acc then acc else e :: acc
           | _ -> acc
         end
     | EWit(s,t,a) ->
         begin
           match s with
-          | O -> if List.memq e acc then e :: acc else acc
+          | O -> if List.memq e acc then acc else e :: acc
           | _ -> acc
         end
     | UVar(_,_)   -> acc
@@ -238,9 +238,9 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
 
     | Conv        -> acc
     | Succ(o)     -> owits acc o
-    | OWMu(_,_,_) -> if List.memq e acc then e :: acc else acc
-    | OWNu(_,_,_) -> if List.memq e acc then e :: acc else acc
-    | OSch(_,_,_) -> if List.memq e acc then e :: acc else acc
+    | OWMu(_,_,_) -> if List.memq e acc then acc else e :: acc
+    | OWNu(_,_,_) -> if List.memq e acc then acc else e :: acc
+    | OSch(_,_,_) -> if List.memq e acc then acc else e :: acc
 
     | Vari _      -> acc
     | Dumm        -> acc
