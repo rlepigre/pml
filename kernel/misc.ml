@@ -260,30 +260,35 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
       | Posit(o)     -> posit (bind_all o)
       | NoBox(v)     -> nobox (bind_all v)
     in
-    let var_of_ordi_wit o =
-      try
-        for i = 0 to arity - 1 do
-          if os.(i) == o then raise (Found_index(i))
-        done;
-        lift o
-      with Found_index(i) -> vari o.pos xs.(i)
+    let var_of_ordi_wit : type a.a sort -> a ex loc -> a box = fun s o ->
+       match s with
+       | O ->
+          begin
+            try
+              for i = 0 to arity - 1 do
+                if os.(i) == o then raise (Found_index(i))
+              done;
+              raise Not_found
+            with Found_index(i) -> (vari o.pos xs.(i) : o box)
+          end
+       | _ -> raise Not_found
     in
     match (Norm.whnf e).elt with
     | HDef(_,_)   -> box e (* Assumed closed *)
     | HApp(s,f,a) -> happ e.pos s (bind_all f) (bind_all a)
     | HFun(a,b,f) -> hfun e.pos a b (bndr_name f)
                        (fun x -> bind_all (bndr_subst f (mk_free x)))
-    | UWit(s,_,_) ->
+    | UWit(s,t,f) ->
         begin
-          match s with
-          | O -> var_of_ordi_wit e
-          | _ -> lift e
+          try var_of_ordi_wit s e with Not_found ->
+            uwit e.pos (bind_all t) (bndr_name f) s
+                 (fun x -> bind_all (bndr_subst f (mk_free x)))
         end
-    | EWit(s,_,_) ->
-        begin
-          match s with
-          | O -> var_of_ordi_wit e
-          | _ -> lift e
+    | EWit(s,t,f) ->
+       begin
+          try var_of_ordi_wit s e with Not_found ->
+            uwit e.pos (bind_all t) (bndr_name f) s
+                      (fun x -> bind_all (bndr_subst f (mk_free x)))
         end
     | UVar(_,_)   -> box e
     | ITag(_,_)   -> box e
@@ -304,7 +309,10 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
     | Rest(a,c)   -> rest e.pos (bind_all a) (bind_all_cond c)
     | Impl(c,a)   -> impl e.pos (bind_all_cond c) (bind_all a)
 
-    | VWit(_,_,_) -> lift e
+    | VWit(f,g,a) -> vdwit e.pos (bndr_name f)
+                           (fun x -> bind_all (bndr_subst f (mk_free x)))
+                           (fun x -> bind_all (bndr_subst g (mk_free x)))
+                           (bind_all a)
     | LAbs(a,f)   -> labs e.pos (Option.map bind_all a) (bndr_name f)
                        (fun x -> bind_all (bndr_subst f (mk_free x)))
     | Cons(c,v)   -> cons e.pos c (bind_all v)
@@ -336,14 +344,28 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
     | Epsi        -> box e
     | Push(v,s)   -> push e.pos (bind_all v) (bind_all s)
     | Fram(t,s)   -> fram e.pos (bind_all t) (bind_all s)
-    | SWit(_,_)   -> lift e
-
+    | SWit(f,a)   -> swit e.pos (bndr_name f)
+                          (fun x -> bind_all (bndr_subst f (mk_free x)))
+                          (bind_all a)
     | Conv        -> box e
     | Succ(o)     -> succ e.pos (bind_all o)
-    | OWMu(_,_,_) -> var_of_ordi_wit e
-    | OWNu(_,_,_) -> var_of_ordi_wit e
-    | OSch(_,_,_) -> var_of_ordi_wit e
-
+    | OWMu(o,t,f) ->
+       begin
+         try var_of_ordi_wit O e with Not_found ->
+           owmu e.pos (bind_all o) (bind_all t) (bndr_name f)
+                (fun x -> bind_all (bndr_subst f (mk_free x)))
+       end
+    | OWNu(o,t,f) ->
+       begin
+         try var_of_ordi_wit O e with Not_found ->
+           ownu e.pos (bind_all o) (bind_all t) (bndr_name f)
+                (fun x -> bind_all (bndr_subst f (mk_free x)))
+       end
+    | OSch(o,i,sch) ->
+       begin
+         try var_of_ordi_wit O e with Not_found ->
+           osch e.pos (bind_all o) i (box sch)
+       end
     | Vari(x)     -> vari e.pos x
     | Dumm        -> box e
   in

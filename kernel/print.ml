@@ -203,6 +203,12 @@ let print_ex : type a. a ex loc printer = fun ch e ->
 (* Short names for printing functions. *)
 let sort = print_sort
 let ex   = print_ex
+let omb ch b =
+  let (vars,k) = unmbind mk_free b in
+  let vars = Array.map (fun x -> Pos.none (mk_free x)) vars in
+  let print_vars = print_list print_ex "," in
+  fprintf ch "%a.%a" print_vars (Array.to_list vars) print_ex k
+
 
 let full_ex ch e =
   let save = !print_full in
