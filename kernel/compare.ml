@@ -178,7 +178,7 @@ let {eq_expr; eq_bndr; eq_ombinder} =
     let e2 = Norm.whnf e2 in
     if e1.elt == e2.elt then true else (
     try
-      match (Misc.sort e1, Misc.sort e2) with
+      match (Ast.sort e1, Ast.sort e2) with
       | (V, e1), (V,e2) -> oracle.eq_val e1 e2
       | (T, e1), (T,e2) -> oracle.eq_trm e1 e2
       | _ -> raise DontKnow
@@ -382,3 +382,6 @@ let {eq_expr; eq_bndr; eq_ombinder} =
   in
 
   {eq_expr; eq_bndr; eq_ombinder}
+
+let is_in : type a. a ex loc -> a ex loc list -> bool = fun e1 es ->
+  List.exists (fun e2 -> eq_expr ~strict:true e1 e2) es

@@ -9,74 +9,7 @@ open Output
 
 exception NotClosed (* raised for ITag *)
 
-let rec sort : type a b. a ex loc ->  a sort * a ex loc= fun e ->
-  let e = Norm.whnf e in
-  match e.elt with
-  | HDef(s,_)   -> (s, e)
-  | HApp(d,u,v) -> let (F(_,s),_) = sort u in (s,e)
-  | HFun(d,c,r) -> (F(d, c), e)
-  | UWit(s,_,_) -> (s,e)
-  | EWit(s,_,_) -> (s,e)
-  | UVar(s,_)   -> (s,e)
-  | ITag(s,_)   -> (s,e)
-  | Goal(s,_)   -> (s,e)
 
-  | Func _      -> (P,e)
-  | Prod _      -> (P,e)
-  | DSum _      -> (P,e)
-  | Univ _      -> (P,e)
-  | Exis _      -> (P,e)
-  | FixM _      -> (P,e)
-  | FixN _      -> (P,e)
-  | Memb _      -> (P,e)
-  | Rest _      -> (P,e)
-  | Impl _      -> (P,e)
-
-  | VWit _      -> (V,e)
-  | LAbs _      -> (V,e)
-  | Cons _      -> (V,e)
-  | Reco _      -> (V,e)
-  | Scis        -> (V,e)
-  | VDef _      -> (V,e)
-  | VTyp _      -> (V,e)
-  | VLam _      -> (V,e)
-
-  | Valu _      -> (T,e)
-  | Appl _      -> (T,e)
-  | MAbs _      -> (T,e)
-  | Name _      -> (T,e)
-  | Proj _      -> (T,e)
-  | Case _      -> (T,e)
-  | FixY _      -> (T,e)
-  | TTyp _      -> (T,e)
-  | TLam _      -> (T,e)
-
-  | Epsi        -> (S,e)
-  | Push _      -> (S,e)
-  | Fram _      -> (S,e)
-  | SWit _      -> (S,e)
-
-  | Zero        -> (O,e)
-  | Conv        -> (O,e)
-  | Succ _      -> (O,e)
-  | OWMu _      -> (O,e)
-  | OWNu _      -> (O,e)
-  | OSch _      -> (O,e)
-
-  | Vari _      -> assert false
-  | Dumm        -> assert false
-
-let isVal : type a.a ex loc -> v ex loc option = fun e ->
-  match sort e with
-  | (V,e)               -> Some e
-  | (T,{ elt = Valu e}) -> Some e
-  | _                   -> None
-
-let isTerm : type a.a ex loc -> t ex loc option = fun e ->
-  match sort e with
-  | (V,e) -> Some (Pos.none (Valu e))
-  | (T,e) -> Some e
-  | _     -> None
 
 let rec lift : type a. a ex loc -> a box = fun e ->
   let lift_cond c =
@@ -189,13 +122,13 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
     | UWit(s,t,a) ->
         begin
           match s with
-          | O -> if List.memq e acc then acc else e :: acc
+          | O -> if Compare.is_in e acc then acc else e :: acc
           | _ -> acc
         end
     | EWit(s,t,a) ->
         begin
           match s with
-          | O -> if List.memq e acc then acc else e :: acc
+          | O -> if Compare.is_in e acc then acc else e :: acc
           | _ -> acc
         end
     | UVar(_,_)   -> acc
@@ -241,11 +174,11 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
     | Zero        -> acc
     | Conv        -> acc
     | Succ(o)     -> owits acc o
-    | OWMu(_,_,_) -> if List.memq e acc then acc else e :: acc
-    | OWNu(_,_,_) -> if List.memq e acc then acc else e :: acc
-    | OSch(_,_,_) -> if List.memq e acc then acc else e :: acc
+    | OWMu(_,_,_) -> if Compare.is_in e acc then acc else e :: acc
+    | OWNu(_,_,_) -> if Compare.is_in e acc then acc else e :: acc
+    | OSch(_,_,_) -> if Compare.is_in e acc then acc else e :: acc
 
-    | Vari _      -> acc
+    | Vari _      -> assert false
     | Dumm        -> acc
   in
   (* The ordinals to be bound. *)
@@ -269,7 +202,7 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
           begin
             try
               for i = 0 to arity - 1 do
-                if os.(i) == o then raise (Found_index(i))
+                if Compare.eq_expr ~strict:true os.(i) o then raise (Found_index(i))
               done;
               raise Not_found
             with Found_index(i) -> (vari o.pos xs.(i) : o box)

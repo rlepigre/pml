@@ -452,7 +452,7 @@ and check_fix : ctxt -> (v, t) bndr -> prop -> typ_proof = fun ctx b c ->
   let ihs = Buckets.find b ctx.fix_ihs in
   log_typ "there are %i potential induction hypotheses" (List.length ihs);
   (* Function for finding a suitable induction hypothesis. *)
-  let is_suitable ih = eq_ombinder omb (snd ih.sch_judge) in
+  let is_suitable ih = eq_ombinder (snd ih.sch_judge) omb in
   match List.find_first is_suitable ihs with
   | Some(ih) ->
       (* An induction hypothesis has been found. *)
@@ -499,6 +499,7 @@ and generalise : ctxt -> (v, t) bndr -> prop -> schema * ordi array =
     let sch_relat = [] in (* FIXME #32 *)
 
     (* Build the judgment. *)
+    Output.bug_msg "Schema: %a" Print.omb omb;
     let sch_judge = (b, omb) in
     (* Ask for a fresh symbol index. *)
     let sch_index =
@@ -582,6 +583,14 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
          (* Fixpoint. Temporary code *)
          | FixY(b,{elt = Vari y}) ->
             assert(eq_vars x y); (* x must not be free in b *)
+            let v = Pos.none (Valu(v)) in
+            (* FIXME UWit only with value? *)
+            let rec break_univ c =
+              match (Norm.whnf c).elt with
+              | Univ(O,f) -> break_univ (bndr_subst f (UWit(O,v,f)))
+              | _         -> c
+            in
+            let c = break_univ c in
             let p = check_fix ctx b c in
             Typ_FixY(p)
          (* General case for typing λ-abstraction *)

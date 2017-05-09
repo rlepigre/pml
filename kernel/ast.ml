@@ -526,3 +526,72 @@ let build_v_fixy : (v,t) bndr -> valu = fun b ->
 
 let build_t_fixy : (v,t) bndr -> term = fun b ->
   Pos.none (Valu(build_v_fixy b))
+
+
+let rec sort : type a b. a ex loc ->  a sort * a ex loc= fun e ->
+  match e.elt with (* FIXME there was a Norm.whnf. Was it required?! *)
+  | HDef(s,_)   -> (s, e)
+  | HApp(d,u,v) -> let (F(_,s),_) = sort u in (s,e)
+  | HFun(d,c,r) -> (F(d, c), e)
+  | UWit(s,_,_) -> (s,e)
+  | EWit(s,_,_) -> (s,e)
+  | UVar(s,_)   -> (s,e)
+  | ITag(s,_)   -> (s,e)
+  | Goal(s,_)   -> (s,e)
+
+  | Func _      -> (P,e)
+  | Prod _      -> (P,e)
+  | DSum _      -> (P,e)
+  | Univ _      -> (P,e)
+  | Exis _      -> (P,e)
+  | FixM _      -> (P,e)
+  | FixN _      -> (P,e)
+  | Memb _      -> (P,e)
+  | Rest _      -> (P,e)
+  | Impl _      -> (P,e)
+
+  | VWit _      -> (V,e)
+  | LAbs _      -> (V,e)
+  | Cons _      -> (V,e)
+  | Reco _      -> (V,e)
+  | Scis        -> (V,e)
+  | VDef _      -> (V,e)
+  | VTyp _      -> (V,e)
+  | VLam _      -> (V,e)
+
+  | Valu _      -> (T,e)
+  | Appl _      -> (T,e)
+  | MAbs _      -> (T,e)
+  | Name _      -> (T,e)
+  | Proj _      -> (T,e)
+  | Case _      -> (T,e)
+  | FixY _      -> (T,e)
+  | TTyp _      -> (T,e)
+  | TLam _      -> (T,e)
+
+  | Epsi        -> (S,e)
+  | Push _      -> (S,e)
+  | Fram _      -> (S,e)
+  | SWit _      -> (S,e)
+
+  | Zero        -> (O,e)
+  | Conv        -> (O,e)
+  | Succ _      -> (O,e)
+  | OWMu _      -> (O,e)
+  | OWNu _      -> (O,e)
+  | OSch _      -> (O,e)
+
+  | Vari _      -> assert false
+  | Dumm        -> assert false
+
+let isVal : type a.a ex loc -> v ex loc option = fun e ->
+  match sort e with
+  | (V,e)               -> Some e
+  | (T,{ elt = Valu e}) -> Some e
+  | _                   -> None
+
+let isTerm : type a.a ex loc -> t ex loc option = fun e ->
+  match sort e with
+  | (V,e) -> Some (Pos.none (Valu e))
+  | (T,e) -> Some e
+  | _     -> None
