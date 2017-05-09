@@ -385,21 +385,6 @@ let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
           Sub_FixM_l(true, subtype ctx t (bndr_subst f a.elt) b)
       | (_          , FixN(o,f) ) when is_conv o && not !circular ->
           Sub_FixN_r(true, subtype ctx t a (bndr_subst f b.elt))
-      (* Mu right and Nu left rules, general case. *)
-      | (_          , FixM(o,f)  ) when !circular ->
-          let u = new_uvar ctx O in
-          let b = bndr_subst f (FixM(u,f)) in
-          let prf = subtype ctx t a b in
-          if not (Ordinal.less_ordi ctx.positives u o) then
-            subtype_msg b.pos "ordinal not suitable (μr rule)";
-          Sub_FixM_r(false, prf)
-      | (FixN(o,f)  , _          ) when !circular ->
-          let u = new_uvar ctx O in
-          let a = bndr_subst f (FixN(u,f)) in
-          let prf = subtype ctx t a b in
-          if not (Ordinal.less_ordi ctx.positives u o) then
-            subtype_msg b.pos "ordinal not suitable (μr rule)";
-          Sub_FixN_l(false, prf)
       (* Mu left and Nu right rules. *)
       | (FixM(o,f)  , _          ) when t_is_val && !circular ->
           let ctx = add_positive ctx o in
@@ -419,6 +404,23 @@ let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
           in
           let b = bndr_subst f (FixM(o,f)) in
           Sub_FixN_r(false, subtype ctx t a b)
+      (* Mu right and Nu left rules, general case. *)
+      | (_          , FixM(o,f)  ) when !circular ->
+          let u = new_uvar ctx O in
+          let b = bndr_subst f (FixM(u,f)) in
+          let prf = subtype ctx t a b in
+          (*
+          if not (Ordinal.less_ordi ctx.positives u o) then
+            subtype_msg b.pos "ordinal not suitable (μr rule)";
+            *)
+          Sub_FixM_r(false, prf)
+      | (FixN(o,f)  , _          ) when !circular ->
+          let u = new_uvar ctx O in
+          let a = bndr_subst f (FixN(u,f)) in
+          let prf = subtype ctx t a b in
+          if not (Ordinal.less_ordi ctx.positives u o) then
+            subtype_msg b.pos "ordinal not suitable (μr rule)";
+          Sub_FixN_l(false, prf)
       (* Fallback to general witness. *)
       | (_          , _          ) when not t_is_val ->
          log_sub "general subtyping";
