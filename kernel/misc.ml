@@ -56,6 +56,7 @@ let rec sort : type a b. a ex loc ->  a sort * a ex loc= fun e ->
   | Fram _      -> (S,e)
   | SWit _      -> (S,e)
 
+  | Zero        -> (O,e)
   | Conv        -> (O,e)
   | Succ _      -> (O,e)
   | OWMu _      -> (O,e)
@@ -156,6 +157,7 @@ let rec lift : type a. a ex loc -> a box = fun e ->
                      (fun x -> lift (bndr_subst f (mk_free x)))
                      (lift a)
 
+  | Zero        -> box e
   | Conv        -> box e
   | Succ(o)     -> succ e.pos (lift o)
   | OWMu(o,t,b) -> owmu e.pos (lift o) (lift t) (bndr_name b)
@@ -236,6 +238,7 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
     | Fram(t,s)   -> owits (owits acc t) s
     | SWit(_,_)   -> acc
 
+    | Zero        -> acc
     | Conv        -> acc
     | Succ(o)     -> owits acc o
     | OWMu(_,_,_) -> if List.memq e acc then acc else e :: acc
@@ -347,6 +350,7 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
     | SWit(f,a)   -> swit e.pos (bndr_name f)
                           (fun x -> bind_all (bndr_subst f (mk_free x)))
                           (bind_all a)
+    | Zero        -> box e
     | Conv        -> box e
     | Succ(o)     -> succ e.pos (bind_all o)
     | OWMu(o,t,f) ->

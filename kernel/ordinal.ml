@@ -11,6 +11,7 @@ let is_pos : positives -> ordi -> bool =
     let o = Norm.whnf o in
     match o.elt with
     | Vari(_) -> assert false (* Should not happen. *)
+    | Zero    -> false
     | Conv    -> true
     | Succ(_) -> true
     | _       -> List.exists (eq_expr ~strict:true o) pos

@@ -93,6 +93,8 @@ type _ ex =
 
   (* Ordinal constructors. *)
 
+  | Zero :                                            o  ex
+  (** Zero ordinal. *)
   | Conv :                                            o  ex
   (** Convergent ordinal. *)
   | Succ : o ex loc                                -> o  ex
