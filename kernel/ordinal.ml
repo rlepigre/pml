@@ -35,6 +35,9 @@ let rec leq_i_ordi : positives -> ordi -> int -> ordi -> bool =
     | (OSch(o1,_,_), _   ) ->
         let i = if is_pos pos o1 then i-1 else i in
         leq_i_ordi pos o1 i o2
+    | (Zero    , _       ) -> i <= 0 || (i = 1 && is_pos pos o2)
+    | (UVar(_,v), _      ) when i <= 0 || (i = 1 && is_pos pos o2)
+                           -> uvar_set v (Pos.none Zero); true
     | (_       , _       ) -> false
 
 let leq_ordi : positives -> ordi -> ordi -> bool =
