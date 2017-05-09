@@ -446,48 +446,51 @@ and check_fix : ctxt -> (v, t) bndr -> prop -> typ_proof = fun ctx b c ->
     (* Old version. *)
     type_valu ctx (Pos.none (LAbs(None, b))) (Pos.none (Func(c,c)))
   else
-  (* Extracting ordinal parameters from the goal type. *)
-  let (omb, os) = Misc.bind_ordinals c in
   (* Looking for potential induction hypotheses. *)
   let ihs = Buckets.find b ctx.fix_ihs in
   log_typ "there are %i potential induction hypotheses" (List.length ihs);
   (* Function for finding a suitable induction hypothesis. *)
-  let is_suitable ih = eq_ombinder (snd ih.sch_judge) omb in
-  match List.find_first is_suitable ihs with
-  | Some(ih) ->
-      (* An induction hypothesis has been found. *)
-      log_typ "an induction hypothesis has been found";
-      (* Elimination of the schema, and unification with goal type. *)
-      let spe = elim_schema ctx ih in
-      let ok = eq_expr (snd spe.spe_judge) c in
-      if not ok then bad_schema "cannot unify";
-      (* Check positivity of ordinals. *)
-      let ok = List.for_all (Ordinal.is_pos ctx.positives) spe.spe_posit in
-      if not ok then bad_schema "cannot show positivity";
-      (* Add call to call-graph and build the proof. *)
-      add_call ctx (ih.sch_index, spe.spe_param) true;
-      (build_t_fixy b, c, Typ_Ind(ih))
-  | None     ->
-      (* No matching induction hypothesis. *)
-      log_typ "no suitable induction hypothesis";
-      (* Construction of a new schema. *)
-      let (sch, os) = generalise ctx b c in
-      (* Recording of the new induction hypothesis. *)
-      log_typ "the schema has %i arguments" (Array.length os);
-      let ctx =
-        if os = [||] then ctx
-        else { ctx with fix_ihs = Buckets.add b sch ctx.fix_ihs }
-      in
-      (* Instantiation of the schema. *)
-      let spe = inst_schema ctx sch os in
-      let ctx = {ctx with positives = spe.spe_posit} in
-      (* Registration of the new top induction hypothesis and call. *)
-      let top_ih = (sch.sch_index, os) in
-      add_call ctx top_ih false;
-      let ctx = {ctx with top_ih } in
-      (* Unrolling of the fixpoint and proof continued. *)
-      let t = bndr_subst b (build_v_fixy b).elt in
-      type_term ctx t (snd spe.spe_judge)
+  let rec find_suitable ihs =
+    match ihs with
+    | ih::ihs ->
+        begin
+          try
+            (* An induction hypothesis has been found. *)
+            log_typ "an induction hypothesis has been found";
+            (* Elimination of the schema, and unification with goal type. *)
+            let spe = elim_schema ctx ih in
+            let prf = subtype ctx (build_t_fixy b) (snd spe.spe_judge) c in
+            ignore prf; (* FIXME keep the proof prf *)
+            (* Check positivity of ordinals. *)
+            let ok = List.for_all (Ordinal.is_pos ctx.positives) spe.spe_posit in
+            if not ok then bad_schema "cannot show positivity";
+            (* Add call to call-graph and build the proof. *)
+            add_call ctx (ih.sch_index, spe.spe_param) true;
+            (build_t_fixy b, c, Typ_Ind(ih))
+          with Subtype_error _ -> find_suitable ihs
+        end
+    | []      ->
+        (* No matching induction hypothesis. *)
+        log_typ "no suitable induction hypothesis";
+        (* Construction of a new schema. *)
+        let (sch, os) = generalise ctx b c in
+        (* Recording of the new induction hypothesis. *)
+        log_typ "the schema has %i arguments" (Array.length os);
+        let ctx =
+          if os = [||] then ctx
+          else { ctx with fix_ihs = Buckets.add b sch ctx.fix_ihs }
+        in
+        (* Instantiation of the schema. *)
+        let spe = inst_schema ctx sch os in
+        let ctx = {ctx with positives = spe.spe_posit} in
+        (* Registration of the new top induction hypothesis and call. *)
+        let top_ih = (sch.sch_index, os) in
+        add_call ctx top_ih false;
+        let ctx = {ctx with top_ih } in
+        (* Unrolling of the fixpoint and proof continued. *)
+        let t = bndr_subst b (build_v_fixy b).elt in
+        type_term ctx t (snd spe.spe_judge)
+  in find_suitable ihs
 
 (* Generalisation (construction of a schema). *)
 and generalise : ctxt -> (v, t) bndr -> prop -> schema * ordi array =
