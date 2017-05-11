@@ -47,7 +47,7 @@ let log_typ = Log.(log_typ.p)
 type ctxt  =
   { uvarcount : int ref
   ; equations : eq_ctxt
-  ; positives : ordi list
+  ; positives : (ordi * ordi option) list
   ; fix_ihs   : ((v,t) bndr, schema) Buckets.t
   ; top_ih    : Scp.index * ordi array
   ; callgraph : Scp.t }
@@ -66,13 +66,18 @@ let new_uvar : type a. ctxt -> a sort -> a ex loc = fun ctx s ->
   log_uni "?%i : %a" i Print.print_sort s;
   Pos.none (UVar(s, {uvar_key = i; uvar_val = ref None}))
 
-let add_positive : ctxt -> ordi -> ctxt = fun ctx o ->
+let add_positive : ctxt -> ordi -> ordi option -> ctxt = fun ctx o oo ->
+  let aux ch oo =
+    match oo with
+    | None   -> Printf.fprintf ch "None"
+    | Some o -> Printf.fprintf ch "Some(%a)" Print.ex o
+  in
+  Output.bug_msg "add_positive %a %a" Print.ex o aux oo;
   let o = Norm.whnf o in
   match o.elt with
   | Conv    -> ctx
   | Succ(_) -> ctx
-  | _       -> if List.memq o ctx.positives then ctx
-               else {ctx with positives = o :: ctx.positives}
+  | _       -> {ctx with positives = (o,oo) :: ctx.positives}
 
 type typ_rule =
   | Typ_VTyp   of sub_proof * typ_proof
@@ -157,7 +162,7 @@ let rec learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
             learn_equivalences ctx v b
           with Not_found -> assert false (* NOTE check *)
      end
-  | FixM(o,f)  -> add_positive ctx o
+  | FixM(o,f)  -> add_positive ctx o None (* FIXME ??? *)
   | _          -> ctx
 
 let rec is_singleton : prop -> term option = fun t ->
@@ -219,10 +224,16 @@ let oracle ctx = {
       Chrono.add_time equiv_chrono (eq_trm ctx.equations v1) v2)
   }
 
-let print_pos : out_channel -> ordi list -> unit = fun ch os ->
-  match os with
-  | [] -> output_string ch "∅"
-  | os -> print_list Print.ex "," ch os
+let print_pos : out_channel -> (ordi * ordi option) list -> unit =
+  fun ch os ->
+    match os with
+    | [] -> output_string ch "∅"
+    | os -> let print ch (o, oo) =
+              Print.ex ch o;
+              match oo with
+              | None   -> ()
+              | Some o -> Printf.fprintf ch " (> %a)" Print.ex o
+            in print_list print ", " ch os
 
 let is_conv : ordi -> bool = fun o ->
   match (Norm.whnf o).elt with
@@ -231,7 +242,7 @@ let is_conv : ordi -> bool = fun o ->
 
 let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
   fun ctx t a b ->
-    log_sub "%a\n      ⊢ %a\n      ∈ %a\n      ⊆ %a"
+    log_sub "proving the subtyping judgment:\n  %a\n  ⊢ %a\n  ∈ %a\n  ⊆ %a"
       print_pos ctx.positives Print.ex t Print.ex a Print.ex b;
     let a = Norm.whnf a in
     let b = Norm.whnf b in
@@ -387,32 +398,30 @@ let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
           Sub_FixN_r(true, subtype ctx t a (bndr_subst f b.elt))
       (* Mu left and Nu right rules. *)
       | (FixM(o,f)  , _          ) when t_is_val && !circular ->
-          let ctx = add_positive ctx o in
-          let o =
+          let o' =
             let f o = bndr_subst f (FixM(Pos.none o, f)) in
             let f = binder_from_fun "o" f in
             Pos.none (OWMu(o,t,(None,f)))
           in
-          let a = bndr_subst f (FixM(o,f)) in
+          let ctx = add_positive ctx o (Some o') in
+          let a = bndr_subst f (FixM(o',f)) in
           Sub_FixM_l(false, subtype ctx t a b)
       | (_          , FixN(o,f)  ) when t_is_val && !circular ->
-          let ctx = add_positive ctx o in
-          let o =
+          let o' =
             let f o = bndr_subst f (FixN(Pos.none o, f)) in
             let f = binder_from_fun "o" f in
             Pos.none (OWNu(o,t,(None, f)))
           in
-          let b = bndr_subst f (FixM(o,f)) in
+          let ctx = add_positive ctx o (Some o') in
+          let b = bndr_subst f (FixM(o',f)) in
           Sub_FixN_r(false, subtype ctx t a b)
       (* Mu right and Nu left rules, general case. *)
       | (_          , FixM(o,f)  ) when !circular ->
           let u = new_uvar ctx O in
           let b = bndr_subst f (FixM(u,f)) in
           let prf = subtype ctx t a b in
-          (*
           if not (Ordinal.less_ordi ctx.positives u o) then
             subtype_msg b.pos "ordinal not suitable (μr rule)";
-            *)
           Sub_FixM_r(false, prf)
       | (FixN(o,f)  , _          ) when !circular ->
           let u = new_uvar ctx O in
@@ -464,7 +473,9 @@ and check_fix : ctxt -> (v, t) bndr -> prop -> typ_proof = fun ctx b c ->
             let prf = subtype ctx (build_t_fixy b) (snd spe.spe_judge) c in
             ignore prf; (* FIXME keep the proof prf *)
             (* Check positivity of ordinals. *)
-            let ok = List.for_all (Ordinal.is_pos ctx.positives) spe.spe_posit in
+            let ok =
+              List.for_all (Ordinal.is_pos ctx.positives) spe.spe_posit
+            in
             if not ok then bad_schema "cannot show positivity";
             (* Add call to call-graph and build the proof. *)
             add_call ctx (ih.sch_index, spe.spe_param) true;
@@ -484,7 +495,8 @@ and check_fix : ctxt -> (v, t) bndr -> prop -> typ_proof = fun ctx b c ->
         in
         (* Instantiation of the schema. *)
         let spe = inst_schema ctx sch os in
-        let ctx = {ctx with positives = spe.spe_posit} in
+        let positives = List.map (fun o -> (o, None)) spe.spe_posit in
+        let ctx = {ctx with positives } in
         (* Registration of the new top induction hypothesis and call. *)
         let top_ih = (sch.sch_index, os) in
         add_call ctx top_ih false;
@@ -548,7 +560,7 @@ and add_call : ctxt -> (Scp.index * ordi array) -> bool -> unit =
     Scp.(add_call ctx.callgraph { callee ; caller ; matrix ; is_rec })
 
 (* Build a call-matrix given the caller and the callee. *)
-and build_matrix : Scp.t -> ordi list ->
+and build_matrix : Scp.t -> (ordi * ordi option) list ->
                      (Scp.index * ordi array) ->
                      (Scp.index * ordi array) ->
                      Scp.matrix = fun calls pos callee caller ->
@@ -570,7 +582,8 @@ and build_matrix : Scp.t -> ordi list ->
 
 and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
   let t = Pos.make v.pos (Valu(v)) in
-  log_typ "(val) %a\n      : %a" Print.ex v Print.ex c;
+  log_sub "proving the value judgment:\n  %a\n  ⊢ %a\n  : %a"
+    print_pos ctx.positives Print.ex v Print.ex c;
   try
   let r =
     match v.elt with
@@ -697,7 +710,8 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
   | e -> type_error (E(V,v)) c e
 
 and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
-  log_typ "(trm) %a\n      : %a" Print.ex t Print.ex c;
+  log_sub "proving the term judgment:\n  %a\n  ⊢ %a\n  : %a"
+    print_pos ctx.positives Print.ex t Print.ex c;
   try
   let r =
     match t.elt with
@@ -814,7 +828,8 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
   | e                 -> type_error (E(T,t)) c e
 
 and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
-  log_typ "(stk) %a\n      : %a" Print.ex s Print.ex c;
+  log_sub "proving the stack judgment:\n  %a\n  stk ⊢ %a\n  : %a"
+    print_pos ctx.positives Print.ex s Print.ex c;
   try
   let r =
     match s.elt with
