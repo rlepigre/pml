@@ -162,14 +162,20 @@ let rec learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
             learn_equivalences ctx v b
           with Not_found -> assert false (* NOTE check *)
      end
-  | FixM(o,f)  -> add_positive ctx o None (* FIXME ??? *)
+  | FixM(o,f)  ->
+      let bound =
+        Output.bug_msg "Lower bound of %a ?" Print.ex o;
+        match (Norm.whnf o).elt with
+        | Succ(o) -> Some o
+        | _       -> None (* FIXME ??? *)
+      in add_positive ctx o bound
   | _          -> ctx
 
 let rec is_singleton : prop -> term option = fun t ->
   match (Norm.whnf t).elt with
   | Memb(x,_) -> Some x
   | Rest(t,_) -> is_singleton t
-  | _ -> None (* TODO #52: more cases are possible *)
+  | _         -> None (* TODO #52: more cases are possible *)
 
 (* add to the context some conditions.
    A condition c is added if c false implies wit in a is true.
