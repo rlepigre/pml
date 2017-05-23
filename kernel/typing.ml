@@ -67,12 +67,14 @@ let new_uvar : type a. ctxt -> a sort -> a ex loc = fun ctx s ->
   Pos.none (UVar(s, {uvar_key = i; uvar_val = ref None}))
 
 let add_positive : ctxt -> ordi -> ordi option -> ctxt = fun ctx o oo ->
+  (*
   let aux ch oo =
     match oo with
     | None   -> Printf.fprintf ch "None"
     | Some o -> Printf.fprintf ch "Some(%a)" Print.ex o
   in
   Output.bug_msg "add_positive %a %a" Print.ex o aux oo;
+  *)
   let o = Norm.whnf o in
   match o.elt with
   | Conv    -> ctx
@@ -594,7 +596,7 @@ and build_matrix : Scp.t -> (ordi * ordi option) list ->
 
 and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
   let t = Pos.make v.pos (Valu(v)) in
-  log_sub "proving the value judgment:\n  %a\n  ⊢ %a\n  : %a"
+  log_typ "proving the value judgment:\n  %a\n  ⊢ %a\n  : %a"
     print_pos ctx.positives Print.ex v Print.ex c;
   try
   let r =
@@ -722,7 +724,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
   | e -> type_error (E(V,v)) c e
 
 and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
-  log_sub "proving the term judgment:\n  %a\n  ⊢ %a\n  : %a"
+  log_typ "proving the term judgment:\n  %a\n  ⊢ %a\n  : %a"
     print_pos ctx.positives Print.ex t Print.ex c;
   try
   let r =
@@ -840,7 +842,7 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
   | e                 -> type_error (E(T,t)) c e
 
 and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
-  log_sub "proving the stack judgment:\n  %a\n  stk ⊢ %a\n  : %a"
+  log_typ "proving the stack judgment:\n  %a\n  stk ⊢ %a\n  : %a"
     print_pos ctx.positives Print.ex s Print.ex c;
   try
   let r =
