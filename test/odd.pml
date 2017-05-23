@@ -33,6 +33,18 @@ val rec succ_even : ∀n∈evens, is_odd S[n] ≡ true  = fun n →
       }
   }
 
+val rec succ_even_unrelevant : ∀n∈evens, succ_even n ≡ {} = fun n →
+  case n {
+    Z[_] → {}
+    S[p] →
+      case p {
+        Z[_] → ✂
+        S[r] → succ_even_unrelevant n
+      }
+  }
+
+val blop : ∀n∈evens, {} = succ_even_unrelevant
+
 val rec succ_odd  : ∀n∈odds , is_odd S[n] ≡ false = fun n →
   case n {
     Z[_] → ✂
@@ -48,3 +60,5 @@ val succ_even : evens ⇒ odds  = fun x →
 
 val succ_odd  : odds  ⇒ evens = fun x →
   let h = succ_odd  x in S[x]
+
+val succ : nat ⇒ nat = fun x → x

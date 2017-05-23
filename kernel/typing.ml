@@ -167,7 +167,13 @@ let rec learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
         Output.bug_msg "Lower bound of %a ?" Print.ex o;
         match (Norm.whnf o).elt with
         | Succ(o) -> Some o
-        | _       -> None (* FIXME ??? *)
+        | _       ->
+            let o' = (* FIXME check *)
+              let f o = bndr_subst f (FixM(Pos.none o, f)) in
+              let f = binder_from_fun "o" f in
+              Pos.none (OWMu(o,twit,(None,f)))
+            in
+            Some o'
       in add_positive ctx o bound
   | _          -> ctx
 
@@ -894,6 +900,7 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
 
 let type_check : term -> prop -> prop * typ_proof = fun t a ->
   let ctx = empty_ctxt in
+  if not (Scp.scp ctx.callgraph) then failwith "Loops !";
   let prf = type_term ctx t a in
   let l = uvars a in
   assert(l = []); (* FIXME #44 *)
