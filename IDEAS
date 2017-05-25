@@ -1,0 +1,40 @@
+Here are some ideas (en vrac) that makes pml2 what it is.
+
+- Sub-typing without cohercion
+
+- Pure-terms as objects of the logic
+
+- Termination checker integrated to the system (also at the level of
+  the model)
+
+- inductive and coinductive and mixing both supported in a uniform way
+  (termination checks the wellfoundedness of proofs)
+
+- extensible records
+
+- polymorphic variants
+
+- reasonning on equivalence of programs with the restriction
+  connectives in types
+
+- membership connectives (aka singleton types) to encode dependent
+  types
+
+- call-by-value (and its realizability model)
+
+- classical logic with lambda-mu (like call-cc) (pb with the above
+  solved by the property below)
+
+- [A]^^ inter V = [A] as main property of the model thanks to delta
+
+- proof in pml looks nice
+
+- higher or types like o => o inhabited my "macros"
+
+- programs as proofs paradigm as opposed to proof as programs
+
+- proofs are programs with all leafs unreachable ... so proof are dead
+  code dans call to lemma in program can be removed at compile time
+
+- we face undecidability, but only subtyping may loop => error messages
+  as usual and fixed when PML loop
