@@ -101,6 +101,7 @@ type typ_rule =
   | Typ_FixY   of typ_proof
   | Typ_Ind    of schema
   | Typ_Goal   of string
+  | Typ_Prnt   of sub_proof
 
 and  stk_rule =
   | Stk_Push   of sub_proof * typ_proof * stk_proof
@@ -824,10 +825,15 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
           try let (_, _, r) = type_term ctx d.expr_def c in r
           with e -> type_error (E(T,t)) c e
         end
-    (* Goal *)
+    (* Goal. *)
     | Goal(_,str) ->
         wrn_msg "goal %s %a" str Pos.print_pos_opt t.pos;
         Typ_Goal(str)
+    (* Printing. *)
+    | Prnt(_)     ->
+        let a = unbox (strict_prod None A.empty) in
+        let p = gen_subtype ctx a c in
+        Typ_Prnt((t, a, c, p))
     (* Constructors that cannot appear in user-defined terms. *)
     | FixY(_,_)   -> unexpected "Fixpoint at the toplevel..."
     | UWit(_,_,_) -> unexpected "∀-witness during typing..."

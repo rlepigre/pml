@@ -124,6 +124,7 @@ let print_ex : type a. a ex loc printer = fun ch e ->
     | FixY(f,v)   -> let (x,t) = unbind mk_free (snd f) in
                      fprintf ch "Y(λ%s.%a, %a)" (name_of x)
                        print_ex t print_ex v
+    | Prnt(s)     -> fprintf ch "print(%S)" s
     | Epsi        -> output_string ch "ε"
     | Push(v,s)   -> fprintf ch "%a · %a" print_ex v print_ex s
     | Fram(t,s)   -> fprintf ch "[%a] %a" print_ex t print_ex s

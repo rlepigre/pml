@@ -32,7 +32,6 @@ val rec add_assoc : ∀m n p∈nat, add m (add n p) ≡ add (add m n) p =
 val rec add_n_zero : ∀n∈nat, add n zero ≡ n = fun n →
   case n {
     Z[_] → deduce add Z Z ≡ Z;
-           deduce Z ≡ Z;
            qed
     S[k] → show add k Z ≡ k using add_n_zero k;
            deduce S[add k Z] ≡ S[k];

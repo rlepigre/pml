@@ -57,6 +57,7 @@ and     term_erasure : term -> e_tbox = fun t ->
                    let x = copy_var x (name_of x) mk_free in
                    term_erasure (bndr_subst b (free_of x))
                  in tfixy (binder_name (snd b)) f (valu_erasure v)
+  | Prnt(s)   -> tprnt s
   | TTyp(t,_) -> term_erasure t
   | TLam(_,f) -> term_erasure (bndr_subst f Dumm)
   | ITag(_)   -> erasure_error "a tag cannot be erased (term)"
@@ -129,6 +130,7 @@ and to_term : e_term -> tbox = fun t ->
                     to_term (subst b (free_of x))
                   in
                   fixy None (Pos.none (binder_name b)) f (to_valu v)
+  | TPrnt(s)   -> prnt None s
 
 and to_stac : e_stac -> sbox = fun s ->
   match s with

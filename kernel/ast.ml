@@ -81,6 +81,8 @@ type _ ex =
   (** Case analysis. *)
   | FixY : (v, t) bndr * v ex loc                  -> t  ex
   (** Fixpoint combinator Y(λx.t, v). *)
+  | Prnt : string                                  -> t  ex
+  (** Printing instruction. *)
 
   (* Stack constructors. *)
 
@@ -309,6 +311,9 @@ let fixy : popt -> strloc -> (vvar -> tbox) -> vbox -> tbox =
   fun p x f v ->
     let b = vbind mk_free x.elt f in
     box_apply2 (fun b v -> Pos.make p (FixY((x.pos, b),v))) b v
+
+let prnt : popt -> string -> tbox =
+  fun p s -> box (Pos.make p (Prnt(s)))
 
 let ttyp : popt -> tbox -> pbox -> tbox =
   fun p -> box_apply2 (fun t a -> Pos.make p (TTyp(t,a)))
@@ -566,6 +571,7 @@ let rec sort : type a b. a ex loc ->  a sort * a ex loc= fun e ->
   | Proj _      -> (T,e)
   | Case _      -> (T,e)
   | FixY _      -> (T,e)
+  | Prnt _      -> (T,e)
   | TTyp _      -> (T,e)
   | TLam _      -> (T,e)
 

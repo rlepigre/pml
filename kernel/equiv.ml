@@ -428,6 +428,7 @@ let rec add_term : pool -> term -> TPtr.t * pool = fun po t ->
   | FixY(b,v)   -> let (pv, po) = add_valu po v in
                    let (pp, po) = insert_t_node (TN_FixY(b,pv)) po in
                    (pp, po)
+  | Prnt(_)     -> assert false (* TODO *)
   | TTyp(t,_)   -> add_term po t
   | TLam(_,b)   -> add_term po (bndr_subst b Dumm)
   | UWit(_,t,b) -> insert_t_node (TN_UWit((t,b))) po

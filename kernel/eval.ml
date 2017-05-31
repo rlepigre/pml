@@ -20,6 +20,7 @@ and  e_term =
   | TProj of e_valu * string
   | TCase of e_valu * (e_valu, e_term) binder A.t
   | TFixY of (e_valu, e_term) binder * e_valu
+  | TPrnt of string
 and  e_stac =
   | SVari of e_stac var
   | SEpsi
@@ -80,6 +81,9 @@ let tcase : e_vbox -> (string * (e_vvar -> e_tbox)) A.t -> e_tbox =
 let tfixy : string -> (e_vvar -> e_tbox) -> e_vbox -> e_tbox =
   fun x f -> box_apply2 (fun b v -> TFixY(b,v)) (vbind mk_vvari x f)
 
+let tprnt : string -> e_tbox =
+  fun s -> box (TPrnt(s))
+
 (* Smart constructors for stacks. *)
 let sepsi : e_sbox =
   box SEpsi
@@ -118,6 +122,11 @@ let step : proc -> proc option = function
       begin
         let f = binder_from_fun "x" (fun x -> TFixY(b,x)) in
         Some (TValu(VLAbs(b)), SPush(VLAbs(f),SPush(v,pi)))
+      end
+  | (TPrnt(s)          , pi         ) ->
+      begin
+        output_string stdout s;
+        Some (TValu(VReco(A.empty)), pi)
       end
   (* Runtime errors. *)
   | (TProj(_)          , _          ) -> runtime_error "invalid projection"

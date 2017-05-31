@@ -11,6 +11,8 @@ let _ = Printexc.record_backtrace true
 
 let path = ["." ; "/usr/local/lib/pml2"]
 
+let verbose = ref true
+
 let find_file : string -> string = fun fn ->
   let add_fn dir = Filename.concat dir fn in
   let ls = fn :: (List.map add_fn path) in
@@ -29,13 +31,15 @@ let rec interpret : Env.env -> Raw.toplevel -> Env.env = fun env top ->
   | Sort_def(id,s) ->
       let open Env in
       let Sort s = unsugar_sort env s in
-      out "sort %s ≔ %a\n%!" id.elt Print.sort s;
+      if !verbose then
+        out "sort %s ≔ %a\n%!" id.elt Print.sort s;
       add_sort id.elt s env
   | Expr_def(id,s,e) ->
       let open Env in
       let Box(s,e) = unsugar_expr env e s in
       let ee = Bindlib.unbox e in
-      out "expr %s : %a ≔ %a\n%!" id.elt Print.sort s Print.ex ee;
+      if !verbose then
+        out "expr %s : %a ≔ %a\n%!" id.elt Print.sort s Print.ex ee;
       add_expr id s e env
   | Valu_def(id,a,t) ->
       let open Env in
@@ -43,18 +47,20 @@ let rec interpret : Env.env -> Raw.toplevel -> Env.env = fun env top ->
       let t = unbox (to_term (unsugar_expr env t _st)) in
       let (a, prf) = type_check t a in
       let v = Eval.eval (Erase.term_erasure t) in
-      out "val %s : %a\n%!" id.elt Print.ex a;
+      if !verbose then
+        out "val %s : %a\n%!" id.elt Print.ex a;
       (* out "  = %a\n%!" Print.print_ex (Erase.to_valu v); *)
       ignore prf;
       add_value id t a v env
   | Include(ps) ->
       let fn = find_module ps in
-      out "include %S\n%!" fn;
+      if !verbose then
+        out "include %S\n%!" fn;
       Log.without (handle_file env) fn
 
 (* Handling the files. *)
 and handle_file env fn =
-  out "[%s]\n%!" fn;
+  if !verbose then out "[%s]\n%!" fn;
   try
     let ast = Parser.parse_file fn in
     List.fold_left interpret env ast
@@ -156,6 +162,9 @@ let files =
     ; ( "--circular"
       , Arg.Set Typing.circular
       , " Enable circular proofs (experimental).")
+    ; ( "--quiet"
+      , Arg.Clear verbose
+      , " Disables the printing definition data.")
     ] @ List.map help ["--help" ; "-help" ; "-h" ]
   in
   let spec = Arg.align spec in
@@ -236,8 +245,12 @@ let _ =
 
 let _ =
   let total = ref 0.0 in
-  Chrono.iter (
-      fun name t c ->
+  if !verbose then
+    begin
+      let f name t c =
         total := !total +. t;
-        Printf.eprintf "%8s: %8.2fs %8d\n" name t c);
-  Printf.eprintf "%8s: %8.2fs\n" "total" !total
+        Printf.eprintf "%8s: %8.2fs %8d\n" name t c
+      in
+      Chrono.iter f;
+      Printf.eprintf "%8s: %8.2fs\n" "total" !total
+    end

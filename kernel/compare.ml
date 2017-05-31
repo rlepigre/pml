@@ -77,6 +77,7 @@ let uvar_iter : type a. uvar_fun -> a ex loc -> unit = fun f e ->
     | Case(v,m)   -> let fn _ (_,b) = buvar_iter b in
                      uvar_iter v; A.iter fn m
     | FixY(f,v)   -> buvar_iter f; uvar_iter v
+    | Prnt(_)     -> ()
     | Epsi        -> ()
     | Push(v,s)   -> uvar_iter v; uvar_iter s
     | Fram(t,s)   -> uvar_iter t; uvar_iter s
@@ -264,6 +265,7 @@ let {eq_expr; eq_bndr; eq_ombinder} =
         let cmp (_,b1) (_,b2) = eq_bndr V b1 b2 in
         eq_expr v1 v2 && A.equal cmp m1 m2
     | (FixY(f1,v1)   , FixY(f2,v2)   ) -> eq_bndr V f1 f2 && eq_expr v1 v2
+    | (Prnt(s1)      , Prnt(s2)      ) -> s1 = s2
     | (Epsi          , Epsi          ) -> true
     | (Push(v1,s1)   , Push(v2,s2)   ) -> eq_expr v1 v2 && eq_expr s1 s2
     | (Fram(t1,s1)   , Fram(t2,s2)   ) -> eq_expr t1 t2 && eq_expr s1 s2

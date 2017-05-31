@@ -43,6 +43,21 @@ module KW =
       Earley.black_box f (Charset.singleton s.[0]) false s
   end
 
+let str_lit =
+  let normal = Earley.in_charset
+    (List.fold_left Charset.del Charset.full ['\\'; '"'; '\r'])
+  in
+  let schar = parser
+    | "\\\""   -> "\""
+    | "\\\\"   -> "\\"
+    | "\\n"    -> "\n"
+    | "\\t"    -> "\t"
+    | c:normal -> String.make 1 c
+  in
+  Earley.change_layout
+    (parser "\"" cs:schar* "\"" -> String.concat "" cs)
+    Earley.no_blank
+
 let parser path_atom = id:''[a-zA-Z0-9_]+''
 let parser path = ps:{path_atom '.'}* f:path_atom -> ps @ [f]
 
@@ -77,6 +92,7 @@ let _use_     = KW.new_keyword "use"
 let _qed_     = KW.new_keyword "qed"
 let _using_   = KW.new_keyword "using"
 let _deduce_  = KW.new_keyword "deduce"
+let _print_   = KW.new_keyword "print"
 
 let parser elipsis = "⋯" | "..."
 
@@ -293,6 +309,10 @@ let parser expr (m : mode) =
   | _fix_ t:(expr (`Trm`F))
       when m = `Trm`F
       -> in_pos _loc (EFixY(t))
+  (* Term (printing) *)
+  | _print_ s:str_lit
+      when m = `Trm`A
+      -> in_pos _loc (EPrnt(s))
   (* Term (type coersion) *)
   | "(" t:(expr (`Trm`F)) ":" a:(expr (`Prp`F)) ")"
       when m = `Trm`A

@@ -79,6 +79,7 @@ let rec lift : type a. a ex loc -> a box = fun e ->
                    case e.pos (lift v) (A.map fn m)
   | FixY(f,v)   -> fixy e.pos (bndr_name f)
                      (fun x -> lift (bndr_subst f (mk_free x))) (lift v)
+  | Prnt(s)     -> prnt e.pos s
   | TTyp(t,a)   -> ttyp e.pos (lift t) (lift a)
   | TLam(s,f)   -> tlam e.pos (bndr_name f) s
                      (fun x -> lift (bndr_subst f (mk_free x)))
@@ -163,6 +164,7 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
     | Case(v,m)   -> let fn _ (_,f) acc = owits acc (bndr_subst f Dumm) in
                      A.fold fn m (owits acc v)
     | FixY(f,v)   -> owits (owits acc (bndr_subst f Dumm)) v
+    | Prnt(_)     -> acc
     | TTyp(t,_)   -> owits acc t
     | TLam(_,f)   -> owits acc (bndr_subst f Dumm)
 
@@ -273,6 +275,7 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
     | FixY(f,v)   -> fixy e.pos (bndr_name f)
                        (fun x -> bind_all (bndr_subst f (mk_free x)))
                        (bind_all v)
+    | Prnt(s)     -> prnt e.pos s
     | TTyp(t,a)   -> ttyp e.pos (bind_all t) (bind_all a)
     | TLam(s,f)   -> tlam e.pos (bndr_name f) s
                        (fun x -> bind_all (bndr_subst f (mk_free x)))
