@@ -13,6 +13,9 @@ endif
 syn keyword Todo contained TODO FIXME NOTE
 syn region Comment start="//" end="$" contains=Todo
 
+syntax region Str start=/\v"/ skip=/\v\\./ end=/\v"/
+highlight link Str Character
+
 " Keywords
 syntax keyword Keyword fun save restore case of fix let in rec using use
 syntax keyword Keyword include type def val sort if else deduce show qed

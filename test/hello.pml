@@ -1,1 +1,1 @@
-val hello : {} = print "Hello, world!\n"
+val hello : {} = print "Hello, World!\n"
