@@ -5,7 +5,7 @@ include lib.nat
 //// Properties of addition //////////////////////////////////////////////////
 
 // Totality of addition.
-val rec add_total : ∀n m∈nat, ∃v:ι↓, add n m ≡ v = fun n m →
+val rec add_total : ∀n m∈nat, ∃v:ι, add n m ≡ v = fun n m →
   case n {
     Z[_] → qed
     S[k] → use add_total k m; qed
@@ -67,7 +67,7 @@ val rec add_comm : ∀m n∈nat, add m n ≡ add n m = fun m n →
 //// Properties of multiplication ////////////////////////////////////////////
 
 // Totality of multiplication.
-val rec mul_total : ∀n m∈nat, ∃v:ι↓, mul n m ≡ v = fun n m →
+val rec mul_total : ∀n m∈nat, ∃v:ι, mul n m ≡ v = fun n m →
   case n {
     Z[_] → qed
     S[k] → use mul_total k m;

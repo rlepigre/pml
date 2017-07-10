@@ -39,9 +39,9 @@ val match3 : ∀ a b c r : ο, sum3<a,b,c> ⇒ (a⇒r) ⇒ (b⇒r) ⇒ (c⇒r) �
 
 
 // Some proofs.
-val test1 : ∀ a b c↓, prj3_1 (triple a b c) ≡ a = {}
-val test2 : ∀ a b c↓, prj3_2 (triple a b c) ≡ b = {}
-val test3 : ∀ a b c↓, prj3_3 (triple a b c) ≡ c = {}
+val test1 : ∀ a b c:ι, prj3_1 (triple a b c) ≡ a = {}
+val test2 : ∀ a b c:ι, prj3_2 (triple a b c) ≡ b = {}
+val test3 : ∀ a b c:ι, prj3_3 (triple a b c) ≡ c = {}
 
 // NOTE: cannot yet prove such properties.
 // val test : ∀ a b c : ο, ∀ e : ι, e∈prod3<a,b,c> ⇒

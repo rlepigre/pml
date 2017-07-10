@@ -26,9 +26,9 @@ val rec mem : ∀a:ο, (a⇒a⇒cmp) ⇒ a => tree23<a> => bool = fun f x t →
      | Ge[] → mem f x c.r }}
   }
 
-def cmp_total<f,a:ο> = ∀x y∈a, ∃v↓, f x y ≡ v
+def cmp_total<f,a:ο> = ∀x y∈a, ∃v:ι, f x y ≡ v
 
-val mem_total : ∀a:ο, ∀f∈(a⇒a⇒cmp), cmp_total<f,a> ⇒ ∀x∈a, ∀t∈tree23<a>, ∃v↓, mem f x t ≡ v =
+val mem_total : ∀a:ο, ∀f∈(a⇒a⇒cmp), cmp_total<f,a> ⇒ ∀x∈a, ∀t∈tree23<a>, ∃v:ι, mem f x t ≡ v =
   fun f ft x → fix fun mem_total t →
   case t {
   | E[] → {}
@@ -97,7 +97,7 @@ val rec add_aux : ∀a:ο, (a⇒a⇒cmp) ⇒ a ⇒ tree23<a> ⇒ add23<a> = fun 
 
 val add_aux_total :
   ∀a:ο, ∀f∈(a⇒a⇒cmp), cmp_total<f,a> ⇒ ∀x∈a,
-        ∀t∈tree23<a>, ∃v↓, (add_aux f x t) ≡ v = fun f ft x → fix fun add_aux_total t →
+        ∀t∈tree23<a>, ∃v:ι, (add_aux f x t) ≡ v = fun f ft x → fix fun add_aux_total t →
   case t {
   | E[] → {}
   | N2[c] →
@@ -147,7 +147,7 @@ val add : ∀a:ο, (a⇒a⇒cmp) ⇒ a ⇒ tree23<a> ⇒ tree23<a> = fun f x t �
   }
 
 val add_total : ∀a:ο, ∀f∈(a⇒a⇒cmp), cmp_total<f,a> ⇒
-                ∀x∈a, ∀t∈tree23<a>, ∃v↓, add f x t ≡ v = fun f ft x t →
+                ∀x∈a, ∀t∈tree23<a>, ∃v:ι, add f x t ≡ v = fun f ft x t →
   let _ = add_aux_total f ft x t in
   case add_aux f x t {
   | N1[u] → {}
@@ -174,7 +174,7 @@ val rec height : ∀a:ο, tree23<a> ⇒ nat ⇒ bool = fun t n →
     | N3[c] → and (height c.l p) (and (height c.m p) (height c.r p)) }
   }
 
-val rec height_total : ∀a:ο, ∀t∈tree23<a>, ∀n∈nat, ∃v↓, height t n ≡ v = fun t n →
+val rec height_total : ∀a:ο, ∀t∈tree23<a>, ∀n∈nat, ∃v:ι, height t n ≡ v = fun t n →
   case n {
   | Z[] →
     case t {
@@ -205,7 +205,7 @@ val and_left : ∀b1 b2∈bool, and b1 b2 ≡ true ⇒ b1 ≡ true =
 val and_right : ∀b1 b2∈bool, and b1 b2 ≡ true ⇒ b2 ≡ true =
   fun b1 b2 _ → and_left b1 b2 {}
 
-val and_total : ∀b1 b2∈bool, ∃v↓, and b1 b2 ≡ v =
+val and_total : ∀b1 b2∈bool, ∃v:ι, and b1 b2 ≡ v =
    fun b1 b2 → cond<b1,{},{}>
 
 val add_height_aux : ∀a:ο, ∀f∈(a⇒a⇒cmp), cmp_total<f,a> ⇒ ∀x∈a, ∀n∈nat,
@@ -297,4 +297,4 @@ val add_height : ∀a:ο, ∀f∈(a⇒a⇒cmp), cmp_total<f,a> ⇒ ∀x∈a, ∀
 
 
 
-//type bal23<a:ο> = ∃t n↓, t ∈ tree23<a> | height t n ≡ true
+//type bal23<a:ο> = ∃t n:ι, t ∈ tree23<a> | height t n ≡ true

@@ -13,7 +13,7 @@ def add0 = fix fun add n m →
                         // it should be exactly the same
   }
 
-val add : ∀n m∈nat, ∃v↓, v∈nat | v ≡ add0 n m = add0
+val add : ∀n m∈nat, ∃v:ι, v∈nat | v ≡ add0 n m = add0
 
 // A variant that works
 def add1 = fix fun add n m →
@@ -24,7 +24,7 @@ def add1 = fix fun add n m →
              succ pm
   }
 
-val addbis : ∀n m∈nat, ∃v↓, v∈nat | v ≡ add1 n m = add1
+val addbis : ∀n m∈nat, ∃v:ι, v∈nat | v ≡ add1 n m = add1
 
 
 val test : add ≡ add0 = {} // did not work before 23/3/2017 patch

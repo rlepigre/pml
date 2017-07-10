@@ -24,13 +24,13 @@ val rec app2 : ∀b:ο, list<b> ⇒ list<b> ⇒ list<b> = fun l1 l2 →
 def app0 : ι = Λb:ο. fix fun app l1 l2 →
   case l1 {
     | Nil[]  → l2
-    | Cns[c] → let r : (∃w↓, (w∈list<b>)) = app c.tl l2 in
+    | Cns[c] → let r : (∃w:ι, (w∈list<b>)) = app c.tl l2 in
                cns c.hd r
   }
 
-val appt : ∀b:ο, list<b> ⇒ list<b> ⇒ ∃w↓, (w∈list<b>) = app0
+val appt : ∀b:ο, list<b> ⇒ list<b> ⇒ ∃w:ι, (w∈list<b>) = app0
 
-val rec app_total : ∀a:ο, ∀l1 l2 ∈list<a>, ∃v↓, app l1 l2 ≡ v = fun l1 l2 →
+val rec app_total : ∀a:ο, ∀l1 l2 ∈list<a>, ∃v:ι, app l1 l2 ≡ v = fun l1 l2 →
   case l1 {
     | Nil[_] → {}
     | Cns[c] → let ind = app_total c.tl l2 in {}
@@ -62,22 +62,22 @@ val map : ∀a b:ο, (a ⇒ b) ⇒ list<a> ⇒ list<b> = fix fun map f l →
                Cns[{hd= hd; tl= tl}]
   }
 
-def total<f:ι,a:ο> : ο = ∀x∈a, ∃v↓, f x ≡ v
+def total<f:ι,a:ο> : ο = ∀x∈a, ∃v:ι, f x ≡ v
 
 val compose_total : ∀a b c:ο, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c),
                             total<f,a> ⇒ total<g,b> ⇒ total<(fun x → g (f x)), a> =
   fun fn gn tf tg a → let lem = tf a in
                       let lem = tg (fn a) in {}
 
-val rec map_total : ∀a b:ο, ∀f∈(a ⇒ b), total<f,a> ⇒ ∀l∈list<a>, ∃v↓, map f l ≡ v =
+val rec map_total : ∀a b:ο, ∀f∈(a ⇒ b), total<f,a> ⇒ ∀l∈list<a>, ∃v:ι, map f l ≡ v =
   fun fn ft ls →
     case ls {
       | Nil[] → {}
       | Cns[c] →
          let hd = c.hd in
          let tl = c.tl in
-         let lem : (∃v↓, fn hd ≡ v) = ft hd in
-         let ind : (∃v↓, map fn tl ≡ v) = map_total fn ft tl in {}
+         let lem : (∃v:ι, fn hd ≡ v) = ft hd in
+         let ind : (∃v:ι, map fn tl ≡ v) = map_total fn ft tl in {}
     }
 
 val map_map : ∀a b c:ο, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c), total<f,a> ⇒ total<g,b> ⇒

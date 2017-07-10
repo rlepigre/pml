@@ -972,6 +972,23 @@ type toplevel =
   | Include  of string list
 
 (** syntactic sugars *)
+(* TODO #33: keep position in l *)
+let erest a l =
+  List.fold_left (fun a x ->
+      none (ERest(Some a,ENoBox(none (EVari(x, [])))))) a l
+
+let eimpl a l =
+  List.fold_left (fun a x ->
+      none (EImpl(ENoBox(none (EVari(x, []))), Some a))) a l
+
+let euniv _loc x xs s a =
+  let a = if s.elt = SV then eimpl a (x::xs) else a in
+  in_pos _loc (EUniv((x,xs), s, a))
+
+let eexis _loc x xs s a =
+  let a = if s.elt = SV then erest a (x::xs) else a in
+  in_pos _loc (EExis((x,xs), s, a))
+
 let euniv_in _loc x xs a b =
   let p x = Pos.in_pos _loc x in
   let c = List.fold_right (fun x c ->

@@ -35,8 +35,8 @@ type rec nat = [Zero ; Succ of nat]
 
 val rec add : nat ⇒ nat ⇒ nat = fun n m →
   case n { Zero[_] → m | Succ[k] → Succ[add k m] }
-val add_z_n : ∀n↓, add Zero n ≡ n = {}
-// val add_n_z : ∀n↓, add n Zero ≡ n = {}
+val add_z_n : ∀n:ι, add Zero n ≡ n = {}
+// val add_n_z : ∀n:ι, add n Zero ≡ n = {}
 val rec add_n_z : ∀n∈nat, add n Zero ≡ n = fun n →
   case n {
     | Zero[_] → {}
@@ -55,7 +55,7 @@ val rec add_comm : ∀n m∈nat, add n m ≡ add m n = fun n m →
     | Succ[k] → let ih  = add_comm k m in
                  let lem = add_n_s m k in {}
   }
-val rec add_total : ∀n m∈nat, ∃v↓, add n m ≡ v = fun n m →
+val rec add_total : ∀n m∈nat, ∃v:ι, add n m ≡ v = fun n m →
   case n {
     | Zero[_] → {}
     | Succ[k] → let ih = add_total k m in {}

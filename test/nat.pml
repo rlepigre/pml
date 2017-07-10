@@ -25,25 +25,25 @@ val rec add : nat ⇒ nat ⇒ nat = fun n m →
     | S[p] → succ (add p m)
   }
 
-val partial_add_total : ∀x↓, ∃v↓, add x ≡ v = {}
+val partial_add_total : ∀x:ι, ∃v:ι, add x ≡ v = {}
 
-val rec strong_add_total : ∀n∈nat, ∀m∈(∃x,x), ∃v↓, add n m ≡ v = fun n m →
+val rec strong_add_total : ∀n∈nat, ∀m∈(∃x,x), ∃v:ι, add n m ≡ v = fun n m →
   case n {
     | Z[_] → {}
     | S[p] → let ind_hyp = strong_add_total p m in {}
   }
 
 // FIXME should work
-// val rec strong_add_total2 : ∀m↓, ∀n∈nat, ∃v↓, add n m ≡ v =  Λm:ι. fun n →
+// val rec strong_add_total2 : ∀m:ι, ∀n∈nat, ∃v:ι, add n m ≡ v =  Λm:ι. fun n →
 //   case n {
 //     | Z[_] → {}
 //     | S[p] → let ded : add n m ≡ S[add p m] = {} in
 //              let ded : (fun x → {}) m ≡ {} = {} in
 //              let ded : (fun x → {}) p ≡ {} = {} in
-//              let ind_hyp = (strong_add_total2 p : (∃v↓, add p m ≡ v)) in {}
+//              let ind_hyp = (strong_add_total2 p : (∃v:ι, add p m ≡ v)) in {}
 //   }
 
-val rec add_total : ∀n m∈nat, ∃v↓, add n m ≡ v = fun n m →
+val rec add_total : ∀n m∈nat, ∃v:ι, add n m ≡ v = fun n m →
   case n {
     | Z[] → {}
     | S[p] → let ind_hyp = add_total p m in {}
@@ -109,7 +109,7 @@ val mul : nat ⇒ nat ⇒ nat = fix fun mul n m →
     | S[p] → add m (mul p m)
   }
 
-val mul_total : ∀n m∈nat, ∃v↓, mul n m ≡ v = fix fun mul_total n m →
+val mul_total : ∀n m∈nat, ∃v:ι, mul n m ≡ v = fix fun mul_total n m →
   case n {
     | Z[]  → {}
     | S[p] → let ind_hyp = mul_total p m in

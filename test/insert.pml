@@ -2,7 +2,7 @@ include lib.list
 
 type order<a:ο> = ∃cmp:ι,
   { cmp : cmp ∈ (a ⇒ a ⇒ bool)
-  ; tmp : ∀x y∈a, ∃v↓, v ≡ cmp x y
+  ; tmp : ∀x y∈a, ∃v:ι, v ≡ cmp x y
 //  ; tra : ∀x y z∈a, (cmp x y ≡ tru ⇒ cmp y z ≡ tru ⇒ cmp x y ≡ tru)
   ; tot : ∀x y∈a, or (cmp x y) (cmp y x) ≡ tru }
 
@@ -34,7 +34,7 @@ val rec tail_sorted : ∀a:ο, ∀o∈order<a>, ∀x∈a, ∀l∈list<a>,
           if o.cmp x c.hd { {} } else { ✂ }
     }
 
-val rec sorted_total : ∀a:ο, ∀o∈order<a>, ∀l∈list<a>, ∃v↓, v ≡ sorted o l =
+val rec sorted_total : ∀a:ο, ∀o∈order<a>, ∀l∈list<a>, ∃v:ι, v ≡ sorted o l =
   fun o l →
     case l {
       | Nil[_]   → {}
@@ -44,7 +44,7 @@ val rec sorted_total : ∀a:ο, ∀o∈order<a>, ∀l∈list<a>, ∃v↓, v ≡ 
            | Nil[_]   → {}
            | Cons[c2] →
               let hd2 = c2.hd in let tl2 = c2.tl in
-              let ind : (∃v↓, v ≡ sorted o tl) = sorted_total o tl in
+              let ind : (∃v:ι, v ≡ sorted o tl) = sorted_total o tl in
               let lem = o.tmp hd hd2 in
               if o.cmp hd hd2 {
                 let lem : o.cmp hd hd2 ≡ tru = {} in
@@ -67,7 +67,7 @@ val rec insert : ∀a:ο, order<a> ⇒ a ⇒ list<a> ⇒ list<a> = fun o x l →
   }
 
 val rec insert_total :  ∀a:ο, ∀o∈order<a>, ∀x∈a, ∀l∈list<a>,
-     ∃v↓, insert o x l ≡ v =
+     ∃v:ι, insert o x l ≡ v =
   fun o x l →
     case l {
       | Nil[_]   → {}
@@ -83,7 +83,7 @@ val rec isort : ∀a:ο, order<a> ⇒ list<a> ⇒ list<a> = fun o l →
      | Cons[c] → insert o c.hd (isort o c.tl)
    }
 
-val rec isort_total :  ∀a:ο, ∀o∈order<a>, ∀l∈list<a>, ∃v↓, isort o l ≡ v =
+val rec isort_total :  ∀a:ο, ∀o∈order<a>, ∀l∈list<a>, ∃v:ι, isort o l ≡ v =
   fun o l →
     case l {
       | Nil[_]  → {}
@@ -108,20 +108,20 @@ val rec insert_sorted : ∀a:ο, ∀o∈order<a>, ∀x∈a, ∀l∈slist<a,o>,
          if cmp x hd {
            let lem = tail_sorted o hd tl {} in {}
          } else {
-           let lem : (∃v↓, v ≡ cmp x hd) = o.tmp x hd in
-           let lem : (∃v↓, v ≡ cmp hd x) = o.tmp hd x in
+           let lem : (∃v:ι, v ≡ cmp x hd) = o.tmp x hd in
+           let lem : (∃v:ι, v ≡ cmp hd x) = o.tmp hd x in
            let lem : cmp hd x ≡ tru = o.tot x hd in
            case tl {
              | Nil[_]   → {}
              | Cons[c2] →
                 let hd2 = c2.hd in let tl2 = c2.tl in
                 let lem = insert_total o x tl2 in
-                let lem : (∃v↓, v ≡ cmp hd hd2) = o.tmp hd hd2 in
-                let lem : (∃v↓, v ≡ cmp x hd2) = o.tmp x hd2 in
+                let lem : (∃v:ι, v ≡ cmp hd hd2) = o.tmp hd hd2 in
+                let lem : (∃v:ι, v ≡ cmp x hd2) = o.tmp x hd2 in
                 if cmp hd hd2 {
                    let lem = insert_sorted o x tl in
                    if cmp x hd2 { {} } else {
-                     let lem : (∃v↓, v ≡ cmp hd2 x) = o.tmp hd2 x in
+                     let lem : (∃v:ι, v ≡ cmp hd2 x) = o.tmp hd2 x in
                      let lem : (cmp hd2 x) ≡ tru = o.tot x hd2 in
                      //let lem = sorted_total o (insert o x tl) in
                      //let lem = sorted_total o (insert o x tl2) in
