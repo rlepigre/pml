@@ -100,7 +100,7 @@ let uvar_iter : type a. uvar_fun -> a ex loc -> unit = fun f e ->
     | OWNu(o,t,b) -> if todo e then (uvar_iter o; uvar_iter t; buvar_iter b)
     | OSch(o,i,s) -> if todo e then
                        begin
-                         let (t,b) = s.sch_judge in
+                         let (t,b) = s.fsch_judge in
                          let (_,t) = Bindlib.unbind mk_free (snd t) in
                          let (_,k) = Bindlib.unmbind mk_free b in
                          uvar_iter o; uvar_iter t; uvar_iter k
@@ -168,11 +168,11 @@ let {eq_expr; eq_bndr; eq_ombinder} =
     let eq_bndr b1 b2 = eq_bndr oracle strict b1 b2 in
     let eq_ombinder omb1 omb2 = eq_ombinder oracle strict omb1 omb2 in
     let eq_schema sch1 sch2 =
-      sch1.sch_index = sch2.sch_index &&
-      sch1.sch_posit = sch2.sch_posit &&
-      sch1.sch_relat = sch2.sch_relat &&
-      let (b1, omb1) = sch1.sch_judge in
-      let (b2, omb2) = sch2.sch_judge in
+      sch1.fsch_index = sch2.fsch_index &&
+      sch1.fsch_posit = sch2.fsch_posit &&
+      sch1.fsch_relat = sch2.fsch_relat &&
+      let (b1, omb1)  = sch1.fsch_judge in
+      let (b2, omb2)  = sch2.fsch_judge in
       eq_bndr V b1 b2 && eq_ombinder omb1 omb2
     in
     let e1 = Norm.whnf e1 in

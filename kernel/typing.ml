@@ -48,7 +48,8 @@ type ctxt  =
   { uvarcount : int ref
   ; equations : eq_ctxt
   ; positives : (ordi * ordi option) list
-  ; fix_ihs   : ((v,t) bndr, schema) Buckets.t
+  ; fix_ihs   : ((v,t) bndr, fix_schema) Buckets.t
+  ; sub_ihs   : sub_schema list
   ; top_ih    : Scp.index * ordi array
   ; callgraph : Scp.t }
 
@@ -57,6 +58,7 @@ let empty_ctxt =
   ; equations = empty_ctxt
   ; positives = []
   ; fix_ihs   = Buckets.empty (==)
+  ; sub_ihs   = []
   ; top_ih    = (Scp.root, [| |])
   ; callgraph = Scp.create () }
 
@@ -99,7 +101,7 @@ type typ_rule =
   | Typ_Mu     of typ_proof
   | Typ_Scis
   | Typ_FixY   of typ_proof
-  | Typ_Ind    of schema
+  | Typ_Ind    of fix_schema
   | Typ_Goal   of string
   | Typ_Prnt   of sub_proof
 
@@ -167,7 +169,7 @@ let rec learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
      end
   | FixM(o,f)  ->
       let bound =
-        Output.bug_msg "Lower bound of %a ?" Print.ex o;
+        (*Output.bug_msg "Lower bound of %a ?" Print.ex o;*)
         match (Norm.whnf o).elt with
         | Succ(o) -> Some o
         | _       ->
@@ -263,11 +265,16 @@ let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
     let b = Norm.whnf b in
     let (t_is_val, ctx) = term_is_value t ctx in
     try let r =
-      match (a.elt, b.elt) with
       (* Same types.  *)
-      | _ when eq_expr ~oracle:(oracle ctx) a b ->
+      if eq_expr ~oracle:(oracle ctx) a b then
+        begin
           log_sub "reflexivity applies";
           Sub_Equal
+        end
+          (*      else if ...*)
+
+
+      else match (a.elt, b.elt) with
       (* Unfolding of definitions. *)
       | (HDef(_,d)  , _          ) ->
           let (_, _, _, r) = subtype ctx t d.expr_def b in r
@@ -493,7 +500,7 @@ and check_fix : ctxt -> (v, t) bndr -> prop -> typ_proof = fun ctx b c ->
             in
             if not ok then bad_schema "cannot show positivity";
             (* Add call to call-graph and build the proof. *)
-            add_call ctx (ih.sch_index, spe.spe_param) true;
+            add_call ctx (ih.fsch_index, spe.spe_param) true;
             (build_t_fixy b, c, Typ_Ind(ih))
           with Subtype_error _ -> find_suitable ihs
         end
@@ -513,7 +520,7 @@ and check_fix : ctxt -> (v, t) bndr -> prop -> typ_proof = fun ctx b c ->
         let positives = List.map (fun o -> (o, None)) spe.spe_posit in
         let ctx = {ctx with positives } in
         (* Registration of the new top induction hypothesis and call. *)
-        let top_ih = (sch.sch_index, os) in
+        let top_ih = (sch.fsch_index, os) in
         add_call ctx top_ih false;
         let ctx = {ctx with top_ih } in
         (* Unrolling of the fixpoint and proof continued. *)
@@ -522,47 +529,47 @@ and check_fix : ctxt -> (v, t) bndr -> prop -> typ_proof = fun ctx b c ->
   in find_suitable ihs
 
 (* Generalisation (construction of a schema). *)
-and generalise : ctxt -> (v, t) bndr -> prop -> schema * ordi array =
+and generalise : ctxt -> (v, t) bndr -> prop -> fix_schema * ordi array =
   fun ctx b c ->
     (* Extracting ordinal parameters from the goal type. *)
     let (omb, os) = Misc.bind_ordinals c in
 
-    let sch_posit = [] in (* FIXME #32 *)
-    let sch_relat = [] in (* FIXME #32 *)
+    let fsch_posit = [] in (* FIXME #32 *)
+    let fsch_relat = [] in (* FIXME #32 *)
 
     (* Build the judgment. *)
     Output.bug_msg "Schema: %a" Print.omb omb;
-    let sch_judge = (b, omb) in
+    let fsch_judge = (b, omb) in
     (* Ask for a fresh symbol index. *)
-    let sch_index =
+    let fsch_index =
       let name  = (bndr_name b).elt in
       let names = mbinder_names omb in
       Scp.create_symbol ctx.callgraph name names
     in
     (* Assemble the schema. *)
-    ({sch_index ; sch_posit ; sch_relat ; sch_judge}, os)
+    ({fsch_index ; fsch_posit ; fsch_relat ; fsch_judge}, os)
 
 (* Elimination of a schema using ordinal unification variables. *)
-and elim_schema : ctxt -> schema -> specialised =
+and elim_schema : ctxt -> fix_schema -> specialised =
   fun ctx sch ->
-    let arity = mbinder_arity (snd sch.sch_judge) in
+    let arity = mbinder_arity (snd sch.fsch_judge) in
     let spe_param = Array.init arity (fun _ -> new_uvar ctx O) in
     let xs = Array.map (fun e -> e.elt) spe_param in
-    let a = msubst (snd sch.sch_judge) xs in
-    let spe_judge = (fst sch.sch_judge, a) in
-    let spe_posit = List.map (fun i -> spe_param.(i)) sch.sch_posit in
+    let a = msubst (snd sch.fsch_judge) xs in
+    let spe_judge = (fst sch.fsch_judge, a) in
+    let spe_posit = List.map (fun i -> spe_param.(i)) sch.fsch_posit in
     { spe_param ; spe_posit ; spe_judge }
 
 (* Instantiation of a schema with ordinal witnesses. *)
-and inst_schema : ctxt -> schema -> ordi array -> specialised =
+and inst_schema : ctxt -> fix_schema -> ordi array -> specialised =
   fun ctx sch os ->
-    let arity = mbinder_arity (snd sch.sch_judge) in
+    let arity = mbinder_arity (snd sch.fsch_judge) in
     let fn i = Pos.none (OSch(os.(i), i, sch)) in
     let spe_param = Array.init arity fn in
     let xs = Array.map (fun e -> e.elt) spe_param in
-    let a = msubst (snd sch.sch_judge) xs in
-    let spe_judge = (fst sch.sch_judge, a) in
-    let spe_posit = List.map (fun i -> spe_param.(i)) sch.sch_posit in
+    let a = msubst (snd sch.fsch_judge) xs in
+    let spe_judge = (fst sch.fsch_judge, a) in
+    let spe_posit = List.map (fun i -> spe_param.(i)) sch.fsch_posit in
     { spe_param ; spe_posit ; spe_judge }
 
 (* Add a call to the call-graph. *)

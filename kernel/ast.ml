@@ -105,7 +105,7 @@ type _ ex =
   (** Ordinal mu witness. *)
   | OWNu : o ex loc * t ex loc * (o, p) bndr       -> o  ex
   (** Ordinal nu witness. *)
-  | OSch : o ex loc * int * schema                 -> o  ex
+  | OSch : o ex loc * int * fix_schema             -> o  ex
   (** Ordinal schema witness. *)
 
   (* Type annotations. *)
@@ -155,14 +155,20 @@ and value =
   ; value_type : p ex loc
   ; value_eval : e_valu }
 
-and schema =
-  { sch_index : Scp.index (** index of the schema in the call graph *)
-  ; sch_posit : int list  (** the index of positive ordinals        *)
-  ; sch_relat : (int * int) list (** relation between ordinals      *)
-  ; sch_judge : (v,t) bndr * (o ex, p ex loc) mbinder (** judgement *) }
+and fix_schema =
+  { fsch_index : Scp.index (** index of the schema in the call graph *)
+  ; fsch_posit : int list  (** the index of positive ordinals        *)
+  ; fsch_relat : (int * int) list (** relation between ordinals      *)
+  ; fsch_judge : (v,t) bndr * (o ex, p ex loc) mbinder (** judgement *) }
   (* NOTE: [sch_judge = (vb,mob)] represents "λx.Y(λr.t, x) : a" where
      [mob] corresponds to "λr.t" and "mob" corresponds to "a", which is
      the only part of the judgment which can contain parameters. *)
+
+and sub_schema =
+  { ssch_index : Scp.index (** index of the schema in the call graph *)
+  ; ssch_posit : int list  (** the index of positive ordinals        *)
+  ; ssch_relat : (int * int) list (** relation between ordinals      *)
+  ; ssch_judge : (o ex, p ex loc * p ex loc) mbinder (** judgement *) }
 
 and specialised =
   { spe_param : o ex loc array
@@ -430,7 +436,7 @@ let ownu : popt -> obox -> tbox -> strloc -> (ovar -> pbox) -> obox =
     let b = vbind mk_free x.elt f in
     box_apply3 (fun o t b -> Pos.make p (OWNu(o,t,(x.pos, b)))) o t b
 
-let osch : type a. popt -> obox -> int -> schema Bindlib.bindbox -> obox =
+let osch : type a. popt -> obox -> int -> fix_schema Bindlib.bindbox -> obox =
   fun p o i sch ->
     box_apply2 (fun o sch -> Pos.make p (OSch(o,i,sch))) o sch
 
@@ -439,11 +445,11 @@ let goal : type a. popt -> a sort -> string -> a ex loc bindbox =
 
 let schm : Scp.index -> int list -> (int * int) list ->
              strloc -> (vvar -> tbox) ->
-             string array -> (omvar -> pbox) -> schema bindbox =
-  fun sch_index sch_posit sch_relat x fx xs fxs ->
+             string array -> (omvar -> pbox) -> fix_schema bindbox =
+  fun fsch_index fsch_posit fsch_relat x fx xs fxs ->
     let fn vb ob =
-      let sch_judge = ((x.pos, vb), ob) in
-      { sch_index; sch_posit; sch_relat; sch_judge }
+      let fsch_judge = ((x.pos, vb), ob) in
+      { fsch_index; fsch_posit; fsch_relat; fsch_judge }
     in
     box_apply2 fn (vbind mk_free x.elt fx) (mvbind mk_free xs fxs)
 
