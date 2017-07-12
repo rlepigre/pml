@@ -100,10 +100,16 @@ let uvar_iter : type a. uvar_fun -> a ex loc -> unit = fun f e ->
     | OWNu(o,t,b) -> if todo e then (uvar_iter o; uvar_iter t; buvar_iter b)
     | OSch(o,i,s) -> if todo e then
                        begin
-                         let (t,b) = s.fsch_judge in
-                         let (_,t) = Bindlib.unbind mk_free (snd t) in
-                         let (_,k) = Bindlib.unmbind mk_free b in
-                         uvar_iter o; uvar_iter t; uvar_iter k
+                         match s with
+                         | FixSch s ->
+                            let (t,b) = s.fsch_judge in
+                            let (_,t) = Bindlib.unbind mk_free (snd t) in
+                            let (_,k) = Bindlib.unmbind mk_free b in
+                            uvar_iter o; uvar_iter t; uvar_iter k
+                         | SubSch s ->
+                            let b = s.ssch_judge in
+                            let (_,(k1,k2)) = Bindlib.unmbind mk_free b in
+                            uvar_iter o; uvar_iter k1; uvar_iter k2
                        end
     | UVar(s,u)   -> f.f s u
   in uvar_iter e
@@ -167,13 +173,28 @@ let {eq_expr; eq_bndr; eq_ombinder} =
     let eq_expr e1 e2 = eq_expr oracle strict e1 e2 in
     let eq_bndr b1 b2 = eq_bndr oracle strict b1 b2 in
     let eq_ombinder omb1 omb2 = eq_ombinder oracle strict omb1 omb2 in
-    let eq_schema sch1 sch2 =
+    let eq_ombinder2 omb1 omb2 = eq_ombinder2 oracle strict omb1 omb2 in
+    let eq_fix_schema sch1 sch2 =
       sch1.fsch_index = sch2.fsch_index &&
       sch1.fsch_posit = sch2.fsch_posit &&
       sch1.fsch_relat = sch2.fsch_relat &&
       let (b1, omb1)  = sch1.fsch_judge in
       let (b2, omb2)  = sch2.fsch_judge in
       eq_bndr V b1 b2 && eq_ombinder omb1 omb2
+    in
+    let eq_sub_schema sch1 sch2 =
+      sch1.ssch_index = sch2.ssch_index &&
+      sch1.ssch_posit = sch2.ssch_posit &&
+      sch1.ssch_relat = sch2.ssch_relat &&
+      let omb1 = sch1.ssch_judge in
+      let omb2 = sch1.ssch_judge in
+      eq_ombinder2 omb1 omb2
+    in
+    let eq_schema sch1 sch2 =
+      match (sch1, sch2) with
+      | (FixSch s1, FixSch s2) -> eq_fix_schema s1 s2
+      | (SubSch s1, SubSch s2) -> eq_sub_schema s1 s2
+      | _ -> false
     in
     let e1 = Norm.whnf e1 in
     let e2 = Norm.whnf e2 in
@@ -349,6 +370,19 @@ let {eq_expr; eq_bndr; eq_ombinder} =
       if ar1 <> ar2 then false else
       let ta = Array.init ar1 (fun _ -> new_itag O) in
       eq_expr oracle strict (msubst omb1 ta) (msubst omb2 ta)
+
+  and eq_ombinder2 : type a. oracle -> bool ->
+                            (o ex, p ex loc * p ex loc) mbinder ->
+                            (o ex, p ex loc * p ex loc) mbinder -> bool =
+    fun oracle strict omb1 omb2 ->
+      if omb1 == omb2 then true else
+      let ar1 = mbinder_arity omb1 in
+      let ar2 = mbinder_arity omb2 in
+      if ar1 <> ar2 then false else
+      let ta = Array.init ar1 (fun _ -> new_itag O) in
+      let (k11, k12) = msubst omb1 ta in
+      let (k21, k22) = msubst omb2 ta in
+      eq_expr oracle strict k11 k21 && eq_expr oracle strict k12 k22
   in
 
   let compare_chrono = Chrono.create "compare" in

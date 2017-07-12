@@ -184,7 +184,7 @@ let print_ex : type a. a ex loc printer = fun ch e ->
     | NoBox(v)     -> fprintf ch "%a↓" print_ex v
     | Posit(o)     -> print_ex ch o
 
-  and print_sch ch sch =
+  and print_fix_sch ch sch =
     let (x,t) = unbind mk_free (snd (fst sch.fsch_judge)) in
     let (vars,k) = unmbind mk_free (snd sch.fsch_judge) in
     let vars = Array.map (fun x -> Pos.none (mk_free x)) vars in
@@ -200,7 +200,26 @@ let print_ex : type a. a ex loc printer = fun ch e ->
             print_vars (Array.to_list vars) print_vars pos sep
             print_rel rel (name_of x) print_ex t print_ex k
 
-  in print_ex ch e
+ and print_sub_sch ch sch =
+    let (vars,(k1,k2)) = unmbind mk_free sch.ssch_judge in
+    let vars = Array.map (fun x -> Pos.none (mk_free x)) vars in
+    let print_vars = print_list print_ex "," in
+    let pos = List.map (fun i -> vars.(i)) sch.ssch_posit in
+    let rel = List.map (fun (i,j) -> (vars.(i), vars.(j))) sch.ssch_relat in
+    let print_cmp ch (i,j) = fprintf ch "%a<%a" print_ex i print_ex j in
+    let print_rel = print_list print_cmp "," in
+    let sep =
+      if sch.ssch_posit <> [] && sch.ssch_relat <> [] then ", " else ""
+    in
+    fprintf ch "%a (%a%s%a ⊢ %a < %a)"
+            print_vars (Array.to_list vars) print_vars pos sep
+            print_rel rel print_ex k1 print_ex k2
+
+ and print_sch ch = function
+   | FixSch sch -> print_fix_sch ch sch
+   | SubSch sch -> print_sub_sch ch sch
+
+ in print_ex ch e
 
 (* Short names for printing functions. *)
 let sort = print_sort

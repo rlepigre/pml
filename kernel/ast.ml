@@ -105,7 +105,7 @@ type _ ex =
   (** Ordinal mu witness. *)
   | OWNu : o ex loc * t ex loc * (o, p) bndr       -> o  ex
   (** Ordinal nu witness. *)
-  | OSch : o ex loc * int * fix_schema             -> o  ex
+  | OSch : o ex loc * int * schema                 -> o  ex
   (** Ordinal schema witness. *)
 
   (* Type annotations. *)
@@ -170,10 +170,19 @@ and sub_schema =
   ; ssch_relat : (int * int) list (** relation between ordinals      *)
   ; ssch_judge : (o ex, p ex loc * p ex loc) mbinder (** judgement *) }
 
-and specialised =
-  { spe_param : o ex loc array
-  ; spe_posit : o ex loc list
-  ; spe_judge : (v,t) bndr * p ex loc }
+and schema =
+  | FixSch of fix_schema
+  | SubSch of sub_schema
+
+and fix_specialised =
+  { fspe_param : o ex loc array
+  ; fspe_posit : o ex loc list
+  ; fspe_judge : (v,t) bndr * p ex loc }
+
+and sub_specialised =
+  { sspe_param : o ex loc array
+  ; sspe_posit : o ex loc list
+  ; sspe_judge : p ex loc * p ex loc }
 
 (** Type of unification variables. *)
 and 'a uvar =
@@ -436,14 +445,14 @@ let ownu : popt -> obox -> tbox -> strloc -> (ovar -> pbox) -> obox =
     let b = vbind mk_free x.elt f in
     box_apply3 (fun o t b -> Pos.make p (OWNu(o,t,(x.pos, b)))) o t b
 
-let osch : type a. popt -> obox -> int -> fix_schema Bindlib.bindbox -> obox =
+let osch : type a. popt -> obox -> int -> schema Bindlib.bindbox -> obox =
   fun p o i sch ->
     box_apply2 (fun o sch -> Pos.make p (OSch(o,i,sch))) o sch
 
 let goal : type a. popt -> a sort -> string -> a ex loc bindbox =
   fun p s str -> box (Pos.make p (Goal(s,str)))
 
-let schm : Scp.index -> int list -> (int * int) list ->
+let fschm : Scp.index -> int list -> (int * int) list ->
              strloc -> (vvar -> tbox) ->
              string array -> (omvar -> pbox) -> fix_schema bindbox =
   fun fsch_index fsch_posit fsch_relat x fx xs fxs ->
@@ -452,6 +461,14 @@ let schm : Scp.index -> int list -> (int * int) list ->
       { fsch_index; fsch_posit; fsch_relat; fsch_judge }
     in
     box_apply2 fn (vbind mk_free x.elt fx) (mvbind mk_free xs fxs)
+
+let sschm : Scp.index -> int list -> (int * int) list ->
+             string array -> (omvar -> (p ex loc * p ex loc) bindbox) -> sub_schema bindbox =
+  fun ssch_index ssch_posit ssch_relat xs fxs ->
+    let fn ssch_judge =
+      { ssch_index; ssch_posit; ssch_relat; ssch_judge }
+    in
+    box_apply fn (mvbind mk_free xs fxs)
 
 let vwit : popt -> strloc -> (vvar -> tbox) -> pbox -> pbox -> vbox =
   fun p x f a c ->

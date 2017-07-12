@@ -491,16 +491,16 @@ and check_fix : ctxt -> (v, t) bndr -> prop -> typ_proof = fun ctx b c ->
             (* An induction hypothesis has been found. *)
             log_typ "an induction hypothesis has been found";
             (* Elimination of the schema, and unification with goal type. *)
-            let spe = elim_schema ctx ih in
-            let prf = subtype ctx (build_t_fixy b) (snd spe.spe_judge) c in
+            let spe = elim_fix_schema ctx ih in
+            let prf = subtype ctx (build_t_fixy b) (snd spe.fspe_judge) c in
             ignore prf; (* FIXME keep the proof prf *)
             (* Check positivity of ordinals. *)
             let ok =
-              List.for_all (Ordinal.is_pos ctx.positives) spe.spe_posit
+              List.for_all (Ordinal.is_pos ctx.positives) spe.fspe_posit
             in
             if not ok then bad_schema "cannot show positivity";
             (* Add call to call-graph and build the proof. *)
-            add_call ctx (ih.fsch_index, spe.spe_param) true;
+            add_call ctx (ih.fsch_index, spe.fspe_param) true;
             (build_t_fixy b, c, Typ_Ind(ih))
           with Subtype_error _ -> find_suitable ihs
         end
@@ -516,8 +516,8 @@ and check_fix : ctxt -> (v, t) bndr -> prop -> typ_proof = fun ctx b c ->
           else { ctx with fix_ihs = Buckets.add b sch ctx.fix_ihs }
         in
         (* Instantiation of the schema. *)
-        let spe = inst_schema ctx sch os in
-        let positives = List.map (fun o -> (o, None)) spe.spe_posit in
+        let spe = inst_fix_schema ctx sch os in
+        let positives = List.map (fun o -> (o, None)) spe.fspe_posit in
         let ctx = {ctx with positives } in
         (* Registration of the new top induction hypothesis and call. *)
         let top_ih = (sch.fsch_index, os) in
@@ -525,7 +525,7 @@ and check_fix : ctxt -> (v, t) bndr -> prop -> typ_proof = fun ctx b c ->
         let ctx = {ctx with top_ih } in
         (* Unrolling of the fixpoint and proof continued. *)
         let t = bndr_subst b (build_v_fixy b).elt in
-        type_term ctx t (snd spe.spe_judge)
+        type_term ctx t (snd spe.fspe_judge)
   in find_suitable ihs
 
 (* Generalisation (construction of a fix_schema). *)
@@ -570,27 +570,48 @@ and fix_generalise : ctxt -> (v, t) bndr -> prop -> fix_schema * ordi array =
     ({fsch_index ; fsch_posit ; fsch_relat ; fsch_judge}, os)
 
 (* Elimination of a schema using ordinal unification variables. *)
-and elim_schema : ctxt -> fix_schema -> specialised =
+and elim_fix_schema : ctxt -> fix_schema -> fix_specialised =
   fun ctx sch ->
     let arity = mbinder_arity (snd sch.fsch_judge) in
-    let spe_param = Array.init arity (fun _ -> new_uvar ctx O) in
-    let xs = Array.map (fun e -> e.elt) spe_param in
+    let fspe_param = Array.init arity (fun _ -> new_uvar ctx O) in
+    let xs = Array.map (fun e -> e.elt) fspe_param in
     let a = msubst (snd sch.fsch_judge) xs in
-    let spe_judge = (fst sch.fsch_judge, a) in
-    let spe_posit = List.map (fun i -> spe_param.(i)) sch.fsch_posit in
-    { spe_param ; spe_posit ; spe_judge }
+    let fspe_judge = (fst sch.fsch_judge, a) in
+    let fspe_posit = List.map (fun i -> fspe_param.(i)) sch.fsch_posit in
+    { fspe_param ; fspe_posit ; fspe_judge }
+
+(* Elimination of a schema using ordinal unification variables. *)
+and elim_sub_schema : ctxt -> sub_schema -> sub_specialised =
+  fun ctx sch ->
+    let arity = mbinder_arity sch.ssch_judge in
+    let sspe_param = Array.init arity (fun _ -> new_uvar ctx O) in
+    let xs = Array.map (fun e -> e.elt) sspe_param in
+    let sspe_judge = msubst sch.ssch_judge xs in
+    let sspe_posit = List.map (fun i -> sspe_param.(i)) sch.ssch_posit in
+    { sspe_param ; sspe_posit ; sspe_judge }
 
 (* Instantiation of a schema with ordinal witnesses. *)
-and inst_schema : ctxt -> fix_schema -> ordi array -> specialised =
+and inst_fix_schema : ctxt -> fix_schema -> ordi array -> fix_specialised =
   fun ctx sch os ->
     let arity = mbinder_arity (snd sch.fsch_judge) in
-    let fn i = Pos.none (OSch(os.(i), i, sch)) in
-    let spe_param = Array.init arity fn in
-    let xs = Array.map (fun e -> e.elt) spe_param in
+    let fn i = Pos.none (OSch(os.(i), i, FixSch sch)) in
+    let fspe_param = Array.init arity fn in
+    let xs = Array.map (fun e -> e.elt) fspe_param in
     let a = msubst (snd sch.fsch_judge) xs in
-    let spe_judge = (fst sch.fsch_judge, a) in
-    let spe_posit = List.map (fun i -> spe_param.(i)) sch.fsch_posit in
-    { spe_param ; spe_posit ; spe_judge }
+    let fspe_judge = (fst sch.fsch_judge, a) in
+    let fspe_posit = List.map (fun i -> fspe_param.(i)) sch.fsch_posit in
+    { fspe_param ; fspe_posit ; fspe_judge }
+
+(* Instantiation of a schema with ordinal witnesses. *)
+and inst_sub_schema : ctxt -> sub_schema -> ordi array -> sub_specialised =
+  fun ctx sch os ->
+    let arity = mbinder_arity sch.ssch_judge in
+    let fn i = Pos.none (OSch(os.(i), i, SubSch sch)) in
+    let sspe_param = Array.init arity fn in
+    let xs = Array.map (fun e -> e.elt) sspe_param in
+    let sspe_judge = msubst sch.ssch_judge xs in
+    let sspe_posit = List.map (fun i -> sspe_param.(i)) sch.ssch_posit in
+    { sspe_param ; sspe_posit ; sspe_judge }
 
 (* Add a call to the call-graph. *)
 and add_call : ctxt -> (Scp.index * ordi array) -> bool -> unit =

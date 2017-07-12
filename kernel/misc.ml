@@ -18,11 +18,23 @@ let rec lift : type a. a ex loc -> a box = fun e ->
     | Posit(o)     -> posit (lift o)
     | NoBox(v)     -> nobox (lift v)
   in
-  let lift_schema { fsch_index ; fsch_posit ; fsch_relat ; fsch_judge } =
+  let lift_fix_schema { fsch_index ; fsch_posit ; fsch_relat ; fsch_judge } =
     let (vb, ob) = fsch_judge in
     let fv x = lift (bndr_subst vb (mk_free x)) in
     let fo xs = lift (msubst ob (Array.map mk_free xs)) in
-    schm fsch_index fsch_posit fsch_relat (bndr_name vb) fv (mbinder_names ob) fo
+    fschm fsch_index fsch_posit fsch_relat (bndr_name vb) fv (mbinder_names ob) fo
+  in
+  let lift_sub_schema { ssch_index ; ssch_posit ; ssch_relat ; ssch_judge } =
+    let ob = ssch_judge in
+    let fo xs =
+      let (k1, k2) = msubst ob (Array.map mk_free xs) in
+      box_pair (lift k1) (lift k2)
+    in
+    sschm ssch_index ssch_posit ssch_relat (mbinder_names ob) fo
+  in
+  let lift_schema = function
+    | FixSch s -> box_apply (fun x -> FixSch x) (lift_fix_schema s)
+    | SubSch s -> box_apply (fun x -> SubSch x) (lift_sub_schema s)
   in
   match (Norm.whnf e).elt with
   | HDef(_,_)   -> box e (* Assumed closed *)
