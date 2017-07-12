@@ -28,6 +28,17 @@ val rec add_assoc : ∀m n p∈nat, add m (add n p) ≡ add (add m n) p =
              qed
     }
 
+// Associativity of addition (shortest proof).
+val rec add_assoc2 : ∀m n p∈nat, add m (add n p) ≡ add (add m n) p =
+  fun m n p →
+    use add_total n p;
+    case m {
+      Z[] → qed
+      S[k] → use add_assoc2 k n p;
+             use add_total k n;
+             qed
+    }
+
 // Zero as a neutral element on the right (detailed proof).
 val rec add_n_zero : ∀n∈nat, add n zero ≡ n = fun n →
   case n {
