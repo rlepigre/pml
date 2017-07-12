@@ -312,3 +312,22 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
   (* Building the actual binder. *)
   let b = bind_mvar xs (bind_all e) in
   (unbox b, os)
+
+let bind2_ordinals
+    : p ex loc -> p ex loc -> (o ex, p ex loc * p ex loc) mbinder * ordi array
+  = fun e1 e2 ->
+  let m = A.singleton "1" (None, e1) in
+  let m = A.add "2" (None, e2) m in
+  let e = Pos.none (Prod m) in
+  let (b, os) = bind_ordinals e in
+  let names = mbinder_names b in
+  let fn xs =
+    match (msubst b xs).elt with
+    | Prod m ->
+       begin
+         try  (snd (A.find "1" m), snd (A.find "2" m))
+         with Not_found -> assert false
+       end
+    | _ -> assert false
+  in
+  (mbinder_from_fun names fn, os)

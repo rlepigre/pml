@@ -508,7 +508,7 @@ and check_fix : ctxt -> (v, t) bndr -> prop -> typ_proof = fun ctx b c ->
         (* No matching induction hypothesis. *)
         log_typ "no suitable induction hypothesis";
         (* Construction of a new schema. *)
-        let (sch, os) = generalise ctx b c in
+        let (sch, os) = fix_generalise ctx b c in
         (* Recording of the new induction hypothesis. *)
         log_typ "the schema has %i arguments" (Array.length os);
         let ctx =
@@ -528,8 +528,28 @@ and check_fix : ctxt -> (v, t) bndr -> prop -> typ_proof = fun ctx b c ->
         type_term ctx t (snd spe.spe_judge)
   in find_suitable ihs
 
-(* Generalisation (construction of a schema). *)
-and generalise : ctxt -> (v, t) bndr -> prop -> fix_schema * ordi array =
+(* Generalisation (construction of a fix_schema). *)
+and sub_generalise : ctxt -> prop -> prop -> sub_schema * ordi array =
+  fun ctx b c ->
+    (* Extracting ordinal parameters from the goal type. *)
+    let (ssch_judge, os) = Misc.bind2_ordinals b c in
+
+    let ssch_posit = [] in (* FIXME #32 *)
+    let ssch_relat = [] in (* FIXME #32 *)
+
+    (* Build the judgment. *)
+    (* Output.bug_msg "Schema: %a" Print.omb omb;*)
+
+    (* Ask for a fresh symbol index. *)
+    let ssch_index =
+      let names = mbinder_names ssch_judge in
+      Scp.create_symbol ctx.callgraph "$" names
+    in
+    (* Assemble the schema. *)
+    ({ssch_index ; ssch_posit ; ssch_relat ; ssch_judge}, os)
+
+(* Generalisation (construction of a fix_schema). *)
+and fix_generalise : ctxt -> (v, t) bndr -> prop -> fix_schema * ordi array =
   fun ctx b c ->
     (* Extracting ordinal parameters from the goal type. *)
     let (omb, os) = Misc.bind_ordinals c in
