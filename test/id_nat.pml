@@ -1,7 +1,11 @@
 type rec nat = [ Z ; S of nat ]
+def snat<o:κ> = μo x [ Z ; S of x ]
+
+val zero : nat = Z[]
+val succ : nat ⇒ nat = fun n → S[n]
 
 val rec id_nat : nat ⇒ nat = fun n →
   case n {
-    | Z[] → Z[]
-    | S[p] → S[id_nat p]
+    | Z[] → zero
+    | S[p] → succ (id_nat p)
   }

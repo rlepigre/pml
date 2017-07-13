@@ -484,10 +484,8 @@ and check_sub : ctxt -> prop -> prop -> check_sub = fun ctx a b ->
             (* Elimination of the schema, and unification with goal type. *)
             let spe = elim_sub_schema ctx ih in
             let (a0, b0) = spe.sspe_judge in
-            log_sub "trying\n %a < %a\n %a < %a\n%!" Print.ex a Print.ex b Print.ex a0 Print.ex b0;
             (* Check if schema applies. *)
             if not (eq_expr a a0 && eq_expr b b0) then raise Exit;
-            log_sub "Ind %d matches\n" (Scp.int_of_index ih.ssch_index);
             (* Check positivity of ordinals. *)
             let ok =
               List.for_all (Ordinal.is_pos ctx.positives) spe.sspe_posit
@@ -539,6 +537,7 @@ and check_fix : ctxt -> (v, t) bndr -> prop -> typ_proof = fun ctx b c ->
             let spe = elim_fix_schema ctx ih in
             let prf = subtype ctx (build_t_fixy b) (snd spe.fspe_judge) c in
             ignore prf; (* FIXME keep the proof prf *)
+            log_typ "it matches\n%!";
             (* Check positivity of ordinals. *)
             let ok =
               List.for_all (Ordinal.is_pos ctx.positives) spe.fspe_posit
@@ -1021,7 +1020,5 @@ let is_subtype : prop -> prop -> bool = fun a b ->
     let lb = uvars b in
     assert(la = []); (* FIXME #44 *)
     assert(lb = []); (* FIXME #44 *)
-    let tmp = Scp.scp ctx.callgraph in
-    log_sub "scp: %b\n%!" tmp;
-    tmp
+    Scp.scp ctx.callgraph
   with _ -> false

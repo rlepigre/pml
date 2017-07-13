@@ -56,9 +56,7 @@ let rec interpret : Env.env -> Raw.toplevel -> Env.env = fun env top ->
       let open Env in
       let a = unbox (to_prop (unsugar_expr env a _sp)) in
       let b = unbox (to_prop (unsugar_expr env b _sp)) in
-      let res = is_subtype a b in
-      log_sub "%b <> %b\n" res n;
-      if res <> n then
+      if is_subtype a b <> n then
         begin
           (* FIXME FIXME FIXME *)
           assert false
