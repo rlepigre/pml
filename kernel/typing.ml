@@ -46,7 +46,7 @@ type ctxt  =
   ; top_ih    : Scp.index * ordi array
   ; callgraph : Scp.t }
 
-let empty_ctxt =
+let empty_ctxt () =
   { uvarcount = ref 0
   ; equations = empty_ctxt
   ; positives = []
@@ -251,6 +251,10 @@ let is_conv : ordi -> bool = fun o ->
   | Conv -> true
   | _    -> false
 
+type check_sub =
+  | Sub_Applies of sub_rule
+  | Sub_New of ctxt * (prop * prop)
+
 let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
   fun ctx t a b ->
     log_sub "proving the subtyping judgment:\n  %a\n  ⊢ %a\n  ∈ %a\n  ⊆ %a"
@@ -266,16 +270,49 @@ let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
           Sub_Equal
         end
       else
-      let (ctx, prfo) = check_sub ctx a b in
-      match prfo with
-      | Some prf -> prf
-      | None     ->
       match (a.elt, b.elt) with
       (* Unfolding of definitions. *)
       | (HDef(_,d)  , _          ) ->
           let (_, _, _, r) = subtype ctx t d.expr_def b in r
       | (_          , HDef(_,d)  ) ->
           let (_, _, _, r) = subtype ctx t a d.expr_def in r
+      (* Universal quantification on the right. *)
+      | (_          , Univ(s,f)  ) ->
+         if t_is_val then
+           Sub_Univ_r(subtype ctx t a (bndr_subst f (UWit(s,t,f))))
+         else
+           gen_subtype ctx a b
+      (* Existential quantification on the left. *)
+      | (Exis(s,f)  , _          ) ->
+         if t_is_val then
+           let wit = EWit(s,t,f) in
+           Sub_Exis_l(subtype ctx t (bndr_subst f wit) b)
+         else
+           gen_subtype ctx a b
+      (* Mu left and Nu right rules. *)
+      | (FixM(o,f)  , _          ) when t_is_val ->
+          let o' =
+            let f o = bndr_subst f (FixM(Pos.none o, f)) in
+            let f = binder_from_fun "o" f in
+            Pos.none (OWMu(o,t,(None,f)))
+          in
+          let ctx = add_positive ctx o (Some o') in
+          let a = bndr_subst f (FixM(o',f)) in
+          Sub_FixM_l(false, subtype ctx t a b)
+      | (_          , FixN(o,f)  ) when t_is_val ->
+          let o' =
+            let f o = bndr_subst f (FixN(Pos.none o, f)) in
+            let f = binder_from_fun "o" f in
+            Pos.none (OWNu(o,t,(None, f)))
+          in
+          let ctx = add_positive ctx o (Some o') in
+          let b = bndr_subst f (FixN(o',f)) in
+          Sub_FixN_r(false, subtype ctx t a b)
+      | _ ->
+      match  check_sub ctx a b with
+      | Sub_Applies prf    -> prf
+      | Sub_New(ctx,(a,b)) ->
+      match (a.elt, b.elt) with
       (* Arrow types. *)
       | (Func(a1,b1), Func(a2,b2)) when t_is_val ->
          let fn x = appl None (box t) (valu None (vari None x)) in
@@ -334,19 +371,6 @@ let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
           in
           let ps = A.fold check_variant cs1 [] in
           Sub_DSum(ps)
-      (* Universal quantification on the right. *)
-      | (_          , Univ(s,f)  ) ->
-         if t_is_val then
-           Sub_Univ_r(subtype ctx t a (bndr_subst f (UWit(s,t,f))))
-         else
-           gen_subtype ctx a b
-      (* Existential quantification on the left. *)
-      | (Exis(s,f)  , _          ) ->
-         if t_is_val then
-           let wit = EWit(s,t,f) in
-           Sub_Exis_l(subtype ctx t (bndr_subst f wit) b)
-         else
-           gen_subtype ctx a b
       (* Universal quantification on the left. *)
       | (Univ(s,f)  , _          ) ->
           let u = new_uvar ctx s in
@@ -409,25 +433,6 @@ let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
           Sub_FixM_r(true, subtype ctx t a (bndr_subst f b.elt))
       | (FixN(o,f)  , _         ) when is_conv o ->
           Sub_FixN_l(true, subtype ctx t (bndr_subst f a.elt) b)
-      (* Mu left and Nu right rules. *)
-      | (FixM(o,f)  , _          ) when t_is_val ->
-          let o' =
-            let f o = bndr_subst f (FixM(Pos.none o, f)) in
-            let f = binder_from_fun "o" f in
-            Pos.none (OWMu(o,t,(None,f)))
-          in
-          let ctx = add_positive ctx o (Some o') in
-          let a = bndr_subst f (FixM(o',f)) in
-          Sub_FixM_l(false, subtype ctx t a b)
-      | (_          , FixN(o,f)  ) when t_is_val ->
-          let o' =
-            let f o = bndr_subst f (FixN(Pos.none o, f)) in
-            let f = binder_from_fun "o" f in
-            Pos.none (OWNu(o,t,(None, f)))
-          in
-          let ctx = add_positive ctx o (Some o') in
-          let b = bndr_subst f (FixM(o',f)) in
-          Sub_FixN_r(false, subtype ctx t a b)
       (* Mu right and Nu left rules, general case. *)
       | (_          , FixM(o,f)  ) ->
           let u = new_uvar ctx O in
@@ -465,7 +470,7 @@ and gen_subtype : ctxt -> prop -> prop -> sub_rule =
     in
     Sub_Gene(subtype ctx wit a b)
 
-and check_sub : ctxt -> prop -> prop -> ctxt * sub_rule option = fun ctx a b ->
+and check_sub : ctxt -> prop -> prop -> check_sub = fun ctx a b ->
   (* Looking for potential induction hypotheses. *)
   let ihs = ctx.sub_ihs in
   log_sub "there are %i potential subtyping induction hypotheses"
@@ -479,8 +484,10 @@ and check_sub : ctxt -> prop -> prop -> ctxt * sub_rule option = fun ctx a b ->
             (* Elimination of the schema, and unification with goal type. *)
             let spe = elim_sub_schema ctx ih in
             let (a0, b0) = spe.sspe_judge in
+            log_sub "trying\n %a < %a\n %a < %a\n%!" Print.ex a Print.ex b Print.ex a0 Print.ex b0;
             (* Check if schema applies. *)
             if not (eq_expr a a0 && eq_expr b b0) then raise Exit;
+            log_sub "Ind %d matches\n" (Scp.int_of_index ih.ssch_index);
             (* Check positivity of ordinals. *)
             let ok =
               List.for_all (Ordinal.is_pos ctx.positives) spe.sspe_posit
@@ -489,28 +496,30 @@ and check_sub : ctxt -> prop -> prop -> ctxt * sub_rule option = fun ctx a b ->
             if not ok then raise Exit;
             (* Add call to call-graph and build the proof. *)
             add_call ctx (ih.ssch_index, spe.sspe_param) true;
-            (ctx, Some (Sub_Ind(ih)))
+            Sub_Applies(Sub_Ind(ih))
           with Exit -> find_suitable ihs
         end
     | []      ->
         (* No matching induction hypothesis. *)
         log_sub "no suitable induction hypothesis";
-        (* Construction of a new schema. *)
-        let (sch, os) = sub_generalise ctx a b in
-        (* Recording of the new induction hypothesis. *)
-        log_sub "the schema has %i arguments" (Array.length os);
-        let ctx =
-          if os = [||] then ctx
-          else { ctx with sub_ihs = sch :: ctx.sub_ihs }
-        in
-        (* Instantiation of the schema. *)
-        let spe = inst_sub_schema ctx sch os in
-        let positives = List.map (fun o -> (o, None)) spe.sspe_posit in
-        let ctx = {ctx with positives } in
-        (* Registration of the new top induction hypothesis and call. *)
-        let top_ih = (sch.ssch_index, os) in
-        add_call ctx top_ih false;
-        ({ctx with top_ih }, None)
+        match a.elt, b.elt with
+        | ((FixM _ | FixN _), _) | (_, (FixM _ | FixN _)) ->
+           (* Construction of a new schema. *)
+           let (sch, os) = sub_generalise ctx a b in
+           (* Registration of the new top induction hypothesis and call. *)
+           add_call ctx (sch.ssch_index, os) false;
+           (* Recording of the new induction hypothesis. *)
+           log_sub "the schema has %i arguments" (Array.length os);
+           let ctx = { ctx with sub_ihs = sch :: ctx.sub_ihs } in
+           (* Instantiation of the schema. *)
+           let spe = inst_sub_schema ctx sch os in
+           let positives = List.map (fun o -> (o, None)) spe.sspe_posit in
+           let ctx = {ctx with positives } in
+           Sub_New({ctx with top_ih = (sch.ssch_index, spe.sspe_param)},
+                   spe.sspe_judge)
+        | _ ->
+           Sub_New(ctx, (a, b))
+
   in find_suitable ihs
 
 and check_fix : ctxt -> (v, t) bndr -> prop -> typ_proof = fun ctx b c ->
@@ -546,6 +555,8 @@ and check_fix : ctxt -> (v, t) bndr -> prop -> typ_proof = fun ctx b c ->
         log_typ "no suitable induction hypothesis";
         (* Construction of a new schema. *)
         let (sch, os) = fix_generalise ctx b c in
+        (* Registration of the new top induction hypothesis and call. *)
+        add_call ctx (sch.fsch_index, os) false;
         (* Recording of the new induction hypothesis. *)
         log_typ "the schema has %i arguments" (Array.length os);
         let ctx =
@@ -556,10 +567,7 @@ and check_fix : ctxt -> (v, t) bndr -> prop -> typ_proof = fun ctx b c ->
         let spe = inst_fix_schema ctx sch os in
         let positives = List.map (fun o -> (o, None)) spe.fspe_posit in
         let ctx = {ctx with positives } in
-        (* Registration of the new top induction hypothesis and call. *)
-        let top_ih = (sch.fsch_index, os) in
-        add_call ctx top_ih false;
-        let ctx = {ctx with top_ih } in
+        let ctx = {ctx with top_ih = (sch.fsch_index, spe.fspe_param)} in
         (* Unrolling of the fixpoint and proof continued. *)
         let t = bndr_subst b (build_v_fixy b).elt in
         type_term ctx t (snd spe.fspe_judge)
@@ -630,8 +638,9 @@ and elim_sub_schema : ctxt -> sub_schema -> sub_specialised =
 (* Instantiation of a schema with ordinal witnesses. *)
 and inst_fix_schema : ctxt -> fix_schema -> ordi array -> fix_specialised =
   fun ctx sch os ->
-    let arity = mbinder_arity (snd sch.fsch_judge) in
-    let fn i = Pos.none (OSch(os.(i), i, FixSch sch)) in
+  let arity = mbinder_arity (snd sch.fsch_judge) in
+    (* FIXME; FIXME; ... None replaced by the relation if any *)
+    let fn i = Pos.none (OSch(None, i, FixSch sch)) in
     let fspe_param = Array.init arity fn in
     let xs = Array.map (fun e -> e.elt) fspe_param in
     let a = msubst (snd sch.fsch_judge) xs in
@@ -643,7 +652,8 @@ and inst_fix_schema : ctxt -> fix_schema -> ordi array -> fix_specialised =
 and inst_sub_schema : ctxt -> sub_schema -> ordi array -> sub_specialised =
   fun ctx sch os ->
     let arity = mbinder_arity sch.ssch_judge in
-    let fn i = Pos.none (OSch(os.(i), i, SubSch sch)) in
+    (* FIXME; FIXME; ... None replaced by the relation if any *)
+    let fn i = Pos.none (OSch(None, i, SubSch sch)) in
     let sspe_param = Array.init arity fn in
     let xs = Array.map (fun e -> e.elt) sspe_param in
     let sspe_judge = msubst sch.ssch_judge xs in
@@ -992,7 +1002,7 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
   | e -> type_error (E(S,s)) c e
 
 let type_check : term -> prop -> prop * typ_proof = fun t a ->
-  let ctx = empty_ctxt in
+  let ctx = empty_ctxt () in
   let prf = type_term ctx t a in
   if not (Scp.scp ctx.callgraph) then failwith "Loops !";
   let l = uvars a in
@@ -1005,11 +1015,13 @@ let type_check t = Chrono.add_time type_chrono (type_check t)
 
 let is_subtype : prop -> prop -> bool = fun a b ->
   try
-    let ctx = empty_ctxt in
-    let prf = gen_subtype ctx a b in
+    let ctx = empty_ctxt () in
+    let _ = gen_subtype ctx a b in
     let la = uvars a in
     let lb = uvars b in
     assert(la = []); (* FIXME #44 *)
     assert(lb = []); (* FIXME #44 *)
-    Scp.scp ctx.callgraph
+    let tmp = Scp.scp ctx.callgraph in
+    log_sub "scp: %b\n%!" tmp;
+    tmp
   with _ -> false

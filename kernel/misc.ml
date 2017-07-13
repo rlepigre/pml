@@ -110,7 +110,7 @@ let rec lift : type a. a ex loc -> a box = fun e ->
                      (fun x -> lift (bndr_subst b (mk_free x)))
   | OWNu(o,t,b) -> ownu e.pos (lift o) (lift t) (bndr_name b)
                      (fun x -> lift (bndr_subst b (mk_free x)))
-  | OSch(o,i,s) -> osch e.pos (lift o) i (lift_schema s)
+  | OSch(o,i,s) -> osch e.pos (Option.map lift o) i (lift_schema s)
 
   | Vari(x)     -> vari e.pos x
   | Dumm        -> box e
@@ -316,7 +316,7 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
     | OSch(o,i,sch) ->
        begin
          try var_of_ordi_wit O e with Not_found ->
-           osch e.pos (bind_all o) i (box sch)
+           osch e.pos (Option.map bind_all o) i (box sch)
        end
     | Vari(x)     -> vari e.pos x
     | Dumm        -> box e

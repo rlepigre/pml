@@ -105,11 +105,11 @@ let uvar_iter : type a. uvar_fun -> a ex loc -> unit = fun f e ->
                             let (t,b) = s.fsch_judge in
                             let (_,t) = Bindlib.unbind mk_free (snd t) in
                             let (_,k) = Bindlib.unmbind mk_free b in
-                            uvar_iter o; uvar_iter t; uvar_iter k
+                            Extra.Option.iter uvar_iter o; uvar_iter t; uvar_iter k
                          | SubSch s ->
                             let b = s.ssch_judge in
                             let (_,(k1,k2)) = Bindlib.unmbind mk_free b in
-                            uvar_iter o; uvar_iter k1; uvar_iter k2
+                            Extra.Option.iter uvar_iter o; uvar_iter k1; uvar_iter k2
                        end
     | UVar(s,u)   -> f.f s u
   in uvar_iter e
@@ -189,6 +189,11 @@ let {eq_expr; eq_bndr; eq_ombinder} =
       let omb1 = sch1.ssch_judge in
       let omb2 = sch1.ssch_judge in
       eq_ombinder2 omb1 omb2
+    in
+    let eq_opt_expr o1 o2 = match (o1, o2) with
+      | (None   , None   ) -> true
+      | (Some e1, Some e2) -> eq_expr e1 e2
+      | _                  -> false
     in
     let eq_schema sch1 sch2 =
       match (sch1, sch2) with
@@ -314,7 +319,7 @@ let {eq_expr; eq_bndr; eq_ombinder} =
                                           && eq_bndr O b1 b2
     | (OWNu(o1,t1,b1), OWNu(o2,t2,b2)) -> eq_expr o1 o2 && eq_expr t1 t2
                                           && eq_bndr O b1 b2
-    | (OSch(o1,i1,s1), OSch(o2,i2,s2)) -> i1 = i2 && eq_expr o1 o2 &&
+    | (OSch(o1,i1,s1), OSch(o2,i2,s2)) -> i1 = i2 && eq_opt_expr o1 o2 &&
                                           eq_schema s1 s2
     | (UVar(_,u1)    , UVar(_,u2)    ) ->
        if strict then u1.uvar_key = u2.uvar_key else

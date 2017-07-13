@@ -21,7 +21,7 @@ let candidate_pred : positives -> ordi -> ordi list = fun pos o ->
   let rec pred acc pos =
     match pos with
     | []               -> acc
-    | (k, Some p)::pos -> let acc = 
+    | (k, Some p)::pos -> let acc =
                             if eq_expr ~strict:true o k then p::acc
                             else acc
                           in pred acc pos
@@ -44,8 +44,7 @@ let rec leq_i_ordi : positives -> ordi -> int -> ordi -> bool =
     | (Succ(o1), _       ) -> leq_i_ordi pos o1 (i+1) o2
     | (OWMu(o1,_,_),_    )
     | (OWNu(o1,_,_),_    )
-    | (OSch(o1,_,_), _   ) ->
-        (* FIXME use relations in schema *)
+    | (OSch(Some o1,_,_), _   ) ->
         let i = if is_pos pos o1 then i-1 else i in
         leq_i_ordi pos o1 i o2
     | (Zero    , _       ) -> i <= 0 || (i = 1 && is_pos pos o2)

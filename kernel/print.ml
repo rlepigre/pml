@@ -172,9 +172,12 @@ let print_ex : type a. a ex loc printer = fun ch e ->
                        fprintf ch "εκ%s(<%a,%a∉%a)" (name_of x) print_ex o
                          print_ex t print_ex a
                      else fprintf ch "εκν%s" (bndr_name b).elt
-    | OSch(o,i,s) -> if !print_full then
+    | OSch(Some o,i,s) -> if !print_full then
                        fprintf ch "εκ%d(<%a,%a)" i print_ex o print_sch s
                      else fprintf ch "εκ%d(<%a)" i print_ex o
+    | OSch(None,i,s) -> if !print_full then
+                       fprintf ch "εκ%d(%a)" i print_sch s
+                     else fprintf ch "εκ%d" i
     | UVar(_,uv)  -> fprintf ch "?%i" uv.uvar_key
     | Goal(_,str) -> fprintf ch "{- %s -}" str
 

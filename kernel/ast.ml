@@ -105,7 +105,7 @@ type _ ex =
   (** Ordinal mu witness. *)
   | OWNu : o ex loc * t ex loc * (o, p) bndr       -> o  ex
   (** Ordinal nu witness. *)
-  | OSch : o ex loc * int * schema                 -> o  ex
+  | OSch : o ex loc option * int * schema          -> o  ex
   (** Ordinal schema witness. *)
 
   (* Type annotations. *)
@@ -445,9 +445,9 @@ let ownu : popt -> obox -> tbox -> strloc -> (ovar -> pbox) -> obox =
     let b = vbind mk_free x.elt f in
     box_apply3 (fun o t b -> Pos.make p (OWNu(o,t,(x.pos, b)))) o t b
 
-let osch : type a. popt -> obox -> int -> schema Bindlib.bindbox -> obox =
+let osch : type a. popt -> obox option -> int -> schema Bindlib.bindbox -> obox =
   fun p o i sch ->
-    box_apply2 (fun o sch -> Pos.make p (OSch(o,i,sch))) o sch
+    box_apply2 (fun o sch -> Pos.make p (OSch(o,i,sch))) (box_opt o) sch
 
 let goal : type a. popt -> a sort -> string -> a ex loc bindbox =
   fun p s str -> box (Pos.make p (Goal(s,str)))
