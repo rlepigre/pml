@@ -9,9 +9,6 @@ open Equiv
 open Output
 open Compare
 
-(* Enable circular proofs? *)
-let circular = ref false
-
 type sorted = E : 'a sort * 'a ex loc -> sorted
 
 (* Exceptions to be used in case of failure. *)
@@ -412,13 +409,8 @@ let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
           Sub_FixM_r(true, subtype ctx t a (bndr_subst f b.elt))
       | (FixN(o,f)  , _         ) when is_conv o ->
           Sub_FixN_l(true, subtype ctx t (bndr_subst f a.elt) b)
-      (* Mu left and Nu right, infinite rules (wrong). *)
-      | (FixM(o,f)  , _         ) when is_conv o && not !circular ->
-          Sub_FixM_l(true, subtype ctx t (bndr_subst f a.elt) b)
-      | (_          , FixN(o,f) ) when is_conv o && not !circular ->
-          Sub_FixN_r(true, subtype ctx t a (bndr_subst f b.elt))
       (* Mu left and Nu right rules. *)
-      | (FixM(o,f)  , _          ) when t_is_val && !circular ->
+      | (FixM(o,f)  , _          ) when t_is_val ->
           let o' =
             let f o = bndr_subst f (FixM(Pos.none o, f)) in
             let f = binder_from_fun "o" f in
@@ -427,7 +419,7 @@ let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
           let ctx = add_positive ctx o (Some o') in
           let a = bndr_subst f (FixM(o',f)) in
           Sub_FixM_l(false, subtype ctx t a b)
-      | (_          , FixN(o,f)  ) when t_is_val && !circular ->
+      | (_          , FixN(o,f)  ) when t_is_val ->
           let o' =
             let f o = bndr_subst f (FixN(Pos.none o, f)) in
             let f = binder_from_fun "o" f in
@@ -437,14 +429,14 @@ let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
           let b = bndr_subst f (FixM(o',f)) in
           Sub_FixN_r(false, subtype ctx t a b)
       (* Mu right and Nu left rules, general case. *)
-      | (_          , FixM(o,f)  ) when !circular ->
+      | (_          , FixM(o,f)  ) ->
           let u = new_uvar ctx O in
           let b = bndr_subst f (FixM(u,f)) in
           let prf = subtype ctx t a b in
           if not (Ordinal.less_ordi ctx.positives u o) then
             subtype_msg b.pos "ordinal not suitable (μr rule)";
           Sub_FixM_r(false, prf)
-      | (FixN(o,f)  , _          ) when !circular ->
+      | (FixN(o,f)  , _          ) ->
           let u = new_uvar ctx O in
           let a = bndr_subst f (FixN(u,f)) in
           let prf = subtype ctx t a b in
@@ -522,10 +514,6 @@ and check_sub : ctxt -> prop -> prop -> ctxt * sub_rule option = fun ctx a b ->
   in find_suitable ihs
 
 and check_fix : ctxt -> (v, t) bndr -> prop -> typ_proof = fun ctx b c ->
-  if not !circular then
-    (* Old version. *)
-    type_valu ctx (Pos.none (LAbs(None, b))) (Pos.none (Func(c,c)))
-  else
   (* Looking for potential induction hypotheses. *)
   let ihs = Buckets.find b ctx.fix_ihs in
   log_typ "there are %i potential fixpoint induction hypotheses"

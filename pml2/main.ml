@@ -169,9 +169,6 @@ let files =
     ; ( "--no-prelude"
       , Arg.Clear load_prelude
       , " Do not load the prelude.")
-    ; ( "--circular"
-      , Arg.Set Typing.circular
-      , " Enable circular proofs (experimental).")
     ; ( "--quiet"
       , Arg.Clear verbose
       , " Disables the printing definition data.")
