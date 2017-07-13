@@ -45,6 +45,7 @@ let rec leq_i_ordi : positives -> ordi -> int -> ordi -> bool =
     | (OWMu(o1,_,_),_    )
     | (OWNu(o1,_,_),_    )
     | (OSch(o1,_,_), _   ) ->
+        (* FIXME use relations in schema *)
         let i = if is_pos pos o1 then i-1 else i in
         leq_i_ordi pos o1 i o2
     | (Zero    , _       ) -> i <= 0 || (i = 1 && is_pos pos o2)

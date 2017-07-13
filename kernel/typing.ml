@@ -27,10 +27,6 @@ exception Subtype_error of term * prop * prop * exn
 let subtype_error : term -> prop -> prop -> exn -> 'a =
   fun t a b e -> raise (Subtype_error(t,a,b,e))
 
-exception Bad_schema of string
-let bad_schema : string -> 'a =
-  fun msg -> raise (Bad_schema(msg))
-
 exception Reachable
 
 exception Unexpected_error of string
@@ -129,6 +125,7 @@ and  sub_rule =
   | Sub_FixN_l of bool * sub_proof (* boolean true if infinite rule *)
   | Sub_FixM_l of bool * sub_proof (* boolean true if infinite rule *)
   | Sub_FixN_r of bool * sub_proof (* boolean true if infinite rule *)
+  | Sub_Ind    of sub_schema
 
 and typ_proof = term * prop * typ_rule
 and stk_proof = stac * prop * stk_rule
@@ -271,10 +268,12 @@ let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
           log_sub "reflexivity applies";
           Sub_Equal
         end
-          (*      else if ...*)
-
-
-      else match (a.elt, b.elt) with
+      else
+      let (ctx, prfo) = check_sub ctx a b in
+      match prfo with
+      | Some prf -> prf
+      | None     ->
+      match (a.elt, b.elt) with
       (* Unfolding of definitions. *)
       | (HDef(_,d)  , _          ) ->
           let (_, _, _, r) = subtype ctx t d.expr_def b in r
@@ -474,6 +473,54 @@ and gen_subtype : ctxt -> prop -> prop -> sub_rule =
     in
     Sub_Gene(subtype ctx wit a b)
 
+and check_sub : ctxt -> prop -> prop -> ctxt * sub_rule option = fun ctx a b ->
+  (* Looking for potential induction hypotheses. *)
+  let ihs = ctx.sub_ihs in
+  log_sub "there are %i potential subtyping induction hypotheses"
+    (List.length ihs);
+  (* Function for finding a suitable induction hypothesis. *)
+  let rec find_suitable ihs =
+    match ihs with
+    | ih::ihs ->
+        begin
+          try
+            (* Elimination of the schema, and unification with goal type. *)
+            let spe = elim_sub_schema ctx ih in
+            let (a0, b0) = spe.sspe_judge in
+            (* Check if schema applies. *)
+            if not (eq_expr a a0 && eq_expr b b0) then raise Exit;
+            (* Check positivity of ordinals. *)
+            let ok =
+              List.for_all (Ordinal.is_pos ctx.positives) spe.sspe_posit
+            in
+            (* FIXME check relations *)
+            if not ok then raise Exit;
+            (* Add call to call-graph and build the proof. *)
+            add_call ctx (ih.ssch_index, spe.sspe_param) true;
+            (ctx, Some (Sub_Ind(ih)))
+          with Exit -> find_suitable ihs
+        end
+    | []      ->
+        (* No matching induction hypothesis. *)
+        log_sub "no suitable induction hypothesis";
+        (* Construction of a new schema. *)
+        let (sch, os) = sub_generalise ctx a b in
+        (* Recording of the new induction hypothesis. *)
+        log_sub "the schema has %i arguments" (Array.length os);
+        let ctx =
+          if os = [||] then ctx
+          else { ctx with sub_ihs = sch :: ctx.sub_ihs }
+        in
+        (* Instantiation of the schema. *)
+        let spe = inst_sub_schema ctx sch os in
+        let positives = List.map (fun o -> (o, None)) spe.sspe_posit in
+        let ctx = {ctx with positives } in
+        (* Registration of the new top induction hypothesis and call. *)
+        let top_ih = (sch.ssch_index, os) in
+        add_call ctx top_ih false;
+        ({ctx with top_ih }, None)
+  in find_suitable ihs
+
 and check_fix : ctxt -> (v, t) bndr -> prop -> typ_proof = fun ctx b c ->
   if not !circular then
     (* Old version. *)
@@ -481,7 +528,8 @@ and check_fix : ctxt -> (v, t) bndr -> prop -> typ_proof = fun ctx b c ->
   else
   (* Looking for potential induction hypotheses. *)
   let ihs = Buckets.find b ctx.fix_ihs in
-  log_typ "there are %i potential induction hypotheses" (List.length ihs);
+  log_typ "there are %i potential fixpoint induction hypotheses"
+    (List.length ihs);
   (* Function for finding a suitable induction hypothesis. *)
   let rec find_suitable ihs =
     match ihs with
@@ -498,11 +546,12 @@ and check_fix : ctxt -> (v, t) bndr -> prop -> typ_proof = fun ctx b c ->
             let ok =
               List.for_all (Ordinal.is_pos ctx.positives) spe.fspe_posit
             in
-            if not ok then bad_schema "cannot show positivity";
+            (* FIXME check relations *)
+            if not ok then raise Exit;
             (* Add call to call-graph and build the proof. *)
             add_call ctx (ih.fsch_index, spe.fspe_param) true;
             (build_t_fixy b, c, Typ_Ind(ih))
-          with Subtype_error _ -> find_suitable ihs
+          with Subtype_error _ | Exit -> find_suitable ihs
         end
     | []      ->
         (* No matching induction hypothesis. *)
