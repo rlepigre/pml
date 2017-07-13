@@ -52,6 +52,16 @@ let rec interpret : Env.env -> Raw.toplevel -> Env.env = fun env top ->
       (* out "  = %a\n%!" Print.print_ex (Erase.to_valu v); *)
       ignore prf;
       add_value id t a v env
+  | Chck_sub(a,n,b) ->
+      let open Env in
+      let a = unbox (to_prop (unsugar_expr env a _sp)) in
+      let b = unbox (to_prop (unsugar_expr env b _sp)) in
+      if is_subtype a b <> n then
+        begin
+          (* FIXME FIXME FIXME *)
+          assert false
+        end;
+      env
   | Include(ps) ->
       let fn = find_module ps in
       if !verbose then

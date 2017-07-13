@@ -1005,8 +1005,8 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
 
 let type_check : term -> prop -> prop * typ_proof = fun t a ->
   let ctx = empty_ctxt in
-  if not (Scp.scp ctx.callgraph) then failwith "Loops !";
   let prf = type_term ctx t a in
+  if not (Scp.scp ctx.callgraph) then failwith "Loops !";
   let l = uvars a in
   assert(l = []); (* FIXME #44 *)
   (Norm.whnf a, prf)
@@ -1014,3 +1014,14 @@ let type_check : term -> prop -> prop * typ_proof = fun t a ->
 let type_chrono = Chrono.create "typing"
 
 let type_check t = Chrono.add_time type_chrono (type_check t)
+
+let is_subtype : prop -> prop -> bool = fun a b ->
+  try
+    let ctx = empty_ctxt in
+    let prf = gen_subtype ctx a b in
+    let la = uvars a in
+    let lb = uvars b in
+    assert(la = []); (* FIXME #44 *)
+    assert(lb = []); (* FIXME #44 *)
+    Scp.scp ctx.callgraph
+  with _ -> false

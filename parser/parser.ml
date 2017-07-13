@@ -93,6 +93,7 @@ let _qed_     = KW.new_keyword "qed"
 let _using_   = KW.new_keyword "using"
 let _deduce_  = KW.new_keyword "deduce"
 let _print_   = KW.new_keyword "print"
+let _check_   = KW.new_keyword "check"
 
 let parser elipsis = "⋯" | "..."
 
@@ -397,6 +398,8 @@ let parser toplevel =
          else t
        in
        Valu_def(id, a, t)
+  | _check_ r:{"¬" -> false}?[true] a:expr "⊂" b:expr
+    -> Chck_sub(a, r, b)
   | _include_ p:path
     -> Include(p)
 and sort_arg =
