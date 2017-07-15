@@ -1,11 +1,14 @@
 type rec nat = [ Z ; S of nat ]
 def snat<o:κ> = μo x [ Z ; S of x ]
 
-val zero : nat = Z[]
-val succ : nat ⇒ nat = fun n → S[n]
-
 val rec id_nat : nat ⇒ nat = fun n →
   case n {
-    | Z[] → zero
-    | S[p] → succ (id_nat p)
+    | Z[] → Z[]
+    | S[p] → S[id_nat p]
+  }
+
+val rec id_nat_id : ∀n∈nat, id_nat n ≡ n = fun m →
+  case m {
+    | Z[] → {}
+    | S[p] → let ind_hyp : id_nat p ≡ p = id_nat_id p in {}
   }

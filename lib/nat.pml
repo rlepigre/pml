@@ -87,7 +87,7 @@ val rec ack : nat ⇒ nat ⇒ nat = fun m n →
     Z[_] → succ n
     S[p] → case n {
              Z[_] → ack p one
-             S[q] → ack p q
+             S[q] → ack p (ack m q)
            }
   }
 

@@ -610,8 +610,8 @@ let rec sort : type a b. a ex loc ->  a sort * a ex loc= fun e ->
   | OWNu _      -> (O,e)
   | OSch _      -> (O,e)
 
-  | Vari _      -> assert false
-  | Dumm        -> assert false
+  | Vari _      -> Output.bug_msg "Vari in Ast.sort"; assert false
+  | Dumm        -> Output.bug_msg "Dumm in Ast.sort"; assert false
 
 let isVal : type a.a ex loc -> v ex loc option = fun e ->
   match sort e with

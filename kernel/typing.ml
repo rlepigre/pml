@@ -501,7 +501,10 @@ and check_sub : ctxt -> prop -> prop -> check_sub = fun ctx a b ->
         (* No matching induction hypothesis. *)
         log_sub "no suitable induction hypothesis";
         match a.elt, b.elt with
-        | ((FixM _ | FixN _), _) | (_, (FixM _ | FixN _)) ->
+        (* TODO: to avoid the restiction uvars a = [] && uvars b = [] below,
+                 subml introduces unification variables parametrised by the
+                 generalised ordinals *)
+        | ((FixM _ | FixN _), _) | (_, (FixM _ | FixN _)) when uvars a = [] && uvars b = [] ->
            (* Construction of a new schema. *)
            let (sch, os) = sub_generalise ctx a b in
            (* Registration of the new top induction hypothesis and call. *)
@@ -596,7 +599,7 @@ and sub_generalise : ctxt -> prop -> prop -> sub_schema * ordi array =
 and fix_generalise : ctxt -> (v, t) bndr -> prop -> fix_schema * ordi array =
   fun ctx b c ->
     (* Extracting ordinal parameters from the goal type. *)
-    let (omb, os) = Misc.bind_ordinals c in
+    let (omb, os) = Misc.bind_spos_ordinals c in
 
     let fsch_posit = [] in (* FIXME #32 *)
     let fsch_relat = [] in (* FIXME #32 *)
