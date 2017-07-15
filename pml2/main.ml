@@ -169,6 +169,9 @@ let files =
     ; ( "--no-prelude"
       , Arg.Clear load_prelude
       , " Do not load the prelude.")
+    ; ( "--always-colors"
+      , Arg.Set Output.always_colors
+      , " Always use colors..")
     ; ( "--quiet"
       , Arg.Clear verbose
       , " Disables the printing definition data.")

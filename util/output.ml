@@ -5,9 +5,11 @@
 (* Type of a printf-like function. *)
 type 'a formatter = ('a, out_channel, unit) format -> 'a
 
+let always_colors : bool ref = ref false
+
 (* Test if a channel corresponds to a terminal. *)
 let isatty : out_channel -> bool =
-  fun ch -> Unix.isatty (Unix.descr_of_out_channel ch)
+  fun ch -> Unix.isatty (Unix.descr_of_out_channel ch) || !always_colors
 
 let format_from_string str =
   Scanf.format_from_string str ""

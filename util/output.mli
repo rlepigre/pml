@@ -5,6 +5,9 @@
 (** Type of printf-like functions. *)
 type 'a formatter = ('a, out_channel, unit) format -> 'a
 
+(** Always use escape sequences for colors (even in a pipe). *)
+val always_colors : bool ref
+
 (** Main printing function (to standard output). It is actually the same  as
     [Printf.printf]. *)
 val out     : 'a formatter
