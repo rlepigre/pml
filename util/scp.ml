@@ -188,7 +188,7 @@ let print_call : out_channel -> symbol IMap.t -> call -> unit = fun ff tbl c ->
 
 (** the main function, checking if calls are well-founded *)
 let scp_only : t -> bool = fun ftbl ->
-  log_scp "SCP starts...\n%!";
+  log_scp "SCP starts...";
   let num_fun = !(ftbl.next_index) in
   let arities = !(ftbl.symbols) in
   let tbl = Array.init num_fun (fun _ -> Array.make num_fun []) in
@@ -201,7 +201,7 @@ let scp_only : t -> bool = fun ftbl ->
     (* test idempotent edges as soon as they are discovered *)
     if i = j && prod m m = m && not (decreasing m) then
       begin
-        log_scp "edge %a idempotent and looping\n%!" print_call
+        log_scp "edge %a idempotent and looping" print_call
           {callee = i; caller = j; matrix = m; is_rec = true};
         raise Exit
       end;
@@ -216,11 +216,11 @@ let scp_only : t -> bool = fun ftbl ->
   in
   (* adding initial edges *)
   try
-    log_scp "initial edges to be added:\n%!";
-    List.iter (fun c -> log_scp "\t%a\n%!" print_call c) !(ftbl.calls);
+    log_scp "initial edges to be added:";
+    List.iter (fun c -> log_scp "\t%a" print_call c) !(ftbl.calls);
     let new_edges = ref !(ftbl.calls) in
     (* compute the transitive closure of the call graph *)
-    log_scp "start completion\n%!";
+    log_scp "start completion";
     let rec fn () =
       match !new_edges with
       | [] -> ()
@@ -230,27 +230,27 @@ let scp_only : t -> bool = fun ftbl ->
         assert (i >= 0);
         new_edges := l;
         if add_edge i j m then begin
-          log_scp "\tedge %a added\n%!" print_call c;
+          log_scp "\tedge %a added" print_call c;
           incr added;
           let t' = tbl.(j) in
           Array.iteri (fun k t -> List.iter (fun m' ->
             let c' = {callee = j; caller = k; matrix = m'; is_rec = true} in
-            log_scp "\tcompose: %a * %a = %!" print_call c print_call c';
             let m'' = prod m' m in
             incr composed;
             let c'' = {callee = i; caller = k; matrix = m''; is_rec = true} in
             new_edges := c'' :: !new_edges;
-            log_scp "%a\n%!" print_call c'';
+            log_scp "\tcompose: %a * %a = %a"
+              print_call c print_call c' print_call c''
           ) t) t'
         end else
-          log_scp "\tedge %a is old\n%!" print_call c;
+          log_scp "\tedge %a is old" print_call c;
         fn ()
     in
     fn ();
-    log_scp "SCT passed (%5d edges added, %6d composed)\n%!" !added !composed;
+    log_scp "SCT passed (%5d edges added, %6d composed)" !added !composed;
     true
   with Exit ->
-    log_scp "SCT failed (%5d edges added, %6d composed)\n%!" !added !composed;
+    log_scp "SCT failed (%5d edges added, %6d composed)" !added !composed;
     false
 
 (** Inlining can be deactivated *)
