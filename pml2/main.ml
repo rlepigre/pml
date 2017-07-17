@@ -26,6 +26,8 @@ let find_module : string list -> string = fun ps ->
   let fn = (String.concat "/" ps) ^ ".pml" in
   find_file fn
 
+exception Check_failed of Ast.prop * bool * Ast.prop
+
 let rec interpret : Env.env -> Raw.toplevel -> Env.env = fun env top ->
   match top with
   | Sort_def(id,s) ->
@@ -56,10 +58,11 @@ let rec interpret : Env.env -> Raw.toplevel -> Env.env = fun env top ->
       let open Env in
       let a = unbox (to_prop (unsugar_expr env a _sp)) in
       let b = unbox (to_prop (unsugar_expr env b _sp)) in
-      if is_subtype a b <> n then
+      if is_subtype a b <> n then raise (Check_failed(a,n,b));
+      if !verbose then
         begin
-          (* FIXME FIXME FIXME *)
-          assert false
+          let (l,r) = if n then ("","") else ("¬(",")") in
+          out "showed %s%a ⊂ %a%s\n%!" l Print.ex a Print.ex b r;
         end;
       env
   | Include(ps) ->
@@ -245,9 +248,19 @@ let _ =
   | Equiv.Failed_to_prove(rel)  ->
       err_msg "Failed to prove an equational relation.";
       err_msg "  %a" Equiv.print_relation_pos rel
+  | Check_failed(a,n,b) ->
+      let (l,r) = if n then ("","") else ("¬(",")") in
+      err_msg "Failed to prove a subtyping relation.";
+      begin
+        let pp = Pos.print_short_pos in
+        match (a.pos, b.pos) with
+        | (Some pa, Some pb) -> err_msg "  %s(%a) ⊂ (%a)%s" l pp pa pp pb r
+        | (_      , _      ) -> ()
+      end;
+      err_msg "  %s%a ⊂ %a%s" l Print.ex a Print.ex b r  
   | e ->
-     err_msg "Unexpected exception [%s]." (Printexc.to_string e);
-     err_msg "%t" Printexc.print_backtrace;
+      err_msg "Unexpected exception [%s]." (Printexc.to_string e);
+      err_msg "%t" Printexc.print_backtrace;
   in
   try ignore (List.fold_left handle_file Env.empty files) with
   | e -> print_exn e; exit 1
