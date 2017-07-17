@@ -165,7 +165,7 @@ let parser expr (m : mode) =
       when m = `Prp`A
       -> in_pos _loc (EDSum(fs))
   (* Proposition (universal quantification) *)
-  | "∀" x:llid xs:llid* s:{':' s:sort}?[Pos.none SP] ',' a:(expr (`Prp`F))
+  | "∀" x:llid xs:llid* s:{':' s:sort}? ',' a:(expr (`Prp`F))
       when m = `Prp`F
       -> euniv _loc x xs s a
   (* Dependent function type. *)
@@ -173,7 +173,7 @@ let parser expr (m : mode) =
       when m = `Prp`F
       -> euniv_in _loc x xs a b
   (* Proposition (existential quantification) *)
-  | "∃" x:llid xs:llid* s:{':' s:sort}?[Pos.none SP] ',' a:(expr (`Prp`F))
+  | "∃" x:llid xs:llid* s:{':' s:sort}? ',' a:(expr (`Prp`F))
       when m = `Prp`F
       -> eexis _loc x xs s a
   (* Proposition (set type) *)
@@ -367,9 +367,9 @@ and fun_arg =
   | id:llid                               -> (id, None  )
   | "(" id:llid ":" a:(expr (`Prp`A)) ")" -> (id, Some a)
 and pattern =
-  | '|'? c:luid "[" x:{ llid {":" (expr (`Prp`F))}?
+  | '|'? c:luid x:{"[" x:{ llid {":" (expr (`Prp`F))}?
                       | { EMPTY | '_' } -> (Pos.in_pos _loc "_", None)}
-                "]" arrow t:(expr (`Trm`F))
+  "]"}?[(Pos.none "_", None)] arrow t:(expr (`Trm`F))
     -> (c, x, t)
 let expr = expr `Any
 

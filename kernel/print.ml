@@ -77,10 +77,12 @@ let print_ex : type a. a ex loc printer = fun ch e ->
     | DSum(m)     -> let pelt ch (l,(_,a)) =
                        fprintf ch "%s : %a" l print_ex a
                      in fprintf ch "[%a]" (print_map pelt "; ") m
-    | Univ(_,b)   -> let (x,a) = unbind mk_free (snd b) in
-                     fprintf ch "∀%s.%a" (name_of x) print_ex a
-    | Exis(_,b)   -> let (x,a) = unbind mk_free (snd b) in
-                     fprintf ch "∃%s.%a" (name_of x) print_ex a
+    | Univ(s,b)   -> let (x,a) = unbind mk_free (snd b) in
+                     fprintf ch "∀%s:%a.%a" (name_of x)
+                       print_sort s print_ex a
+    | Exis(s,b)   -> let (x,a) = unbind mk_free (snd b) in
+                     fprintf ch "∃%s:%a.%a" (name_of x)
+                       print_sort s print_ex a
     | FixM(o,b)   -> let (x,a) = unbind mk_free (snd b) in
                      fprintf ch "μ(%a) %s.%a"
                              print_ex o (name_of x) print_ex a
