@@ -286,9 +286,9 @@ let rec eq_sort : env -> raw_sort -> raw_sort -> bool = fun env s1 s2 ->
   | (SFun(s1,s2), SFun(k1,k2)) -> eq_sort env s1 k1 && eq_sort env s2 k2
   | (SUni(i1,r1), SUni(i2,r2)) -> if i1 = i2 then (assert (r1 == r2); true)
                                   else false
-  (*
-  | (SUni(r)    , ST         ) -> sort_uvar_set r _sv; false (* CHECK *)
-  | (ST         , SUni(r)    ) -> sort_uvar_set r _sv; false (* CHECK *)
+  (* Not good enough. Add boolean to uvars to indicate if they comme from a ∀
+  | (SUni(r)    , ST         ) -> sort_uvar_set r _sv; false
+  | (ST         , SUni(r)    ) -> sort_uvar_set r _sv; false
   *)
   | (SUni(r)    , _          ) -> sort_uvar_set r s2; true
   | (_          , SUni(r)    ) -> sort_uvar_set r s1; true
