@@ -25,7 +25,7 @@ module KW =
     let new_keyword : string -> unit Earley.grammar = fun s ->
       let ls = String.length s in
       if ls < 1 then raise (Invalid_argument "invalid keyword");
-      if is_keyword s then raise (Invalid_argument "keyword already defied");
+      if is_keyword s then raise (Invalid_argument "keyword already defined");
       Hashtbl.add keywords s s;
       let f str pos =
         let str = ref str in
