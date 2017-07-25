@@ -3,6 +3,11 @@ open Ast
 open Pos
 open Compare
 open Sorts
+open Output
+
+(* Log functions registration. *)
+let log_ord = Log.register 'o' (Some "ord") "ordinal comparison"
+let log_ord = Log.(log_ord.p)
 
 type positives = (ordi * ordi option) list
 
@@ -39,8 +44,9 @@ let rec leq_i_ordi : positives -> ordi -> int -> ordi -> bool =
   fun pos o1 i o2 ->
     let o1 = Norm.whnf o1 in
     let o2 = Norm.whnf o2 in
-    (* Output.bug_msg "leq_i_ordi %a %d %a." Print.ex o1 i Print.ex o2;*)
+    log_ord "%a ≤_%d %a" Print.ex o1 i Print.ex o2;
     match (o1.elt, o2.elt) with
+    | _ when o1.elt == o2.elt && i <= 0 -> true
     | (Vari(_) , _       ) -> assert false (* Should not happen. *)
     | (_       , Vari(_) ) -> assert false (* Should not happen. *)
     (* TODO #54 use oracle for eq_expr *)

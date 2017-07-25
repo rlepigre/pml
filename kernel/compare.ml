@@ -399,7 +399,8 @@ let {eq_expr; eq_bndr; eq_ombinder} =
                           a ex loc -> a ex loc -> bool =
     fun ?(oracle=default_oracle) ?(strict=false) e1 e2 ->
       c := -1; (* Reset. *)
-      log_equ "trying to show %a === %a" Print.ex e1 Print.ex e2;
+      let is_oracle = oracle != default_oracle in
+      log_equ "trying to show %a === %a (%b)" Print.ex e1 Print.ex e2 is_oracle;
       let res = Chrono.add_time compare_chrono
                   (Timed.pure_test (eq_expr oracle strict e1)) e2 in
       log_equ "we have %a %s %a"
