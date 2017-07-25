@@ -317,8 +317,7 @@ let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
       | (Func(a1,b1), Func(a2,b2)) when t_is_val ->
          let fn x = appl None (box t) (valu None (vari None x)) in
          let f = (None, unbox (vbind mk_free "x" fn)) in
-         let a2' = (None, unbox (vbind mk_free "x" (fun _ -> box a2))) in
-         let vwit = Pos.none (VWit(f,a2',b2)) in
+         let vwit = Pos.none (VWit(f,a2,b2)) in
          let ctx = learn_nobox ctx vwit in
          let wit = Pos.none (Valu(vwit)) in
          let ctx, wit = match is_singleton a2 with
@@ -361,12 +360,7 @@ let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
               try snd (A.find c cs2) with Not_found ->
               subtype_msg p ("Sum clash on constructor " ^ c ^ "...")
             in
-            let t =
-              let f x = valu None (vari None x) in
-              let id = (None, Pos.none "x", f) in
-              unbox (t_case None (box t) (A.singleton c id))
-            in
-            let p = subtype ctx t a1 a2 in
+            let p = subtype ctx (tdot t c) a1 a2 in
             p::ps
           in
           let ps = A.fold check_variant cs1 [] in
@@ -465,7 +459,6 @@ and gen_subtype : ctxt -> prop -> prop -> sub_rule =
   fun ctx a b ->
     let wit =
       let f = bndr_from_fun "x" (fun x -> Valu(Pos.none x)) in
-      let a = bndr_from_fun "x" (fun x -> a.elt) in
       Pos.none (Valu(Pos.none (VWit(f, a, b))))
     in
     Sub_Gene(subtype ctx wit a b)
@@ -741,8 +734,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
             let b = new_uvar ctx P in
             let c' = Pos.none (Func(a,b)) in
             let p1 = subtype ctx t c' c in
-            let a' = bndr_from_fun (bndr_name f).elt (fun x -> a.elt) in
-            let wit = VWit(f, a', b) in
+            let wit = VWit(f, a, b) in
             let twit = Pos.none(Valu (Pos.none wit)) in
             (* Learn the equivalence that are valid in the witness. *)
             begin
@@ -800,7 +792,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
     | VWit(_,a,_) ->
         let (b, equations) = check_nobox v ctx.equations in
         assert b;
-        let p = subtype {ctx with equations} t (bndr_subst a v.elt) c in
+        let p = subtype {ctx with equations} t a c in
         Typ_VWit(p)
     (* Definition. *)
     | HDef(_,d)   ->
@@ -884,16 +876,12 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
         let check d (p,f) ps =
           log_typ "Checking case %s." d;
           let (_,a) = A.find d ts in
-          let eq x =
-            let w = Valu (Pos.none (Cons(Pos.none d, Pos.none x))) in
-            Equiv(Pos.none (Valu v), true, Pos.none w)
-          in
-          let fa = bndr_from_fun "x" (fun x -> Rest(a, (eq x))) in
-          let wit = Pos.none (VWit(f, fa, c)) in
+          let a = Pos.none (Memb(tdot (Pos.none (Valu(v))) d, a)) in
+          let wit = Pos.none (VWit(f, a, c)) in
           let t = bndr_subst f wit.elt in
           (try
             let ctx = learn_nobox ctx wit in
-            let ctx = learn_equivalences ctx wit (bndr_subst fa wit.elt) in
+            let ctx = learn_equivalences ctx wit a in
             (fun () -> type_term ctx t c :: ps)
           with Contradiction ->
              if not (is_scis t) then
@@ -969,8 +957,7 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
         let b = new_uvar ctx P in
         let wit =
           let f = bndr_from_fun "x" (fun x -> Valu(Pos.none x)) in
-          let fa = bndr_from_fun "x" (fun x -> a.elt) in
-          Pos.none (Valu(Pos.none (VWit(f, fa, b))))
+          Pos.none (Valu(Pos.none (VWit(f, a, b))))
         in
         let p1 = subtype ctx wit (Pos.none (Func(a,b))) c in
         let p2 = type_valu ctx v a in
@@ -984,8 +971,7 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
     | SWit(_,a)   ->
         let wit =
           let f = bndr_from_fun "x" (fun x -> Valu(Pos.none x)) in
-          let fa = bndr_from_fun "x" (fun x -> a.elt) in
-          Pos.none (Valu(Pos.none (VWit(f, fa, c))))
+          Pos.none (Valu(Pos.none (VWit(f, a, c))))
         in
         Stk_SWit(subtype ctx wit c a)
     (* Definition. *)

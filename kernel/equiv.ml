@@ -79,7 +79,7 @@ type v_node =
   | VN_Cons of A.key loc * VPtr.t
   | VN_Reco of VPtr.t A.t
   | VN_Scis
-  | VN_VWit of ((v, t) bndr * (v, p) bndr * p ex loc)
+  | VN_VWit of ((v, t) bndr * p ex loc * p ex loc)
   | VN_UWit of (t ex loc * (v, p) bndr)
   | VN_EWit of (t ex loc * (v, p) bndr)
   | VN_HApp of v ho_appl
@@ -305,7 +305,7 @@ let eq_v_nodes : pool -> v_node -> v_node -> bool =
     | (VN_Scis       , VN_Scis       ) -> true
     | (VN_VWit(w1)   , VN_VWit(w2)   ) -> let (f1,a1,b1) = w1 in
                                           let (f2,a2,b2) = w2 in
-                                          eq_bndr V f1 f2 && eq_bndr V a1 a2
+                                          eq_bndr V f1 f2 && eq_expr a1 a2
                                           && eq_expr b1 b2
     | (VN_UWit(t1,b1), VN_UWit(t2,b2)) -> eq_expr t1 t2 && eq_bndr V b1 b2
     | (VN_EWit(t1,b1), VN_EWit(t2,b2)) -> eq_expr t1 t2 && eq_bndr V b1 b2
