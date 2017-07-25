@@ -618,8 +618,13 @@ let isTerm : type a.a ex loc -> t ex loc option = fun e ->
   | (T,e) -> Some e
   | _     -> None
 
-(* FIXME first arg should be value *)
+(* FIXME should disapear *)
 let tdot : term -> string -> term = fun t c ->
   let f x = valu None (vari None x) in
   let id = (None, Pos.none "x", f) in
   unbox (t_case None (box t) (A.singleton c id))
+
+let vdot : valu -> string -> term = fun v c ->
+  let f x = valu None (vari None x) in
+  let id = (None, Pos.none "x", f) in
+  unbox (case None (box v) (A.singleton c id))

@@ -360,6 +360,7 @@ let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
               try snd (A.find c cs2) with Not_found ->
               subtype_msg p ("Sum clash on constructor " ^ c ^ "...")
             in
+            (* FIXME: use vdot and get the value from the pool *)
             let p = subtype ctx (tdot t c) a1 a2 in
             p::ps
           in
@@ -876,11 +877,18 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
         let check d (p,f) ps =
           log_typ "Checking case %s." d;
           let (_,a) = A.find d ts in
-          let a = Pos.none (Memb(tdot (Pos.none (Valu(v))) d, a)) in
+          let vd = vdot v d in
+          let a = Pos.none (Memb(vd, a)) in
           let wit = Pos.none (VWit(f, a, c)) in
           let t = bndr_subst f wit.elt in
           (try
             let ctx = learn_nobox ctx wit in
+            let equations =
+              let t1 = Pos.none (Valu(Pos.none (Cons(Pos.none d, wit)))) in
+              let t2 = Pos.none (Valu(v)) in
+              learn ctx.equations (Equiv(t1,true,t2))
+            in
+            let ctx = { ctx with equations } in
             let ctx = learn_equivalences ctx wit a in
             (fun () -> type_term ctx t c :: ps)
           with Contradiction ->

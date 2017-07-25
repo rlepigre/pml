@@ -126,7 +126,7 @@ let (lift, lift_cond) =
 
       | Vari(x)     -> vari e.pos x
       | Dumm        -> box e
-    in if is_closed res then (Printf.printf "#%!"; box e) else res
+    in if is_closed res then box e else res
   in (lift, lift_cond)
 
 type ('a, 'b) mbndr = ('a ex, 'b ex loc) mbinder
@@ -398,7 +398,7 @@ let bind_spos_ordinals
     | Impl(c,a)   -> impl e.pos (lift_cond c) (ba a)
 
     | _        -> lift e
-    in if is_closed res then (Printf.printf "*%!"; box e) else res
+    in if is_closed res then box e else res
   in
   let e = bind_all Pos e in
   let vars = Array.of_list !vars in
