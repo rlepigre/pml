@@ -664,6 +664,7 @@ let rec normalise : TPtr.t -> pool -> Ptr.t * pool =
           end
        | TN_FixY(f,pv)  ->
           begin
+            log2 "normalisation in TN_FixY: %a" VPtr.print pv;
             let b = bndr_from_fun "x" (fun x -> FixY(f, Pos.none x)) in
             let t = bndr_subst f (LAbs(None, b)) in
             let (pt, po) = add_term po t in

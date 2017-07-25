@@ -498,13 +498,16 @@ and check_sub : ctxt -> prop -> prop -> check_sub = fun ctx a b ->
           with Exit -> find_suitable ihs
         end
     | []      ->
-        (* No matching induction hypothesis. *)
-        log_sub "no suitable induction hypothesis";
+       (* No matching induction hypothesis. *)
+       let no_uvars () = uvars ~ignore_epsilon:true a = []
+                         && uvars ~ignore_epsilon:true b = []
+       in
+       log_sub "no suitable induction hypothesis";
         match a.elt, b.elt with
         (* TODO: to avoid the restiction uvars a = [] && uvars b = [] below,
                  subml introduces unification variables parametrised by the
                  generalised ordinals *)
-        | ((FixM _ | FixN _), _) | (_, (FixM _ | FixN _)) when uvars a = [] && uvars b = [] ->
+        | ((FixM _ | FixN _), _) | (_, (FixM _ | FixN _)) when no_uvars () ->
            (* Construction of a new schema. *)
            let (sch, os) = sub_generalise ctx a b in
            (* Registration of the new top induction hypothesis and call. *)
@@ -523,7 +526,7 @@ and check_sub : ctxt -> prop -> prop -> check_sub = fun ctx a b ->
 
   in find_suitable ihs
 
-and check_fix : ctxt -> (v, t) bndr -> prop -> typ_proof = fun ctx b c ->
+and check_fix : ctxt -> valu -> (v, t) bndr -> prop -> typ_proof = fun ctx v b c ->
   (* Looking for potential induction hypotheses. *)
   let ihs = Buckets.find b ctx.fix_ihs in
   log_typ "there are %i potential fixpoint induction hypotheses"
@@ -553,27 +556,32 @@ and check_fix : ctxt -> (v, t) bndr -> prop -> typ_proof = fun ctx b c ->
           with Subtype_error _ | Exit -> find_suitable ihs
         end
     | []      ->
-        (* No matching induction hypothesis. *)
-        log_typ "no suitable induction hypothesis";
-        (* Construction of a new schema. *)
-        let (sch, os) = fix_generalise ctx b c in
-        (* Registration of the new top induction hypothesis and call. *)
-        add_call ctx (sch.fsch_index, os) false;
-        (* Recording of the new induction hypothesis. *)
-        log_typ "the schema has %i arguments" (Array.length os);
-        let ctx =
-          if os = [||] then ctx
-          else { ctx with fix_ihs = Buckets.add b sch ctx.fix_ihs }
-        in
-        (* Instantiation of the schema. *)
-        let spe = inst_fix_schema ctx sch os in
-        let positives = List.map (fun o -> (o, None)) spe.fspe_posit in
-        let ctx = {ctx with positives } in
-        let ctx = {ctx with top_ih = (sch.fsch_index, spe.fspe_param)} in
-        (* Unrolling of the fixpoint and proof continued. *)
-        let t = bndr_subst b (build_v_fixy b).elt in
-        type_term ctx t (snd spe.fspe_judge)
-  in find_suitable ihs
+       (* No matching induction hypothesis. *)
+       log_typ "no suitable induction hypothesis";
+       type_error (E(V,v)) c Not_found
+  in
+  if ihs = [] then
+    begin
+      (* Construction of a new schema. *)
+      let (sch, os) = fix_generalise ctx b c in
+      (* Registration of the new top induction hypothesis and call. *)
+      add_call ctx (sch.fsch_index, os) false;
+      (* Recording of the new induction hypothesis. *)
+      log_typ "the schema has %i arguments" (Array.length os);
+      let ctx =
+        if os = [||] then ctx
+        else { ctx with fix_ihs = Buckets.add b sch ctx.fix_ihs }
+      in
+      (* Instantiation of the schema. *)
+      let spe = inst_fix_schema ctx sch os in
+      let positives = List.map (fun o -> (o, None)) spe.fspe_posit in
+      let ctx = {ctx with positives } in
+      let ctx = {ctx with top_ih = (sch.fsch_index, spe.fspe_param)} in
+      (* Unrolling of the fixpoint and proof continued. *)
+      let t = bndr_subst b (build_v_fixy b).elt in
+      type_term ctx t (snd spe.fspe_judge)
+    end
+  else find_suitable ihs
 
 (* Generalisation (construction of a fix_schema). *)
 and sub_generalise : ctxt -> prop -> prop -> sub_schema * ordi array =
@@ -713,15 +721,15 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
          (* Fixpoint. Temporary code *)
          | FixY(b,{elt = Vari y}) ->
             assert(eq_vars x y); (* x must not be free in b *)
-            let v = Pos.none (Valu(v)) in
+            let w = Pos.none (Valu(v)) in
             (* FIXME UWit only with value? *)
             let rec break_univ c =
               match (Norm.whnf c).elt with
-              | Univ(O,f) -> break_univ (bndr_subst f (UWit(O,v,f)))
+              | Univ(O,f) -> break_univ (bndr_subst f (UWit(O,w,f)))
               | _         -> c
             in
             let c = break_univ c in
-            let p = check_fix ctx b c in
+            let p = check_fix ctx v b c in
             Typ_FixY(p)
          (* General case for typing λ-abstraction *)
          | _                      ->
