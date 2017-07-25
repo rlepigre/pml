@@ -62,9 +62,7 @@ let rec leq_i_ordi : positives -> ordi -> int -> ordi -> bool =
     | (Zero    , _       ) -> i <= 0 || (i = 1 && is_pos pos o2)
     | (UVar(_,v), _      ) -> (* CHECK, probably useless *)
         begin
-          let l = candidate_pred pos o2 in
-          Output.bug_msg "There are %i candidates." (List.length l);
-          match l with
+          match candidate_pred pos o2 with
           | []   when i <= 0 || (i = 1 && is_pos pos o2)
                  -> uvar_set v (Pos.none Zero); true
           | []   -> false

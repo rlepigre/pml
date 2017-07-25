@@ -420,7 +420,6 @@ let {eq_expr; eq_bndr; eq_ombinder} =
                       (o ex, a ex loc) mbinder ->
                       (o ex, a ex loc) mbinder -> bool =
     fun ?(oracle=default_oracle) ?(strict=false) omb1 omb2 ->
-      bug_msg "eq_ombinder %a %a" Print.omb omb1 Print.omb omb2;
       c := -1; (* Reset. *)
       Chrono.add_time compare_chrono
         (Timed.pure_test (eq_ombinder oracle strict omb1)) omb2

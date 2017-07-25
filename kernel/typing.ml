@@ -62,14 +62,6 @@ let new_uvar : type a. ctxt -> a sort -> a ex loc = fun ctx s ->
   Pos.none (UVar(s, {uvar_key = i; uvar_val = ref None}))
 
 let add_positive : ctxt -> ordi -> ordi option -> ctxt = fun ctx o oo ->
-  (*
-  let aux ch oo =
-    match oo with
-    | None   -> Printf.fprintf ch "None"
-    | Some o -> Printf.fprintf ch "Some(%a)" Print.ex o
-  in
-  Output.bug_msg "add_positive %a %a" Print.ex o aux oo;
-  *)
   let o = Norm.whnf o in
   match o.elt with
   | Conv    -> ctx
@@ -163,7 +155,6 @@ let rec learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
      end
   | FixM(o,f)  ->
       let bound =
-        (*Output.bug_msg "Lower bound of %a ?" Print.ex o;*)
         match (Norm.whnf o).elt with
         | Succ(o) -> Some o
         | _       ->
@@ -607,7 +598,7 @@ and fix_generalise : ctxt -> (v, t) bndr -> prop -> fix_schema * ordi array =
     let fsch_relat = [] in (* FIXME #32 *)
 
     (* Build the judgment. *)
-    Output.bug_msg "Schema: %a" Print.omb omb;
+    (* Output.bug_msg "Schema: %a" Print.omb omb; *)
     let fsch_judge = (b, omb) in
     (* Ask for a fresh symbol index. *)
     let fsch_index =
