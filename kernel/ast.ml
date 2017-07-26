@@ -217,6 +217,10 @@ let bndr_name : ('a, 'b) bndr -> strloc =
 let bndr_from_fun : string -> ('a ex -> 'b ex) -> ('a,'b) bndr =
   fun x f -> (None, binder_from_fun x (fun x -> none (f x)))
 
+(** [bndr_closed f] tells whether the binder [b] is closed. *)
+let bndr_closed : ('a, 'b) bndr -> bool =
+  fun (_,b) -> binder_closed b
+
 (** {6 Types for the syntactic element of base sorts} *)
 
 type valu = v ex loc (** Type of values.   *)

@@ -31,6 +31,10 @@ module ListMap =
       if List.length k2 <> len then false else
       if List.map fst k1 <> List.map fst k2 then false else
       List.for_all2 vcmp k1 k2
+
+    let for_all f l = List.for_all (fun (k,v) -> f k v) l
+
+    let exists f l = List.exists (fun (k,v) -> f k v) l
   end
 
 include ListMap

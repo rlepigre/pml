@@ -24,6 +24,10 @@ val iter : (string -> 'a -> unit) -> 'a t -> unit
 
 val equal : ('a -> 'a -> bool) -> 'a t -> 'a t -> bool
 
+val for_all : (string -> 'a -> bool) -> 'a t -> bool
+
+val exists : (string -> 'a -> bool) -> 'a t -> bool
+
 val lift_box : 'a Bindlib.bindbox t -> 'a t Bindlib.bindbox
 
 val map_box : ('b -> 'a Bindlib.bindbox) -> 'b t -> 'a t Bindlib.bindbox
