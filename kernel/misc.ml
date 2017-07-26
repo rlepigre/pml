@@ -7,6 +7,10 @@ open Pos
 open Ast
 open Output
 
+let binary_size : type a. a ex loc -> int = fun e ->
+  let open Marshal in
+  String.length (to_string e [Closures])
+
 let closed : type a. ?olist:o ex loc list -> a ex loc -> bool = fun ?(olist=[]) e ->
   let rec closed : type a. a ex loc -> bool = fun e ->
     match sort e with (O, e) when Compare.is_in e olist -> false | _ ->
