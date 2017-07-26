@@ -403,8 +403,7 @@ let parser toplevel =
   | _include_ p:path
     -> Include(p)
 and sort_arg =
-  | id:llid            -> (id, new_sort_uvar ())
-  | id:llid ":" s:sort -> (id, s)
+  | id:llid so:{":" s:sort}? -> (id, sort_from_opt so)
 and sort_args =
   | EMPTY                            -> []
   | '<' l:(lsep_ne "," sort_arg) '>' -> l

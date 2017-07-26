@@ -95,9 +95,8 @@ let sort_uvar_set : (int * raw_sort option ref) -> raw_sort -> unit =
     log_par "?%i := %a" i print_raw_sort v;
     r := Some v
 
-let sort_from_opt : raw_sort option -> raw_sort = function
-  | None   -> new_sort_uvar ()
-  | Some s -> s
+let sort_from_opt : raw_sort option -> raw_sort =
+  Option.udefault new_sort_uvar
 
 let rec sort_repr : env -> raw_sort -> raw_sort = fun env s ->
   match s.elt with
