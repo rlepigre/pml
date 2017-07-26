@@ -10,7 +10,7 @@ open Output
 let closed : type a. a ex loc -> bool = fun e ->
   let rec closed : type a. a ex loc -> bool = fun e ->
     match e.elt with
-    | Vari(_)     -> assert false
+    | Vari(_)     -> false (* CHECK *)
     | HFun(_,_,f) -> bndr_closed f
     | HApp(_,f,a) -> closed f && closed a
     | HDef(_,_)   -> true (* assumed closed *)
@@ -56,8 +56,8 @@ let closed : type a. a ex loc -> bool = fun e ->
     | SWit(f,a)   -> bndr_closed f && closed a
     | UWit(_,t,f) -> bndr_closed f && closed t
     | EWit(_,t,f) -> bndr_closed f && closed t
-    | UVar(_,_)   -> true
-    | Goal(_,_)   -> true
+    | UVar(_,_)   -> true (* CHECK *)
+    | Goal(_,_)   -> true (* CHECK *)
   and cond_closed c =
     match c with
     | Equiv(t,_,u) -> closed t && closed u
@@ -108,6 +108,7 @@ let (lift, lift_cond) =
     if is_closed res then box sch else res
 
   and lift : type a. a ex loc -> a box = fun e ->
+    if closed e then (bug_msg "closed"; box e) else
     let res =
       match (Norm.whnf e).elt with
       | HDef(_,_)   -> box e (* Assumed closed *)
