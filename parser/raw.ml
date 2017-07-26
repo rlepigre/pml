@@ -117,10 +117,6 @@ exception Unbound_sort of string * Pos.pos option
 let unbound_sort : string -> Pos.pos option -> 'a =
   fun s p -> raise (Unbound_sort(s,p))
 
-exception Cannot_infer_sort of strloc option
-let cannot_infer_sort : strloc option -> 'a =
-  fun x -> raise (Cannot_infer_sort(x))
-
 let rec unsugar_sort : env -> raw_sort -> any_sort = fun env s ->
   match (sort_repr env s).elt with
   | SV          -> Sort V
@@ -137,7 +133,7 @@ let rec unsugar_sort : env -> raw_sort -> any_sort = fun env s ->
       begin
         try find_sort x env with Not_found -> unbound_sort x s.pos
       end
-  | SUni(_,x,_) -> cannot_infer_sort x
+  | SUni(r)     -> sort_uvar_set r _sp; Sort P
 
 type flag = [`V | `T] ref
 
@@ -279,18 +275,19 @@ let already_matched : strloc -> 'a =
 
 let rec eq_sort : env -> raw_sort -> raw_sort -> bool = fun env s1 s2 ->
   log_par "eq_sort %a %a" print_raw_sort s1 print_raw_sort s2;
+  let res =
   match ((sort_repr env s1).elt, (sort_repr env s2).elt) with
-  | (SV           , SV           ) -> true
-  | (ST           , ST           ) -> true
-  | (SS           , SS           ) -> true
-  | (SP           , SP           ) -> true
-  | (SO           , SO           ) -> true
-  | (SFun(s1,s2)  , SFun(k1,k2)  ) -> eq_sort env s1 k1 && eq_sort env s2 k2
-  | (SUni(i1,_,r1), SUni(i2,_,r2)) -> if i1 = i2 then (assert (r1==r2); true)
-                                      else false
-  | (SUni(r)      , _            ) -> sort_uvar_set r s2; true
-  | (_            , SUni(r)      ) -> sort_uvar_set r s1; true
-  | (_            , _            ) -> false
+  | (SV         , SV         ) -> true
+  | (ST         , ST         ) -> true
+  | (SS         , SS         ) -> true
+  | (SP         , SP         ) -> true
+  | (SO         , SO         ) -> true
+  | (SFun(s1,s2), SFun(k1,k2)) -> eq_sort env s1 k1 && eq_sort env s2 k2
+  | (SUni(r1)   , SUni(r2)   ) -> if r1 != r2 then sort_uvar_set r1 s2; true
+  | (SUni(r)    , _          ) -> sort_uvar_set r s2; true
+  | (_          , SUni(r)    ) -> sort_uvar_set r s1; true
+  | (_          , _          ) -> false
+  in log_par "ok"; res
 
 let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
   let open Timed in

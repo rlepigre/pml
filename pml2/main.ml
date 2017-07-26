@@ -101,21 +101,6 @@ and handle_file env fn =
         Quote.quote_file stderr p;
         exit 1
       end
-  | Cannot_infer_sort(None) ->
-      begin
-        err_msg "Cannot infer the sort of a variable.";
-        exit 1
-      end
-  | Cannot_infer_sort(Some x) ->
-      begin
-        err_msg "Cannot infer the sort of \"%s\"." x.elt;
-        let _ =
-          match x.pos with
-          | None   -> ()
-          | Some p -> Quote.quote_file stderr p
-        in
-        exit 1
-      end
   | Sort_clash(t,s) ->
       begin
         let _ =
