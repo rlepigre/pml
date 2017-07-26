@@ -14,6 +14,11 @@ let log_equ = Log.(log_equ.p)
 let log_uni = Log.register 'u' (Some "uni") "unification informations"
 let log_uni = Log.(log_uni.p)
 
+(* Code instrumentation (rough size of expression). *)
+let binary_size : type a. a ex loc -> int = fun e ->
+  let open Marshal in
+  String.length (to_string e [Closures])
+
 (* Setting a unification variable. *)
 let uvar_set : type a. a uvar -> a ex loc -> unit = fun u e ->
   log_uni "?%i ← %a" u.uvar_key Print.ex e;
@@ -400,7 +405,8 @@ let {eq_expr; eq_bndr; eq_ombinder} =
     fun ?(oracle=default_oracle) ?(strict=false) e1 e2 ->
       c := -1; (* Reset. *)
       let is_oracle = oracle != default_oracle in
-      log_equ "trying to show %a === %a (%b)" Print.ex e1 Print.ex e2 is_oracle;
+      log_equ "showing %a === %a (%b)" Print.ex e1 Print.ex e2 is_oracle;
+      bug_msg "sizes: %i and %i" (binary_size e1) (binary_size e2);
       let res = Chrono.add_time compare_chrono
                   (Timed.pure_test (eq_expr oracle strict e1)) e2 in
       log_equ "we have %a %s %a"
