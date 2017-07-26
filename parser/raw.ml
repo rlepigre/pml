@@ -18,19 +18,20 @@ and raw_sort' =
   | SV | ST | SS | SP | SO
   | SFun of raw_sort * raw_sort
   | SVar of string
-  | SUni of (int * raw_sort option ref)
+  | SUni of suvar
+and suvar = int * strloc option * raw_sort option ref
 
 let print_raw_sort : out_channel -> raw_sort -> unit = fun ch s ->
   let rec print ch s =
     match s.elt with
-    | SV        -> output_string ch "SV"
-    | ST        -> output_string ch "ST"
-    | SS        -> output_string ch "SS"
-    | SP        -> output_string ch "SP"
-    | SO        -> output_string ch "SO"
-    | SFun(a,b) -> Printf.fprintf ch "SFun(%a,%a)" print a print b
-    | SVar(x)   -> Printf.fprintf ch "SVar(%S)" x
-    | SUni(i,r) ->
+    | SV          -> output_string ch "SV"
+    | ST          -> output_string ch "ST"
+    | SS          -> output_string ch "SS"
+    | SP          -> output_string ch "SP"
+    | SO          -> output_string ch "SO"
+    | SFun(a,b)   -> Printf.fprintf ch "SFun(%a,%a)" print a print b
+    | SVar(x)     -> Printf.fprintf ch "SVar(%S)" x
+    | SUni(i,_,r) ->
         begin
           match !r with
           | None   -> Printf.fprintf ch "SUni(%i,None)" i
@@ -41,26 +42,26 @@ let print_raw_sort : out_channel -> raw_sort -> unit = fun ch s ->
 let pretty_print_raw_sort : out_channel -> raw_sort -> unit = fun ch s ->
   let rec is_fun s =
     match s.elt with
-    | SFun(_,_) -> true
-    | SUni(i,r) ->
+    | SFun(_,_)   -> true
+    | SUni(i,_,r) ->
         begin
           match !r with
           | None   -> false
           | Some s -> is_fun s
         end
-    | _         -> false
+    | _           -> false
   in
   let rec print ch s =
     match s.elt with
-    | SV        -> output_string ch "ι"
-    | ST        -> output_string ch "τ"
-    | SS        -> output_string ch "σ"
-    | SP        -> output_string ch "ο"
-    | SO        -> output_string ch "κ"
-    | SFun(a,b) -> let (l,r) = if is_fun a then ("(",")") else ("","") in
-                   Printf.fprintf ch "%s%a%s→%a" l print a r print b
-    | SVar(x)   -> output_string ch x
-    | SUni(i,r) ->
+    | SV          -> output_string ch "ι"
+    | ST          -> output_string ch "τ"
+    | SS          -> output_string ch "σ"
+    | SP          -> output_string ch "ο"
+    | SO          -> output_string ch "κ"
+    | SFun(a,b)   -> let (l,r) = if is_fun a then ("(",")") else ("","") in
+                     Printf.fprintf ch "%s%a%s→%a" l print a r print b
+    | SVar(x)     -> output_string ch x
+    | SUni(i,_,r) ->
         begin
           match !r with
           | None   -> Printf.fprintf ch "?%i" i
@@ -82,37 +83,43 @@ let rec sort_from_ast : type a. a sort -> raw_sort = function
   | O      -> Pos.none SO
   | F(s,k) -> Pos.none (SFun(sort_from_ast s, sort_from_ast k))
 
-let new_sort_uvar : unit -> raw_sort =
+let new_sort_uvar : strloc option -> raw_sort =
   let i = ref (-1) in
-  fun () ->
+  fun x ->
     incr i;
     log_par "?%i is introduced" !i;
-    Pos.none (SUni (!i, ref None))
+    Pos.none (SUni (!i, x, ref None))
 
-let sort_uvar_set : (int * raw_sort option ref) -> raw_sort -> unit =
-  fun (i,r) v ->
+let sort_uvar_set : suvar -> raw_sort -> unit =
+  fun (i,_,r) v ->
     assert(!r = None);
     log_par "?%i := %a" i print_raw_sort v;
     r := Some v
 
-let sort_from_opt : raw_sort option -> raw_sort =
-  Option.udefault new_sort_uvar
+let sort_from_opt : raw_sort option -> raw_sort = fun so ->
+  match so with
+  | None   -> new_sort_uvar None
+  | Some s -> s
 
 let rec sort_repr : env -> raw_sort -> raw_sort = fun env s ->
   match s.elt with
-  | SUni(_,{contents = Some s}) -> sort_repr env s
-  | SVar(x)                     ->
+  | SUni(_,_,{contents = Some s}) -> sort_repr env s
+  | SVar(x)                       ->
       begin
         try
           let Sort s = find_sort x env in
           sort_from_ast s
         with Not_found -> s
       end
-  | _                         -> s
+  | _                             -> s
 
 exception Unbound_sort of string * Pos.pos option
 let unbound_sort : string -> Pos.pos option -> 'a =
   fun s p -> raise (Unbound_sort(s,p))
+
+exception Cannot_infer_sort of strloc option
+let cannot_infer_sort : strloc option -> 'a =
+  fun x -> raise (Cannot_infer_sort(x))
 
 let rec unsugar_sort : env -> raw_sort -> any_sort = fun env s ->
   match (sort_repr env s).elt with
@@ -130,7 +137,7 @@ let rec unsugar_sort : env -> raw_sort -> any_sort = fun env s ->
       begin
         try find_sort x env with Not_found -> unbound_sort x s.pos
       end
-  | SUni(_)     -> assert false
+  | SUni(_,x,_) -> cannot_infer_sort x
 
 type flag = [`V | `T] ref
 
@@ -277,21 +284,17 @@ let already_matched : strloc -> 'a =
 let rec eq_sort : env -> raw_sort -> raw_sort -> bool = fun env s1 s2 ->
   log_par "eq_sort %a %a" print_raw_sort s1 print_raw_sort s2;
   match ((sort_repr env s1).elt, (sort_repr env s2).elt) with
-  | (SV         , SV         ) -> true
-  | (ST         , ST         ) -> true
-  | (SS         , SS         ) -> true
-  | (SP         , SP         ) -> true
-  | (SO         , SO         ) -> true
-  | (SFun(s1,s2), SFun(k1,k2)) -> eq_sort env s1 k1 && eq_sort env s2 k2
-  | (SUni(i1,r1), SUni(i2,r2)) -> if i1 = i2 then (assert (r1 == r2); true)
-                                  else false
-  (* Not good enough. Add boolean to uvars to indicate if they comme from a ∀
-  | (SUni(r)    , ST         ) -> sort_uvar_set r _sv; false
-  | (ST         , SUni(r)    ) -> sort_uvar_set r _sv; false
-  *)
-  | (SUni(r)    , _          ) -> sort_uvar_set r s2; true
-  | (_          , SUni(r)    ) -> sort_uvar_set r s1; true
-  | (_          , _          ) -> false
+  | (SV           , SV           ) -> true
+  | (ST           , ST           ) -> true
+  | (SS           , SS           ) -> true
+  | (SP           , SP           ) -> true
+  | (SO           , SO           ) -> true
+  | (SFun(s1,s2)  , SFun(k1,k2)  ) -> eq_sort env s1 k1 && eq_sort env s2 k2
+  | (SUni(i1,_,r1), SUni(i2,_,r2)) -> if i1 = i2 then (assert (r1==r2); true)
+                                      else false
+  | (SUni(r)      , _            ) -> sort_uvar_set r s2; true
+  | (_            , SUni(r)      ) -> sort_uvar_set r s1; true
+  | (_            , _            ) -> false
 
 let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
   let open Timed in
@@ -335,8 +338,8 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
                                       sort_clash e s;
                                     let vars = M.add x.elt (x.pos, k) vars in
                                     infer env vars f b
-    | (EHOFn(_,_,_) , SUni(r)  ) -> let a = new_sort_uvar () in
-                                    let b = new_sort_uvar () in
+    | (EHOFn(_,_,_) , SUni(r)  ) -> let a = new_sort_uvar None in
+                                    let b = new_sort_uvar None in
                                     sort_uvar_set r (Pos.none (SFun(a,b)));
                                     infer env vars e s
     | (EHOFn(_,_,_) , _        ) -> sort_clash e s
@@ -997,12 +1000,12 @@ let eimpl a l =
       none (EImpl(ENoBox(none (EVari(x, []))), Some a))) a l
 
 let euniv _loc x xs s a =
-  let s = match s with Some s -> s | None -> new_sort_uvar () in
+  let s = match s with Some s -> s | None -> new_sort_uvar (Some x) in
   let a = if s.elt = SV then eimpl a (x::xs) else a in
   in_pos _loc (EUniv((x,xs), s, a))
 
 let eexis _loc x xs s a =
-  let s = match s with Some s -> s | None -> new_sort_uvar () in
+  let s = match s with Some s -> s | None -> new_sort_uvar (Some x) in
   let a = if s.elt = SV then erest a (x::xs) else a in
   in_pos _loc (EExis((x,xs), s, a))
 

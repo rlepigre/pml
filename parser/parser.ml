@@ -378,7 +378,11 @@ let parser toplevel =
   | _sort_ id:llid '=' s:sort
     -> Sort_def(id,s)
   | _def_  id:llid args:sort_args s:{':' sort}? '=' e:expr
-    -> let s = sort_from_opt s in
+    -> let s =
+         match s with
+         | None   -> new_sort_uvar (Some id)
+         | Some s -> s
+       in
        let f (id,s) e = Pos.none (EHOFn(id,s,e)) in
        let e = List.fold_right f args e in
        let f (_ ,a) s = Pos.none (SFun(a,s)) in
@@ -403,7 +407,12 @@ let parser toplevel =
   | _include_ p:path
     -> Include(p)
 and sort_arg =
-  | id:llid so:{":" s:sort}? -> (id, sort_from_opt so)
+  | id:llid so:{":" s:sort}? ->
+      let s =
+        match so with
+        | None   -> new_sort_uvar (Some id)
+        | Some s -> s
+      in (id, s)
 and sort_args =
   | EMPTY                            -> []
   | '<' l:(lsep_ne "," sort_arg) '>' -> l
