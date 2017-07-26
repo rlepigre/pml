@@ -307,7 +307,7 @@ let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
       (* Arrow types. *)
       | (Func(a1,b1), Func(a2,b2)) when t_is_val ->
          let fn x = appl None (box t) (valu None (vari None x)) in
-         let f = (None, unbox (vbind mk_free "x" fn)) in
+         let f = (None, unbox (vbind (mk_free V) "x" fn)) in
          let vwit = Pos.none (VWit(f,a2,b2)) in
          let ctx = learn_nobox ctx vwit in
          let wit = Pos.none (Valu(vwit)) in
@@ -700,11 +700,11 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
         end
     (* λ-abstraction. *)
     | LAbs(ao,f)  ->
-       let (x,tx) = unbind mk_free (snd f) in
+       let (x,tx) = unbind (mk_free V) (snd f) in
        begin
          match tx.elt with
          (* Fixpoint. Temporary code *)
-         | FixY(b,{elt = Vari y}) ->
+         | FixY(b,{elt = Vari(V,y)}) ->
             assert(eq_vars x y); (* x must not be free in b *)
             let w = Pos.none (Valu(v)) in
             (* FIXME UWit only with value? *)

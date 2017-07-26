@@ -56,8 +56,8 @@ let print_ex : type a. a ex loc printer = fun ch e ->
     let e = Norm.repr e in
     if test_done e && !print_full then output_string ch "..." else
     match e.elt with
-    | Vari(x)     -> output_string ch (name_of x)
-    | HFun(_,_,b) -> let (x,t) = unbind mk_free (snd b) in
+    | Vari(_,x)   -> output_string ch (name_of x)
+    | HFun(s,_,b) -> let (x,t) = unbind (mk_free s) (snd b) in
                      fprintf ch "(%s ↦ %a)" (name_of x) print_ex t
     | HApp(_,f,a) -> let rec print_app : type a b.(a -> b) ex loc -> unit =
                        fun f ->
@@ -77,16 +77,16 @@ let print_ex : type a. a ex loc printer = fun ch e ->
     | DSum(m)     -> let pelt ch (l,(_,a)) =
                        fprintf ch "%s : %a" l print_ex a
                      in fprintf ch "[%a]" (print_map pelt "; ") m
-    | Univ(s,b)   -> let (x,a) = unbind mk_free (snd b) in
+    | Univ(s,b)   -> let (x,a) = unbind (mk_free s) (snd b) in
                      fprintf ch "∀%s:%a.%a" (name_of x)
                        print_sort s print_ex a
-    | Exis(s,b)   -> let (x,a) = unbind mk_free (snd b) in
+    | Exis(s,b)   -> let (x,a) = unbind (mk_free s) (snd b) in
                      fprintf ch "∃%s:%a.%a" (name_of x)
                        print_sort s print_ex a
-    | FixM(o,b)   -> let (x,a) = unbind mk_free (snd b) in
+    | FixM(o,b)   -> let (x,a) = unbind (mk_free P) (snd b) in
                      fprintf ch "μ(%a) %s.%a"
                              print_ex o (name_of x) print_ex a
-    | FixN(o,b)   -> let (x,a) = unbind mk_free (snd b) in
+    | FixN(o,b)   -> let (x,a) = unbind (mk_free P) (snd b) in
                      fprintf ch "ν(%a) %s.%a"
                              print_ex o (name_of x) print_ex a
     | Memb(t,a)   -> let (l,r) = if is_arrow a then ("(",")") else ("","") in
@@ -95,7 +95,7 @@ let print_ex : type a. a ex loc printer = fun ch e ->
                        let (l,r) = if is_arrow a then ("(",")") else ("","") in
                        fprintf ch "(%s%a%s | %a)" l print_ex a r print_cond e
     | Impl(e,a)   -> fprintf ch "%a ↪ %a" print_cond e print_ex a
-    | LAbs(ao,b)  -> let (x,t) = unbind mk_free (snd b) in
+    | LAbs(ao,b)  -> let (x,t) = unbind (mk_free V) (snd b) in
                      begin
                        match ao with
                        | None   -> fprintf ch "λ%s.%a"
@@ -112,18 +112,18 @@ let print_ex : type a. a ex loc printer = fun ch e ->
     | Valu(v)     -> if !print_full then output_string ch "↑";
                      print_ex ch v
     | Appl(t,u)   -> fprintf ch "(%a) (%a)" print_ex t print_ex u
-    | MAbs(b)     -> let (x,t) = unbind mk_free (snd b) in
+    | MAbs(b)     -> let (x,t) = unbind (mk_free S) (snd b) in
                      fprintf ch "μ%s.%a" (name_of x) print_ex t
     | Name(s,t)   -> fprintf ch "[%a]%a" print_ex s print_ex t
     | Proj(v,l)   -> fprintf ch "%a.%s" print_ex v l.elt
     | Case(v,m)   -> let pelt ch (c, (_, (_,b))) =
-                       let (x,t) = unbind mk_free b in
+                       let (x,t) = unbind (mk_free V) b in
                        fprintf ch "%s[%s] → %a"
                                c (name_of x) print_ex t
                      in
                      let pcase = print_map pelt " | " in
                      fprintf ch "[%a | %a]" print_ex v pcase m
-    | FixY(f,v)   -> let (x,t) = unbind mk_free (snd f) in
+    | FixY(f,v)   -> let (x,t) = unbind (mk_free V) (snd f) in
                      fprintf ch "Y(λ%s.%a, %a)" (name_of x)
                        print_ex t print_ex v
     | Prnt(s)     -> fprintf ch "print(%S)" s
@@ -135,41 +135,41 @@ let print_ex : type a. a ex loc printer = fun ch e ->
     | Succ(o)     -> fprintf ch "%a+1" print_ex o
     | VTyp(v,a)   -> fprintf ch "(%a : %a)" print_ex v print_ex a
     | TTyp(t,a)   -> fprintf ch "(%a : %a)" print_ex t print_ex a
-    | VLam(_,b)   -> let (x,t) = unbind mk_free (snd b) in
+    | VLam(s,b)   -> let (x,t) = unbind (mk_free s) (snd b) in
                      fprintf ch "Λ%s.%a" (name_of x) print_ex t
-    | TLam(_,b)   -> let (x,t) = unbind mk_free (snd b) in
+    | TLam(s,b)   -> let (x,t) = unbind (mk_free s) (snd b) in
                      fprintf ch "Λ%s.%a" (name_of x) print_ex t
     | ITag(_,i)   -> fprintf ch "#%i" i
     | Dumm        -> output_string ch "∅"
     (* TODO #53 give a number to all witnesses to distinguish equal ones even
      when print_full is false *)
     | VWit(f,a,b) -> if !print_full then
-                       let (x,t) = unbind mk_free (snd f) in
+                       let (x,t) = unbind (mk_free V) (snd f) in
                        fprintf ch "ει(%s|%a∈%a∉%a)" (name_of x)
                                print_ex t print_ex a print_ex b
                      else fprintf ch "ει%s" (bndr_name f).elt
     | SWit(f,b)   -> if !print_full then
-                       let (a,t) = unbind mk_free (snd f) in
+                       let (a,t) = unbind (mk_free S) (snd f) in
                        fprintf ch "εσ(%s|%a∉%a)" (name_of a)
                                print_ex t print_ex b
                      else fprintf ch "εσ%s" (bndr_name f).elt
     | UWit(s,t,f) -> if !print_full then
-                       let (x,a) = unbind mk_free (snd f) in
+                       let (x,a) = unbind (mk_free s) (snd f) in
                        fprintf ch "ε∀(%s:%a|%a∉%a)" (name_of x)
                                print_sort s print_ex t print_ex a
                      else fprintf ch "ε∀%s" (bndr_name f).elt
     | EWit(s,t,f) -> if !print_full then
-                       let (x,a) = unbind mk_free (snd f) in
+                       let (x,a) = unbind (mk_free s) (snd f) in
                        fprintf ch "ε∃(%s:%a|%a∈%a)" (name_of x)
                                print_sort s print_ex t print_ex a
                      else fprintf ch "ε∃%s" (bndr_name f).elt
     | OWMu(o,t,b) -> if !print_full then
-                       let (x,a) = unbind mk_free (snd b) in
+                       let (x,a) = unbind (mk_free O) (snd b) in
                        fprintf ch "εκ%s(<%a,%a∈%a)" (name_of x) print_ex o
                          print_ex t print_ex a
                      else fprintf ch "εκμ%s" (bndr_name b).elt
     | OWNu(o,t,b) -> if !print_full then
-                       let (x,a) = unbind mk_free (snd b) in
+                       let (x,a) = unbind (mk_free O) (snd b) in
                        fprintf ch "εκ%s(<%a,%a∉%a)" (name_of x) print_ex o
                          print_ex t print_ex a
                      else fprintf ch "εκν%s" (bndr_name b).elt
@@ -189,9 +189,10 @@ let print_ex : type a. a ex loc printer = fun ch e ->
     | Posit(o)     -> print_ex ch o
 
   and print_fix_sch ch sch =
-    let (x,t) = unbind mk_free (snd (fst sch.fsch_judge)) in
-    let (vars,k) = unmbind mk_free (snd sch.fsch_judge) in
-    let vars = Array.map (fun x -> Pos.none (mk_free x)) vars in
+    let (x,t) = unbind (mk_free V) (snd (fst sch.fsch_judge)) in
+    (* FIXME, code bizarre avec deux mk_free, use free_of *)
+    let (vars,k) = unmbind (mk_free O) (snd sch.fsch_judge) in
+    let vars = Array.map (fun x -> Pos.none (mk_free O x)) vars in
     let print_vars = print_list print_ex "," in
     let pos = List.map (fun i -> vars.(i)) sch.fsch_posit in
     let rel = List.map (fun (i,j) -> (vars.(i), vars.(j))) sch.fsch_relat in
@@ -204,9 +205,10 @@ let print_ex : type a. a ex loc printer = fun ch e ->
             print_vars (Array.to_list vars) print_vars pos sep
             print_rel rel (name_of x) print_ex t print_ex k
 
- and print_sub_sch ch sch =
-    let (vars,(k1,k2)) = unmbind mk_free sch.ssch_judge in
-    let vars = Array.map (fun x -> Pos.none (mk_free x)) vars in
+  and print_sub_sch ch sch =
+    (* FIXME, code bizarre avec deux mk_free, use free_of *)
+    let (vars,(k1,k2)) = unmbind (mk_free O) sch.ssch_judge in
+    let vars = Array.map (fun x -> Pos.none (mk_free O x)) vars in
     let print_vars = print_list print_ex "," in
     let pos = List.map (fun i -> vars.(i)) sch.ssch_posit in
     let rel = List.map (fun (i,j) -> (vars.(i), vars.(j))) sch.ssch_relat in
@@ -229,8 +231,9 @@ let print_ex : type a. a ex loc printer = fun ch e ->
 let sort = print_sort
 let ex   = print_ex
 let omb ch b =
-  let (vars,k) = unmbind mk_free b in
-  let vars = Array.map (fun x -> Pos.none (mk_free x)) vars in
+  (* FIXME, code bizarre avec deux mk_free, use free_of *)
+  let (vars,k) = unmbind (mk_free O) b in
+  let vars = Array.map (fun x -> Pos.none (mk_free O x)) vars in
   let print_vars = print_list print_ex "," in
   fprintf ch "%a.%a" print_vars (Array.to_list vars) print_ex k
 

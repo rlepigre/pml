@@ -2,6 +2,7 @@
 
 open Bindlib
 open Pos
+open Sorts
 open Ast
 open Eval
 
@@ -12,11 +13,11 @@ let erasure_error : type a. string -> a =
 let rec valu_erasure : valu -> e_vbox = fun v ->
   let v = Norm.whnf v in
   match v.elt with
-  | Vari(x)   -> box_of_var (copy_var x (name_of x) mk_vvari)
+  | Vari(_,x) -> box_of_var (copy_var x (name_of x) mk_vvari)
   | HApp(_)   -> erasure_error "not a normalisation value (value)"
   | HDef(_,d) -> valu_erasure d.expr_def
   | LAbs(_,b) -> let f x =
-                   let x = copy_var x (name_of x) mk_free in
+                   let x = copy_var x (name_of x) (mk_free V) in
                    term_erasure (bndr_subst b (free_of x))
                  in vlabs (binder_name (snd b)) f
   | Cons(c,v) -> vcons c.elt (valu_erasure v)
@@ -36,25 +37,25 @@ let rec valu_erasure : valu -> e_vbox = fun v ->
 and     term_erasure : term -> e_tbox = fun t ->
   let t = Norm.whnf t in
   match t.elt with
-  | Vari(x)   -> box_of_var (copy_var x (name_of x) mk_tvari)
+  | Vari(_,x) -> box_of_var (copy_var x (name_of x) mk_tvari)
   | HApp(_)   -> erasure_error "not a normalisation value (term)"
   | HDef(_,d) -> term_erasure d.expr_def
   | Valu(v)   -> tvalu (valu_erasure v)
   | Appl(t,u) -> tappl (term_erasure t) (term_erasure u)
   | MAbs(b)   -> let f x =
-                   let x = copy_var x (name_of x) mk_free in
+                   let x = copy_var x (name_of x) (mk_free S) in
                    term_erasure (bndr_subst b (free_of x))
                  in tmabs (binder_name (snd b)) f
   | Name(s,t) -> tname (stac_erasure s) (term_erasure t)
   | Proj(v,l) -> tproj (valu_erasure v) l.elt
   | Case(v,m) -> let f (_,b) =
                    let f x =
-                     let x = copy_var x (name_of x) mk_free in
+                     let x = copy_var x (name_of x) (mk_free V) in
                      term_erasure (bndr_subst b (free_of x))
                    in (binder_name (snd b), f)
                  in tcase (valu_erasure v) (A.map f m)
   | FixY(b,v) -> let f x =
-                   let x = copy_var x (name_of x) mk_free in
+                   let x = copy_var x (name_of x) (mk_free V) in
                    term_erasure (bndr_subst b (free_of x))
                  in tfixy (binder_name (snd b)) f (valu_erasure v)
   | Prnt(s)   -> tprnt s
@@ -70,7 +71,7 @@ and     term_erasure : term -> e_tbox = fun t ->
 and     stac_erasure : stac -> e_sbox = fun s ->
   let s = Norm.whnf s in
   match s.elt with
-  | Vari(x)   -> box_of_var (copy_var x (name_of x) mk_svari)
+  | Vari(_,x) -> box_of_var (copy_var x (name_of x) mk_svari)
   | HApp(_)   -> erasure_error "not a normalisation value (stack)"
   | HDef(_,d) -> stac_erasure d.expr_def
   | Epsi      -> sepsi
@@ -99,7 +100,7 @@ let stac_erasure : stac -> e_stac =
 (** Evaluation in an abstract machine. *)
 let rec to_valu : e_valu -> vbox = fun v ->
   match v with
-  | VVari(x)   -> vari None (copy_var x (name_of x) mk_free)
+  | VVari(x)   -> vari None (copy_var x (name_of x) (mk_free V))
   | VLAbs(b)   -> let f x =
                     let x = copy_var x (name_of x) mk_vvari in
                     to_term (subst b (free_of x))
@@ -110,7 +111,7 @@ let rec to_valu : e_valu -> vbox = fun v ->
 
 and to_term : e_term -> tbox = fun t ->
   match t with
-  | TVari(a)   -> vari None (copy_var a (name_of a) mk_free)
+  | TVari(a)   -> vari None (copy_var a (name_of a) (mk_free T))
   | TValu(v)   -> valu None (to_valu v)
   | TAppl(t,u) -> appl None (to_term t) (to_term u)
   | TMAbs(b)   -> let f x =
@@ -134,7 +135,7 @@ and to_term : e_term -> tbox = fun t ->
 
 and to_stac : e_stac -> sbox = fun s ->
   match s with
-  | SVari(a)   -> vari None (copy_var a (name_of a) mk_free)
+  | SVari(a)   -> vari None (copy_var a (name_of a) (mk_free S))
   | SEpsi      -> epsi None
   | SPush(v,s) -> push None (to_valu v) (to_stac s)
   | SFram(t,s) -> fram None (to_term t) (to_stac s)

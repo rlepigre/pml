@@ -105,12 +105,12 @@ let uvar_iter : type a. bool -> uvar_fun -> a ex loc -> unit =
                          match s with
                          | FixSch s ->
                             let (t,b) = s.fsch_judge in
-                            let (_,t) = Bindlib.unbind mk_free (snd t) in
-                            let (_,k) = Bindlib.unmbind mk_free b in
+                            let (_,t) = Bindlib.unbind (mk_free V) (snd t) in
+                            let (_,k) = Bindlib.unmbind (mk_free O) b in
                             Extra.Option.iter uvar_iter o; uvar_iter t; uvar_iter k
                          | SubSch s ->
                             let b = s.ssch_judge in
-                            let (_,(k1,k2)) = Bindlib.unmbind mk_free b in
+                            let (_,(k1,k2)) = Bindlib.unmbind (mk_free O) b in
                             Extra.Option.iter uvar_iter o; uvar_iter k1; uvar_iter k2
                        end
     | UVar(s,u)   -> f.f s u
@@ -215,7 +215,7 @@ let {eq_expr; eq_bndr; eq_ombinder} =
     with DontKnow ->
     if !full_eq then log_equ "comparing %a and %a" Print.ex e1 Print.ex e2;
     match (e1.elt, e2.elt) with
-    | (Vari(x1)      , Vari(x2)      ) ->
+    | (Vari(_,x1)    , Vari(_,x2)    ) ->
         Bindlib.eq_vars x1 x2
     | (HFun(s1,_,b1) , HFun(_,_,b2)  ) -> eq_bndr s1 b1 b2
     | (HApp(s1,f1,a1), HApp(s2,f2,a2)) ->
