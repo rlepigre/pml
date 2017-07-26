@@ -265,10 +265,6 @@ exception Unbound_variable of string * Pos.pos option
 let unbound_var : string -> Pos.pos option -> 'a =
   fun s p -> raise (Unbound_variable(s,p))
 
-exception Unification_failure of raw_ex
-let unif_failure : raw_ex -> 'a =
-  fun e -> raise (Unification_failure(e))
-
 exception Sort_clash of raw_ex * raw_sort
 let sort_clash : raw_ex -> raw_sort -> 'a =
   fun e s -> raise (Sort_clash(e,s))
@@ -350,7 +346,8 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
     | (EUnit        , SP       )
     | (EUnit        , SV       )
     | (EUnit        , ST       ) -> ()
-    | (EUnit        , SUni(_)  ) -> unif_failure e
+    | (EUnit        , SUni(r)  ) -> sort_uvar_set r _sp; (* arbitrary *)
+                                    infer env vars e s
     | (EUnit        , _        ) -> sort_clash e s
     | (EDSum(l)     , SP       ) -> let fn (_, a) =
                                       match a with
