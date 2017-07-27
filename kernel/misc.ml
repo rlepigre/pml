@@ -18,10 +18,15 @@ type ('a,'b) eq =
 let (===) : type a b.a -> b -> (a,b) eq = fun a b ->
   if a == Obj.magic b then Obj.magic Eq else Ne
 
-let rec assq : type a. a ex -> alist -> a box = fun e l ->
-  match l with
-  | Nil -> raise Not_found
-  | Cons(f,r,l) -> match e === f with Eq -> r | Ne -> assq e l
+let assq_chrono = Chrono.create "assq"
+
+let assq : type a. a ex -> alist -> a box = fun e l ->
+  let rec fn : alist -> a box = fun l ->
+    match l with
+    | Nil -> raise Not_found
+    | Cons(f,r,l) -> match e === f with Eq -> r | Ne -> fn l
+  in
+  Chrono.add_time assq_chrono fn l
 
 let closed : type a. ?olist:o ex loc list -> a ex loc -> bool = fun ?(olist=[]) e ->
   let rec closed : type a. a ex loc -> bool = fun e ->
@@ -469,19 +474,11 @@ let bind_spos_ordinals
     vars := v::!vars;
     box_apply Pos.none (box_of_var v)
   in
-  (* let adone1 = ref Nil in
-  let adone2 = ref Nil in
-  let adone3 = ref Nil in*)
   let rec bind_all : occ -> p ex loc -> p box = fun o e ->
     let ba = bind_all o in
     let e = Norm.whnf e in
-    (* let adone = match o with
-      | Pos -> adone1
-      | Neg -> adone2
-      | Any -> adone3
-    in
-    try assq e.elt !adone with Not_found -> *) (* FIXME: why fail ? *)
     let res = match e.elt with
+    | _ when o = Any -> lift e
     | HDef(_,e)   -> ba e.expr_def
     | Func(a,b)   -> func e.pos (bind_all (neg o) a) (ba b)
     | Prod(m)     -> prod e.pos (A.map (fun (p,a) -> (p, ba a)) m)
@@ -503,7 +500,6 @@ let bind_spos_ordinals
     | _        -> lift e
     in
     let res = if is_closed res then box e else res in
-    (* adone := Cons(e.elt,res,!adone); *) (* FIXME *)
     res
   in
   let e = bind_all Pos e in
