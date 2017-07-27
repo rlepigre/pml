@@ -1,4 +1,5 @@
 type rec list<a> = [Nil ; Cons of {hd : a ; tl : list}]
+type slist<a,k> = μk list [Nil ; Cons of {hd : a ; tl : list}]
 
 val rec exists : ∀a, (a ⇒ bool) ⇒ list<a> ⇒ bool = fun pred l →
   case l {
@@ -6,11 +7,12 @@ val rec exists : ∀a, (a ⇒ bool) ⇒ list<a> ⇒ bool = fun pred l →
     | Cons[c] → if pred c.hd { true } else { exists pred c.tl }
   }
 
-val rec rev_append : ∀a, list<a> ⇒ list<a> ⇒ list<a> = fun l1 l2 →
-  case l1 {
-    | Nil[_]  → l2
-    | Cons[c] → rev_append c.tl Cons[{hd = c.hd; tl = l2}]
-  }
+//val rec rev_append : ∀a, list<a> ⇒ list<a> ⇒ list<a> = fun l1 l2 →
+//  case l1 {
+//    | Nil[_]  → l2
+//    | Cons[c] → rev_append c.tl Cons[{hd = c.hd; tl = l2}]
+//  }
+
 val silly : (∀a, a ⇒ a) ⇒ unit ⇒ option<unit> =
   fun f u → f Some[f u]
 val rec conjunction : list<bool> ⇒ bool = fun l → save k →
