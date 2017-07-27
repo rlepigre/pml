@@ -406,7 +406,7 @@ let {eq_expr; eq_bndr; eq_ombinder} =
       c := -1; (* Reset. *)
       let is_oracle = oracle != default_oracle in
       log_equ "showing %a === %a (%b)" Print.ex e1 Print.ex e2 is_oracle;
-      bug_msg "sizes: %i and %i" (binary_size e1) (binary_size e2);
+      (*bug_msg "sizes: %i and %i" (binary_size e1) (binary_size e2);*)
       let res = Chrono.add_time compare_chrono
                   (Timed.pure_test (eq_expr oracle strict e1)) e2 in
       log_equ "we have %a %s %a"

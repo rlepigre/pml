@@ -7,6 +7,22 @@ open Pos
 open Ast
 open Output
 
+type alist =
+  | Nil  : alist
+  | Cons : 'a ex * 'a box * alist -> alist
+
+type ('a,'b) eq =
+  | Ne : ('a,'b) eq
+  | Eq : ('a,'a) eq
+
+let (===) : type a b.a -> b -> (a,b) eq = fun a b ->
+  if a == Obj.magic b then Obj.magic Eq else Ne
+
+let rec assq : type a. a ex -> alist -> a box = fun e l ->
+  match l with
+  | Nil -> raise Not_found
+  | Cons(f,r,l) -> match e === f with Eq -> r | Ne -> assq e l
+
 let closed : type a. ?olist:o ex loc list -> a ex loc -> bool = fun ?(olist=[]) e ->
   let rec closed : type a. a ex loc -> bool = fun e ->
     match sort e with (O, e) when Compare.is_in e olist -> false | _ ->
@@ -109,9 +125,13 @@ let (lift, lift_cond) =
     if is_closed res then box sch else res
 
   and lift : type a. a ex loc -> a box = fun e ->
-    if closed e then box e else
+    let adone = ref Nil in
+    let rec lift : type a. a ex loc -> a box = fun e ->
+    let e = Norm.whnf e in
+    try assq e.elt !adone with Not_found ->
     let res =
-      match (Norm.whnf e).elt with
+      if closed e then box e else
+      match e.elt with
       | HDef(_,_)   -> box e (* Assumed closed *)
       | HApp(s,f,a) -> happ e.pos s (lift f) (lift a)
       | HFun(a,b,f) -> hfun e.pos a b (bndr_name f)
@@ -188,7 +208,11 @@ let (lift, lift_cond) =
 
       | Vari(_,x)   -> vari e.pos x
       | Dumm        -> box e
-    in if is_closed res then box e else res
+    in
+    let res = if is_closed res then box e else res in
+    adone := Cons(e.elt,res,!adone);
+    res
+    in lift e
   in (lift, lift_cond)
 
 type ('a, 'b) mbndr = ('a ex, 'b ex loc) mbinder
@@ -280,6 +304,7 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
   (* The variables themselves. *)
   let xs = new_mvar (mk_free O) xs in
   (* Binding function. *)
+  let adone = ref Nil in
   let rec bind_all : type a. a ex loc -> a box = fun e ->
     let bind_all_cond c =
       let res =
@@ -304,8 +329,9 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
        | _ -> raise Not_found
     in
     let e = Norm.whnf e in
-    if closed ~olist:owits e then box e else
+    try assq e.elt !adone with Not_found ->
     let res =
+      if closed ~olist:owits e then box e else
       match e.elt with
       | HDef(_,_)   -> box e (* Assumed closed *)
       | HApp(s,f,a) -> happ e.pos s (bind_all f) (bind_all a)
@@ -402,7 +428,9 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
          end
       | Vari(_,x)   -> vari e.pos x
       | Dumm        -> box e
-    in if is_closed res then box e else res
+    in
+    adone := Cons(e.elt,res,!adone);
+    res
   in
   (* Building the actual binder. *)
   let b = bind_mvar xs (bind_all e) in
@@ -441,10 +469,18 @@ let bind_spos_ordinals
     vars := v::!vars;
     box_apply Pos.none (box_of_var v)
   in
+  (* let adone1 = ref Nil in
+  let adone2 = ref Nil in
+  let adone3 = ref Nil in*)
   let rec bind_all : occ -> p ex loc -> p box = fun o e ->
     let ba = bind_all o in
     let e = Norm.whnf e in
-    (*    if closed e then box e else*)
+    (* let adone = match o with
+      | Pos -> adone1
+      | Neg -> adone2
+      | Any -> adone3
+    in
+    try assq e.elt !adone with Not_found -> *) (* FIXME: why fail ? *)
     let res = match e.elt with
     | HDef(_,e)   -> ba e.expr_def
     | Func(a,b)   -> func e.pos (bind_all (neg o) a) (ba b)
@@ -465,7 +501,10 @@ let bind_spos_ordinals
     | Impl(c,a)   -> impl e.pos (lift_cond c) (ba a)
 
     | _        -> lift e
-    in if is_closed res then box e else res
+    in
+    let res = if is_closed res then box e else res in
+    (* adone := Cons(e.elt,res,!adone); *) (* FIXME *)
+    res
   in
   let e = bind_all Pos e in
   let vars = Array.of_list !vars in
