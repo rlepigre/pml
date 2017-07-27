@@ -483,11 +483,12 @@ and check_sub : ctxt -> prop -> prop -> check_sub = fun ctx a b ->
           with Exit -> find_suitable ihs
         end
     | []      ->
-       (* No matching induction hypothesis. *)
-       let no_uvars () = uvars ~ignore_epsilon:true a = []
-                         && uvars ~ignore_epsilon:true b = []
-       in
-       log_sub "no suitable induction hypothesis";
+        (* No matching induction hypothesis. *)
+        let no_uvars () =
+          uvars ~ignore_epsilon:true a = [] &&
+          uvars ~ignore_epsilon:true b = []
+        in
+        log_sub "no suitable induction hypothesis";
         match a.elt, b.elt with
         (* TODO: to avoid the restiction uvars a = [] && uvars b = [] below,
                  subml introduces unification variables parametrised by the

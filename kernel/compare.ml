@@ -15,7 +15,7 @@ let log_uni = Log.register 'u' (Some "uni") "unification informations"
 let log_uni = Log.(log_uni.p)
 
 (* Code instrumentation (rough size of expression). *)
-let binary_size : type a. a ex loc -> int = fun e ->
+let binary_size : type a. a -> int = fun e ->
   let open Marshal in
   String.length (to_string e [Closures])
 
