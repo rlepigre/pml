@@ -93,21 +93,33 @@ val map_map : ∀a b c:ο, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c), total<f,a> ⇒ to
         let ind = map_map tf tg tl in {}
    }
 
-// val rec map_map : ∀a b c:ο, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c), total<f,a> ⇒ total<g,b> ⇒
-//     ∀l∈list<a>, map g (map f l) ≡ map (fun x → g (f x)) l =
-//  fun fn gn tf tg ls →
-//    case ls of
-//    | Nil[] → {}
-//    | Cns[c] →
-//        let hd = c.hd in
-//        let tl = c.tl in
-//        let gof = fun x → gn (fn x) in
-//        let tgf = compose_total fn gn tf tg in
-//        let lem : (∃v:ι, map gof tl ≡ v) = map_total gof tgf tl in
-//        let lem = tf hd in
-//        let lem = tg (fn hd) in
-//        let lem = map_total fn tf tl in
-//        let lem = map_total gn tg (map fn tl) in
-//        let lem = tgf hd in
-//        let ind : map gn (map fn tl) ≡ map gof tl = map_map fn gn tf tg tl in
-//        {}
+val comp : ∀a b c:ο, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c), a ⇒ c = fun f g x → g (f x)
+
+// FIXME : replacing comp by its definition fails, pb for equality under
+//         lambda
+
+val rec map_map : ∀a b c:ο, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c), total<f,a> ⇒ total<g,b> ⇒
+    ∀l∈list<a>, map g (map f l) ≡ map (comp f g) l =
+ fun fn gn tf tg ls →
+   case ls {
+   | Nil[] → {}
+   | Cns[c] →
+       let hd = c.hd in
+       let tl = c.tl in
+       let gof = fun x → gn (fn x) in
+       let tgf = compose_total fn gn tf tg in
+       let lem : (∃v:ι, map gof tl ≡ v) = map_total gof tgf tl in
+       let lem = tf hd in
+       let lem = tg (fn hd) in
+       let lem = tgf hd in
+       let lem = map_total fn tf tl in
+       let lem = map_total gn tg (map fn tl) in
+       let lem = map_total gof tgf tl in
+       let ind : map gn (map fn tl) ≡ map gof tl = map_map fn gn tf tg tl in
+       let ded : gn (fn hd) ≡ gof hd = {} in
+       let ded : map gn (map fn ls) = Cns[{ hd = gn (fn hd)
+                                          ; tl = map gn (map fn tl)}] = {} in
+       let ded : map gof ls = Cns[{ hd = gof hd
+                                  ; tl = map gof tl }] = {} in
+       {}
+  }
