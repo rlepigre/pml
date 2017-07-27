@@ -94,130 +94,133 @@ let closed : type a. ?olist:o ex loc list -> a ex loc -> bool = fun ?(olist=[]) 
 exception NotClosed (* raised for ITag *)
 
 let (lift, lift_cond) =
-  let rec lift_cond c =
+  let rec lift_cond ?adone c =
+    let adone = match adone with None -> ref Nil | Some a -> a in
     let res =
       match c with
-      | Equiv(t,b,u) -> equiv (lift t) b (lift u)
-      | Posit(o)     -> posit (lift o)
-      | NoBox(v)     -> nobox (lift v)
+      | Equiv(t,b,u) -> equiv (lift ~adone t) b (lift ~adone u)
+      | Posit(o)     -> posit (lift ~adone o)
+      | NoBox(v)     -> nobox (lift ~adone v)
     in
     if is_closed res then box c else res
-  and lift_fix_schema ({ fsch_index ; fsch_posit ; fsch_relat ; fsch_judge} as fsch) =
-    let (vb, ob) = fsch_judge in
-    let fv x = lift (bndr_subst vb (mk_free V x)) in
-    let fo xs = lift (msubst ob (Array.map (mk_free O) xs)) in
-    let res =
-      fschm fsch_index fsch_posit fsch_relat (bndr_name vb)
-            fv (mbinder_names ob) fo
-    in
-    if is_closed res then box fsch else res
-  and lift_sub_schema ({ ssch_index ; ssch_posit ; ssch_relat ; ssch_judge } as ssch) =
-    let ob = ssch_judge in
-    let fo xs =
-      let (k1, k2) = msubst ob (Array.map (mk_free O) xs) in
-      box_pair (lift k1) (lift k2)
-    in
-    let res =
-      sschm ssch_index ssch_posit ssch_relat (mbinder_names ob) fo
-    in
-    if is_closed res then box ssch else res
-  and lift_schema sch =
-    let res =
-      match sch with
-      | FixSch s -> box_apply (fun x -> FixSch x) (lift_fix_schema s)
-      | SubSch s -> box_apply (fun x -> SubSch x) (lift_sub_schema s)
-    in
-    if is_closed res then box sch else res
 
-  and lift : type a. a ex loc -> a box = fun e ->
-    let adone = ref Nil in
+  and lift : type a. ?adone:alist ref -> a ex loc -> a box = fun ?adone e ->
+    let adone = match adone with None -> ref Nil | Some a -> a in
     let rec lift : type a. a ex loc -> a box = fun e ->
-    let e = Norm.whnf e in
-    try assq e.elt !adone with Not_found ->
-    let res =
-      if closed e then box e else
-      match e.elt with
-      | HDef(_,_)   -> box e (* Assumed closed *)
-      | HApp(s,f,a) -> happ e.pos s (lift f) (lift a)
-      | HFun(a,b,f) -> hfun e.pos a b (bndr_name f)
-                            (fun x -> lift (bndr_subst f (mk_free a x)))
-      | UWit(s,t,f) -> uwit e.pos (lift t) (bndr_name f) s
-                            (fun x -> lift (bndr_subst f (mk_free s x)))
-      | EWit(s,t,f) -> ewit e.pos (lift t) (bndr_name f) s
-                            (fun x -> lift (bndr_subst f (mk_free s x)))
-      | UVar(_,_)   -> box e
-      | ITag(_,_)   -> box e
-      | Goal(_,_)   -> box e
+      let e = Norm.whnf e in
+      try assq e.elt !adone with Not_found ->
+        let res =
+          if closed e then box e else
+            match e.elt with
+            | HDef(_,_)   -> box e (* Assumed closed *)
+            | HApp(s,f,a) -> happ e.pos s (lift f) (lift a)
+            | HFun(a,b,f) -> hfun e.pos a b (bndr_name f)
+                                  (fun x -> lift (bndr_subst f (mk_free a x)))
+            | UWit(s,t,f) -> uwit e.pos (lift t) (bndr_name f) s
+                                  (fun x -> lift (bndr_subst f (mk_free s x)))
+            | EWit(s,t,f) -> ewit e.pos (lift t) (bndr_name f) s
+                                  (fun x -> lift (bndr_subst f (mk_free s x)))
+            | UVar(_,_)   -> box e
+            | ITag(_,_)   -> box e
+            | Goal(_,_)   -> box e
 
-      | Func(a,b)   -> func e.pos (lift a) (lift b)
-      | Prod(m)     -> prod e.pos (A.map (fun (p,a) -> (p, lift a)) m)
-      | DSum(m)     -> dsum e.pos (A.map (fun (p,a) -> (p, lift a)) m)
-      | Univ(s,f)   -> univ e.pos (bndr_name f) s
-                            (fun x -> lift (bndr_subst f (mk_free s x)))
-      | Exis(s,f)   -> exis e.pos (bndr_name f) s
-                            (fun x -> lift (bndr_subst f (mk_free s x)))
-      | FixM(o,f)   -> fixm e.pos (lift o) (bndr_name f)
-                            (fun x -> lift (bndr_subst f (mk_free P x)))
-      | FixN(o,f)   -> fixn e.pos (lift o) (bndr_name f)
-                            (fun x -> lift (bndr_subst f (mk_free P x)))
-      | Memb(t,a)   -> memb e.pos (lift t) (lift a)
-      | Rest(a,c)   -> rest e.pos (lift a) (lift_cond c)
-      | Impl(c,a)   -> impl e.pos (lift_cond c) (lift a)
+            | Func(a,b)   -> func e.pos (lift a) (lift b)
+            | Prod(m)     -> prod e.pos (A.map (fun (p,a) -> (p, lift a)) m)
+            | DSum(m)     -> dsum e.pos (A.map (fun (p,a) -> (p, lift a)) m)
+            | Univ(s,f)   -> univ e.pos (bndr_name f) s
+                                  (fun x -> lift (bndr_subst f (mk_free s x)))
+            | Exis(s,f)   -> exis e.pos (bndr_name f) s
+                                  (fun x -> lift (bndr_subst f (mk_free s x)))
+            | FixM(o,f)   -> fixm e.pos (lift o) (bndr_name f)
+                                  (fun x -> lift (bndr_subst f (mk_free P x)))
+            | FixN(o,f)   -> fixn e.pos (lift o) (bndr_name f)
+                                  (fun x -> lift (bndr_subst f (mk_free P x)))
+            | Memb(t,a)   -> memb e.pos (lift t) (lift a)
+            | Rest(a,c)   -> rest e.pos (lift a) (lift_cond ~adone c)
+            | Impl(c,a)   -> impl e.pos (lift_cond ~adone c) (lift a)
 
-      | VWit(t,a,b) -> vwit e.pos (bndr_name t)
-                         (fun x -> lift (bndr_subst t (mk_free V x)))
-                         (lift a) (lift b)
-      | LAbs(a,f)   -> labs e.pos (Option.map lift a) (bndr_name f)
-                            (fun x -> lift (bndr_subst f (mk_free V x)))
-      | Cons(c,v)   -> cons e.pos c (lift v)
-      | Reco(m)     -> reco e.pos (A.map (fun (p,v) -> (p, lift v)) m)
-      | Scis        -> box e
-      | VDef(_)     -> box e
-      | VTyp(v,a)   -> vtyp e.pos (lift v) (lift a)
-      | VLam(s,f)   -> vlam e.pos (bndr_name f) s
-                            (fun x -> lift (bndr_subst f (mk_free s x)))
+            | VWit(t,a,b) -> vwit e.pos (bndr_name t)
+                                  (fun x -> lift (bndr_subst t (mk_free V x)))
+                                  (lift a) (lift b)
+            | LAbs(a,f)   -> labs e.pos (Option.map lift a) (bndr_name f)
+                                  (fun x -> lift (bndr_subst f (mk_free V x)))
+            | Cons(c,v)   -> cons e.pos c (lift v)
+            | Reco(m)     -> reco e.pos (A.map (fun (p,v) -> (p, lift v)) m)
+            | Scis        -> box e
+            | VDef(_)     -> box e
+            | VTyp(v,a)   -> vtyp e.pos (lift v) (lift a)
+            | VLam(s,f)   -> vlam e.pos (bndr_name f) s
+                                  (fun x -> lift (bndr_subst f (mk_free s x)))
 
-      | Valu(v)     -> valu e.pos (lift v)
-      | Appl(t,u)   -> appl e.pos (lift t) (lift u)
-      | MAbs(f)     -> mabs e.pos (bndr_name f)
-                            (fun x -> lift (bndr_subst f (mk_free S x)))
-      | Name(s,t)   -> name e.pos (lift s) (lift t)
-      | Proj(v,l)   -> proj e.pos (lift v) l
-      | Case(v,m)   -> let fn (p,f) =
-                         let fn x = lift (bndr_subst f (mk_free V x)) in
-                         (p, bndr_name f, fn)
-                       in
-                       case e.pos (lift v) (A.map fn m)
-      | FixY(f,v)   -> fixy e.pos (bndr_name f)
-                            (fun x -> lift (bndr_subst f (mk_free V x))) (lift v)
-      | Prnt(s)     -> prnt e.pos s
-      | TTyp(t,a)   -> ttyp e.pos (lift t) (lift a)
-      | TLam(s,f)   -> tlam e.pos (bndr_name f) s
-                            (fun x -> lift (bndr_subst f (mk_free s x)))
+            | Valu(v)     -> valu e.pos (lift v)
+            | Appl(t,u)   -> appl e.pos (lift t) (lift u)
+            | MAbs(f)     -> mabs e.pos (bndr_name f)
+                                  (fun x -> lift (bndr_subst f (mk_free S x)))
+            | Name(s,t)   -> name e.pos (lift s) (lift t)
+            | Proj(v,l)   -> proj e.pos (lift v) l
+            | Case(v,m)   -> let fn (p,f) =
+                               let fn x = lift (bndr_subst f (mk_free V x)) in
+                               (p, bndr_name f, fn)
+                             in
+                             case e.pos (lift v) (A.map fn m)
+            | FixY(f,v)   -> fixy e.pos (bndr_name f)
+                                  (fun x -> lift (bndr_subst f (mk_free V x))) (lift v)
+            | Prnt(s)     -> prnt e.pos s
+            | TTyp(t,a)   -> ttyp e.pos (lift t) (lift a)
+            | TLam(s,f)   -> tlam e.pos (bndr_name f) s
+                                  (fun x -> lift (bndr_subst f (mk_free s x)))
 
-      | Epsi        -> box e
-      | Push(v,s)   -> push e.pos (lift v) (lift s)
-      | Fram(t,s)   -> fram e.pos (lift t) (lift s)
-      | SWit(f,a)   -> swit e.pos (bndr_name f)
-                            (fun x -> lift (bndr_subst f (mk_free S x)))
-                            (lift a)
+            | Epsi        -> box e
+            | Push(v,s)   -> push e.pos (lift v) (lift s)
+            | Fram(t,s)   -> fram e.pos (lift t) (lift s)
+            | SWit(f,a)   -> swit e.pos (bndr_name f)
+                                  (fun x -> lift (bndr_subst f (mk_free S x)))
+                                  (lift a)
 
-      | Zero        -> box e
-      | Conv        -> box e
-      | Succ(o)     -> succ e.pos (lift o)
-      | OWMu(o,t,b) -> owmu e.pos (lift o) (lift t) (bndr_name b)
-                            (fun x -> lift (bndr_subst b (mk_free O x)))
-      | OWNu(o,t,b) -> ownu e.pos (lift o) (lift t) (bndr_name b)
-                            (fun x -> lift (bndr_subst b (mk_free O x)))
-      | OSch(o,i,s) -> osch e.pos (Option.map lift o) i (lift_schema s)
+            | Zero        -> box e
+            | Conv        -> box e
+            | Succ(o)     -> succ e.pos (lift o)
+            | OWMu(o,t,b) -> owmu e.pos (lift o) (lift t) (bndr_name b)
+                                  (fun x -> lift (bndr_subst b (mk_free O x)))
+            | OWNu(o,t,b) -> ownu e.pos (lift o) (lift t) (bndr_name b)
+                                  (fun x -> lift (bndr_subst b (mk_free O x)))
+            | OSch(o,i,s) -> osch e.pos (Option.map lift o) i (lift_schema s)
 
-      | Vari(_,x)   -> vari e.pos x
-      | Dumm        -> box e
-    in
-    let res = if is_closed res then box e else res in
-    adone := Cons(e.elt,res,!adone);
-    res
-    in lift e
+            | Vari(_,x)   -> vari e.pos x
+            | Dumm        -> box e
+        in
+        let res = if is_closed res then box e else res in
+        adone := Cons(e.elt,res,!adone);
+        res
+
+      and lift_fix_schema ({ fsch_index ; fsch_posit ; fsch_relat ; fsch_judge} as fsch) =
+        let (vb, ob) = fsch_judge in
+        let fv x = lift (bndr_subst vb (mk_free V x)) in
+        let fo xs = lift (msubst ob (Array.map (mk_free O) xs)) in
+        let res =
+          fschm fsch_index fsch_posit fsch_relat (bndr_name vb)
+                fv (mbinder_names ob) fo
+        in
+        if is_closed res then box fsch else res
+      and lift_sub_schema ({ ssch_index ; ssch_posit ; ssch_relat ; ssch_judge } as ssch) =
+        let ob = ssch_judge in
+        let fo xs =
+          let (k1, k2) = msubst ob (Array.map (mk_free O) xs) in
+          box_pair (lift k1) (lift k2)
+        in
+        let res =
+          sschm ssch_index ssch_posit ssch_relat (mbinder_names ob) fo
+        in
+        if is_closed res then box ssch else res
+      and lift_schema sch =
+        let res =
+          match sch with
+          | FixSch s -> box_apply (fun x -> FixSch x) (lift_fix_schema s)
+          | SubSch s -> box_apply (fun x -> SubSch x) (lift_sub_schema s)
+        in
+        if is_closed res then box sch else res
+
+      in lift e
   in (lift, lift_cond)
 
 type ('a, 'b) mbndr = ('a ex, 'b ex loc) mbinder
@@ -477,8 +480,9 @@ let bind_spos_ordinals
   let rec bind_all : occ -> p ex loc -> p box = fun o e ->
     let ba = bind_all o in
     let e = Norm.whnf e in
+    let adone = ref Nil in
     let res = match e.elt with
-    | _ when o = Any -> lift e
+    | _ when o = Any -> lift ~adone e
     | HDef(_,e)   -> ba e.expr_def
     | Func(a,b)   -> func e.pos (bind_all (neg o) a) (ba b)
     | Prod(m)     -> prod e.pos (A.map (fun (p,a) -> (p, ba a)) m)
@@ -493,11 +497,11 @@ let bind_spos_ordinals
     | FixN({ elt = Conv},f) when o = Pos ->
        fixn e.pos (new_ord ()) (bndr_name f)
             (fun x -> ba (bndr_subst f (mk_free P x)))
-    | Memb(t,a)   -> memb e.pos (lift t) (ba a)
-    | Rest(a,c)   -> rest e.pos (ba a) (lift_cond c)
-    | Impl(c,a)   -> impl e.pos (lift_cond c) (ba a)
+    | Memb(t,a)   -> memb e.pos (lift ~adone t) (ba a)
+    | Rest(a,c)   -> rest e.pos (ba a) (lift_cond ~adone c)
+    | Impl(c,a)   -> impl e.pos (lift_cond ~adone c) (ba a)
 
-    | _        -> lift e
+    | _        -> lift ~adone e
     in
     let res = if is_closed res then box e else res in
     res
