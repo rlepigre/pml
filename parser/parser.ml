@@ -306,9 +306,9 @@ let parser expr (m : mode) =
       when m = `Trm`A
       -> in_pos _loc (ECoer(t,a))
   (* Term (type abstraction) *)
-  | "Λ" x:llid ":" s:sort '.' t:(expr (`Trm`F))
+  | "Λ" x:llid s:{":" sort}? '.' t:(expr (`Trm`F))
       when m = `Trm`F
-      -> in_pos _loc (ELamb(x,s,t))
+      -> in_pos _loc (ELamb(x,sort_from_opt s,t))
   (* Term (parentheses) *)
   | "(" t:(expr (`Trm`F)) ")"
       when m = `Trm`A
