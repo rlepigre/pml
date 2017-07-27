@@ -14,11 +14,6 @@ let log_equ = Log.(log_equ.p)
 let log_uni = Log.register 'u' (Some "uni") "unification informations"
 let log_uni = Log.(log_uni.p)
 
-(* Code instrumentation (rough size of expression). *)
-let binary_size : type a. a -> int = fun e ->
-  let open Marshal in
-  String.length (to_string e [Closures])
-
 (* Setting a unification variable. *)
 let uvar_set : type a. a uvar -> a ex loc -> unit = fun u e ->
   log_uni "?%i ← %a" u.uvar_key Print.ex e;

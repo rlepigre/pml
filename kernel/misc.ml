@@ -28,69 +28,6 @@ let assq : type a. a ex -> alist -> a box = fun e l ->
   in
   Chrono.add_time assq_chrono fn l
 
-let closed : type a. ?olist:o ex loc list -> a ex loc -> bool = fun ?(olist=[]) e ->
-  let rec closed : type a. a ex loc -> bool = fun e ->
-    match sort e with (O, e) when Compare.is_in e olist -> false | _ ->
-    match e.elt with
-    | Vari(_)     -> false
-    | HFun(_,_,f) -> bndr_closed f
-    | HApp(_,f,a) -> closed f && closed a
-    | HDef(_,_)   -> true (* assumed closed *)
-    | Func(a,b)   -> closed a && closed b
-    | Prod(m)     -> A.for_all (fun _ (_,a) -> closed a) m
-    | DSum(m)     -> A.for_all (fun _ (_,a) -> closed a) m
-    | Univ(_,f)   -> bndr_closed f
-    | Exis(_,f)   -> bndr_closed f
-    | FixM(o,f)   -> bndr_closed f && closed o
-    | FixN(o,f)   -> bndr_closed f && closed o
-    | Memb(t,a)   -> closed t && closed a
-    | Rest(a,c)   -> closed a && cond_closed c
-    | Impl(c,a)   -> cond_closed c && closed a
-    | LAbs(a,f)   -> bndr_closed f && Option.default_map true closed a
-    | Cons(_,v)   -> closed v
-    | Reco(m)     -> A.for_all (fun _ (_,a) -> closed a) m
-    | Scis        -> true
-    | VDef(_)     -> true (* assumed closed *)
-    | Valu(v)     -> closed v
-    | Appl(t,u)   -> closed t && closed u
-    | MAbs(f)     -> bndr_closed f
-    | Name(s,t)   -> closed s && closed t
-    | Proj(v,_)   -> closed v
-    | Case(v,m)   -> closed v && A.for_all (fun _ (_,f) -> bndr_closed f) m
-    | FixY(f,v)   -> bndr_closed f && closed v
-    | Prnt(_)     -> true
-    | Epsi        -> true
-    | Push(v,s)   -> closed v && closed s
-    | Fram(t,s)   -> closed t && closed s
-    | Zero        -> true
-    | Conv        -> true
-    | Succ(o)     -> closed o
-    | OWMu(o,t,f) -> bndr_closed f && closed o && closed t
-    | OWNu(o,t,f) -> bndr_closed f && closed o && closed t
-    | OSch(o,_,s) -> sch_closed s && Option.default_map true closed o
-    | VTyp(v,a)   -> closed v && closed a
-    | TTyp(t,a)   -> closed t && closed a
-    | VLam(_,f)   -> bndr_closed f
-    | TLam(_,f)   -> bndr_closed f
-    | ITag(_,_)   -> true
-    | Dumm        -> true
-    | VWit(f,a,b) -> bndr_closed f && closed a && closed b
-    | SWit(f,a)   -> bndr_closed f && closed a
-    | UWit(_,t,f) -> bndr_closed f && closed t
-    | EWit(_,t,f) -> bndr_closed f && closed t
-    | UVar(_,_)   -> true
-    | Goal(_,_)   -> true
-  and cond_closed c =
-    match c with
-    | Equiv(t,_,u) -> closed t && closed u
-    | Posit(o)     -> closed o
-    | NoBox(v)     -> closed v
-  and sch_closed sch =
-    match sch with
-    | FixSch({fsch_judge = (f,mf)}) -> bndr_closed f && mbinder_closed mf
-    | SubSch({ssch_judge = mf    }) -> mbinder_closed mf
-  in closed e
-
 exception NotClosed (* raised for ITag *)
 
 let (lift, lift_cond) =
@@ -110,16 +47,13 @@ let (lift, lift_cond) =
       let e = Norm.whnf e in
       try assq e.elt !adone with Not_found ->
         let res =
-          if closed e then box e else
             match e.elt with
             | HDef(_,_)   -> box e (* Assumed closed *)
             | HApp(s,f,a) -> happ e.pos s (lift f) (lift a)
             | HFun(a,b,f) -> hfun e.pos a b (bndr_name f)
                                   (fun x -> lift (bndr_subst f (mk_free a x)))
-            | UWit(s,t,f) -> uwit e.pos (lift t) (bndr_name f) s
-                                  (fun x -> lift (bndr_subst f (mk_free s x)))
-            | EWit(s,t,f) -> ewit e.pos (lift t) (bndr_name f) s
-                                  (fun x -> lift (bndr_subst f (mk_free s x)))
+            | UWit(s,t,f) -> box e
+            | EWit(s,t,f) -> box e
             | UVar(_,_)   -> box e
             | ITag(_,_)   -> box e
             | Goal(_,_)   -> box e
@@ -139,9 +73,7 @@ let (lift, lift_cond) =
             | Rest(a,c)   -> rest e.pos (lift a) (lift_cond ~adone c)
             | Impl(c,a)   -> impl e.pos (lift_cond ~adone c) (lift a)
 
-            | VWit(t,a,b) -> vwit e.pos (bndr_name t)
-                                  (fun x -> lift (bndr_subst t (mk_free V x)))
-                                  (lift a) (lift b)
+            | VWit(t,a,b) -> box e
             | LAbs(a,f)   -> labs e.pos (Option.map lift a) (bndr_name f)
                                   (fun x -> lift (bndr_subst f (mk_free V x)))
             | Cons(c,v)   -> cons e.pos c (lift v)
@@ -180,12 +112,9 @@ let (lift, lift_cond) =
             | Zero        -> box e
             | Conv        -> box e
             | Succ(o)     -> succ e.pos (lift o)
-            | OWMu(o,t,b) -> owmu e.pos (lift o) (lift t) (bndr_name b)
-                                  (fun x -> lift (bndr_subst b (mk_free O x)))
-            | OWNu(o,t,b) -> ownu e.pos (lift o) (lift t) (bndr_name b)
-                                  (fun x -> lift (bndr_subst b (mk_free O x)))
-            | OSch(o,i,s) -> osch e.pos (Option.map lift o) i (lift_schema s)
-
+            | OWMu(o,t,b) -> box e
+            | OWNu(o,t,b) -> box e
+            | OSch(o,i,s) -> box e
             | Vari(_,x)   -> vari e.pos x
             | Dumm        -> box e
         in
@@ -193,7 +122,7 @@ let (lift, lift_cond) =
         adone := Cons(e.elt,res,!adone);
         res
 
-      and lift_fix_schema ({ fsch_index ; fsch_posit ; fsch_relat ; fsch_judge} as fsch) =
+(*      and lift_fix_schema ({ fsch_index ; fsch_posit ; fsch_relat ; fsch_judge} as fsch) =
         let (vb, ob) = fsch_judge in
         let fv x = lift (bndr_subst vb (mk_free V x)) in
         let fo xs = lift (msubst ob (Array.map (mk_free O) xs)) in
@@ -218,7 +147,7 @@ let (lift, lift_cond) =
           | FixSch s -> box_apply (fun x -> FixSch x) (lift_fix_schema s)
           | SubSch s -> box_apply (fun x -> SubSch x) (lift_sub_schema s)
         in
-        if is_closed res then box sch else res
+        if is_closed res then box sch else res*)
 
       in lift e
   in (lift, lift_cond)
@@ -226,6 +155,13 @@ let (lift, lift_cond) =
 type ('a, 'b) mbndr = ('a ex, 'b ex loc) mbinder
 
 exception Found_index of int
+
+let is_wit : type a. a ex loc -> bool = fun e -> match e.elt with
+  | VWit _ -> true
+  | OWMu _ -> true
+  | OWNu _ -> true
+  | UWit _ | EWit _ -> true
+  | _ -> false
 
 let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
   (* Compute the list of all the surface ordinal witnesses. *)
@@ -339,7 +275,6 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
     let e = Norm.whnf e in
     try assq e.elt !adone with Not_found ->
     let res =
-      if closed ~olist:owits e then box e else
       match e.elt with
       | HDef(_,_)   -> box e (* Assumed closed *)
       | HApp(s,f,a) -> happ e.pos s (bind_all f) (bind_all a)
@@ -347,15 +282,15 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
                             (fun x -> bind_all (bndr_subst f (mk_free a x)))
       | UWit(s,t,f) ->
          begin
-           try var_of_ordi_wit s e with Not_found ->
-             uwit e.pos (bind_all t) (bndr_name f) s
-                  (fun x -> bind_all (bndr_subst f (mk_free s x)))
+           try var_of_ordi_wit s e with Not_found -> box e (*
+             uwit e.pos (bind_all t) (bndr_name f) s ~prev:(snd f)
+                  (fun x -> bind_all (bndr_subst f (mk_free s x)))*)
          end
       | EWit(s,t,f) ->
          begin
-           try var_of_ordi_wit s e with Not_found ->
+           try var_of_ordi_wit s e with Not_found -> box e (*
              uwit e.pos (bind_all t) (bndr_name f) s
-                  (fun x -> bind_all (bndr_subst f (mk_free s x)))
+                  (fun x -> bind_all (bndr_subst f (mk_free s x)))*)
          end
       | UVar(_,_)   -> box e
       | ITag(_,_)   -> box e
@@ -376,9 +311,10 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
       | Rest(a,c)   -> rest e.pos (bind_all a) (bind_all_cond c)
       | Impl(c,a)   -> impl e.pos (bind_all_cond c) (bind_all a)
 
-      | VWit(f,a,b) -> vwit e.pos (bndr_name f)
+      | VWit(f,a,b) -> box e (*
+             vwit e.pos (bndr_name f) ~prev:(snd f)
                          (fun x -> bind_all (bndr_subst f (mk_free V x)))
-                         (bind_all a) (bind_all b)
+                         (bind_all a) (bind_all b)*)
       | LAbs(a,f)   -> labs e.pos (Option.map bind_all a) (bndr_name f)
                             (fun x -> bind_all (bndr_subst f (mk_free V x)))
       | Cons(c,v)   -> cons e.pos c (bind_all v)
@@ -411,32 +347,28 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
       | Epsi        -> box e
       | Push(v,s)   -> push e.pos (bind_all v) (bind_all s)
       | Fram(t,s)   -> fram e.pos (bind_all t) (bind_all s)
-      | SWit(f,a)   -> swit e.pos (bndr_name f)
+      | SWit(f,a)   -> box e (*swit e.pos (bndr_name f)
                             (fun x -> bind_all (bndr_subst f (mk_free S x)))
-                            (bind_all a)
+                            (bind_all a)*)
       | Zero        -> box e
       | Conv        -> box e
       | Succ(o)     -> succ e.pos (bind_all o)
       | OWMu(o,t,f) ->
          begin
-           try var_of_ordi_wit O e with Not_found ->
-             owmu e.pos (bind_all o) (bind_all t) (bndr_name f)
-                  (fun x -> bind_all (bndr_subst f (mk_free O x)))
+           try var_of_ordi_wit O e with Not_found -> box e
          end
       | OWNu(o,t,f) ->
          begin
-           try var_of_ordi_wit O e with Not_found ->
-             ownu e.pos (bind_all o) (bind_all t) (bndr_name f)
-                  (fun x -> bind_all (bndr_subst f (mk_free O x)))
+           try var_of_ordi_wit O e with Not_found -> box e
          end
       | OSch(o,i,sch) ->
          begin
-           try var_of_ordi_wit O e with Not_found ->
-             osch e.pos (Option.map bind_all o) i (box sch)
+           try var_of_ordi_wit O e with Not_found -> box e
          end
       | Vari(_,x)   -> vari e.pos x
       | Dumm        -> box e
     in
+    let res = if is_closed res then box e else res in
     adone := Cons(e.elt,res,!adone);
     res
   in

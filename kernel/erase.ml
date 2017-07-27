@@ -2,6 +2,7 @@
 
 open Bindlib
 open Pos
+open Output
 open Sorts
 open Ast
 open Eval

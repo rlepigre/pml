@@ -426,7 +426,7 @@ let succ : popt -> obox -> obox =
   fun p -> box_apply (fun o -> Pos.make p (Succ(o)))
 
 (** {5 other constructors} *)
-
+(*
 let uwit : type a. popt -> tbox -> strloc -> a sort -> (a var -> pbox)
              -> a box =
   fun p t x s f ->
@@ -452,6 +452,7 @@ let ownu : popt -> obox -> tbox -> strloc -> (ovar -> pbox) -> obox =
 let osch : type a. popt -> obox option -> int -> schema Bindlib.bindbox -> obox =
   fun p o i sch ->
     box_apply2 (fun o sch -> Pos.make p (OSch(o,i,sch))) (box_opt o) sch
+ *)
 
 let goal : type a. popt -> a sort -> string -> a ex loc bindbox =
   fun p s str -> box (Pos.make p (Goal(s,str)))

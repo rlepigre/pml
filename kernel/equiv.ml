@@ -915,7 +915,8 @@ let proj_eps : valu -> string -> valu = fun v l ->
                    (proj None (box v) (Pos.none l))
   in
   let bndr x = rest None unit_prod (eq x) in
-  unbox (ewit None (valu None unit_reco) (Pos.none "x") V bndr)
+  Pos.none (EWit(V, Pos.none (Valu(Pos.none (Reco A.empty))),
+                 (None, unbox (vbind (mk_free V) "x" bndr))))
 
 let find_proj : pool -> valu -> string -> valu * pool = fun po v l ->
   try
