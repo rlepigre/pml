@@ -54,7 +54,8 @@ let cname : type a. a ex loc -> string = fun e ->
   | VDef _ -> "VDef"
   | Valu _ -> "Valu"
   | Appl _ -> "Appl"
-  | MAbs  _ -> "MAbs "
+  | Sequ _ -> "Sequl"
+  | MAbs _ -> "MAbs "
   | Name _ -> "Name"
   | Proj _ -> "Proj"
   | Case _ -> "Case"
@@ -163,6 +164,7 @@ let print_ex : type a. a ex loc printer = fun ch e ->
     | Valu(v)     -> if !print_full then output_string ch "↑";
                      print_ex ch v
     | Appl(t,u)   -> fprintf ch "(%a) (%a)" print_ex t print_ex u
+    | Sequ(t,u)   -> fprintf ch "(%a);(%a)" print_ex t print_ex u
     | MAbs(b)     -> let (x,t) = unbind (mk_free S) (snd b) in
                      fprintf ch "μ%s.%a" (name_of x) print_ex t
     | Name(s,t)   -> fprintf ch "[%a]%a" print_ex s print_ex t

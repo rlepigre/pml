@@ -64,6 +64,9 @@ let tvalu : e_vbox -> e_tbox =
 let tappl : e_tbox -> e_tbox -> e_tbox =
   box_apply2 (fun t u -> TAppl(t,u))
 
+let tsequ : e_tbox -> e_tbox -> e_tbox =
+  fun t u -> tappl (tvalu (vlabs "_" (fun _ -> u))) t
+
 let tmabs : string -> (e_svar -> e_tbox) -> e_tbox =
   fun x f -> box_apply (fun b -> TMAbs(b)) (vbind mk_svari x f)
 

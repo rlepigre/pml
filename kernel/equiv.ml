@@ -414,6 +414,9 @@ let rec add_term : pool -> term -> TPtr.t * pool = fun po t ->
                    let (pu, po) = add_term po u in
                    let (pp, po) = insert_t_node (TN_Appl(pt,pu)) po in
                    (pp, po)
+  | Sequ(t,u)   -> let b = bndr_from_fun "_" (fun _ -> u.elt) in
+                   let v = Pos.none (LAbs(None, b)) in
+                   add_term po (Pos.none (Appl(Pos.none (Valu(v)),t)))
   | MAbs(b)     -> insert_t_node (TN_MAbs(b)) po
   | Name(s,t)   -> let (pt, po) = add_term po t in
                    let (pp, po) = insert_t_node (TN_Name(s,pt)) po in

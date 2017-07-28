@@ -43,6 +43,7 @@ and     term_erasure : term -> e_tbox = fun t ->
   | HDef(_,d) -> term_erasure d.expr_def
   | Valu(v)   -> tvalu (valu_erasure v)
   | Appl(t,u) -> tappl (term_erasure t) (term_erasure u)
+  | Sequ(t,u) -> tsequ (term_erasure t) (term_erasure u)
   | MAbs(b)   -> let f x =
                    let x = copy_var x (name_of x) (mk_free S) in
                    term_erasure (bndr_subst b (free_of x))
