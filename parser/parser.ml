@@ -240,17 +240,16 @@ let parser expr (m : mode) =
   | t:(expr (`Trm`Ap)) u:(expr (`Trm`A))
       when m = `Trm`Ap
       -> in_pos _loc (EAppl(t,u))
-  (* Let binding. *)
+  (* Term (tet binding) *)
   | _let_ id:llid_wc a:{':' a:(expr (`Prp`A))}? '='
           t:(expr (`Trm`F)) _in_ u:(expr (`Trm`F))
       when m = `Trm`F
       -> let f = ELAbs(((id, a), []), u) in
          in_pos _loc (EAppl(Pos.none f, t))
-  (* Sequencing. *)
+  (* Term (Sequencing). *)
   | t:(expr (`Trm`Ap)) ';' u:(expr (`Trm`S))
       when m = `Trm`S
-      -> let f = ELAbs(((Pos.none "_", None), []), u) in
-         in_pos _loc (EAppl(Pos.none f, t))
+      -> in_pos _loc (ESequ(t,u))
   (* Term (mu abstraction) *)
   | _save_ args:llid+ arrow t:(expr (`Trm`F))
       when m = `Trm`F

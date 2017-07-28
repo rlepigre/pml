@@ -307,6 +307,10 @@ let valu : popt -> vbox -> tbox =
 let appl : popt -> tbox -> tbox -> tbox =
   fun p -> box_apply2 (fun t u -> Pos.make p (Appl(t,u)))
 
+let sequ : popt -> tbox -> tbox -> tbox =
+  fun p t u ->
+    appl p (valu None (labs None None (Pos.none "_") (fun _ -> u))) t
+
 let mabs : popt -> strloc -> (svar -> tbox) -> tbox =
   fun p x f ->
     let b = vbind (mk_free S) x.elt f in

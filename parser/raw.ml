@@ -167,6 +167,7 @@ and raw_ex' =
   | EReco of (strloc * raw_ex * flag) list
   | EScis
   | EAppl of raw_ex * raw_ex
+  | ESequ of raw_ex * raw_ex
   | EMAbs of strloc ne_list * raw_ex
   | EName of raw_ex * raw_ex
   | EProj of raw_ex * flag * strloc
@@ -220,6 +221,7 @@ let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
                          (print_list aux_rec "; ") l
     | EScis         -> Printf.fprintf ch "EScis"
     | EAppl(t,u)    -> Printf.fprintf ch "EAppl(%a,%a)" print t print u
+    | ESequ(t,u)    -> Printf.fprintf ch "ESequ(%a,%a)" print t print u
     | EMAbs(args,t) -> Printf.fprintf ch "EMAbs([%a],%a)"
                          (print_list aux_var "; ")
                          (ne_list_to_list args) print t
@@ -503,6 +505,9 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
     | (EAppl(t,u)   , ST       ) -> infer env vars t s; infer env vars u s
     | (EAppl(_,_)   , SUni(r)  ) -> sort_uvar_set r _st; infer env vars e s
     | (EAppl(_,_)   , _        ) -> sort_clash e s
+    | (ESequ(t,u)   , ST       ) -> infer env vars t s; infer env vars u s
+    | (ESequ(_,_)   , SUni(r)  ) -> sort_uvar_set r _st; infer env vars e s
+    | (ESequ(_,_)   , _        ) -> sort_clash e s
     | (EMAbs(args,t), ST       ) ->
         begin
           let fn vs x =
@@ -851,6 +856,10 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
         let t = to_term (unsugar env vars t _st) in
         let u = to_term (unsugar env vars u _st) in
         Box(T, appl e.pos t u)
+    | (ESequ(t,u)   , ST       ) ->
+        let t = to_term (unsugar env vars t _st) in
+        let u = to_term (unsugar env vars u _st) in
+        Box(T, sequ e.pos t u)
     | (EMAbs(args,t), ST       ) ->
         begin
           match args with
