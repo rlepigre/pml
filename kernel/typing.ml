@@ -357,8 +357,15 @@ let rec subtype =
               try snd (A.find c cs2) with Not_found ->
               subtype_msg p ("Sum clash on constructor " ^ c ^ "...")
             in
-            (* FIXME: use vdot and get the value from the pool *)
-            let p = subtype ctx (tdot t c) a1 a2 in
+            let wit =
+              let f = bndr_from_fun "x" (fun x -> Valu(Pos.none x)) in
+              Pos.none (VWit(f, a, a))
+            in
+            let equations =
+              learn ctx.equations (Equiv(t,true,Pos.none (Valu(wit))))
+            in
+            let ctx = { ctx with equations } in
+            let p = subtype ctx (vdot wit c) a1 a2 in
             p::ps
           in
           let ps = A.fold check_variant cs1 [] in

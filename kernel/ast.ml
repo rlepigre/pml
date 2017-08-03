@@ -429,35 +429,6 @@ let conv : popt -> obox =
 let succ : popt -> obox -> obox =
   fun p -> box_apply (fun o -> Pos.make p (Succ(o)))
 
-(** {5 other constructors} *)
-(*
-let uwit : type a. popt -> tbox -> strloc -> a sort -> (a var -> pbox)
-             -> a box =
-  fun p t x s f ->
-    let b = vbind (mk_free s) x.elt f in
-    box_apply2 (fun t b -> Pos.make p (UWit(s, t, (x.pos, b)))) t b
-
-let ewit : type a. popt -> tbox -> strloc -> a sort -> (a var -> pbox)
-             -> a box =
-  fun p t x s f ->
-    let b = vbind (mk_free s) x.elt f in
-    box_apply2 (fun t b -> Pos.make p (EWit(s, t, (x.pos, b)))) t b
-
-let owmu : popt -> obox -> tbox -> strloc -> (ovar -> pbox) -> obox =
-  fun p o t x f ->
-    let b = vbind (mk_free O) x.elt f in
-    box_apply3 (fun o t b -> Pos.make p (OWMu(o,t,(x.pos, b)))) o t b
-
-let ownu : popt -> obox -> tbox -> strloc -> (ovar -> pbox) -> obox =
-  fun p o t x f ->
-    let b = vbind (mk_free O) x.elt f in
-    box_apply3 (fun o t b -> Pos.make p (OWNu(o,t,(x.pos, b)))) o t b
-
-let osch : type a. popt -> obox option -> int -> schema Bindlib.bindbox -> obox =
-  fun p o i sch ->
-    box_apply2 (fun o sch -> Pos.make p (OSch(o,i,sch))) (box_opt o) sch
- *)
-
 let goal : type a. popt -> a sort -> string -> a ex loc bindbox =
   fun p s str -> box (Pos.make p (Goal(s,str)))
 
@@ -471,8 +442,8 @@ let fschm : Scp.index -> int list -> (int * int) list ->
     in
     box_apply2 fn (vbind (mk_free V) x.elt fx) (mvbind (mk_free O) xs fxs)
 
-let sschm : Scp.index -> int list -> (int * int) list ->
-             string array -> (omvar -> (p ex loc * p ex loc) bindbox) -> sub_schema bindbox =
+let sschm : Scp.index -> int list -> (int * int) list -> string array
+            -> (omvar -> (p ex loc * p ex loc) bindbox) -> sub_schema bindbox =
   fun ssch_index ssch_posit ssch_relat xs fxs ->
     let fn ssch_judge =
       { ssch_index; ssch_posit; ssch_relat; ssch_judge }
@@ -559,7 +530,7 @@ let build_t_fixy : (v,t) bndr -> term = fun b ->
 
 
 let rec sort : type a b. a ex loc ->  a sort * a ex loc= fun e ->
-  match e.elt with (* FIXME there was a Norm.whnf. Was it required?! *)
+  match e.elt with
   | HDef(s,_)   -> (s, e)
   | HApp(d,u,v) -> let (F(_,s),_) = sort u in (s,e)
   | HFun(d,c,r) -> (F(d, c), e)
@@ -626,12 +597,6 @@ let isTerm : type a.a ex loc -> t ex loc option = fun e ->
   | (V,e) -> Some (Pos.none (Valu e))
   | (T,e) -> Some e
   | _     -> None
-
-(* FIXME should disapear *)
-let tdot : term -> string -> term = fun t c ->
-  let f x = valu None (vari None x) in
-  let id = (None, Pos.none "x", f) in
-  unbox (t_case None (box t) (A.singleton c id))
 
 let vdot : valu -> string -> term = fun v c ->
   let f x = valu None (vari None x) in
