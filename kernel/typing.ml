@@ -242,12 +242,17 @@ let is_conv : ordi -> bool = fun o ->
   | Conv -> true
   | _    -> false
 
+let type_chrono = Chrono.create "typing"
+let sub_chrono = Chrono.create "subtyping"
+let check_fix_chrono = Chrono.create "chkfix"
+let check_sub_chrono = Chrono.create "chksub"
+
 type check_sub =
   | Sub_Applies of sub_rule
   | Sub_New of ctxt * (prop * prop)
 
-let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
-  fun ctx t a b ->
+let rec subtype =
+  let rec subtype : ctxt -> term -> prop -> prop -> sub_proof = fun ctx t a b ->
     log_sub "proving the subtyping judgment:\n  %a\n  ⊢ %a\n  ∈ %a\n  ⊆ %a (%d, %d, %d)"
             print_pos ctx.positives Print.ex t Print.ex a Print.ex b
             (Size.binary_size t) (Size.binary_size a) (Size.binary_size b);
@@ -301,7 +306,7 @@ let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
           let b = bndr_subst f (FixN(o',f)) in
           Sub_FixN_r(false, subtype ctx t a b)
       | _ ->
-      match  check_sub ctx a b with
+      match Chrono.add_time check_sub_chrono (check_sub ctx a) b with
       | Sub_Applies prf    -> prf
       | Sub_New(ctx,(a,b)) ->
       match (a.elt, b.elt) with
@@ -447,6 +452,8 @@ let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
     with
     | Subtype_error _ as e -> raise e
     | e -> subtype_error t a b e
+  in
+  fun ctx t a b -> Chrono.add_time sub_chrono (subtype ctx t a) b
 
 and gen_subtype : ctxt -> prop -> prop -> sub_rule =
   fun ctx a b ->
@@ -525,10 +532,14 @@ and check_fix : ctxt -> valu -> (v, t) bndr -> prop -> typ_proof = fun ctx v b c
         begin
           try
             (* An induction hypothesis has been found. *)
-            log_typ "an induction hypothesis has been found";
-            (* Elimination of the schema, and unification with goal type. *)
             let spe = elim_fix_schema ctx ih in
-            let prf = subtype ctx (build_t_fixy b) (snd spe.fspe_judge) c in
+            log_typ "an induction hypothesis has been found, trying\n   %a\n < %a"
+                    Print.ex (snd spe.fspe_judge) Print.ex c;
+            let prf =
+              Chrono.add_time type_chrono
+                              (subtype ctx (build_t_fixy b)
+                                       (snd spe.fspe_judge)) c
+            in
             ignore prf; (* FIXME keep the proof prf *)
             log_typ "it matches\n%!";
             (* Check positivity of ordinals. *)
@@ -566,7 +577,7 @@ and check_fix : ctxt -> valu -> (v, t) bndr -> prop -> typ_proof = fun ctx v b c
       let ctx = {ctx with top_ih = (sch.fsch_index, spe.fspe_param)} in
       (* Unrolling of the fixpoint and proof continued. *)
       let t = bndr_subst b (build_v_fixy b).elt in
-      type_term ctx t (snd spe.fspe_judge)
+      Chrono.add_time type_chrono (type_term ctx t) (snd spe.fspe_judge)
     end
   else find_suitable ihs
 
@@ -717,7 +728,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
               | _         -> c
             in
             let c = break_univ c in
-            let p = check_fix ctx v b c in
+            let p = Chrono.add_time check_fix_chrono (check_fix ctx v b) c in
             Typ_FixY(p)
          (* General case for typing λ-abstraction *)
          | _                      ->
@@ -1007,8 +1018,6 @@ let type_check : term -> prop -> prop * typ_proof = fun t a ->
   let l = uvars a in
   assert(l = []); (* FIXME #44 *)
   (Norm.whnf a, prf)
-
-let type_chrono = Chrono.create "typing"
 
 let type_check t = Chrono.add_time type_chrono (type_check t)
 

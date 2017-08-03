@@ -8,7 +8,7 @@ let time : (float -> unit) -> ('a -> 'b) -> 'a -> 'b = fun rt fn x ->
   try let res = fn x in rt (unix_time () -. t); res
   with e -> rt (unix_time () -. t); raise e
 
-type t_aux = { name : string ; active : bool ; time : float ; count : int }
+type t_aux = { name : string ; time : float ; count : int }
 type t = t_aux ref
 type chrono = t
 
@@ -19,7 +19,7 @@ let get_count : t -> int    = fun p -> (!p).count
 let all_chronos : t list ref = ref []
 
 let create name =
-  let st = { name ; active = false ; time = 0.0 ; count = 0 } in
+  let st = { name ; time = 0.0 ; count = 0 } in
   let chr = ref st in all_chronos := chr :: !all_chronos; chr
 
 type state = t_aux list
@@ -27,7 +27,7 @@ type state = t_aux list
 let save_state () =
   let fn chr =
     let r = !chr in
-    chr := { r with active = false ; time = 0.0 ; count = 0 }; r
+    chr := { r with time = 0.0 ; count = 0 }; r
   in
   List.map fn !all_chronos
 
@@ -44,20 +44,19 @@ let pop_time t0 t1 =
 
 let add_time p f x =
   let st = !p in
-  if st.active then f x else
   let ut = unix_time () in
-  p := { st with active = true ; count = st.count + 1 };
+  p := { st with count = st.count + 1 };
   let ud0 = !chrono_stack in
   try
     let r = f x in
     let t = pop_time ud0 ut in
     let st = !p in
-    p := { st with active = false ; time = st.time +. t };
+    p := { st with time = st.time +. t };
     r
   with e ->
     let t = pop_time ud0 ut in
     let st = !p in
-    p := { st with active = false ; time = st.time +. t };
+    p := { st with time = st.time +. t };
     raise e
 
 let iter fn =

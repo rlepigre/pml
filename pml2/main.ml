@@ -257,7 +257,7 @@ let _ =
         | (Some pa, Some pb) -> err_msg "  %s(%a) ⊂ (%a)%s" l pp pa pp pb r
         | (_      , _      ) -> ()
       end;
-      err_msg "  %s%a ⊂ %a%s" l Print.ex a Print.ex b r  
+      err_msg "  %s%a ⊂ %a%s" l Print.ex a Print.ex b r
   | e ->
       err_msg "Unexpected exception [%s]." (Printexc.to_string e);
       err_msg "%t" Printexc.print_backtrace;
@@ -272,8 +272,8 @@ let _ =
     begin
       let f name t c =
         total := !total +. t;
-        Printf.eprintf "%8s: %8.2fs %8d\n" name t c
+        Printf.eprintf "%10s: %8.2fs %8d\n" name t c
       in
       Chrono.iter f;
-      Printf.eprintf "%8s: %8.2fs\n" "total" !total
+      Printf.eprintf "%10s: %8.2fs\n" "total" !total
     end
