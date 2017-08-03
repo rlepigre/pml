@@ -39,7 +39,7 @@ val rec succ_even_unrelevant : ∀n∈evens, succ_even n ≡ {} = fun n →
     S[p] →
       case p {
         Z[_] → ✂
-        S[r] → succ_even_unrelevant n
+        S[r] → succ_even_unrelevant r
       }
   }
 
