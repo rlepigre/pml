@@ -86,7 +86,7 @@ type typ_rule =
   | Typ_Mu     of typ_proof
   | Typ_Scis
   | Typ_FixY   of typ_proof
-  | Typ_Ind    of fix_schema
+  | Typ_Ind    of fix_schema * sub_proof
   | Typ_Goal   of string
   | Typ_Prnt   of sub_proof
 
@@ -123,7 +123,7 @@ and sub_proof = term * prop * prop * sub_rule
 let learn_nobox : ctxt -> valu -> ctxt = fun ctx v ->
   { ctx with equations =  { pool = add_nobox v ctx.equations.pool } }
 
-(* add to the context some conditions.
+(* Add to the context some conditions.
    A condition c is added if c false implies wit in a is false.
    as wit may be assumed not box, if c false implies a = Box,
    c can be added *)
@@ -153,17 +153,17 @@ let rec learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
             learn_equivalences ctx v b
           with Not_found -> assert false (* NOTE check *)
      end
+  (** Learn positivity of the ordinal *)
   | FixM(o,f)  ->
       let bound =
         match (Norm.whnf o).elt with
         | Succ(o) -> Some o
         | _       ->
-            let o' = (* FIXME check *)
-              let f o = bndr_subst f (FixM(Pos.none o, f)) in
-              let f = binder_from_fun "o" f in
-              Pos.none (OWMu(o,twit,(None,f)))
-            in
-            Some o'
+           (** We know that o is positive and wit in a
+               so we can build an eps < o *)
+           let f o = bndr_subst f (FixM(Pos.none o, f)) in
+           let f = binder_from_fun "o" f in
+           Some (Pos.none (OWMu(o,twit,(None,f))))
       in add_positive ctx o bound
   | _          -> ctx
 
@@ -492,7 +492,7 @@ and check_sub : ctxt -> prop -> prop -> check_sub = fun ctx a b ->
             let ok =
               List.for_all (Ordinal.is_pos ctx.positives) spe.sspe_posit
             in
-            (* FIXME check relations *)
+            (* FIXME #56 check relations *)
             if not ok then raise Exit;
             (* Add call to call-graph and build the proof. *)
             add_call ctx (ih.ssch_index, spe.sspe_param) true;
@@ -507,9 +507,9 @@ and check_sub : ctxt -> prop -> prop -> check_sub = fun ctx a b ->
         in
         log_sub "no suitable induction hypothesis";
         match a.elt, b.elt with
-        (* TODO: to avoid the restiction uvars a = [] && uvars b = [] below,
-                 subml introduces unification variables parametrised by the
-                 generalised ordinals *)
+        (* TODO #57 to avoid the restiction uvars a = [] && uvars b = [] below,
+           subml introduces unification variables parametrised by the
+           generalised ordinals *)
         | ((FixM _ | FixN _), _) | (_, (FixM _ | FixN _)) when no_uvars () ->
            (* Construction of a new schema. *)
            let (sch, os) = sub_generalise ctx a b in
@@ -550,17 +550,16 @@ and check_fix : ctxt -> valu -> (v, t) bndr -> prop -> typ_proof =
                               (subtype ctx (build_t_fixy b)
                                        (snd spe.fspe_judge)) c
             in
-            ignore prf; (* FIXME keep the proof prf *)
             log_typ "it matches\n%!";
             (* Check positivity of ordinals. *)
             let ok =
               List.for_all (Ordinal.is_pos ctx.positives) spe.fspe_posit
             in
-            (* FIXME check relations *)
+            (* FIXME #56 check relations *)
             if not ok then raise Exit;
             (* Add call to call-graph and build the proof. *)
             add_call ctx (ih.fsch_index, spe.fspe_param) true;
-            (build_t_fixy b, c, Typ_Ind(ih))
+            (build_t_fixy b, c, Typ_Ind(ih,prf))
           with Subtype_error _ | Exit -> find_suitable ihs
         end
     | []      ->
@@ -657,7 +656,7 @@ and elim_sub_schema : ctxt -> sub_schema -> sub_specialised =
 and inst_fix_schema : ctxt -> fix_schema -> ordi array -> fix_specialised =
   fun ctx sch os ->
   let arity = mbinder_arity (snd sch.fsch_judge) in
-    (* FIXME; FIXME; ... None replaced by the relation if any *)
+    (* FIXME #56 None replaced by the relation if any *)
     let fn i = Pos.none (OSch(None, i, FixSch sch)) in
     let fspe_param = Array.init arity fn in
     let xs = Array.map (fun e -> e.elt) fspe_param in
@@ -670,7 +669,7 @@ and inst_fix_schema : ctxt -> fix_schema -> ordi array -> fix_specialised =
 and inst_sub_schema : ctxt -> sub_schema -> ordi array -> sub_specialised =
   fun ctx sch os ->
     let arity = mbinder_arity sch.ssch_judge in
-    (* FIXME; FIXME; ... None replaced by the relation if any *)
+    (* FIXME #56 None replaced by the relation if any *)
     let fn i = Pos.none (OSch(None, i, SubSch sch)) in
     let sspe_param = Array.init arity fn in
     let xs = Array.map (fun e -> e.elt) sspe_param in
@@ -731,7 +730,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
          | FixY(b,{elt = Vari(V,y)}) ->
             assert(eq_vars x y); (* x must not be free in b *)
             let w = Pos.none (Valu(v)) in
-            (* FIXME UWit only with value? *)
+            (* NOTE UWit is almost always use with value *)
             let rec break_univ c =
               match (Norm.whnf c).elt with
               | Univ(O,f) -> break_univ (bndr_subst f (UWit(O,w,f)))
