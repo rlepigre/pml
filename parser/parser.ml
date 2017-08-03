@@ -375,17 +375,17 @@ let expr = expr `Any
 (** Toplevel. *)
 let parser toplevel =
   | _sort_ id:llid '=' s:sort
-    -> sort_def id s
+    -> fun () -> sort_def id s
   | _def_  id:llid args:sort_args s:{':' sort}? '=' e:expr
-    -> expr_def id args s e
+    -> fun () -> expr_def id args s e
   | _type_ r:is_rec id:llid args:sort_args '=' e:expr
-    -> type_def _loc r id args e
+    -> fun () -> type_def _loc r id args e
   | _val_ r:is_rec id:llid ':' a:expr '=' t:expr
-    -> val_def r id a t
+    -> fun () -> val_def r id a t
   | _check_ r:{"¬" -> false}?[true] a:expr "⊂" b:expr
-    -> check_sub a r b
+    -> fun () -> check_sub a r b
   | _include_ p:path
-    -> include_file p
+    -> fun () -> include_file p
 and sort_arg =
   | id:llid so:{":" s:sort}?
 and sort_args =
@@ -396,7 +396,7 @@ exception No_parse of pos * string option
 
 let parse_file fn =
   let open Earley in
-  try parse_file (parser toplevel*) blank fn
+  try List.map (fun act -> act ()) (parse_file (parser toplevel*) blank fn)
   with Parse_error(buf, pos, msgs) ->
     let pos = Pos.locate buf pos buf pos in
     let msg =
