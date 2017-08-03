@@ -72,7 +72,6 @@ let uvar_iter : type a. bool -> uvar_fun -> a ex loc -> unit =
     | VDef(_)     -> () (* NOTE no unification variable in definition. *)
     | Valu(v)     -> uvar_iter v
     | Appl(t,u)   -> uvar_iter t; uvar_iter u
-    | Sequ(t,u)   -> uvar_iter t; uvar_iter u
     (* NOTE type annotation ignored. *)
     | MAbs(b)     -> buvar_iter b
     | Name(s,t)   -> uvar_iter s; uvar_iter t
@@ -287,7 +286,6 @@ let {eq_expr; eq_bndr; eq_ombinder} =
         eq_expr e1 (Erase.to_valu d2.value_eval)
     | (Valu(v1)      , Valu(v2)      ) -> eq_expr v1 v2
     | (Appl(t1,u1)   , Appl(t2,u2)   ) -> eq_expr t1 t2 && eq_expr u1 u2
-    | (Sequ(t1,u1)   , Sequ(t2,u2)   ) -> eq_expr t1 t2 && eq_expr u1 u2
     (* NOTE type annotation ignored. *)
     | (MAbs(b1)      , MAbs(b2)      ) -> eq_bndr S b1 b2
     | (Name(s1,t1)   , Name(s2,t2)   ) -> eq_expr s1 s2 && eq_expr t1 t2

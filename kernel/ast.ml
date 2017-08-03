@@ -71,8 +71,6 @@ type _ ex =
   (** Value as a term. *)
   | Appl : t ex loc * t ex loc                     -> t  ex
   (** Application. *)
-  | Sequ : t ex loc * t ex loc                     -> t  ex
-  (** Sequencing. *)
   | MAbs : (s, t) bndr                             -> t  ex
   (** Mu abstraction. *)
   | Name : s ex loc * t ex loc                     -> t  ex
@@ -310,7 +308,8 @@ let appl : popt -> tbox -> tbox -> tbox =
   fun p -> box_apply2 (fun t u -> Pos.make p (Appl(t,u)))
 
 let sequ : popt -> tbox -> tbox -> tbox =
-  fun p -> box_apply2 (fun t u -> Pos.make p (Sequ(t,u)))
+  fun p t u ->
+    appl p (valu None (labs None None (Pos.none "_") (fun _ -> u))) t
 
 let mabs : popt -> strloc -> (svar -> tbox) -> tbox =
   fun p x f ->
@@ -592,7 +591,6 @@ let rec sort : type a b. a ex loc ->  a sort * a ex loc= fun e ->
 
   | Valu _      -> (T,e)
   | Appl _      -> (T,e)
-  | Sequ _      -> (T,e)
   | MAbs _      -> (T,e)
   | Name _      -> (T,e)
   | Proj _      -> (T,e)

@@ -86,7 +86,6 @@ let (lift, lift_cond) =
 
             | Valu(v)     -> valu e.pos (lift v)
             | Appl(t,u)   -> appl e.pos (lift t) (lift u)
-            | Sequ(t,u)   -> sequ e.pos (lift t) (lift u)
             | MAbs(f)     -> mabs e.pos (bndr_name f)
                                   (fun x -> lift (bndr_subst f (mk_free S x)))
             | Name(s,t)   -> name e.pos (lift s) (lift t)
@@ -215,7 +214,6 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
 
     | Valu(v)     -> owits acc v
     | Appl(t,u)   -> owits (owits acc t) u
-    | Sequ(t,u)   -> owits (owits acc t) u
     | MAbs(f)     -> owits acc (bndr_subst f Dumm)
     | Name(s,t)   -> owits (owits acc s) t
     | Proj(v,_)   -> owits acc v
@@ -329,7 +327,6 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
 
       | Valu(v)     -> valu e.pos (bind_all v)
       | Appl(t,u)   -> appl e.pos (bind_all t) (bind_all u)
-      | Sequ(t,u)   -> sequ e.pos (bind_all t) (bind_all u)
       | MAbs(f)     -> mabs e.pos (bndr_name f)
                             (fun x -> bind_all (bndr_subst f (mk_free S x)))
       | Name(s,t)   -> name e.pos (bind_all s) (bind_all t)

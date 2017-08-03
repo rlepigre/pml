@@ -84,7 +84,6 @@ type typ_rule =
   | Typ_Prod_e of typ_proof
   | Typ_Name   of typ_proof * stk_proof
   | Typ_Mu     of typ_proof
-  | Typ_Sequ   of typ_proof * typ_proof
   | Typ_Scis
   | Typ_FixY   of typ_proof
   | Typ_Ind    of fix_schema
@@ -128,22 +127,22 @@ let learn_nobox : ctxt -> valu -> ctxt = fun ctx v ->
    A condition c is added if c false implies wit in a is false.
    as wit may be assumed not box, if c false implies a = Box,
    c can be added *)
-let rec learn_equivs : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
+let rec learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
   let twit = Pos.none (Valu wit) in
   match (Norm.whnf a).elt with
-  | HDef(_,e) -> learn_equivs ctx wit e.expr_def
-  | Memb(t,a) -> let equations = learn ctx.equations (Equiv(twit, true, t)) in
-                 learn_equivs {ctx with equations} wit a
-  | Rest(a,c) -> let equations = learn ctx.equations c in
-                 learn_equivs {ctx with equations} wit a
-  | Exis(s,f) -> let t = EWit(s,twit,f) in
-                 learn_equivs ctx wit (bndr_subst f t)
-  | Prod(fs)  ->
+  | HDef(_,e)  -> learn_equivalences ctx wit e.expr_def
+  | Memb(t,a)  -> let equations = learn ctx.equations (Equiv(twit, true, t)) in
+                  learn_equivalences {ctx with equations} wit a
+  | Rest(a,c)  -> let equations = learn ctx.equations c in
+                  learn_equivalences {ctx with equations} wit a
+  | Exis(s, f) -> let t = EWit(s,twit,f) in
+                  learn_equivalences ctx wit (bndr_subst f t)
+  | Prod(fs)   ->
      A.fold (fun lbl (_, b) ctx ->
          let (v,pool) =  find_proj ctx.equations.pool wit lbl in
          let ctx = { ctx with equations = { pool } } in
-         learn_equivs ctx v b) fs ctx
-  | DSum(fs)  ->
+         learn_equivalences ctx v b) fs ctx
+  | DSum(fs)   ->
      begin
        match find_sum ctx.equations.pool wit with
        | None -> ctx
@@ -151,10 +150,10 @@ let rec learn_equivs : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
           try
             let (_, b) = A.find s fs in
             let ctx = { ctx with equations = { pool } } in
-            learn_equivs ctx v b
+            learn_equivalences ctx v b
           with Not_found -> assert false (* NOTE check *)
      end
-  | FixM(o,f) ->
+  | FixM(o,f)  ->
       let bound =
         match (Norm.whnf o).elt with
         | Succ(o) -> Some o
@@ -166,17 +165,7 @@ let rec learn_equivs : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
             in
             Some o'
       in add_positive ctx o bound
-  | _         -> ctx
-
-let rec wlearn_equivs : ctxt -> term -> prop -> ctxt = fun ctx t a ->
-  match (Norm.whnf a).elt with
-  | HDef(_,e) -> wlearn_equivs ctx t e.expr_def
-  | Rest(a,c) -> let equations = learn ctx.equations c in
-                 wlearn_equivs {ctx with equations} t a
-  | Exis(s,f) -> let u = EWit(s,t,f) in
-                 wlearn_equivs ctx t (bndr_subst f u)
-  | Prod(fs)  -> A.fold (fun _ (_,b) ctx -> wlearn_equivs ctx t b) fs ctx
-  | _         -> ctx
+  | _          -> ctx
 
 let rec is_singleton : prop -> term option = fun t ->
   match (Norm.whnf t).elt with
@@ -746,7 +735,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
             begin
               try
                 let ctx = learn_nobox ctx (Pos.none wit) in
-                let ctx = learn_equivs ctx (Pos.none wit) a in
+                let ctx = learn_equivalences ctx (Pos.none wit) a in
                 let ctx = learn_neg_equivalences ctx v (Some twit) c in
                 let p2 = type_term ctx (bndr_subst f wit) b in
                 Typ_Func_i(p1,Some p2)
@@ -849,20 +838,12 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
         let (is_val, ctx) = term_is_value u ctx in
         let ae = if is_val then Pos.none (Memb(u, a)) else a in
         let p2 = type_term ctx u a in
-        (* NOTE: should learn_equivs from the type of t, and
+        (* NOTE: should learn_equivalences from the type of t, and
            use these equivalences while typing u. Would require to
            type t first and u second which breaks a lot of examples currently.
            Only useful for Scott integer and similar inductive type  *)
         let p1 = type_term ctx t (Pos.none (Func(ae,c))) in
         if is_val then Typ_Func_s(p1,p2) else Typ_Func_e(p1,p2)
-    (* Sequencing. *)
-    | Sequ(t,u)   ->
-        let a = new_uvar ctx P in
-        let p1 = type_term ctx t a in
-        (* FIXME *)
-        let ctx = wlearn_equivs ctx t a in
-        let p2 = type_term ctx u c in
-        Typ_Sequ(p1,p2)
     (* μ-abstraction. *)
     | MAbs(b)     ->
         let t = bndr_subst b (SWit(b,c)) in
@@ -887,7 +868,7 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
         in
         let ts = A.fold fn m A.empty in
         let _p1 = subtype ctx (Pos.none (Valu v)) a (Pos.none (DSum(ts))) in
-        let ctx = learn_equivs ctx v a in
+        let ctx = learn_equivalences ctx v a in
         let check d (p,f) ps =
           log_typ "Checking case %s." d;
           let (_,a) = A.find d ts in
@@ -903,7 +884,7 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
               learn ctx.equations (Equiv(t1,true,t2))
             in
             let ctx = { ctx with equations } in
-            let ctx = learn_equivs ctx wit a in
+            let ctx = learn_equivalences ctx wit a in
             (fun () -> type_term ctx t c :: ps)
           with Contradiction ->
              if not (is_scis t) then
