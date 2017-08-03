@@ -38,3 +38,5 @@ Here are some ideas (en vrac) that makes pml2 what it is.
 
 - we face undecidability, but only subtyping may loop => error messages
   as usual and fixed when PML loop
+
+- surcharge et sous-typage ensemble (truc qui ne marchait pas dans PML1)
