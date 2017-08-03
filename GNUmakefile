@@ -109,7 +109,7 @@ check:
 # Test target.
 .PHONY: test
 #TEST_FILES = $(wildcard lib/*.pml test/*.pml test/phd_examples/*.pml)
-TEST_FILES = $(wildcard lib/*.pml test/phd_examples/*.pml)
+TEST_FILES = $(wildcard lib/*.pml examples/*.pml test/phd_examples/*.pml)
 test: main.native $(TEST_FILES)
 	for f in $(TEST_FILES); do ./main.native $$f || break ; done
 
