@@ -50,24 +50,15 @@ let rec leq_i_ordi : positives -> ordi -> int -> ordi -> bool =
     | (Vari(_) , _       ) -> assert false (* Should not happen. *)
     | (_       , Vari(_) ) -> assert false (* Should not happen. *)
     (* TODO #54 use oracle for eq_expr *)
-    | (_       , _       ) when i <= 0 && eq_expr (oadd o1 i) o2    -> true
+    | (_       , _       ) when i >= 0 && eq_expr (oadd o1 i) o2    -> true
     | (_       , _       ) when i <  0 && eq_expr o1 (oadd o2 (-i)) -> true
     | (_       , Succ(o2)) -> leq_i_ordi pos o1 (i-1) o2
     | (Succ(o1), _       ) -> leq_i_ordi pos o1 (i+1) o2
-    | (OWMu(o1,_,_),_    )
-    | (OWNu(o1,_,_),_    )
-    | (OSch(Some o1,_,_), _   ) ->
-        let i = if is_pos pos o1 then i-1 else i in
-        leq_i_ordi pos o1 i o2
+    | (OWMu(o,_,_),_     )
+    | (OWNu(o,_,_),_     )
+    | (OSch(Some o,_,_),_) -> let i = if is_pos pos o then i-1 else i in
+                              leq_i_ordi pos o i o2
     | (Zero    , _       ) -> i <= 0 || (i = 1 && is_pos pos o2)
-    | (UVar(_,v), _      ) -> (* CHECK, probably useless *)
-        begin
-          match candidate_pred pos o2 with
-          | []   when i <= 0 || (i = 1 && is_pos pos o2)
-                 -> uvar_set v (Pos.none Zero); true
-          | []   -> false
-          | o::_ -> uvar_set v o; true
-        end
     | (_       , _       ) -> false
 
 let leq_ordi : positives -> ordi -> ordi -> bool =
