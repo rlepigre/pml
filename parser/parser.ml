@@ -375,43 +375,19 @@ let expr = expr `Any
 (** Toplevel. *)
 let parser toplevel =
   | _sort_ id:llid '=' s:sort
-    -> Sort_def(id,s)
+    -> sort_def id s
   | _def_  id:llid args:sort_args s:{':' sort}? '=' e:expr
-    -> let s =
-         match s with
-         | None   -> new_sort_uvar (Some id)
-         | Some s -> s
-       in
-       let f (id,s) e = Pos.none (EHOFn(id,s,e)) in
-       let e = List.fold_right f args e in
-       let f (_ ,a) s = Pos.none (SFun(a,s)) in
-       let s = List.fold_right f args s in
-       Expr_def(id,s,e)
+    -> expr_def id args s e
   | _type_ r:is_rec id:llid args:sort_args '=' e:expr
-    -> let s = Pos.none SP in
-       let e = if r then in_pos _loc (EFixM(Pos.none EConv, id, e)) else e in
-       let f (id,s) e = Pos.none (EHOFn(id,s,e)) in
-       let e = List.fold_right f args e in
-       let f (_ ,a) s = Pos.none (SFun(a,s)) in
-       let s = List.fold_right f args s in
-       Expr_def(id,s,e)
+    -> type_def _loc r id args e
   | _val_ r:is_rec id:llid ':' a:expr '=' t:expr
-    -> let t =
-         if r then Pos.none (EFixY(Pos.none (ELAbs(((id, None),[]), t))))
-         else t
-       in
-       Valu_def(id, a, t)
+    -> val_def r id a t
   | _check_ r:{"¬" -> false}?[true] a:expr "⊂" b:expr
-    -> Chck_sub(a, r, b)
+    -> check_sub a r b
   | _include_ p:path
-    -> Include(p)
+    -> include_file p
 and sort_arg =
-  | id:llid so:{":" s:sort}? ->
-      let s =
-        match so with
-        | None   -> new_sort_uvar (Some id)
-        | Some s -> s
-      in (id, s)
+  | id:llid so:{":" s:sort}?
 and sort_args =
   | EMPTY                            -> []
   | '<' l:(lsep_ne "," sort_arg) '>' -> l

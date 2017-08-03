@@ -992,6 +992,37 @@ type toplevel =
   | Chck_sub of raw_ex * bool * raw_ex
   | Include  of string list
 
+let sort_def : strloc -> raw_sort -> toplevel = fun id s ->
+  Sort_def(id,s)
+
+let expr_def : strloc -> (strloc * raw_sort option) list -> raw_sort option
+               -> raw_ex -> toplevel = fun id args s e ->
+  let s = sort_from_opt s in
+  let args = List.map (fun (id,so) -> (id, sort_from_opt so)) args in
+  let f (id,s) e = Pos.none (EHOFn(id,s,e)) in
+  let e = List.fold_right f args e in
+  let f (_ ,a) s = Pos.none (SFun(a,s)) in
+  let s = List.fold_right f args s in
+  Expr_def(id,s,e)
+
+let type_def : Pos.pos -> bool -> strloc -> (strloc * raw_sort option) list
+               -> raw_ex -> toplevel = fun _loc r id args e ->
+  let e = if r then in_pos _loc (EFixM(Pos.none EConv, id, e)) else e in
+  expr_def id args (Some (Pos.none SP)) e
+
+let val_def : bool -> strloc -> raw_ex -> raw_ex -> toplevel = fun r id a t ->
+  let t =
+    if r then Pos.none (EFixY(Pos.none (ELAbs(((id, None),[]), t))))
+    else t
+  in
+  Valu_def(id, a, t)
+
+let check_sub : raw_ex -> bool -> raw_ex -> toplevel = fun a r b ->
+  Chck_sub(a,r,b)
+
+let include_file : string list -> toplevel = fun path ->
+  Include(path)
+
 (** syntactic sugars *)
 (* TODO #33: keep position in l *)
 let erest a l =
