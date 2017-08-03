@@ -97,6 +97,7 @@ type t_node =
   | TN_Proj of VPtr.t * A.key loc
   | TN_Case of VPtr.t * (v, t) bndr A.t
   | TN_FixY of (v, t) bndr * VPtr.t
+  | TN_Prnt of string
   | TN_UWit of (t ex loc * (t, p) bndr)
   | TN_EWit of (t ex loc * (t, p) bndr)
   | TN_HApp of t ho_appl
@@ -139,6 +140,7 @@ let print_t_node : out_channel -> t_node -> unit = fun ch n ->
                       prnt ch "TN_Case(%a|%a)" VPtr.print pv pmap m
   | TN_FixY(b,pv)  -> prnt ch "TN_FixY(%a,%a)" pex (Pos.none (LAbs(None,b)))
                         VPtr.print pv
+  | TN_Prnt(s)     -> prnt ch "TN_Prnt(%S)" s
   | TN_UWit(_,b)   -> prnt ch "TN_UWit(ε∀%s)" (bndr_name b).elt
   | TN_EWit(_,b)   -> prnt ch "TN_EWit(ε∃%s)" (bndr_name b).elt
   | TN_HApp(e)     -> let HO_Appl(s,f,a) = e in
@@ -220,6 +222,7 @@ let children_t_node : t_node -> Ptr.t list = fun n ->
   | TN_Proj(pv,_)  -> [Ptr.V_ptr pv]
   | TN_Case(pv,_)  -> [Ptr.V_ptr pv]
   | TN_FixY(_,pv)  -> [Ptr.V_ptr pv]
+  | TN_Prnt _
   | TN_MAbs _
   | TN_UWit _
   | TN_EWit _
@@ -329,6 +332,7 @@ let eq_t_nodes : pool -> t_node -> t_node -> bool =
                                               && A.equal (eq_bndr V) m1 m2
     | (TN_FixY(b1,p1)  , TN_FixY(b2,p2)  ) -> eq_bndr V b1 b2
                                               && eq_vptr po p1 p2
+    | (TN_Prnt(s1)     , TN_Prnt(s2)     ) -> s1 = s2
     | (TN_UWit(t1,b1)  , TN_UWit(t2,b2)  ) -> eq_expr t1 t2 && eq_bndr T b1 b2
     | (TN_EWit(t1,b1)  , TN_EWit(t2,b2)  ) -> eq_expr t1 t2 && eq_bndr T b1 b2
     | (TN_ITag(n1)     , TN_ITag(n2)     ) -> n1 = n2
@@ -421,7 +425,7 @@ let rec add_term : pool -> term -> TPtr.t * pool = fun po t ->
                    insert_t_node (TN_Case(pv,A.map snd m)) po
   | FixY(b,v)   -> let (pv, po) = add_valu po v in
                    insert_t_node (TN_FixY(b,pv)) po
-  | Prnt(_)     -> assert false (* TODO *)
+  | Prnt(s)     -> insert_t_node (TN_Prnt(s)) po
   | TTyp(t,_)   -> add_term po t
   | TLam(_,b)   -> add_term po (bndr_subst b Dumm)
   | UWit(_,t,b) -> insert_t_node (TN_UWit((t,b))) po
@@ -514,6 +518,7 @@ let rec canonical_term : TPtr.t -> pool -> term * pool = fun p po ->
                             (Pos.none t, po)
         | TN_FixY(b,pv)  -> let (v, po) = canonical_valu pv po in
                             (Pos.none (FixY(b,v)), po)
+        | TN_Prnt(s)     -> (Pos.none (Prnt(s)), po)
         | TN_UWit(w)     -> let (t,b) = w in (Pos.none (UWit(T,t,b)), po)
         | TN_EWit(w)     -> let (t,b) = w in (Pos.none (EWit(T,t,b)), po)
         | TN_HApp(e)     -> let HO_Appl(s,f,a) = e in
@@ -664,6 +669,7 @@ let rec normalise : TPtr.t -> pool -> Ptr.t * pool =
             let po = union (Ptr.T_ptr p) (Ptr.T_ptr pap) po in
             normalise pap po
           end
+       | TN_Prnt(_)     -> (Ptr.T_ptr p, po)
        | TN_UWit(_)     -> (Ptr.T_ptr p, po)
        | TN_EWit(_)     -> (Ptr.T_ptr p, po)
        | TN_HApp(_)     -> (Ptr.T_ptr p, po)
