@@ -81,3 +81,10 @@ val rec map_map : ∀a b c, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c), total<f,a> ⇒ t
        let ind : map gn (map fn tl) ≡ map gof tl = map_map fn gn tf tg tl in
        {}
   }
+
+val rec length_total : ∀a:ο, ∀l∈list<a>, ∃v:ι, v ≡ length l = fun l →
+  case l {
+    Nil[_]  → {}
+    Cons[c] → let ind = length_total c.tl in {}
+  }
+
