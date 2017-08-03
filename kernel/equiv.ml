@@ -408,26 +408,19 @@ let insert_t_node : t_node -> pool -> TPtr.t * pool = fun nn po ->
 let rec add_term : pool -> term -> TPtr.t * pool = fun po t ->
   match (Norm.whnf t).elt with
   | Valu(v)     -> let (pv, po) = add_valu po v in
-                   let (pp, po) = insert_t_node (TN_Valu(pv)) po in
-                   (pp, po)
+                   insert_t_node (TN_Valu(pv)) po
   | Appl(t,u)   -> let (pt, po) = add_term po t in
                    let (pu, po) = add_term po u in
-                   let (pp, po) = insert_t_node (TN_Appl(pt,pu)) po in
-                   (pp, po)
+                   insert_t_node (TN_Appl(pt,pu)) po
   | MAbs(b)     -> insert_t_node (TN_MAbs(b)) po
   | Name(s,t)   -> let (pt, po) = add_term po t in
-                   let (pp, po) = insert_t_node (TN_Name(s,pt)) po in
-                   (pp, po)
+                   insert_t_node (TN_Name(s,pt)) po
   | Proj(v,l)   -> let (pv, po) = add_valu po v in
-                   let (pp, po) = insert_t_node (TN_Proj(pv,l)) po in
-                   (pp, po)
+                   insert_t_node (TN_Proj(pv,l)) po
   | Case(v,m)   -> let (pv, po) = add_valu po v in
-                   let m = A.map snd m in
-                   let (pp, po) = insert_t_node (TN_Case(pv,m)) po in
-                   (pp, po)
+                   insert_t_node (TN_Case(pv,A.map snd m)) po
   | FixY(b,v)   -> let (pv, po) = add_valu po v in
-                   let (pp, po) = insert_t_node (TN_FixY(b,pv)) po in
-                   (pp, po)
+                   insert_t_node (TN_FixY(b,pv)) po
   | Prnt(_)     -> assert false (* TODO *)
   | TTyp(t,_)   -> add_term po t
   | TLam(_,b)   -> add_term po (bndr_subst b Dumm)
@@ -445,15 +438,13 @@ and     add_valu : pool -> valu -> VPtr.t * pool = fun po v ->
   match (Norm.whnf v).elt with
   | LAbs(_,b)   -> insert_v_node (VN_LAbs(b)) po
   | Cons(c,v)   -> let (pv, po) = add_valu po v in
-                   let (pp, po) = insert_v_node (VN_Cons(c,pv)) po in
-                   (pp, po)
+                   insert_v_node (VN_Cons(c,pv)) po
   | Reco(m)     -> let fn l (_, v) (m, po) =
                      let (pv, po) = add_valu po v in
                      (A.add l pv m, po)
                    in
                    let (m, po) = A.fold fn m (A.empty, po) in
-                   let (pp, po) = insert_v_node (VN_Reco(m)) po in
-                   (pp, po)
+                   insert_v_node (VN_Reco(m)) po
   | Scis        -> insert_v_node VN_Scis po
   | VDef(d)     -> add_valu po (Erase.to_valu d.value_eval)
   | VTyp(v,_)   -> add_valu po v
