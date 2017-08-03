@@ -96,7 +96,8 @@ let (lift, lift_cond) =
                              in
                              case e.pos (lift v) (A.map fn m)
             | FixY(f,v)   -> fixy e.pos (bndr_name f)
-                                  (fun x -> lift (bndr_subst f (mk_free V x))) (lift v)
+                               (fun x -> lift (bndr_subst f (mk_free V x)))
+                               (lift v)
             | Prnt(s)     -> prnt e.pos s
             | TTyp(t,a)   -> ttyp e.pos (lift t) (lift a)
             | TLam(s,f)   -> tlam e.pos (bndr_name f) s
@@ -121,34 +122,6 @@ let (lift, lift_cond) =
         let res = if is_closed res then box e else res in
         adone := Cons(e.elt,res,!adone);
         res
-
-(*      and lift_fix_schema ({ fsch_index ; fsch_posit ; fsch_relat ; fsch_judge} as fsch) =
-        let (vb, ob) = fsch_judge in
-        let fv x = lift (bndr_subst vb (mk_free V x)) in
-        let fo xs = lift (msubst ob (Array.map (mk_free O) xs)) in
-        let res =
-          fschm fsch_index fsch_posit fsch_relat (bndr_name vb)
-                fv (mbinder_names ob) fo
-        in
-        if is_closed res then box fsch else res
-      and lift_sub_schema ({ ssch_index ; ssch_posit ; ssch_relat ; ssch_judge } as ssch) =
-        let ob = ssch_judge in
-        let fo xs =
-          let (k1, k2) = msubst ob (Array.map (mk_free O) xs) in
-          box_pair (lift k1) (lift k2)
-        in
-        let res =
-          sschm ssch_index ssch_posit ssch_relat (mbinder_names ob) fo
-        in
-        if is_closed res then box ssch else res
-      and lift_schema sch =
-        let res =
-          match sch with
-          | FixSch s -> box_apply (fun x -> FixSch x) (lift_fix_schema s)
-          | SubSch s -> box_apply (fun x -> SubSch x) (lift_sub_schema s)
-        in
-        if is_closed res then box sch else res*)
-
       in lift e
   in (lift, lift_cond)
 
@@ -265,7 +238,8 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
           begin
             try
               for i = 0 to arity - 1 do
-                if Compare.eq_expr ~strict:true os.(i) o then raise (Found_index(i))
+                if Compare.eq_expr ~strict:true os.(i) o
+                then raise (Found_index(i))
               done;
               raise Not_found
             with Found_index(i) -> (vari o.pos xs.(i) : o box)

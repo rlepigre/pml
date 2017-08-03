@@ -252,10 +252,12 @@ type check_sub =
   | Sub_New of ctxt * (prop * prop)
 
 let rec subtype =
-  let rec subtype : ctxt -> term -> prop -> prop -> sub_proof = fun ctx t a b ->
-    log_sub "proving the subtyping judgment:\n  %a\n  ⊢ %a\n  ∈ %a\n  ⊆ %a (%d, %d, %d)"
-            print_pos ctx.positives Print.ex t Print.ex a Print.ex b
-            (Size.binary_size t) (Size.binary_size a) (Size.binary_size b);
+  let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
+    fun ctx t a b ->
+    log_sub "proving the subtyping judgment:";
+    log_sub "  %a\n  ⊢ %a\n  ∈ %a\n  ⊆ %a (%d, %d, %d)"
+      print_pos ctx.positives Print.ex t Print.ex a Print.ex b
+      (Size.binary_size t) (Size.binary_size a) (Size.binary_size b);
     let a = Norm.whnf a in
     let b = Norm.whnf b in
     let (t_is_val, ctx) = term_is_value t ctx in
@@ -527,7 +529,8 @@ and check_sub : ctxt -> prop -> prop -> check_sub = fun ctx a b ->
 
   in find_suitable ihs
 
-and check_fix : ctxt -> valu -> (v, t) bndr -> prop -> typ_proof = fun ctx v b c ->
+and check_fix : ctxt -> valu -> (v, t) bndr -> prop -> typ_proof =
+  fun ctx v b c ->
   (* Looking for potential induction hypotheses. *)
   let ihs = Buckets.find b ctx.fix_ihs in
   log_typ "there are %i potential fixpoint induction hypotheses"
@@ -540,8 +543,8 @@ and check_fix : ctxt -> valu -> (v, t) bndr -> prop -> typ_proof = fun ctx v b c
           try
             (* An induction hypothesis has been found. *)
             let spe = elim_fix_schema ctx ih in
-            log_typ "an induction hypothesis has been found, trying\n   %a\n < %a"
-                    Print.ex (snd spe.fspe_judge) Print.ex c;
+            log_typ "an induction hypothesis has been found, trying";
+            log_typ "   %a\n < %a" Print.ex (snd spe.fspe_judge) Print.ex c;
             let prf =
               Chrono.add_time type_chrono
                               (subtype ctx (build_t_fixy b)

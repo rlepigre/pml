@@ -100,19 +100,20 @@ let uvar_iter : type a. bool -> uvar_fun -> a ex loc -> unit =
     | EWit(_,t,b) -> if todo e then (uvar_iter t; buvar_iter b)
     | OWMu(o,t,b) -> if todo e then (uvar_iter o; uvar_iter t; buvar_iter b)
     | OWNu(o,t,b) -> if todo e then (uvar_iter o; uvar_iter t; buvar_iter b)
-    | OSch(o,i,s) -> if todo e then
-                       begin
-                         match s with
-                         | FixSch s ->
-                            let (t,b) = s.fsch_judge in
-                            let (_,t) = Bindlib.unbind (mk_free V) (snd t) in
-                            let (_,k) = Bindlib.unmbind (mk_free O) b in
-                            Extra.Option.iter uvar_iter o; uvar_iter t; uvar_iter k
-                         | SubSch s ->
-                            let b = s.ssch_judge in
-                            let (_,(k1,k2)) = Bindlib.unmbind (mk_free O) b in
-                            Extra.Option.iter uvar_iter o; uvar_iter k1; uvar_iter k2
-                       end
+    | OSch(o,i,s) ->
+       if todo e then
+         begin
+           match s with
+           | FixSch s ->
+              let (t,b) = s.fsch_judge in
+              let (_,t) = Bindlib.unbind (mk_free V) (snd t) in
+              let (_,k) = Bindlib.unmbind (mk_free O) b in
+              Extra.Option.iter uvar_iter o; uvar_iter t; uvar_iter k
+           | SubSch s ->
+              let b = s.ssch_judge in
+              let (_,(k1,k2)) = Bindlib.unmbind (mk_free O) b in
+              Extra.Option.iter uvar_iter o; uvar_iter k1; uvar_iter k2
+         end
     | UVar(s,u)   -> f.f s u
   in uvar_iter e
 
@@ -137,7 +138,8 @@ let uvar_occurs : type a b. a uvar -> b ex loc -> bool = fun u e ->
         raise Exit
       end
   in
-  try Chrono.add_time occur_chrono (uvar_iter false {f}) e; false with Exit -> true
+  try Chrono.add_time occur_chrono (uvar_iter false {f}) e; false
+  with Exit -> true
 
 let uvar_occurs_cond : type a. a uvar -> cond -> bool = fun u c ->
   match c with

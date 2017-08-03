@@ -241,9 +241,8 @@ let print_ex : type a. a ex loc printer = fun ch e ->
 
   and print_fix_sch ch sch =
     let (x,t) = unbind (mk_free V) (snd (fst sch.fsch_judge)) in
-    (* FIXME, code bizarre avec deux mk_free, use free_of *)
     let (vars,k) = unmbind (mk_free O) (snd sch.fsch_judge) in
-    let vars = Array.map (fun x -> Pos.none (mk_free O x)) vars in
+    let vars = Array.map (fun x -> Pos.none (free_of x)) vars in
     let print_vars = print_list print_ex "," in
     let pos = List.map (fun i -> vars.(i)) sch.fsch_posit in
     let rel = List.map (fun (i,j) -> (vars.(i), vars.(j))) sch.fsch_relat in
@@ -257,9 +256,8 @@ let print_ex : type a. a ex loc printer = fun ch e ->
             print_rel rel (name_of x) print_ex t print_ex k
 
   and print_sub_sch ch sch =
-    (* FIXME, code bizarre avec deux mk_free, use free_of *)
     let (vars,(k1,k2)) = unmbind (mk_free O) sch.ssch_judge in
-    let vars = Array.map (fun x -> Pos.none (mk_free O x)) vars in
+    let vars = Array.map (fun x -> Pos.none (free_of x)) vars in
     let print_vars = print_list print_ex "," in
     let pos = List.map (fun i -> vars.(i)) sch.ssch_posit in
     let rel = List.map (fun (i,j) -> (vars.(i), vars.(j))) sch.ssch_relat in
@@ -282,9 +280,8 @@ let print_ex : type a. a ex loc printer = fun ch e ->
 let sort = print_sort
 let ex   = print_ex
 let omb ch b =
-  (* FIXME, code bizarre avec deux mk_free, use free_of *)
   let (vars,k) = unmbind (mk_free O) b in
-  let vars = Array.map (fun x -> Pos.none (mk_free O x)) vars in
+  let vars = Array.map (fun x -> Pos.none (free_of x)) vars in
   let print_vars = print_list print_ex "," in
   fprintf ch "%a.%a" print_vars (Array.to_list vars) print_ex k
 
