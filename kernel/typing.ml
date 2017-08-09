@@ -255,9 +255,8 @@ let rec subtype =
   let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
     fun ctx t a b ->
     log_sub "proving the subtyping judgment:";
-    log_sub "  %a\n  ⊢ %a\n  ∈ %a\n  ⊆ %a (%d, %d, %d)"
-      print_pos ctx.positives Print.ex t Print.ex a Print.ex b
-      (Size.binary_size t) (Size.binary_size a) (Size.binary_size b);
+    log_sub "  %a\n  ⊢ %a\n  ∈ %a\n  ⊆ %a"
+      print_pos ctx.positives Print.ex t Print.ex a Print.ex b;
     let a = Norm.whnf a in
     let b = Norm.whnf b in
     let (t_is_val, ctx) = term_is_value t ctx in
@@ -709,9 +708,8 @@ and build_matrix : Scp.t -> (ordi * ordi option) list ->
 
 and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
   let t = Pos.make v.pos (Valu(v)) in
-  log_typ "proving the value judgment:\n  %a\n  ⊢ %a\n  : %a (%d,%d)"
-    print_pos ctx.positives Print.ex v Print.ex c
-    (Size.binary_size v) (Size.binary_size c);
+  log_typ "proving the value judgment:\n  %a\n  ⊢ %a\n  : %a"
+    print_pos ctx.positives Print.ex v Print.ex c;
   try
   let r =
     match v.elt with
@@ -837,9 +835,8 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
   | e -> type_error (E(V,v)) c e
 
 and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
-  log_typ "proving the term judgment:\n  %a\n  ⊢ %a\n  : %a (%d,%d)"
-    print_pos ctx.positives Print.ex t Print.ex c
-    (Size.binary_size t) (Size.binary_size c);
+  log_typ "proving the term judgment:\n  %a\n  ⊢ %a\n  : %a"
+    print_pos ctx.positives Print.ex t Print.ex c;
   try
   let r =
     match t.elt with
