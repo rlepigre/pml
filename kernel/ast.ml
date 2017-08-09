@@ -432,34 +432,6 @@ let succ : popt -> obox -> obox =
 let goal : type a. popt -> a sort -> string -> a ex loc bindbox =
   fun p s str -> box (Pos.make p (Goal(s,str)))
 
-let fschm : Scp.index -> int list -> (int * int) list ->
-             strloc -> (vvar -> tbox) ->
-             string array -> (omvar -> pbox) -> fix_schema bindbox =
-  fun fsch_index fsch_posit fsch_relat x fx xs fxs ->
-    let fn vb ob =
-      let fsch_judge = ((x.pos, vb), ob) in
-      { fsch_index; fsch_posit; fsch_relat; fsch_judge }
-    in
-    box_apply2 fn (vbind (mk_free V) x.elt fx) (mvbind (mk_free O) xs fxs)
-
-let sschm : Scp.index -> int list -> (int * int) list -> string array
-            -> (omvar -> (p ex loc * p ex loc) bindbox) -> sub_schema bindbox =
-  fun ssch_index ssch_posit ssch_relat xs fxs ->
-    let fn ssch_judge =
-      { ssch_index; ssch_posit; ssch_relat; ssch_judge }
-    in
-    box_apply fn (mvbind (mk_free O) xs fxs)
-
-let vwit : popt -> strloc -> (vvar -> tbox) -> pbox -> pbox -> vbox =
-  fun p x f a c ->
-  let b = vbind (mk_free V) x.elt f in
-  box_apply3 (fun b a c -> Pos.make p (VWit((x.pos, b),a,c))) b a c
-
-let swit : popt -> strloc -> (svar -> tbox) -> pbox -> sbox =
-  fun p x f a ->
-    let b = vbind (mk_free S) x.elt f in
-    box_apply2 (fun b a -> Pos.make p (SWit((x.pos, b),a))) b a
-
 (** {5 syntactic sugars} *)
 
 (** Syntactic sugar for the projection of a term. *)

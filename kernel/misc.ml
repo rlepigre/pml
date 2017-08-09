@@ -106,9 +106,7 @@ let (lift, lift_cond) =
             | Epsi        -> box e
             | Push(v,s)   -> push e.pos (lift v) (lift s)
             | Fram(t,s)   -> fram e.pos (lift t) (lift s)
-            | SWit(f,a)   -> swit e.pos (bndr_name f)
-                                  (fun x -> lift (bndr_subst f (mk_free S x)))
-                                  (lift a)
+            | SWit(f,a)   -> box e
 
             | Zero        -> box e
             | Conv        -> box e
