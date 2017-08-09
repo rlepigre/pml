@@ -27,15 +27,6 @@ val get_time  : t -> float
 (** [get_count chr] gets the number of function calls timed using [chr]. *)
 val get_count : t -> int
 
-(** Type of the global state of the timers on the system. *)
-type state
-
-(** [save_state ()] returns a snapshot of the current timer states. *)
-val save_state    : unit -> state
-
-(** [restore_state st] restores the timer states stored in [st]. *)
-val restore_state : state -> unit
-
 (** [iter fn] calls [fn name time count] with the [name], [time] and [count]
     of all the timers on the system. *)
 val iter : (string -> float -> int -> unit) -> unit
