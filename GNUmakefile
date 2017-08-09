@@ -113,8 +113,11 @@ test: main.native $(TEST_FILES)
 	for f in $(TEST_FILES); do ./main.native $$f || break ; done
 
 # Cleaning targets.
-clean:
+clean: libclean
 	ocamlbuild -clean
+
+libclean:
+	find . -name \*.pmi -exec rm {} \;
 
 distclean: clean
 	rm -f *~ pml2/*~ kernel/*~ parser/*~ editor/*~ doc/*~ test/*~ util/*~

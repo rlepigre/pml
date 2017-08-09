@@ -75,8 +75,11 @@ let rec interpret : Env.env -> Raw.toplevel -> Env.env = fun env top ->
 and handle_file env fn =
   if !verbose then out "[%s]\n%!" fn;
   try
-    let ast = Parser.parse_file fn in
-    List.fold_left interpret env ast
+    try Env.load_file env fn
+    with Env.Compile ->
+      let ast = Parser.parse_file fn in
+      let env = List.fold_left interpret env ast in
+      Env.save_file env fn; env
   with
   | No_parse(p, None)       ->
       begin
