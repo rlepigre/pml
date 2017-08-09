@@ -54,12 +54,21 @@ let add_value : strloc -> term -> prop -> e_valu -> env -> env =
     let local_values = SMap.add value_name.elt nv env.local_values in
     {env with global_values; local_values}
 
+let parents = ref []
+
 let output_value ch v = Marshal.(to_channel ch v [Closures])
 let input_value ch = Marshal.from_channel ch
 
 let save_file : env -> string -> unit = fun env fn ->
   let cfn = Filename.chop_suffix fn ".pml" ^ ".pmi" in
   let ch = open_out cfn in
+  let deps =
+    match !parents with
+    | []   -> assert false
+    | _::l -> let deps = List.concat (List.map (!) !parents) in
+              parents := l; List.sort_uniq String.compare deps
+  in
+  output_value ch deps;
   output_value ch (env.local_sorts, env.local_exprs, env.local_values);
   close_out ch
 
@@ -70,14 +79,34 @@ let more_recent source target =
   not (Sys.file_exists target) ||
   Unix.((stat source).st_mtime > (stat target).st_mtime)
 
+let start fn =
+  parents := ref [] :: !parents
 
 let load_file : env -> string -> env = fun env fn ->
   let cfn = Filename.chop_suffix fn ".pml" ^ ".pmi" in
+  begin
+    match !parents with
+    | [] -> ()
+    | dep::_ -> dep := fn :: !dep
+  end;
   if more_recent fn cfn then
     raise Compile
   else
     let ch = open_in cfn in
+    let deps = input_value ch in
+    if List.exists (fun source -> more_recent source cfn) deps then
+      begin
+        close_in ch;
+        raise Compile;
+      end
+    else
+      begin
+        match !parents with
+        | [] -> ()
+        | dep::_ -> dep := deps @ !dep
+      end;
     let (local_sorts, local_exprs, local_values) = input_value ch in
+    close_in ch;
     let global_sorts  = SMap.fold SMap.add local_sorts env.global_sorts  in
     let global_exprs  = SMap.fold SMap.add local_exprs env.global_exprs  in
     let global_values = SMap.fold SMap.add local_values env.global_values in

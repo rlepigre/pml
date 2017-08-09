@@ -77,6 +77,7 @@ and handle_file env fn =
   try
     try Env.load_file env fn
     with Env.Compile ->
+      Env.start fn;
       let ast = Parser.parse_file fn in
       let env = List.fold_left interpret env ast in
       Env.save_file env fn; env
