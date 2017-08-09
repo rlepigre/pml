@@ -82,7 +82,6 @@ let mod_time : string -> float = fun fname ->
 
 (* Modification time of the current binary. *)
 let binary_time : float = mod_time "/proc/self/exe"
-let _ = Printf.printf "TIME %f\n%!" binary_time
 
 (* Test if a file is more recent than another file (or the binary). *)
 let more_recent source target =
