@@ -30,11 +30,11 @@ let current = ref root_chrono
 
 (** Invariant: p.start is meaningful when !current = p *)
 let add_time chr f x =
+  chr.count <- chr.count + 1;
   if chr == !current then f x else
   let ut = unix_time () in
-  !current.time <- !current.time +. ut -. !current.start;
-  chr.count <- chr.count + 1;
-  let save = !current in
+  let previous = !current in
+  previous.time <- previous.time +. ut -. previous.start;
   chr.start <- ut;
   current := chr;
   try
@@ -42,15 +42,15 @@ let add_time chr f x =
     assert (chr == !current);
     let ut = unix_time () in
     chr.time <- chr.time +. ut -. chr.start;
-    save.start <- ut;
-    current := save;
+    previous.start <- ut;
+    current := previous;
     r
   with e ->
     assert (chr == !current);
     let ut = unix_time () in
     chr.time <- chr.time +. ut -. chr.start;
-    save.start <- ut;
-    current := save;
+    previous.start <- ut;
+    current := previous;
     raise e
 
 let iter fn =
