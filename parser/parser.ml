@@ -328,7 +328,7 @@ let parser expr (m : mode) =
       when m = `Stk
       -> in_pos _loc EEpsi
   (* Stack (push) *)
-  | v:(expr (`Trm`A)) {"." | "·"} s:(expr `Stk)
+  | v:(expr (`Trm`A)) "·" s:(expr `Stk)
       when m = `Stk
       -> in_pos _loc (EPush(v,s))
   (* Stack (frame) *)
