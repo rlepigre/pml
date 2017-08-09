@@ -61,8 +61,10 @@ let rec leq_i_ordi : positives -> ordi -> int -> ordi -> bool =
     | (Zero    , _       ) -> i <= 0 || (i = 1 && is_pos pos o2)
     | (_       , _       ) -> false
 
+let ordi_chrono = Chrono.create "ordi"
+
 let leq_ordi : positives -> ordi -> ordi -> bool =
-  fun pos o1 o2 -> leq_i_ordi pos o1 0 o2
+  fun pos o1 o2 -> Chrono.add_time ordi_chrono (leq_i_ordi pos o1 0) o2
 
 let less_ordi : positives -> ordi -> ordi -> bool =
-  fun pos o1 o2 -> leq_i_ordi pos o1 1 o2
+  fun pos o1 o2 -> Chrono.add_time ordi_chrono (leq_i_ordi pos o1 1) o2
