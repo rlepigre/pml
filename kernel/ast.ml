@@ -95,8 +95,6 @@ type _ ex =
 
   (* Ordinal constructors. *)
 
-  | Zero :                                            o  ex
-  (** Zero ordinal. *)
   | Conv :                                            o  ex
   (** Convergent ordinal. *)
   | Succ : o ex loc                                -> o  ex
@@ -548,7 +546,6 @@ let rec sort : type a b. a ex loc ->  a sort * a ex loc= fun e ->
   | Fram _      -> (S,e)
   | SWit _      -> (S,e)
 
-  | Zero        -> (O,e)
   | Conv        -> (O,e)
   | Succ _      -> (O,e)
   | OWMu _      -> (O,e)

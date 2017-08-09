@@ -16,7 +16,6 @@ let is_pos : positives -> ordi -> bool =
     let o = Norm.whnf o in
     match o.elt with
     | Vari(_) -> assert false (* Should not happen. *)
-    | Zero    -> false
     | Conv    -> true
     | Succ(_) -> true
     | _       -> List.exists (fun (c,_) -> eq_expr ~strict:true o c) pos
@@ -58,7 +57,6 @@ let rec leq_i_ordi : positives -> ordi -> int -> ordi -> bool =
     | (OWNu(o,_,_),_     )
     | (OSch(Some o,_,_),_) -> let i = if is_pos pos o then i-1 else i in
                               leq_i_ordi pos o i o2
-    | (Zero    , _       ) -> i <= 0 || (i = 1 && is_pos pos o2)
     | (_       , _       ) -> false
 
 let ordi_chrono = Chrono.create "ordi"

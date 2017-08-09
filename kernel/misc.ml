@@ -108,7 +108,6 @@ let (lift, lift_cond) =
             | Fram(t,s)   -> fram e.pos (lift t) (lift s)
             | SWit(f,a)   -> box e
 
-            | Zero        -> box e
             | Conv        -> box e
             | Succ(o)     -> succ e.pos (lift o)
             | OWMu(o,t,b) -> box e
@@ -200,7 +199,6 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
     | Fram(t,s)   -> owits (owits acc t) s
     | SWit(_,_)   -> acc
 
-    | Zero        -> acc
     | Conv        -> acc
     | Succ(o)     -> owits acc o
     | OWMu(_,_,_) -> if Compare.is_in e acc then acc else e :: acc
@@ -322,7 +320,6 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
       | SWit(f,a)   -> box e (*swit e.pos (bndr_name f)
                             (fun x -> bind_all (bndr_subst f (mk_free S x)))
                             (bind_all a)*)
-      | Zero        -> box e
       | Conv        -> box e
       | Succ(o)     -> succ e.pos (bind_all o)
       | OWMu(o,t,f) ->
