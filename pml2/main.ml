@@ -111,7 +111,7 @@ and handle_file env fn =
           match t.pos with
           | None   -> err_msg "Sort %a expected for %a."
                         pretty_print_raw_sort s print_raw_expr t
-          | Some p -> err_msg "Sort %a expected at %a."
+          | Some p -> err_msg "Sort %a expected %a."
                         pretty_print_raw_sort s Pos.print_short_pos p;
                       Quote.quote_file stderr p
         in
@@ -122,7 +122,7 @@ and handle_file env fn =
         let _ =
           match p with
           | None   -> err_msg "Unbound variable %s." x;
-          | Some p -> err_msg "Unbound variable %s at %a." x
+          | Some p -> err_msg "Unbound variable %s %a." x
                         Pos.print_short_pos p;
                       Quote.quote_file stderr p
         in
@@ -132,7 +132,7 @@ and handle_file env fn =
       begin
         match c.pos with
         | None   -> err_msg "%s has already been matched." c.elt;
-        | Some p -> err_msg "%s (at %a) has already been matched." c.elt
+        | Some p -> err_msg "%s (%a) has already been matched." c.elt
                       Pos.print_short_pos p;
                     Quote.quote_file stderr p
       end;
@@ -228,7 +228,7 @@ let _ =
         match t.pos with
         | None   -> err_msg "Type error:\n%a : %a"
                       Print.print_ex t Print.print_ex c
-        | Some p -> err_msg "Type error at %a:\n%a : %a"
+        | Some p -> err_msg "Type error %a:\n%a : %a"
                       Pos.print_short_pos p Print.print_ex t Print.print_ex c;
                     Quote.quote_file stderr p
      end; print_exn exc
@@ -237,7 +237,7 @@ let _ =
         match t.pos with
         | None   -> err_msg "Subtype error:\n%a ∈ %a ⊂ %a"
                       Print.print_ex t Print.print_ex a Print.print_ex b
-        | Some p -> err_msg "SubType error at %a:\n  %a ∈ %a ⊂ %a"
+        | Some p -> err_msg "SubType error %a:\n  %a ∈ %a ⊂ %a"
                       Pos.print_short_pos p Print.print_ex t
                       Print.print_ex a Print.print_ex b;
                     Quote.quote_file stderr p
@@ -246,7 +246,7 @@ let _ =
       begin
         match p with
         | None   -> err_msg "Subtype error:\n%s." msg
-        | Some p -> err_msg "Subtype error at %a:\n%s."
+        | Some p -> err_msg "Subtype error %a:\n%s."
                       Pos.print_short_pos p msg;
                     Quote.quote_file stderr p
       end

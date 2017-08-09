@@ -819,7 +819,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
         Typ_VDef(d,p)
     (* Goal *)
     | Goal(_,str) ->
-        wrn_msg "goal %s %a" str Pos.print_pos_opt v.pos;
+        wrn_msg "goal %S %a" str Pos.print_short_pos_opt v.pos;
         Typ_Goal(str)
 
     (* Constructors that cannot appear in user-defined terms. *)
@@ -940,7 +940,7 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
         end
     (* Goal. *)
     | Goal(_,str) ->
-        wrn_msg "goal %s %a" str Pos.print_pos_opt t.pos;
+        wrn_msg "goal %S %a" str Pos.print_short_pos_opt t.pos;
         Typ_Goal(str)
     (* Printing. *)
     | Prnt(_)     ->
@@ -1002,7 +1002,7 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
         end
     (* Goal *)
     | Goal(_,str) ->
-        wrn_msg "goal %S at %a" str Pos.print_pos_opt s.pos;
+        wrn_msg "goal %S %a" str Pos.print_short_pos_opt s.pos;
         Stk_Goal(str)
     (* Constructors that cannot appear in user-defined stacks. *)
     | Epsi        -> unexpected "Empty stack during typing..."

@@ -64,12 +64,15 @@ let locate buf1 pos1 buf2 pos2 =
     | ""    -> None
     | fname -> Some fname
   in
-  let start_col   = 1 + Input.utf8_col_num buf1 pos1 in
-  { fname
-  ; start_line  = Input.line_num buf1
-  ; start_col
-  ; end_line    = Input.line_num buf2
-  ; end_col     = max start_col (Input.utf8_col_num buf2 pos2) }
+  let start_line = Input.line_num buf1 in
+  let end_line = Input.line_num buf2 in
+  let start_col = 1 + Input.utf8_col_num buf1 pos1 in
+  let end_col = Input.utf8_col_num buf2 pos2 in
+  let end_col =
+    if end_line = start_line then max end_col start_col
+    else end_col
+  in
+  { fname ; start_line ; start_col ; end_line ; end_col }
 
 (** [pos_to_string pos] transforms the position [pos] into a readable
     format. *)
@@ -92,13 +95,14 @@ let pos_to_string : pos -> string =
 
 (** [print_pos oc pos] prints the position [pos] to the channel [oc]. *)
 let print_pos : out_channel -> pos -> unit =
-  fun ch p -> output_string ch (pos_to_string p)
+  fun ch p -> output_string ch ("at " ^ (pos_to_string p))
 
 (** [print_pos oc pos] prints the position [pos] to the channel [oc]. *)
 let print_pos_opt : out_channel -> pos option -> unit =
-  fun ch p -> match p with
-              | None -> ()
-              | Some p -> Printf.fprintf ch "at %a" print_pos p
+  fun ch p ->
+    match p with
+    | None   -> output_string ch "at an unknown location"
+    | Some p -> print_pos ch p
 
 (** [short_pos_to_string pos] is similar to [pos_to_string pos] but uses
     a shorter format. *)
@@ -120,4 +124,11 @@ let short_pos_to_string : pos -> string =
 (** [print_short_pos oc pos] prints the position [pos] to the channel [oc]
     using a shorter format that [print_pos oc pos]. *)
 let print_short_pos : out_channel -> pos -> unit =
-  fun ch p -> output_string ch (short_pos_to_string p)
+  fun ch p -> output_string ch ("at " ^ (short_pos_to_string p))
+
+(** [print_pos oc pos] prints the position [pos] to the channel [oc]. *)
+let print_short_pos_opt : out_channel -> pos option -> unit =
+  fun ch p ->
+    match p with
+    | None   -> output_string ch "at an unknown location"
+    | Some p -> print_short_pos ch p

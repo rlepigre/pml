@@ -132,7 +132,8 @@ type t_prio = [`A | `Ap | `S | `F]
 type mode = [`Any | `Prp of p_prio | `Trm of t_prio | `Stk | `Ord ]
 
 let parser goal =
-  | "{-" str:''\([^-]\|\(-[^}]\)\)*'' "-}" -> in_pos _loc (EGoal(str))
+  | "{-" str:''\([^-]\|\(-[^}]\)\)*'' "-}" ->
+      in_pos _loc (EGoal(String.trim str))
 
 let parser expr (m : mode) =
   (* Any (higher-order function) *)
