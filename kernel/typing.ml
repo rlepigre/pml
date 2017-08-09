@@ -131,7 +131,7 @@ let rec learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
   let twit = Pos.none (Valu wit) in
   match (Norm.whnf a).elt with
   | HDef(_,e)  -> learn_equivalences ctx wit e.expr_def
-  | Memb(t,a)  -> let equations = learn ctx.equations (Equiv(twit, true, t)) in
+  | Memb(t,a)  -> let equations = learn ctx.equations (Equiv(twit,true,t)) in
                   learn_equivalences {ctx with equations} wit a
   | Rest(a,c)  -> let equations = learn ctx.equations c in
                   learn_equivalences {ctx with equations} wit a
@@ -1002,7 +1002,7 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
         end
     (* Goal *)
     | Goal(_,str) ->
-        wrn_msg "goal %s at %a" str Pos.print_pos_opt s.pos;
+        wrn_msg "goal %S at %a" str Pos.print_pos_opt s.pos;
         Stk_Goal(str)
     (* Constructors that cannot appear in user-defined stacks. *)
     | Epsi        -> unexpected "Empty stack during typing..."

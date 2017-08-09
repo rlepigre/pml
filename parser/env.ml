@@ -74,10 +74,20 @@ let save_file : env -> string -> unit = fun env fn ->
 
 exception Compile
 
-(* Test if a file is more recent than another file. *)
+(* Obtain the modification time of a file as a float (neg_infinity is return
+   when the file does not exist. *)
+let mod_time : string -> float = fun fname ->
+  if Sys.file_exists fname then Unix.((stat fname).st_mtime)
+  else neg_infinity
+
+(* Modification time of the current binary. *)
+let binary_time : float = mod_time "/proc/self/exe"
+let _ = Printf.printf "TIME %f\n%!" binary_time
+
+(* Test if a file is more recent than another file (or the binary). *)
 let more_recent source target =
-  not (Sys.file_exists target) ||
-  Unix.((stat source).st_mtime > (stat target).st_mtime)
+  mod_time source > mod_time target
+  || binary_time > mod_time target
 
 let start fn =
   parents := ref [] :: !parents

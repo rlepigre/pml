@@ -86,9 +86,11 @@ main.byte: pml2/main.byte
 main.native: pml2/main.native
 
 pml2/main.native:
+	@rm -f main.native
 	$(OCAMLBUILD) -package unix,bindlib,earley,earley.str $@
 
 pml2/main.byte:
+	@rm -f main.byte
 	$(OCAMLBUILD) -package unix,bindlib,earley,earley.str $@
 
 check:
@@ -110,7 +112,7 @@ check:
 .PHONY: test
 TEST_FILES = $(wildcard lib/*.pml examples/*.pml test/*.pml test/phd_examples/*.pml)
 test: main.native $(TEST_FILES)
-	for f in $(TEST_FILES); do ./main.native $$f || break ; done
+	for f in $(TEST_FILES); do ./main.native --quiet $$f || break ; done
 
 # Cleaning targets.
 clean: libclean

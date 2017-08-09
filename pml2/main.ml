@@ -181,7 +181,7 @@ let files =
       , " Always use colors.")
     ; ( "--timed"
       , Arg.Set timed
-      , " Display a timing report at the end of the execution.")
+      , " Display a timing report after the execution.")
     ; ( "--quiet"
       , Arg.Clear verbose
       , " Disables the printing definition data.")
