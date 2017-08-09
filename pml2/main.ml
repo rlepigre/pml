@@ -12,6 +12,7 @@ let _ = Printexc.record_backtrace true
 let path = ["." ; "/usr/local/lib/pml2"]
 
 let verbose = ref true
+let timed   = ref false
 
 let find_file : string -> string = fun fn ->
   let add_fn dir = Filename.concat dir fn in
@@ -73,14 +74,13 @@ let rec interpret : Env.env -> Raw.toplevel -> Env.env = fun env top ->
 
 (* Handling the files. *)
 and handle_file env fn =
-  if !verbose then out "[%s]\n%!" fn;
   try
-    try Env.load_file env fn
-    with Env.Compile ->
-      Env.start fn;
-      let ast = Parser.parse_file fn in
-      let env = List.fold_left interpret env ast in
-      Env.save_file env fn; env
+    try Env.load_file env fn with Env.Compile ->
+    if !verbose then out "[%s]\n%!" fn;
+    Env.start fn;
+    let ast = Parser.parse_file fn in
+    let env = List.fold_left interpret env ast in
+    Env.save_file env fn; env
   with
   | No_parse(p, None)       ->
       begin
@@ -178,7 +178,10 @@ let files =
       , " Do not load the prelude.")
     ; ( "--always-colors"
       , Arg.Set Output.always_colors
-      , " Always use colors..")
+      , " Always use colors.")
+    ; ( "--timed"
+      , Arg.Set timed
+      , " Display a timing report at the end of the execution.")
     ; ( "--quiet"
       , Arg.Clear verbose
       , " Disables the printing definition data.")
@@ -272,7 +275,7 @@ let _ =
 
 let _ =
   let total = ref 0.0 in
-  if !verbose then
+  if !timed then
     begin
       let f name t c =
         total := !total +. t;
