@@ -112,10 +112,6 @@ type _ ex =
   (** Type coercion on a term. *)
   | TTyp : t ex loc * p ex loc                     -> t  ex
   (** Type coercion on a term. *)
-  | VLam : 'a sort * ('a, v) bndr                  -> v  ex
-  (** Type abstraction on a value. *)
-  | TLam : 'a sort * ('a, t) bndr                  -> t  ex
-  (** Type abstraction on a term. *)
 
   (* Special constructors. *)
 
@@ -290,11 +286,6 @@ let scis : popt -> vbox =
 let vtyp : popt -> vbox -> pbox -> vbox =
   fun p -> box_apply2 (fun v a -> Pos.make p (VTyp(v,a)))
 
-let vlam : type a. popt -> strloc -> a sort -> (a var -> vbox) -> vbox =
-  fun p x s f ->
-    let b = vbind (mk_free s) x.elt f in
-    box_apply (fun b -> Pos.make p (VLam(s, (x.pos, b)))) b
-
 (** {5 Term constructors} *)
 
 let t_vari : popt -> tvar -> tbox = vari
@@ -338,11 +329,6 @@ let prnt : popt -> string -> tbox =
 
 let ttyp : popt -> tbox -> pbox -> tbox =
   fun p -> box_apply2 (fun t a -> Pos.make p (TTyp(t,a)))
-
-let tlam : type a. popt -> strloc -> a sort -> (a var -> tbox) -> tbox =
-  fun p x s f ->
-    let b = vbind (mk_free s) x.elt f in
-    box_apply (fun b -> Pos.make p (TLam(s, (x.pos, b)))) b
 
 (** {5 Stack constructors} *)
 
@@ -528,7 +514,6 @@ let rec sort : type a b. a ex loc ->  a sort * a ex loc= fun e ->
   | Scis        -> (V,e)
   | VDef _      -> (V,e)
   | VTyp _      -> (V,e)
-  | VLam _      -> (V,e)
 
   | Valu _      -> (T,e)
   | Appl _      -> (T,e)
@@ -539,7 +524,6 @@ let rec sort : type a b. a ex loc ->  a sort * a ex loc= fun e ->
   | FixY _      -> (T,e)
   | Prnt _      -> (T,e)
   | TTyp _      -> (T,e)
-  | TLam _      -> (T,e)
 
   | Epsi        -> (S,e)
   | Push _      -> (S,e)

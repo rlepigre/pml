@@ -22,9 +22,9 @@ def test2 =
 
 def fixid = fix (λx.x)
 
-def lamb_v = Λa.λ(x:a).x
+def lamb_v = λx.x
 
-def lamb_t : τ = Λa.λ(x:a).x
+def lamb_t = λx.x
 
 def muI = μa.[a]λx.x
 def mua = μa b.λx.x

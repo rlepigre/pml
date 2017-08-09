@@ -12,12 +12,9 @@ type vec<a:ο,s:ι> = ∃l:ι, l∈(list<a> | length l ≡ s)
 val vnil : ∀a:ο, vec<a,zero> = nil
 
 val vcns : ∀a:ο,∀s:ι, ∀x∈a, vec<a,s> ⇒ vec<a,S[s]> =
-   Λa:ο. Λs:ι. fun y ls →
-    let ded : s ≡ length ls = {} in
+  fun y ls →
     let test : nat = length ls in
-    let ded : length (cns y ls) ≡ S[s] = {} in
     Cns[{hd = y; tl = ls}]
 
 val vcns : ∀a:ο,∀s:ι, ∀x∈a, vec<a,s> ⇒ vec<a,S[s]> =
-   Λa:ο. Λs:ι. fun y ls →
-    Cns[{hd = y; tl = ls}]
+  fun y ls → Cns[{hd = y; tl = ls}]

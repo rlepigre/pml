@@ -27,7 +27,6 @@ let rec valu_erasure : valu -> e_vbox = fun v ->
   | Goal(_,s) -> vscis
   | VDef(d)   -> box d.value_eval
   | VTyp(v,_) -> valu_erasure v
-  | VLam(_,f) -> valu_erasure (bndr_subst f Dumm)
   | ITag(_)   -> erasure_error "a tag cannot be erased (value)"
   | Dumm      -> erasure_error "a dummy value cannot be erased (value)"
   | VWit(_)   -> erasure_error "a witness cannot be erased (value)"
@@ -61,7 +60,6 @@ and     term_erasure : term -> e_tbox = fun t ->
                  in tfixy (binder_name (snd b)) f (valu_erasure v)
   | Prnt(s)   -> tprnt s
   | TTyp(t,_) -> term_erasure t
-  | TLam(_,f) -> term_erasure (bndr_subst f Dumm)
   | ITag(_)   -> erasure_error "a tag cannot be erased (term)"
   | Dumm      -> erasure_error "a dummy value cannot be erased (term)"
   | UWit(_)   -> erasure_error "a witness cannot be erased (term)"

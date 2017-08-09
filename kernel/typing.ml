@@ -71,8 +71,6 @@ let add_positive : ctxt -> ordi -> ordi option -> ctxt = fun ctx o oo ->
 type typ_rule =
   | Typ_VTyp   of sub_proof * typ_proof
   | Typ_TTyp   of sub_proof * typ_proof
-  | Typ_VLam   of typ_proof
-  | Typ_TLam   of typ_proof
   | Typ_VWit   of sub_proof
   | Typ_VDef   of value * sub_proof
   | Typ_DSum_i of sub_proof * typ_proof
@@ -204,20 +202,6 @@ let rec learn_neg_equivalences : ctxt -> valu -> term option -> prop -> ctxt =
 let term_is_value : term -> ctxt -> bool * ctxt = fun t ctx ->
   let (is_val, equations) = is_value t ctx.equations in
   (is_val, {ctx with equations})
-
-let rec get_lam : type a. string -> a sort -> term -> prop -> a ex * prop =
-  fun x s t c ->
-    match (Norm.whnf c).elt with
-    | HDef(_,e) -> get_lam x s t e.expr_def
-    | Univ(k,f) when (bndr_name f).elt <> x ->
-        unexpected "Name missmatch between Λ and ∀..."
-    | Univ(k,f) ->
-        begin
-          match eq_sort s k with
-          | Eq  -> let wit = UWit(k,t,f) in (wit, bndr_subst f wit)
-          | NEq -> unexpected "Sort missmatch between Λ and ∀..."
-        end
-    | _         -> unexpected "Expected ∀ type..."
 
 let oracle ctx = {
     eq_val = (fun v1 v2 ->
@@ -796,11 +780,6 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
         let ctx = learn_neg_equivalences ctx v None c in
         let p2 = type_valu ctx v a in
         Typ_VTyp(p1,p2)
-    (* Type abstraction. *)
-    | VLam(s,b)   ->
-        let (w, c) = get_lam (bndr_name b).elt s t c in
-        let p = type_valu ctx (bndr_subst b w) c in
-        Typ_VLam(p)
     (* Witness. *)
     | VWit(_,a,_) ->
         let (b, equations) = check_nobox v ctx.equations in
@@ -927,11 +906,6 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
         in
         let p2 = type_term ctx t a in
         Typ_TTyp(p1,p2)
-    (* Type abstraction. *)
-    | TLam(s,b)   ->
-        let (w, c) = get_lam (bndr_name b).elt s t c in
-        let p = type_term ctx (bndr_subst b w) c in
-        Typ_TLam(p)
     (* Definition. *)
     | HDef(_,d)   ->
         begin

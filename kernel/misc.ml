@@ -81,8 +81,6 @@ let (lift, lift_cond) =
             | Scis        -> box e
             | VDef(_)     -> box e
             | VTyp(v,a)   -> vtyp e.pos (lift v) (lift a)
-            | VLam(s,f)   -> vlam e.pos (bndr_name f) s
-                                  (fun x -> lift (bndr_subst f (mk_free s x)))
 
             | Valu(v)     -> valu e.pos (lift v)
             | Appl(t,u)   -> appl e.pos (lift t) (lift u)
@@ -100,8 +98,6 @@ let (lift, lift_cond) =
                                (lift v)
             | Prnt(s)     -> prnt e.pos s
             | TTyp(t,a)   -> ttyp e.pos (lift t) (lift a)
-            | TLam(s,f)   -> tlam e.pos (bndr_name f) s
-                                  (fun x -> lift (bndr_subst f (mk_free s x)))
 
             | Epsi        -> box e
             | Push(v,s)   -> push e.pos (lift v) (lift s)
@@ -180,7 +176,6 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
     | Scis        -> acc
     | VDef(_)     -> acc
     | VTyp(v,_)   -> owits acc v
-    | VLam(_,f)   -> owits acc (bndr_subst f Dumm)
 
     | Valu(v)     -> owits acc v
     | Appl(t,u)   -> owits (owits acc t) u
@@ -192,7 +187,6 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
     | FixY(f,v)   -> owits (owits acc (bndr_subst f Dumm)) v
     | Prnt(_)     -> acc
     | TTyp(t,_)   -> owits acc t
-    | TLam(_,f)   -> owits acc (bndr_subst f Dumm)
 
     | Epsi        -> acc
     | Push(v,s)   -> owits (owits acc v) s
@@ -292,8 +286,6 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
       | Scis        -> box e
       | VDef(_)     -> box e
       | VTyp(v,a)   -> vtyp e.pos (bind_all v) (bind_all a)
-      | VLam(s,f)   -> vlam e.pos (bndr_name f) s
-                            (fun x -> bind_all (bndr_subst f (mk_free s x)))
 
       | Valu(v)     -> valu e.pos (bind_all v)
       | Appl(t,u)   -> appl e.pos (bind_all t) (bind_all u)
@@ -311,8 +303,6 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
                             (bind_all v)
       | Prnt(s)     -> prnt e.pos s
       | TTyp(t,a)   -> ttyp e.pos (bind_all t) (bind_all a)
-      | TLam(s,f)   -> tlam e.pos (bndr_name f) s
-                            (fun x -> bind_all (bndr_subst f (mk_free s x)))
 
       | Epsi        -> box e
       | Push(v,s)   -> push e.pos (bind_all v) (bind_all s)

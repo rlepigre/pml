@@ -88,8 +88,6 @@ let uvar_iter : type a. bool -> uvar_fun -> a ex loc -> unit =
     (* NOTE type annotations ignored. *)
     | VTyp(v,_)   -> uvar_iter v
     | TTyp(t,_)   -> uvar_iter t
-    | VLam(_,b)   -> buvar_iter b
-    | TLam(_,b)   -> buvar_iter b
     | ITag(_)     -> ()
     | Dumm        -> ()
     | Goal(_)     -> ()
@@ -306,10 +304,6 @@ let {eq_expr; eq_bndr; eq_ombinder} =
     | (_             , VTyp(v2,_)    ) -> eq_expr e1 v2
     | (TTyp(t1,_)    , _             ) -> eq_expr t1 e2
     | (_             , TTyp(t2,_)    ) -> eq_expr e1 t2
-    | (VLam(_,b1)    , _             ) -> eq_expr (bndr_subst b1 Dumm) e2
-    | (_             , VLam(_,b2)    ) -> eq_expr e1 (bndr_subst b2 Dumm)
-    | (TLam(_,b1)    , _             ) -> eq_expr (bndr_subst b1 Dumm) e2
-    | (_             , TLam(_,b2)    ) -> eq_expr e1 (bndr_subst b2 Dumm)
     | (ITag(_,i1)    , ITag(_,i2)    ) -> i1 = i2
     (* NOTE should not be compare dummy expressions. *)
     | (Dumm          , Dumm          ) -> false

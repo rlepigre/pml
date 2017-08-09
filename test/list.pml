@@ -21,10 +21,10 @@ val rec app2 : ∀b:ο, list<b> ⇒ list<b> ⇒ list<b> = fun l1 l2 →
     | Cns[c] → cns c.hd (app2 c.tl l2)
   }
 
-def app0 : ι = Λb:ο. fix fun app l1 l2 →
+def app0 : ι = fix fun app l1 l2 →
   case l1 {
     | Nil[]  → l2
-    | Cns[c] → let r : (∃w:ι, (w∈list<b>)) = app c.tl l2 in
+    | Cns[c] → let r = app c.tl l2 in
                cns c.hd r
   }
 

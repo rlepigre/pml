@@ -22,9 +22,9 @@ def test2 : τ =
 
 def fixid : τ = fix (λx.x)
 
-def lamb_v : ι = Λa:ο.λx.x
+def lamb_v : ι = λx.x
 
-def lamb_t : τ = Λa:ο.λx.x
+def lamb_t : τ = λx.x
 
 def muI : τ = μa.[a]λx.x
 def mua : τ = μa b.λx.x

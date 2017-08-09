@@ -175,7 +175,6 @@ and raw_ex' =
   | EFixY of raw_ex
   | EPrnt of string
   | ECoer of raw_ex * raw_ex
-  | ELamb of strloc * raw_sort * raw_ex
 
   | EEpsi
   | EPush of raw_ex * raw_ex
@@ -232,8 +231,6 @@ let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
     | EFixY(t)      -> Printf.fprintf ch "EFixY(%a)" print t
     | EPrnt(s)      -> Printf.fprintf ch "EPrnt(%S)" s
     | ECoer(t,a)    -> Printf.fprintf ch "ECoer(%a,%a)" print t print a
-    | ELamb(x,s,t)  -> Printf.fprintf ch "ELamb(%S,%a,%a)" x.elt
-                         print_raw_sort s print t
     | EEpsi         -> Printf.fprintf ch "EEpsi"
     | EPush(v,s)    -> Printf.fprintf ch "EPush(%a,%a)" print v print s
     | EFram(t,s)    -> Printf.fprintf ch "EFram(%a,%a)" print t print s
@@ -556,7 +553,6 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
     | (ECoer(t,a)   , ST       ) -> infer env vars t s; infer env vars a _sp
     | (ECoer(t,a)   , SUni(r)  ) -> infer env vars t s; infer env vars a _sp
     | (ECoer(t,_)   , _        ) -> sort_clash e s
-    | (ELamb(x,k,t) , _        ) -> infer env (M.add x.elt (x.pos,k) vars) t s
     (* Stacks. *)
     | (EEpsi        , SS       ) -> ()
     | (EPush(v,s)   , SS       ) -> infer env vars v _sv; infer env vars s _ss
@@ -947,22 +943,6 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
         let t = to_term (unsugar env vars t _st) in
         let a = to_prop (unsugar env vars a _sp) in
         Box(T, ttyp e.pos t a)
-    | (ELamb(x,k,t) , SV       ) ->
-        let Sort k = unsugar_sort env k in
-        let f xx =
-          let xx = (x.pos, Box(k, vari x.pos xx)) in
-          let vars = M.add x.elt xx vars in
-          to_valu (unsugar env vars t _sv)
-        in
-        Box(V, vlam e.pos x k f)
-    | (ELamb(x,k,t) , ST       ) ->
-        let Sort k = unsugar_sort env k in
-        let f xx =
-          let xx = (x.pos, Box(k, vari x.pos xx)) in
-          let vars = M.add x.elt xx vars in
-          to_term (unsugar env vars t _sv)
-        in
-        Box(T, tlam e.pos x k f)
     (* Stacks. *)
     | (EEpsi        , SS       ) -> Box(S, epsi e.pos)
     | (EPush(v,pi)  , SS       ) ->
