@@ -367,19 +367,18 @@ and pattern =
                       | { EMPTY | '_' } -> (Pos.in_pos _loc "_", None)}
   "]"}?[(Pos.none "_", None)] arrow t:(expr (`Trm`F))
     -> (c, x, t)
-let expr = expr `Any
 
 (** Toplevel. *)
 let parser toplevel =
   | _sort_ id:llid '=' s:sort
     -> fun () -> sort_def id s
-  | _def_  id:llid args:sort_args s:{':' sort}? '=' e:expr
+  | _def_  id:llid args:sort_args s:{':' sort}? '=' e:(expr  `Any)
     -> fun () -> expr_def id args s e
-  | _type_ r:is_rec id:llid args:sort_args '=' e:expr
+  | _type_ r:is_rec id:llid args:sort_args '=' e:(expr (`Prp`F))
     -> fun () -> type_def _loc r id args e
-  | _val_ r:is_rec id:llid ':' a:expr '=' t:expr
+  | _val_ r:is_rec id:llid ':' a:(expr (`Prp`F)) '=' t:(expr (`Trm`F))
     -> fun () -> val_def r id a t
-  | _check_ r:{"¬" -> false}?[true] a:expr "⊂" b:expr
+  | _check_ r:{"¬" -> false}?[true] a:(expr (`Prp`F)) "⊂" b:(expr (`Prp`F))
     -> fun () -> check_sub a r b
   | _include_ p:path
     -> fun () -> include_file p
