@@ -4,3 +4,7 @@
 "pml2"             : include
 "parser/parser.ml" : pp(pa_ocaml)
 true               : annot, bin_annot
+true               : package(unix)
+true               : package(bindlib)
+true               : package(earley)
+true               : package(earley.str)

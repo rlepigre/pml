@@ -39,13 +39,13 @@ util_doc: util/util.docdir/index.html
 UTILFILES := $(wildcard util/*.ml) $(wildcard util/*.mli)
 
 util/util.cmxa: $(UTILFILES)
-	$(OCAMLBUILD) -package unix,earley $@
+	$(OCAMLBUILD) $@
 
 util/util.cma: $(UTILFILES)
-	$(OCAMLBUILD) -package unix,earley $@
+	$(OCAMLBUILD) $@
 
 util/util.docdir/index.html: $(UTILFILES)
-	$(OCAMLBUILD) -package bindlib -package unix,earley $@
+	$(OCAMLBUILD) $@
 
 # Compilation of the kernel.
 .PHONY: kernel kernel_byte kernel_doc
@@ -56,13 +56,13 @@ kernel_doc: kernel/kernel.docdir/index.html
 KERNELFILES := $(wildcard kernel/*.ml) $(wildcard kernel/*.mli)
 
 kernel/kernel.cmxa: $(KERNELFILES)
-	$(OCAMLBUILD) -package bindlib,earley $@
+	$(OCAMLBUILD) $@
 
 kernel/kernel.cma: $(KERNELFILES)
-	$(OCAMLBUILD) -package bindlib,earley $@
+	$(OCAMLBUILD) $@
 
 kernel/kernel.docdir/index.html: $(KERNELFILES)
-	$(OCAMLBUILD) -package bindlib,earley $@
+	$(OCAMLBUILD) $@
 
 # Compilation of the parser.
 .PHONY: parser parser_byte
@@ -72,10 +72,10 @@ parser_byte: parser/parser.cma
 PARSERFILES := $(wildcard parser/*.ml) $(wildcard parser/*.mli)
 
 parser/parser.cmxa: $(KERNELFILES)
-	$(OCAMLBUILD) -package bindlib,earley,earley.str $@
+	$(OCAMLBUILD) $@
 
 parser/parser.cma: $(KERNELFILES)
-	$(OCAMLBUILD) -package bindlib,earley,earley.str $@
+	$(OCAMLBUILD) $@
 
 # Compilation of PML2.
 .PHONY: pml2 pml2_byte
@@ -87,11 +87,11 @@ main.native: pml2/main.native
 
 pml2/main.native:
 	@rm -f main.native
-	$(OCAMLBUILD) -package unix,bindlib,earley,earley.str $@
+	$(OCAMLBUILD) $@
 
 pml2/main.byte:
 	@rm -f main.byte
-	$(OCAMLBUILD) -package unix,bindlib,earley,earley.str $@
+	$(OCAMLBUILD) $@
 
 check:
 	@f=`grep FIXME */*.ml */*.mli | wc -l`;\
@@ -112,7 +112,7 @@ check:
 .PHONY: test
 TEST_FILES = $(wildcard lib/*.pml examples/*.pml test/*.pml test/phd_examples/*.pml)
 test: main.native $(TEST_FILES)
-	for f in $(TEST_FILES); do ./main.native --quiet $$f || break ; done
+	@for f in $(TEST_FILES); do ./main.native --quiet $$f || break ; done
 
 # Cleaning targets.
 clean: libclean
