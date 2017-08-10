@@ -333,6 +333,8 @@ let rec subtype =
             let p = subtype ctx t a1 a2 in
             p::ps
           in
+          (** NOTE: subtype fields with unification variables not under
+              fixpoint first to allow for inductive proof *)
           let count l a2 =
             nb_vis_uvars a2
             + (try nb_vis_uvars (snd (A.find l fs1)) with Not_found -> 0)
@@ -359,6 +361,8 @@ let rec subtype =
             let p = subtype ctx (vdot wit c) a1 a2 in
             p::ps
           in
+          (** NOTE: subtype fields with unification variables not under
+              fixpoint first to allow for inductive proof *)
           let count c a1 =
             nb_vis_uvars a1
             + (try nb_vis_uvars (snd (A.find c cs2)) with Not_found -> 0)
