@@ -1,14 +1,13 @@
 // Booleans
 
-// Type of booleans
-def bool : ο = [F of {} ; T of {}]
+type nbool = [T of {} ; F of {}]
 
 // Smart constructors
-val tru : bool = T[]
-val fls : bool = F[]
+val tru : nbool = T[{}]
+val fls : nbool = F[{}]
 
 // Basic functions.
-val eq : bool ⇒ bool ⇒ bool =
+val eq : nbool ⇒ nbool ⇒ nbool =
   fun b1 b2 →
     case b1 {
       | F[x] → case b2 { T[_] → fls | F[_] → tru }
@@ -16,49 +15,49 @@ val eq : bool ⇒ bool ⇒ bool =
     }
 
 // Equivalence is total.
-val eq_total :  ∀ x:ι, x∈bool ⇒  ∀ y:ι, y∈bool ⇒ ∃ v:ι, eq x y ≡ v =
+val eq_total :  ∀ x:ι, x∈nbool ⇒  ∀ y:ι, y∈nbool ⇒ ∃ v:ι, eq x y ≡ v =
   fun b1 b2 →
     case b1 {
       | F[x] → case b2 { T[y] → {} | F[y] → {} }
       | T[x] → case b2 { T[y] → {} | F[y] → {} }
     }
 
-val not : bool ⇒ bool =
+val not : nbool ⇒ nbool =
   fun b →
     case b {
       | F[x] → tru
       | T[x] → fls
     }
 
-val not_total : ∀ x:ι, x∈bool ⇒ ∃ v:ι, not x ≡ v =
+val not_total : ∀ x:ι, x∈nbool ⇒ ∃ v:ι, not x ≡ v =
   fun b →
     case b {
       | F[x] → {}
       | T[x] → {}
     }
 
-val or : bool ⇒ bool ⇒ bool =
+val or : nbool ⇒ nbool ⇒ nbool =
   fun b1 b2 →
     case b1 {
       | F[x] → b2
       | T[x] → tru
     }
 
-val or_total : ∀ x:ι, x∈bool ⇒  ∀ y:ι, y∈bool ⇒ ∃ v:ι, or x y ≡ v =
+val or_total : ∀ x:ι, x∈nbool ⇒  ∀ y:ι, y∈nbool ⇒ ∃ v:ι, or x y ≡ v =
   fun b1 b2 →
     case b1 {
       | F[x] → {}
       | T[x] → {}
     }
 
-val and : bool ⇒ bool ⇒ bool =
+val and : nbool ⇒ nbool ⇒ nbool =
   fun b1 → fun b2 →
     case b1 {
       | F[x] → fls
       | T[x] → b2
     }
 
-val and_total : ∀ x:ι, x∈bool ⇒  ∀ y:ι, y∈bool ⇒ ∃ v:ι, and x y ≡ v =
+val and_total : ∀ x:ι, x∈nbool ⇒  ∀ y:ι, y∈nbool ⇒ ∃ v:ι, and x y ≡ v =
   fun b1 b2 →
     case b1 {
       | F[x] → {}
@@ -66,7 +65,7 @@ val and_total : ∀ x:ι, x∈bool ⇒  ∀ y:ι, y∈bool ⇒ ∃ v:ι, and x y
     }
 
 // Proof of the excluded middle
-val excluded_middle : ∀ x:ι, x∈bool ⇒ or x (not x) ≡ tru =
+val excluded_middle : ∀ x:ι, x∈nbool ⇒ or x (not x) ≡ tru =
   fun b →
     case b {
       | F[x] → {}
@@ -74,7 +73,7 @@ val excluded_middle : ∀ x:ι, x∈bool ⇒ or x (not x) ≡ tru =
     }
 
 // Equivalence is reflexive.
-val eq_refl : ∀ x:ι, x∈bool ⇒ eq x x ≡ tru =
+val eq_refl : ∀ x:ι, x∈nbool ⇒ eq x x ≡ tru =
   fun b →
     case b {
       | F[x] → {}
@@ -82,14 +81,14 @@ val eq_refl : ∀ x:ι, x∈bool ⇒ eq x x ≡ tru =
     }
 
 // Equivalence is commutative.
-val eq_comm : ∀ x:ι, ∀ y:ι, x∈bool ⇒ y∈bool ⇒ eq x y ≡ eq y x =
+val eq_comm : ∀ x:ι, ∀ y:ι, x∈nbool ⇒ y∈nbool ⇒ eq x y ≡ eq y x =
   fun b1 b2 →
     case b1 {
       | F[x] → case b2 { T[y] → {} | F[y] → {} }
       | T[x] → case b2 { T[y] → {} | F[y] → {} }
     }
 
-val eq_comm2 : ∀ x:ι, ∀ y:ι, x∈bool ⇒ y∈bool ⇒ eq (eq x y) (eq y x) ≡ tru =
+val eq_comm2 : ∀ x:ι, ∀ y:ι, x∈nbool ⇒ y∈nbool ⇒ eq (eq x y) (eq y x) ≡ tru =
   fun b1 b2 →
     case b1 {
       | F[x] → case b2 { T[y] → {} | F[y] → {} }
@@ -97,7 +96,7 @@ val eq_comm2 : ∀ x:ι, ∀ y:ι, x∈bool ⇒ y∈bool ⇒ eq (eq x y) (eq y x
     }
 
 // Equivalence is associative.
-val eq_asso : ∀ x:ι, ∀ y:ι, ∀ z:ι, x∈bool ⇒ y∈bool ⇒ z∈bool ⇒
+val eq_asso : ∀ x:ι, ∀ y:ι, ∀ z:ι, x∈nbool ⇒ y∈nbool ⇒ z∈nbool ⇒
               eq (eq x y) z ≡ eq x (eq y z) =
   fun b1 b2 b3 →
     case b1 {
@@ -112,7 +111,7 @@ val eq_asso : ∀ x:ι, ∀ y:ι, ∀ z:ι, x∈bool ⇒ y∈bool ⇒ z∈bool �
     }
 
 // Other version using "let".
-val eq_comm3 : ∀ x:ι, ∀ y:ι, x∈bool ⇒ y∈bool ⇒ eq (eq x y) (eq y x) ≡ tru =
+val eq_comm3 : ∀ x:ι, ∀ y:ι, x∈nbool ⇒ y∈nbool ⇒ eq (eq x y) (eq y x) ≡ tru =
   fun b1 b2 →
     let lem1 = eq_comm b1 b2 in
     let lem0 = eq_total b1 b2 in

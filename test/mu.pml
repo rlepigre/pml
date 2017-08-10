@@ -1,3 +1,5 @@
+include lib.either
+
 val pierce : ∀ a b, ((a ⇒ b) ⇒ a) ⇒ a = λx.μa.x (λy.[a]y)
 
 type bot = ∀x, x

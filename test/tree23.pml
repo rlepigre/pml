@@ -1,3 +1,4 @@
+include lib.bool
 include lib.nat
 
 type rec tree23<a:ο> = [

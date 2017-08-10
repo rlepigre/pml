@@ -2,21 +2,18 @@
 type unit = {}
 
 // Booleans.
-type bool = [Tru ; Fls]
+//type bool = [Tru ; Fls]
 
 // Short names for the booleans.
-val tru : bool = Tru[{}]
-val fls : bool = Fls[{}]
+val tru : bool = true
+val fls : bool = false
 
 // More usual names for the booleans.
-val true  : bool = Tru[{}]
-val false : bool = Fls[{}]
+//val true  : bool = Tru[{}]
+//val false : bool = Fls[{}]
 
 def cond<c:τ,t:τ,e:τ> =
-  case (c : bool) {
-    Tru[_] → t
-    Fls[_] → e
-  }
+  if c { t } else { e }
 
 def land<a:τ,b:τ> = cond<a,b,fls>
 def lor <a:τ,b:τ> = cond<a,tru,b>

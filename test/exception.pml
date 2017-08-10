@@ -38,7 +38,7 @@ val find_opt : ∀a:ο, ∀f∈(a ⇒ bool), total<f,a> ⇒ list<a> ⇒ option<a
   fun f ftot l → save a → Some[find f ftot l (fun _ → restore a none)]
 
 val notNone : ∀a:ο, option<a> ⇒ bool = fun o →
-  case o { None[] → fls | Some[_] → tru }
+  case o { None[] → false | Some[_] → true }
 
 val rec find2 : ∀a:ο, ∀f∈(a ⇒ bool), total<f,a> ⇒ list<list<a>> ⇒ option<a> =
   fun f ftot ls →

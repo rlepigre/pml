@@ -1,3 +1,5 @@
+include lib.option
+
 type rec list<a> = [Nil ; Cons of {hd : a ; tl : list}]
 type slist<a,k> = μk list [Nil ; Cons of {hd : a ; tl : list}]
 
@@ -13,6 +15,7 @@ val rec rev_append : ∀a, list<a> ⇒ list<a> ⇒ list<a> = fun l1 l2 →
     | Cons[c] → rev_append c.tl Cons[{hd = c.hd; tl = l2}]
   }
 
+type unit = {}
 val silly : (∀a, a ⇒ a) ⇒ unit ⇒ option<unit> =
   fun f u → f Some[f u]
 val rec conjunction : list<bool> ⇒ bool = fun l → save k →

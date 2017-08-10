@@ -1,9 +1,10 @@
+include lib.bool
 include lib.list
 
 type ord<a:ο> = ∃cmp:ι,
   { cmp : cmp ∈ (a ⇒ a ⇒ bool)
   ; termi : ∀x y∈a, ∃v:ι, cmp x y ≡ v  // Should disappear soon
-  ; trans : ∀x y z∈a, (cmp x y ≡ tru ⇒ cmp y z ≡ tru ⇒ cmp x y ≡ tru)
+  ; trans : ∀x y z∈a, (cmp x y ≡ true ⇒ cmp y z ≡ true ⇒ cmp x y ≡ true)
   ; total : ∀x y∈a, or (cmp x y) (cmp y x) ≡ true }
 
 val rec sorted : ∀a:ο, ∀o∈ord<a>, ∀l∈list<a>, bool = fun o l →

@@ -1,4 +1,4 @@
-include lib.prelude
+include lib.option
 include lib.nat
 
 type rec list<a> = [Nil ; Cons of {hd : a ; tl : list}]

@@ -1,3 +1,4 @@
+include lib.bool
 include lib.list
 
 type order<a:ο> = ∃cmp:ι,
@@ -15,10 +16,10 @@ val rec sorted : ∀a:ο, ∀o∈order<a>, ∀l∈list<a>, bool = fun o l →
          | Nil[_]   → tru
          | Cons[c2] →
             let hd2 = c2.hd in
-            let c = o.cmp hd hd2 in
-            case c {
-            | Tru[_] → sorted o tl
-            | Fls[_] → false
+            if o.cmp hd hd2 {
+              sorted o tl
+            } else {
+              false
             }
        }
   }

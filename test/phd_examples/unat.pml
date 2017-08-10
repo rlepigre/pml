@@ -1,3 +1,5 @@
+include lib.bool
+include lib.option
 type rec nat = [Zero ; Succ of nat]
 
 val rec add : nat ⇒ nat ⇒ nat = fun n m →

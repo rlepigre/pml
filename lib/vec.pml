@@ -1,4 +1,3 @@
-include lib.prelude
 include lib.nat
 include lib.nat_proofs
 include lib.list

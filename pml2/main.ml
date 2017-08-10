@@ -157,8 +157,6 @@ let files =
     (f, Arg.Unit(act), " Show this usage message.")
   in
 
-  let load_prelude = ref true in
-
   let spec =
     [ ( "--log-file"
       , Arg.String(Log.with_file)
@@ -173,9 +171,6 @@ let files =
     ; ( "--full-compare"
       , Arg.Set Compare.full_eq
       , " Show all the steps when comparing expressions.")
-    ; ( "--no-prelude"
-      , Arg.Clear load_prelude
-      , " Do not load the prelude.")
     ; ( "--always-colors"
       , Arg.Set Output.always_colors
       , " Always use colors.")
@@ -193,10 +188,6 @@ let files =
   (* Run checks on files. *)
   Arg.parse spec anon_fun usage_msg;
   let files = List.rev !files in
-  let files =
-    if !load_prelude then find_file "lib/prelude.pml" :: files
-    else files
-  in
 
   let check_ext fn =
     if not (Filename.check_suffix fn ".pml") then

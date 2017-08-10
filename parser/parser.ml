@@ -87,6 +87,9 @@ let _let_     = KW.new_keyword "let"
 let _in_      = KW.new_keyword "in"
 let _if_      = KW.new_keyword "if"
 let _else_    = KW.new_keyword "else"
+let _true_    = KW.new_keyword "true"
+let _false_   = KW.new_keyword "false"
+let _bool_    = KW.new_keyword "bool"
 let _show_    = KW.new_keyword "show"
 let _use_     = KW.new_keyword "use"
 let _qed_     = KW.new_keyword "qed"
@@ -145,6 +148,9 @@ let parser expr (m : mode) =
   | id:llid args:{"<" (lsep "," (expr `Any)) ">"}?[[]]
       when m = `Prp`A
       -> in_pos _loc (EVari(id, args))
+  | _bool_
+      when m = `Prp`A
+      -> p_bool (Some _loc)
   (* Proposition (implication) *)
   | a:(expr (`Prp`R)) impl b:(expr (`Prp`F))
       when m = `Prp`F
@@ -229,6 +235,14 @@ let parser expr (m : mode) =
   | c:luid t:{"[" t:(expr (`Trm`F))? "]"}?[None]$
       when m = `Trm`A
       -> in_pos _loc (ECons(c, Option.map (fun t -> (t, ref `T)) t))
+  (* Term (true boolean) *)
+  | _true_
+      when m = `Trm`A
+      -> v_bool _loc true
+  (* Term (true boolean) *)
+  | _false_
+      when m = `Trm`A
+      -> v_bool _loc false
   (* Term (record) *)
   | "{" fs:(lsep_ne ";" (parser l:llid "=" a:(expr (`Trm`F)))) "}"
       when m = `Trm`A

@@ -1,4 +1,5 @@
-include lib.prelude
+include lib.bool
+include lib.option
 
 type rec nat = [Zero ; Succ of nat]
 

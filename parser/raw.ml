@@ -1034,17 +1034,33 @@ let esett _loc x a =
   let a = Pos.none (EMemb(Pos.make x.pos (EVari(x,[])), a)) in
   in_pos _loc (EExis((x,[]), _sv, a))
 
+(* The built it type of booleans. *)
+let p_bool _loc =
+  Pos.make _loc (EDSum [(Pos.none "true", None) ; (Pos.none "false", None)])
+
+(* "if c then t else e" := "case t:bool of { Tru[_] -> t | Fls[_] -> e }" *)
 let if_then_else _loc c t e =
-  Pos.make (Some _loc) (EVari(Pos.none "cond", [c;t;e]))
+  let no_arg c t = (Pos.none c, (Pos.none "_", None), t) in
+  let pats = [ no_arg "true" t ; no_arg "false" e ] in
+  Pos.in_pos _loc (ECase(Pos.none (ECoer(c, p_bool None)), ref `T, pats))
 
+(* Boolean values. *)
+let v_bool _loc b =
+  let b = ECons(Pos.none (if b then "true" else "false"), None) in
+  Pos.in_pos _loc (ECoer(Pos.in_pos _loc b, p_bool None))
+
+(* "deduce a" := "{} : a" *)
 let deduce _loc a =
-  Pos.make (Some _loc) (EVari(Pos.none "tac_deduce", [a]))
+  Pos.in_pos _loc (ECoer(Pos.none (EReco []), a))
 
+(* "show a using p" := "p : a" *)
 let show_using _loc a t =
-  Pos.make (Some _loc) (EVari(Pos.none "tac_show", [a; t]))
+  Pos.in_pos _loc (ECoer(t, a))
 
+(* "use a" := "a" *)
 let use _loc t =
-  Pos.make (Some _loc) (EVari(Pos.none "tac_use", [t]))
+  t
 
+(* "qed" := "{}" *)
 let qed _loc =
-  Pos.make (Some _loc) (EVari(Pos.none "tac_qed", []))
+  Pos.in_pos _loc (EReco([]))
