@@ -333,7 +333,11 @@ let rec subtype =
             let p = subtype ctx t a1 a2 in
             p::ps
           in
-          let fs2 = A.map (fun (p,a2) -> (nb_vis_uvars a2, p, a2)) fs2 in
+          let count l a2 =
+            nb_vis_uvars a2
+            + (try nb_vis_uvars (snd (A.find l fs1)) with Not_found -> 0)
+          in
+          let fs2 = A.mapi (fun l (p,a2) -> (count l a2, p, a2)) fs2 in
           let fs2 = A.sort (fun (n,_,_) (m,_,_) -> m - n) fs2 in
           let ps = A.fold check_field fs2 [] in
           Sub_Prod(ps)
@@ -355,7 +359,11 @@ let rec subtype =
             let p = subtype ctx (vdot wit c) a1 a2 in
             p::ps
           in
-          let cs1 = A.map (fun (p,a1) -> (nb_vis_uvars a1, p, a1)) cs1 in
+          let count c a1 =
+            nb_vis_uvars a1
+            + (try nb_vis_uvars (snd (A.find c cs2)) with Not_found -> 0)
+          in
+          let cs1 = A.mapi (fun c (p,a1) -> (count c a1, p, a1)) cs1 in
           let cs1 = A.sort (fun (n,_,_) (m,_,_) -> m - n) cs1 in
           let ps = A.fold check_variant cs1 [] in
           Sub_DSum(ps)
