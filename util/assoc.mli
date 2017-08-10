@@ -18,6 +18,8 @@ val mapi : (string -> 'a -> 'b) -> 'a t -> 'b t
 
 val bindings : 'a t -> (string * 'a) list
 
+val sort : ('a -> 'a -> int) -> 'a t -> 'a t
+
 val fold : (string -> 'a -> 'b -> 'b) -> 'a t -> 'b -> 'b
 
 val iter : (string -> 'a -> unit) -> 'a t -> unit

@@ -16,6 +16,8 @@ module ListMap =
 
     let bindings l = l
 
+    let sort f l = List.sort (fun (_, d1) (_, d2) -> f d1 d2) l
+
     let fold f l acc = List.fold_left (fun acc (k, v) -> f k v acc) acc l
 
     let iter f l = List.iter (fun (k, v) -> f k v) l

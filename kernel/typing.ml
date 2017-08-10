@@ -320,11 +320,11 @@ let rec subtype =
               let p2 = subtype ctx (Pos.none (Appl(t, wit))) b1 b2 in
               let p1 = subtype ctx wit a2 a1 in
               (p1,p2)
-          in
-          Sub_Func(p1,p2)
+         in
+         Sub_Func(p1,p2)
       (* Product (record) types. *)
       | (Prod(fs1)  , Prod(fs2)  ) when t_is_val ->
-          let check_field l (p,a2) ps =
+          let check_field l (_,p,a2) ps =
             let a1 =
               try snd (A.find l fs1) with Not_found ->
               subtype_msg p ("Product clash on label " ^ l ^ "...")
@@ -333,11 +333,13 @@ let rec subtype =
             let p = subtype ctx t a1 a2 in
             p::ps
           in
+          let fs2 = A.map (fun (p,a2) -> (nb_vis_uvars a2, p, a2)) fs2 in
+          let fs2 = A.sort (fun (n,_,_) (m,_,_) -> m - n) fs2 in
           let ps = A.fold check_field fs2 [] in
           Sub_Prod(ps)
       (* Disjoint sum types. *)
       | (DSum(cs1)  , DSum(cs2)  ) when t_is_val ->
-          let check_variant c (p,a1) ps =
+          let check_variant c (_,p,a1) ps =
             let a2 =
               try snd (A.find c cs2) with Not_found ->
               subtype_msg p ("Sum clash on constructor " ^ c ^ "...")
@@ -353,6 +355,8 @@ let rec subtype =
             let p = subtype ctx (vdot wit c) a1 a2 in
             p::ps
           in
+          let cs1 = A.map (fun (p,a1) -> (nb_vis_uvars a1, p, a1)) cs1 in
+          let cs1 = A.sort (fun (n,_,_) (m,_,_) -> m - n) cs1 in
           let ps = A.fold check_variant cs1 [] in
           Sub_DSum(ps)
       (* Universal quantification on the left. *)

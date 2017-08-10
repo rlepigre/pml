@@ -28,8 +28,8 @@ type uvar_fun = { f : 'a. 'a sort -> 'a uvar -> unit }
 
 type b = A : 'a ex -> b
 
-let uvar_iter : type a. bool -> uvar_fun -> a ex loc -> unit =
-  fun ignore_epsilon f e ->
+let uvar_iter : type a. bool -> bool -> uvar_fun -> a ex loc -> unit =
+  fun ignore_epsilon ignore_fixpoint f e ->
   let not_closed b = not (Bindlib.binder_closed (snd b)) in
   let adone = Ahash.create 67 in
   let todo : type a . a ex loc -> bool =
@@ -59,8 +59,8 @@ let uvar_iter : type a. bool -> uvar_fun -> a ex loc -> unit =
     | DSum(m)     -> A.iter (fun _ (_,a) -> uvar_iter a) m
     | Univ(_,b)   -> buvar_iter b
     | Exis(_,b)   -> buvar_iter b
-    | FixM(o,b)   -> uvar_iter o; buvar_iter b
-    | FixN(o,b)   -> uvar_iter o; buvar_iter b
+    | FixM(o,b)   -> if not ignore_fixpoint then (uvar_iter o; buvar_iter b)
+    | FixN(o,b)   -> if not ignore_fixpoint then (uvar_iter o; buvar_iter b)
     | Memb(t,a)   -> uvar_iter t; uvar_iter a
     | Rest(a,c)   -> uvar_iter a; uvar_iter_cond c
     | Impl(c,a)   -> uvar_iter_cond c; uvar_iter a
@@ -116,14 +116,15 @@ let uvar_iter : type a. bool -> uvar_fun -> a ex loc -> unit =
 
 type s_elt = U : 'a sort * 'a uvar -> s_elt
 
-let uvars : type a. ?ignore_epsilon:bool -> a ex loc -> s_elt list =
-  fun ?(ignore_epsilon=false) e ->
+let uvars : type a. ?ignore_epsilon:bool -> ?ignore_fixpoint:bool
+                 -> a ex loc -> s_elt list =
+  fun ?(ignore_epsilon=false) ?(ignore_fixpoint=false) e ->
   let uvars = ref [] in
   let f s u =
     let p (U(_,v)) = v.uvar_key == u.uvar_key in
     if not (List.exists p !uvars) then uvars := (U(s,u)) :: !uvars
   in
-  uvar_iter ignore_epsilon {f} e; !uvars
+  uvar_iter ignore_epsilon ignore_fixpoint {f} e; !uvars
 
 let occur_chrono = Chrono.create "occur"
 
@@ -135,8 +136,11 @@ let uvar_occurs : type a b. a uvar -> b ex loc -> bool = fun u e ->
         raise Exit
       end
   in
-  try Chrono.add_time occur_chrono (uvar_iter false {f}) e; false
+  try Chrono.add_time occur_chrono (uvar_iter false false {f}) e; false
   with Exit -> true
+
+let nb_vis_uvars a =
+  List.length (uvars ~ignore_epsilon:true ~ignore_fixpoint:true a)
 
 let uvar_occurs_cond : type a. a uvar -> cond -> bool = fun u c ->
   match c with
