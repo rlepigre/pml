@@ -79,9 +79,9 @@ type v_node =
   | VN_Cons of A.key loc * VPtr.t
   | VN_Reco of VPtr.t A.t
   | VN_Scis
-  | VN_VWit of v ex loc
-  | VN_UWit of v ex loc
-  | VN_EWit of v ex loc
+  | VN_VWit of ((v, t) bndr * p ex loc * p ex loc)
+  | VN_UWit of (t ex loc * (v, p) bndr)
+  | VN_EWit of (t ex loc * (v, p) bndr)
   | VN_HApp of v ho_appl
   | VN_UVar of v uvar
   | VN_ITag of int
@@ -98,8 +98,8 @@ type t_node =
   | TN_Case of VPtr.t * (v, t) bndr A.t
   | TN_FixY of (v, t) bndr * VPtr.t
   | TN_Prnt of string
-  | TN_UWit of t ex loc
-  | TN_EWit of t ex loc
+  | TN_UWit of (t ex loc * (t, p) bndr)
+  | TN_EWit of (t ex loc * (t, p) bndr)
   | TN_HApp of t ho_appl
   | TN_UVar of t uvar
   | TN_ITag of int
@@ -110,18 +110,18 @@ let print_v_node : out_channel -> v_node -> unit = fun ch n ->
   let prnt = Printf.fprintf in
   let pex = Print.print_ex in
   match n with
-  | VN_LAbs(b)    -> prnt ch "VN_LAbs(%a)" pex (Pos.none (LAbs(None,b)))
-  | VN_Cons(c,pv) -> prnt ch "VN_Cons(%s,%a)" c.elt VPtr.print pv
-  | VN_Reco(m)    -> let pelt ch (k, p) = prnt ch "%S=%a" k VPtr.print p in
-                          prnt ch "VN_Reco(%a)" (Print.print_map pelt ":") m
-  | VN_Scis       -> prnt ch "VN_Scis"
-  | VN_VWit(v)    -> prnt ch "VN_VWit(%a)" Print.ex v
-  | VN_UWit(v)    -> prnt ch "VN_UWit(%a)" Print.ex v
-  | VN_EWit(v)    -> prnt ch "VN_EWit(%a)" Print.ex v
-  | VN_HApp(e)    -> let HO_Appl(s,f,a) = e in
-                     prnt ch "VN_HApp(%a)" pex (Pos.none (HApp(s,f,a)))
-  | VN_UVar(v)    -> prnt ch "VN_UVar(%a)" pex (Pos.none (UVar(V,v)))
-  | VN_ITag(n)    -> prnt ch "VN_ITag(%d)" n
+  | VN_LAbs(b)     -> prnt ch "VN_LAbs(%a)" pex (Pos.none (LAbs(None,b)))
+  | VN_Cons(c,pv)  -> prnt ch "VN_Cons(%s,%a)" c.elt VPtr.print pv
+  | VN_Reco(m)     -> let pelt ch (k, p) = prnt ch "%S=%a" k VPtr.print p in
+                      prnt ch "VN_Reco(%a)" (Print.print_map pelt ":") m
+  | VN_Scis        -> prnt ch "VN_Scis"
+  | VN_VWit(b,_,_) -> prnt ch "VN_VWit(ει%s)" (bndr_name b).elt
+  | VN_UWit(_,b)   -> prnt ch "VN_UWit(ε∀%s)" (bndr_name b).elt
+  | VN_EWit(_,b)   -> prnt ch "VN_EWit(ε∃%s)" (bndr_name b).elt
+  | VN_HApp(e)     -> let HO_Appl(s,f,a) = e in
+                      prnt ch "VN_HApp(%a)" pex (Pos.none (HApp(s,f,a)))
+  | VN_UVar(v)     -> prnt ch "VN_UVar(%a)" pex (Pos.none (UVar(V,v)))
+  | VN_ITag(n)     -> prnt ch "VN_ITag(%d)" n
 
 (** Printing function for term nodes. *)
 let print_t_node : out_channel -> t_node -> unit = fun ch n ->
@@ -139,10 +139,10 @@ let print_t_node : out_channel -> t_node -> unit = fun ch n ->
                       let pmap = Print.print_map pelt "|" in
                       prnt ch "TN_Case(%a|%a)" VPtr.print pv pmap m
   | TN_FixY(b,pv)  -> prnt ch "TN_FixY(%a,%a)" pex (Pos.none (LAbs(None,b)))
-                             VPtr.print pv
+                        VPtr.print pv
   | TN_Prnt(s)     -> prnt ch "TN_Prnt(%S)" s
-  | TN_UWit(t)     -> prnt ch "TN_UWit(%a)" Print.ex t
-  | TN_EWit(t)     -> prnt ch "TN_EWit(%a)" Print.ex t
+  | TN_UWit(_,b)   -> prnt ch "TN_UWit(ε∀%s)" (bndr_name b).elt
+  | TN_EWit(_,b)   -> prnt ch "TN_EWit(ε∃%s)" (bndr_name b).elt
   | TN_HApp(e)     -> let HO_Appl(s,f,a) = e in
                       let e = Pos.none (HApp(s,f,a)) in
                       prnt ch "TN_HApp(%a)" Print.print_ex e
@@ -306,9 +306,12 @@ let eq_v_nodes : pool -> v_node -> v_node -> bool =
     | (VN_Cons(c1,p1), VN_Cons(c2,p2)) -> c1.elt = c2.elt && eq_vptr po p1 p2
     | (VN_Reco(m1)   , VN_Reco(m2)   ) -> A.equal (eq_vptr po) m1 m2
     | (VN_Scis       , VN_Scis       ) -> true
-    | (VN_VWit(v1)   , VN_VWit(v2)   ) -> eq_expr v1 v2
-    | (VN_UWit(v1)   , VN_UWit(v2)   ) -> eq_expr v1 v2
-    | (VN_EWit(v1)   , VN_EWit(v2)   ) -> eq_expr v1 v2
+    | (VN_VWit(w1)   , VN_VWit(w2)   ) -> let (f1,a1,b1) = w1 in
+                                          let (f2,a2,b2) = w2 in
+                                          eq_bndr V f1 f2 && eq_expr a1 a2
+                                          && eq_expr b1 b2
+    | (VN_UWit(t1,b1), VN_UWit(t2,b2)) -> eq_expr t1 t2 && eq_bndr V b1 b2
+    | (VN_EWit(t1,b1), VN_EWit(t2,b2)) -> eq_expr t1 t2 && eq_bndr V b1 b2
     | (VN_ITag(n1)   , VN_ITag(n2)   ) -> n1 = n2
     | (_             , _             ) -> false
 
@@ -330,8 +333,8 @@ let eq_t_nodes : pool -> t_node -> t_node -> bool =
     | (TN_FixY(b1,p1)  , TN_FixY(b2,p2)  ) -> eq_bndr V b1 b2
                                               && eq_vptr po p1 p2
     | (TN_Prnt(s1)     , TN_Prnt(s2)     ) -> s1 = s2
-    | (TN_UWit(t1)     , TN_UWit(t2)     ) -> eq_expr t1 t2
-    | (TN_EWit(t1)     , TN_EWit(t2)     ) -> eq_expr t1 t2
+    | (TN_UWit(t1,b1)  , TN_UWit(t2,b2)  ) -> eq_expr t1 t2 && eq_bndr T b1 b2
+    | (TN_EWit(t1,b1)  , TN_EWit(t2,b2)  ) -> eq_expr t1 t2 && eq_bndr T b1 b2
     | (TN_ITag(n1)     , TN_ITag(n2)     ) -> n1 = n2
     | (_               , _               ) -> false
 
@@ -407,8 +410,7 @@ let insert_t_node : t_node -> pool -> TPtr.t * pool = fun nn po ->
 
 (** Insertion of actual terms and values to the pool. *)
 let rec add_term : pool -> term -> TPtr.t * pool = fun po t ->
-  let t = Norm.whnf t in
-  match t.elt with
+  match (Norm.whnf t).elt with
   | Valu(v)     -> let (pv, po) = add_valu po v in
                    insert_t_node (TN_Valu(pv)) po
   | Appl(t,u)   -> let (pt, po) = add_term po t in
@@ -425,8 +427,8 @@ let rec add_term : pool -> term -> TPtr.t * pool = fun po t ->
                    insert_t_node (TN_FixY(b,pv)) po
   | Prnt(s)     -> insert_t_node (TN_Prnt(s)) po
   | TTyp(t,_)   -> add_term po t
-  | UWit(_)     -> insert_t_node (TN_UWit(t)) po
-  | EWit(_)     -> insert_t_node (TN_EWit(t)) po
+  | UWit(_,t,b) -> insert_t_node (TN_UWit((t,b))) po
+  | EWit(_,t,b) -> insert_t_node (TN_EWit((t,b))) po
   | HApp(s,f,a) -> insert_t_node (TN_HApp(HO_Appl(s,f,a))) po
   | HDef(_,d)   -> add_term po d.expr_def
   | UVar(_,v)   -> insert_t_node (TN_UVar(v)) po
@@ -436,8 +438,7 @@ let rec add_term : pool -> term -> TPtr.t * pool = fun po t ->
   | Dumm        -> invalid_arg "dummy terms forbidden in the pool"
 
 and     add_valu : pool -> valu -> VPtr.t * pool = fun po v ->
-  let v = Norm.whnf v in
-  match v.elt with
+  match (Norm.whnf v).elt with
   | LAbs(_,b)   -> insert_v_node (VN_LAbs(b)) po
   | Cons(c,v)   -> let (pv, po) = add_valu po v in
                    insert_v_node (VN_Cons(c,pv)) po
@@ -450,9 +451,9 @@ and     add_valu : pool -> valu -> VPtr.t * pool = fun po v ->
   | Scis        -> insert_v_node VN_Scis po
   | VDef(d)     -> add_valu po (Erase.to_valu d.value_eval)
   | VTyp(v,_)   -> add_valu po v
-  | VWit(_)     -> insert_v_node (VN_VWit(v)) po
-  | UWit(_)     -> insert_v_node (VN_UWit(v)) po
-  | EWit(_)     -> insert_v_node (VN_EWit(v)) po
+  | VWit(f,a,b) -> insert_v_node (VN_VWit(f,a,b)) po
+  | UWit(_,t,b) -> insert_v_node (VN_UWit(t,b)) po
+  | EWit(_,t,b) -> insert_v_node (VN_EWit(t,b)) po
   | HApp(s,f,a) -> insert_v_node (VN_HApp(HO_Appl(s,f,a))) po
   | HDef(_,d)   -> add_valu po d.expr_def
   | UVar(_,v)   -> insert_v_node (VN_UVar(v)) po
@@ -516,8 +517,8 @@ let rec canonical_term : TPtr.t -> pool -> term * pool = fun p po ->
         | TN_FixY(b,pv)  -> let (v, po) = canonical_valu pv po in
                             (Pos.none (FixY(b,v)), po)
         | TN_Prnt(s)     -> (Pos.none (Prnt(s)), po)
-        | TN_UWit(t)     -> (t, po)
-        | TN_EWit(t)     -> (t, po)
+        | TN_UWit(w)     -> let (t,b) = w in (Pos.none (UWit(T,t,b)), po)
+        | TN_EWit(w)     -> let (t,b) = w in (Pos.none (EWit(T,t,b)), po)
         | TN_HApp(e)     -> let HO_Appl(s,f,a) = e in
                             (Pos.none (HApp(s,f,a)), po)
         | TN_UVar(v)     -> begin
@@ -540,29 +541,29 @@ and     canonical_valu : VPtr.t -> pool -> valu * pool = fun p po ->
   | Ptr.V_ptr(p) ->
       begin
         match snd (VPtrMap.find p po.vs) with
-        | VN_LAbs(b)    -> (Pos.none (LAbs(None, b)), po)
-        | VN_Cons(c,pv) -> let (v, po) = canonical_valu pv po in
-                           (Pos.none (Cons(c,v)), po)
-        | VN_Reco(m)    -> let fn l pv (m, po) =
-                             let (v, po) = canonical_valu pv po in
-                             (A.add l (None,v) m, po)
-                           in
-                           let (m, po) = A.fold fn m (A.empty, po) in
-                           (Pos.none (Reco(m)), po)
-        | VN_Scis       -> (Pos.none Scis, po)
-        | VN_VWit(v)    -> (v, po)
-        | VN_UWit(v)    -> (v, po)
-        | VN_EWit(v)    -> (v, po)
-        | VN_HApp(e)    -> let HO_Appl(s,f,a) = e in
-                           (Pos.none (HApp(s,f,a)), po)
-        | VN_UVar(v)    -> begin
-                             match !(v.uvar_val) with
-                             | None   -> (Pos.none (UVar(V,v)), po)
-                             | Some w ->
-                                 let (p, po) = add_valu po w in
-                                 canonical_valu p po
-                           end
-        | VN_ITag(n)    -> (Pos.none (ITag(V,n)), po)
+        | VN_LAbs(b)     -> (Pos.none (LAbs(None, b)), po)
+        | VN_Cons(c,pv)  -> let (v, po) = canonical_valu pv po in
+                            (Pos.none (Cons(c,v)), po)
+        | VN_Reco(m)     -> let fn l pv (m, po) =
+                              let (v, po) = canonical_valu pv po in
+                              (A.add l (None,v) m, po)
+                            in
+                            let (m, po) = A.fold fn m (A.empty, po) in
+                            (Pos.none (Reco(m)), po)
+        | VN_Scis        -> (Pos.none Scis, po)
+        | VN_VWit(w)     -> let (f,a,b) = w in (Pos.none (VWit(f,a,b)), po)
+        | VN_UWit(w)     -> let (t,b) = w in (Pos.none (UWit(V,t,b)), po)
+        | VN_EWit(w)     -> let (t,b) = w in (Pos.none (EWit(V,t,b)), po)
+        | VN_HApp(e)     -> let HO_Appl(s,f,a) = e in
+                            (Pos.none (HApp(s,f,a)), po)
+        | VN_UVar(v)     -> begin
+                              match !(v.uvar_val) with
+                              | None   -> (Pos.none (UVar(V,v)), po)
+                              | Some w ->
+                                  let (p, po) = add_valu po w in
+                                  canonical_valu p po
+                            end
+        | VN_ITag(n)      -> (Pos.none (ITag(V,n)), po)
       end
 
 let canonical : Ptr.t -> pool -> term * pool = fun p po ->
