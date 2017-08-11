@@ -3,6 +3,7 @@
 
 open Extra
 open Bindlib
+open Eq
 open Sorts
 open Pos
 open Ast

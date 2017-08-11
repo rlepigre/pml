@@ -2,6 +2,7 @@
 
 open Extra
 open Bindlib
+open Eq
 open Sorts
 open Pos
 open Ast
@@ -11,20 +12,13 @@ type alist =
   | Nil  : alist
   | Cons : 'a ex * 'a box * alist -> alist
 
-type ('a,'b) eq =
-  | Ne : ('a,'b) eq
-  | Eq : ('a,'a) eq
-
-let (===) : type a b.a -> b -> (a,b) eq = fun a b ->
-  if a == Obj.magic b then Obj.magic Eq else Ne
-
 let assq_chrono = Chrono.create "assq"
 
 let assq : type a. a ex -> alist -> a box = fun e l ->
   let rec fn : alist -> a box = fun l ->
     match l with
     | Nil -> raise Not_found
-    | Cons(f,r,l) -> match e === f with Eq -> r | Ne -> fn l
+    | Cons(f,r,l) -> match e === f with Eq -> r | NEq -> fn l
   in
   Chrono.add_time assq_chrono fn l
 

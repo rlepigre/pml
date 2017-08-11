@@ -1,6 +1,7 @@
 (** Expression comparing and unification. *)
 
 open Bindlib
+open Eq
 open Sorts
 open Pos
 open Ast
