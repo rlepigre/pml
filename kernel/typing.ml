@@ -24,6 +24,10 @@ exception Subtype_error of term * prop * prop * exn
 let subtype_error : term -> prop -> prop -> exn -> 'a =
   fun t a b e -> raise (Subtype_error(t,a,b,e))
 
+exception Loops of term
+let loops : term -> 'a =
+  fun t -> raise (Loops(t))
+
 exception Reachable
 
 exception Unexpected_error of string
@@ -446,7 +450,7 @@ let rec subtype =
           let a = bndr_subst f (FixN(u,f)) in
           let prf = subtype ctx t a b in
           if not (Ordinal.less_ordi ctx.positives u o) then
-            subtype_msg b.pos "ordinal not suitable (μr rule)";
+            subtype_msg b.pos "ordinal not suitable (νl rule)";
           Sub_FixN_l(false, prf)
       (* Fallback to general witness. *)
       | (_          , _          ) when not t_is_val ->
@@ -1010,7 +1014,7 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
 let type_check : term -> prop -> prop * typ_proof = fun t a ->
   let ctx = empty_ctxt () in
   let prf = type_term ctx t a in
-  if not (Scp.scp ctx.callgraph) then failwith "Loops !";
+  if not (Scp.scp ctx.callgraph) then loops t;
   let l = uvars a in
   assert(l = []); (* FIXME #44 *)
   (Norm.whnf a, prf)

@@ -52,7 +52,7 @@ let rec interpret : Env.env -> Raw.toplevel -> Env.env = fun env top ->
       let v = Eval.eval (Erase.term_erasure t) in
       if !verbose then
         out "val %s : %a\n%!" id.elt Print.ex a;
-      (* out "  = %a\n%!" Print.print_ex (Erase.to_valu v); *)
+      (* out "  = %a\n%!" Print.ex (Erase.to_valu v); *)
       ignore prf;
       add_value id t a v env
   | Chck_sub(a,n,b) ->
@@ -218,21 +218,27 @@ let _ =
       begin
         match t.pos with
         | None   -> err_msg "Type error:\n%a : %a"
-                      Print.print_ex t Print.print_ex c
+                      Print.ex t Print.ex c
         | Some p -> err_msg "Type error %a:\n%a : %a"
-                      Pos.print_short_pos p Print.print_ex t Print.print_ex c;
+                      Pos.print_short_pos p Print.ex t Print.ex c;
                     Quote.quote_file stderr p
      end; print_exn exc
   | Typing.Subtype_error(t,a,b,e) ->
       begin
         match t.pos with
         | None   -> err_msg "Subtype error:\n%a ∈ %a ⊂ %a"
-                      Print.print_ex t Print.print_ex a Print.print_ex b
+                      Print.ex t Print.ex a Print.ex b
         | Some p -> err_msg "SubType error %a:\n  %a ∈ %a ⊂ %a"
-                      Pos.print_short_pos p Print.print_ex t
-                      Print.print_ex a Print.print_ex b;
+                      Pos.print_short_pos p Print.ex t Print.ex a Print.ex b;
                     Quote.quote_file stderr p
       end; print_exn e
+  | Typing.Loops(t) ->
+      begin
+        match t.pos with
+        | None   -> err_msg "Cannot prove termination of\n  %a" Print.ex t
+        | Some p -> err_msg "Cannot prove termination.";
+                    Quote.quote_file stderr p
+      end
   | Typing.Subtype_msg(p,msg) ->
       begin
         match p with
