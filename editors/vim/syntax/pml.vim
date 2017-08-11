@@ -16,9 +16,6 @@ syn region Comment start="//" end="$" contains=Todo
 syntax region Str start=/\v"/ skip=/\v\\./ end=/\v"/
 highlight link Str Character
 
-" Include
-syntax match Include "\<include \w*\(\.\w*\)*"
-
 " Keywords
 syntax keyword Keyword fun save restore case of fix let in rec corec using
 syntax keyword Keyword use type def val sort if else deduce show qed
@@ -35,6 +32,12 @@ syntax match   Keyword "∈"
 syntax match Constant "\<\u\w*\>"
 syntax match Constant "\<true\>"
 syntax match Constant "\<false\>"
+
+" Include
+syntax match Include "\<include \w*\(\.\w*\)*"
+
+" Meta-variables
+syntax match Include "{-[ ]*\w*[ ]*-}"
 
 " Sorts 
 syntax match Type "ι"
