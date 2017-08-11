@@ -17,3 +17,5 @@ val or  : bool ⇒ bool ⇒ bool = fun a b → cond<a, tru, b>
 val xor : bool ⇒ bool ⇒ bool = fun a b → cond<a, not b, b>
 
 val imp : bool ⇒ bool ⇒ bool = fun a b → cond<a, b, tru>
+
+val eq  : bool ⇒ bool ⇒ bool = fun a b → cond<a, b, not b>
