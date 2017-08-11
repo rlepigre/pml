@@ -20,8 +20,8 @@ highlight link Str Character
 syntax match Include "\<include \w*\(\.\w*\)*"
 
 " Keywords
-syntax keyword Keyword fun save restore case of fix let in rec using use
-syntax keyword Keyword type def val sort if else deduce show qed
+syntax keyword Keyword fun save restore case of fix let in rec corec using
+syntax keyword Keyword use type def val sort if else deduce show qed
 syntax match   Keyword "λ"
 syntax match   Keyword "μ"
 syntax match   Keyword "ν"

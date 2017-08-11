@@ -986,9 +986,15 @@ let expr_def : strloc -> (strloc * raw_sort option) list -> raw_sort option
   let s = List.fold_right f args s in
   Expr_def(id,s,e)
 
-let type_def : Pos.pos -> bool -> strloc -> (strloc * raw_sort option) list
+let type_def : Pos.pos -> [`Non | `Rec | `CoRec] -> strloc
+               -> (strloc * raw_sort option) list
                -> raw_ex -> toplevel = fun _loc r id args e ->
-  let e = if r then in_pos _loc (EFixM(Pos.none EConv, id, e)) else e in
+  let e =
+    match r with
+    | `Non   -> e
+    | `Rec   -> in_pos _loc (EFixM(Pos.none EConv, id, e))
+    | `CoRec -> in_pos _loc (EFixN(Pos.none EConv, id, e))
+  in      
   expr_def id args (Some (Pos.none SP)) e
 
 let val_def : bool -> strloc -> raw_ex -> raw_ex -> toplevel = fun r id a t ->

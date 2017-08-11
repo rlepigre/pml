@@ -83,6 +83,7 @@ let _case_    = KW.new_keyword "case"
 let _of_      = KW.new_keyword "of"
 let _fix_     = KW.new_keyword "fix"
 let _rec_     = KW.new_keyword "rec"
+let _corec_   = KW.new_keyword "corec"
 let _let_     = KW.new_keyword "let"
 let _in_      = KW.new_keyword "in"
 let _if_      = KW.new_keyword "if"
@@ -100,9 +101,14 @@ let _check_   = KW.new_keyword "check"
 
 let parser elipsis = "⋯" | "..."
 
-let parser is_rec =
+let parser v_is_rec =
   | _rec_ -> true
   | EMPTY -> false
+
+let parser t_is_rec =
+  | EMPTY   -> `Non
+  | _rec_   -> `Rec
+  | _corec_ -> `CoRec
 
 let parser is_strict =
   | elipsis -> false
@@ -388,9 +394,9 @@ let parser toplevel =
     -> fun () -> sort_def id s
   | _def_  id:llid args:sort_args s:{':' sort}? '=' e:(expr  `Any)
     -> fun () -> expr_def id args s e
-  | _type_ r:is_rec id:llid args:sort_args '=' e:(expr (`Prp`F))
+  | _type_ r:t_is_rec id:llid args:sort_args '=' e:(expr (`Prp`F))
     -> fun () -> type_def _loc r id args e
-  | _val_ r:is_rec id:llid ':' a:(expr (`Prp`F)) '=' t:(expr (`Trm`F))
+  | _val_ r:v_is_rec id:llid ':' a:(expr (`Prp`F)) '=' t:(expr (`Trm`F))
     -> fun () -> val_def r id a t
   | _check_ r:{"¬" -> false}?[true] a:(expr (`Prp`F)) "⊂" b:(expr (`Prp`F))
     -> fun () -> check_sub a r b
