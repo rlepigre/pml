@@ -125,7 +125,7 @@ let parser equiv =
   | {"≡" | "="} -> true
   | "≠"         -> false
 
-(** Parser for sorts. *)
+(* Parser for sorts. *)
 let parser sort (p : [`A | `F]) =
   | {"ι" | "<iota>"    | "<value>"  } when p = `A -> in_pos _loc SV
   | {"τ" | "<tau>"     | "<term>"   } when p = `A -> in_pos _loc ST
@@ -136,14 +136,18 @@ let parser sort (p : [`A | `F]) =
   | "(" s:(sort `F) ")"               when p = `A -> s
   | s1:(sort `A) arrow s2:(sort `F)   when p = `F -> in_pos _loc (SFun(s1,s2))
   | s:(sort `A)                       when p = `F -> s
+
+(* Entry point for sorts. *)
 let sort = sort `F
 
-(** Parser for expressions *)
-type p_prio = [`A | `M | `R | `F]
-type t_prio = [`A | `Ap | `S | `F]
+(* Priorities for parsing expressions. *)
+type p_prio = [`A | `M | `R | `F] (* Atom, Memb, Rest, Full *)
+type t_prio = [`A | `P | `S | `F] (* Atom, Appl, Sequ, Full *)
 
+(* Parsing mode for expressions. *)
 type mode = [`Any | `Prp of p_prio | `Trm of t_prio | `Stk | `Ord ]
 
+(* Parser for expressions. *)
 let parser expr (m : mode) =
   (* Any (higher-order function) *)
   | "(" x:llid s:{":" s:sort} "↦" e:(expr `Any)
@@ -203,15 +207,15 @@ let parser expr (m : mode) =
       when m = `Prp`F
       -> in_pos _loc (EFixN(o,x,a))
   (* Proposition (membership) *)
-  | t:(expr (`Trm`Ap)) "∈" a:(expr (`Prp`M))
+  | t:(expr (`Trm`P)) "∈" a:(expr (`Prp`M))
       when m = `Prp`M
       -> in_pos _loc (EMemb(t,a))
   (* Proposition (restriction) *)
-  | a:(expr (`Prp`M)) "|" t:(expr (`Trm`Ap)) b:equiv u:(expr (`Trm`Ap))
+  | a:(expr (`Prp`M)) "|" t:(expr (`Trm`P)) b:equiv u:(expr (`Trm`P))
       when m = `Prp`R
       -> in_pos _loc (ERest(Some a,EEquiv(t,b,u)))
   (* Proposition (equivalence) *)
-  | t:(expr (`Trm`Ap)) b:equiv u:(expr (`Trm`Ap))
+  | t:(expr (`Trm`P)) b:equiv u:(expr (`Trm`P))
       when m = `Prp`A
       -> in_pos _loc (ERest(None,EEquiv(t,b,u)))
   (* Proposition (parentheses) *)
@@ -252,15 +256,15 @@ let parser expr (m : mode) =
       when m = `Trm`A
       -> in_pos _loc EScis
   (* Term (application) *)
-  | t:(expr (`Trm`Ap)) u:(expr (`Trm`A))
-      when m = `Trm`Ap
+  | t:(expr (`Trm`P)) u:(expr (`Trm`A))
+      when m = `Trm`P
       -> in_pos _loc (EAppl(t,u))
   (* Term (let binding) *)
   | _let_ arg:let_arg '=' t:(expr (`Trm`F)) _in_ u:(expr (`Trm`F))
       when m = `Trm`F
       -> let_binding _loc arg t u
   (* Term (sequencing). *)
-  | t:(expr (`Trm`Ap)) ';' u:(expr (`Trm`S))
+  | t:(expr (`Trm`P)) ';' u:(expr (`Trm`S))
       when m = `Trm`S
       -> in_pos _loc (ESequ(t,u))
   (* Term (mu abstraction) *)
@@ -289,11 +293,11 @@ let parser expr (m : mode) =
       when m = `Trm`A
       -> deduce _loc a
   (* Term ("show" tactic) *)
-  | _show_ a:(expr (`Prp`F)) _using_ t:(expr (`Trm`Ap))$
+  | _show_ a:(expr (`Prp`F)) _using_ t:(expr (`Trm`P))$
       when m = `Trm`A
       -> show_using _loc a t
   (* Term ("use" tactic) *)
-  | _use_ t:(expr (`Trm`Ap))$
+  | _use_ t:(expr (`Trm`P))$
       when m = `Trm`A
       -> use _loc t
   (* Term ("QED" tactic) *)
@@ -316,10 +320,10 @@ let parser expr (m : mode) =
   | "(" t:(expr (`Trm`F)) ")"
       when m = `Trm`A
   (* Term (level coersions) *)
-  | (expr (`Trm`A))  when m = `Trm`Ap
-  | (expr (`Trm`Ap)) when m = `Trm`S
-  | (expr (`Trm`S))  when m = `Trm`F
-  | (expr (`Trm`F))  when m = `Any
+  | (expr (`Trm`A)) when m = `Trm`P
+  | (expr (`Trm`P)) when m = `Trm`S
+  | (expr (`Trm`S)) when m = `Trm`F
+  | (expr (`Trm`F)) when m = `Any
 
   (* Stack (variable and higher-order application) *)
   | id:llid args:{"<" (lsep "," (expr `Any)) ">"}?[[]]
@@ -374,16 +378,16 @@ and patt =
   | _true_  -> (Pos.in_pos _loc "true" , None)
   | _false_ -> (Pos.in_pos _loc "false", None)
 
-(** Common entry points. *)
+(* Common entry points. *)
 let parser term = (expr (`Trm`F))
 let parser prop = (expr (`Prp`F))
 let parser any  = (expr `Any)
 
-(** Auxiliary parser for sort arguments. *)
+(* Auxiliary parser for sort arguments. *)
 let parser sort_arg  = id:llid so:{":" s:sort}?
 let parser sort_args = {'<' l:(lsep_ne "," sort_arg) '>'}?[[]]
 
-(** Toplevel item. *)
+(* Toplevel item. *)
 let parser toplevel =
   (* Definition of a new sort. *)
   | _sort_ id:llid '=' s:sort
@@ -409,7 +413,7 @@ let parser toplevel =
   | _include_ p:path
       -> fun () -> include_file p
 
-(** Entry point of the parser. *)
+(* Entry point of the parser. *)
 let parser entry = toplevel*
 
 (** Exception raised in case of parse error. *)
