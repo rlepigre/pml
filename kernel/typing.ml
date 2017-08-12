@@ -166,7 +166,7 @@ let rec learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
            let f o = bndr_subst f (FixM(Pos.none o, f)) in
            let f = binder_from_fun "o" f in
            Some (Pos.none (OWMu(o,twit,(None,f))))
-      in add_positive ctx o bound
+      in add_positive ctx o bound (** FIXME: rec call learn_equivalence *)
   | _          -> ctx
 
 let rec is_singleton : prop -> term option = fun t ->
@@ -201,6 +201,19 @@ let rec learn_neg_equivalences : ctxt -> valu -> term option -> prop -> ctxt =
                      {ctx with equations}
          | None -> ctx
        end
+  (** Learn positivity of the ordinal *)
+    | FixN(o,f), _ ->
+      bug_msg "coucou";
+      let bound =
+        match (Norm.whnf o).elt with
+        | Succ(o) -> Some o
+        | _       ->
+           (** We know that o is positive and wit in a
+               so we can build an eps < o *)
+           let f o = bndr_subst f (FixN(Pos.none o, f)) in
+           let f = binder_from_fun "o" f in
+           Some (Pos.none (OWNu(o,twit,(None,f))))
+      in add_positive ctx o bound (** FIXME: rec call learn_equivalence *)
     | _          -> ctx
 
 let term_is_value : term -> ctxt -> bool * ctxt = fun t ctx ->
