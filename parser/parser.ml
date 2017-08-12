@@ -376,10 +376,16 @@ let parser expr (m : mode) =
       when m = `Stk || m = `Trm`A
       -> g
 
+(* Function argument. *)
 and arg  =
   | id:llid_wc                               -> (id, None  )
   | "(" id:llid_wc ":" a:(expr (`Prp`A)) ")" -> (id, Some a)
-and patt = c:luid arg:{'[' id:llid_wc ao:{":" (expr (`Prp`F))}? ']'}?
+
+(* Pattern. *)
+and patt =
+  | c:luid arg:{'[' id:llid_wc ao:{":" (expr (`Prp`F))}? ']'}?
+  | _true_  -> (Pos.in_pos _loc "true" , None)
+  | _false_ -> (Pos.in_pos _loc "false", None)
 
 (** Common entry points. *)
 let parser term = (expr (`Trm`F))
