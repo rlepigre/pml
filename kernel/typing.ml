@@ -44,7 +44,9 @@ let log_typ = Log.(log_typ.p)
 type ctxt  =
   { uvarcount : int ref
   ; equations : eq_ctxt
-  ; positives : (ordi * ordi option) list
+  (* the first of the pair is positive, the second
+     is stricly less than the first *)
+  ; positives : (ordi * ordi) list
   ; fix_ihs   : ((v,t) bndr, fix_schema) Buckets.t
   ; sub_ihs   : sub_schema list
   ; top_ih    : Scp.index * ordi array
@@ -67,7 +69,7 @@ let new_uvar : type a. ctxt -> a sort -> a ex loc = fun ctx s ->
   log_uni "?%i : %a" i Print.print_sort s;
   Pos.none (UVar(s, {uvar_key = i; uvar_val = ref None}))
 
-let add_positive : ctxt -> ordi -> ordi option -> ctxt = fun ctx o oo ->
+let add_positive : ctxt -> ordi -> ordi -> ctxt = fun ctx o oo ->
   let o = Norm.whnf o in
   match o.elt with
   | Conv    -> ctx
@@ -161,13 +163,13 @@ let rec learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
   | FixM(o,f)  ->
       let bound =
         match (Norm.whnf o).elt with
-        | Succ(o) -> Some o
+        | Succ(o) -> o
         | _       ->
            (** We know that o is positive and wit in a
                so we can build an eps < o *)
            let f o = bndr_subst f (FixM(Pos.none o, f)) in
            let f = binder_from_fun "o" f in
-           Some (Pos.none (OWMu(o,twit,(None,f))))
+           Pos.none (OWMu(o,twit,(None,f)))
       in add_positive ctx o bound (** FIXME: rec call learn_equivalence *)
   | _          -> ctx
 
@@ -207,13 +209,13 @@ let rec learn_neg_equivalences : ctxt -> valu -> term option -> prop -> ctxt =
     | FixN(o,f), _ ->
       let bound =
         match (Norm.whnf o).elt with
-        | Succ(o) -> Some o
+        | Succ(o) -> o
         | _       ->
            (** We know that o is positive and wit in a
                so we can build an eps < o *)
            let f o = bndr_subst f (FixN(Pos.none o, f)) in
            let f = binder_from_fun "o" f in
-           Some (Pos.none (OWNu(o,twit,(None,f))))
+           Pos.none (OWNu(o,twit,(None,f)))
       in add_positive ctx o bound (** FIXME: rec call learn_equivalence *)
     | _          -> ctx
 
@@ -228,15 +230,12 @@ let oracle ctx = {
       Chrono.add_time equiv_chrono (eq_trm ctx.equations v1) v2)
   }
 
-let print_pos : out_channel -> (ordi * ordi option) list -> unit =
+let print_pos : out_channel -> (ordi * ordi) list -> unit =
   fun ch os ->
     match os with
     | [] -> output_string ch "∅"
     | os -> let print ch (o, oo) =
-              Print.ex ch o;
-              match oo with
-              | None   -> ()
-              | Some o -> Printf.fprintf ch " (> %a)" Print.ex o
+              Printf.fprintf ch "%a (> %a)" Print.ex o Print.ex oo
             in print_list print ", " ch os
 
 let is_conv : ordi -> bool = fun o ->
@@ -296,7 +295,7 @@ let rec subtype =
             let f = binder_from_fun "o" f in
             Pos.none (OWMu(o,t,(None,f)))
           in
-          let ctx = add_positive ctx o (Some o') in
+          let ctx = add_positive ctx o o' in
           let a = bndr_subst f (FixM(o',f)) in
           Sub_FixM_l(false, subtype ctx t a b)
       | (_          , FixN(o,f)  ) when t_is_val ->
@@ -305,7 +304,7 @@ let rec subtype =
             let f = binder_from_fun "o" f in
             Pos.none (OWNu(o,t,(None, f)))
           in
-          let ctx = add_positive ctx o (Some o') in
+          let ctx = add_positive ctx o o' in
           let b = bndr_subst f (FixN(o',f)) in
           Sub_FixN_r(false, subtype ctx t a b)
       | _ ->
@@ -507,10 +506,9 @@ and check_sub : ctxt -> prop -> prop -> check_sub = fun ctx a b ->
             if not (eq_expr a a0 && eq_expr b b0) then raise Exit;
             (* Check positivity of ordinals. *)
             let ok =
-              List.for_all (fun (o, _) -> Ordinal.is_pos ctx.positives o) spe.sspe_posit &&
-              List.for_all (fun (o, o') -> Ordinal.less_ordi ctx.positives o o') spe.sspe_relat
+              List.for_all (fun (o, _) -> Ordinal.is_pos ctx.positives o) spe.sspe_relat &&
+              List.for_all (fun (o, o') -> Ordinal.less_ordi ctx.positives o' o) spe.sspe_relat
             in
-            (* FIXME #56 check relations *)
             if not ok then raise Exit;
             (* Add call to call-graph and build the proof. *)
             add_call ctx (ih.ssch_index, spe.sspe_param) true;
@@ -538,7 +536,7 @@ and check_sub : ctxt -> prop -> prop -> check_sub = fun ctx a b ->
            let ctx = { ctx with sub_ihs = sch :: ctx.sub_ihs } in
            (* Instantiation of the schema. *)
            let spe = inst_sub_schema ctx sch os in
-           let ctx = {ctx with positives = spe.sspe_posit} in
+           let ctx = {ctx with positives = spe.sspe_relat} in
            Sub_New({ctx with top_ih = (sch.ssch_index, spe.sspe_param)},
                    spe.sspe_judge)
         | _ ->
@@ -599,12 +597,7 @@ and check_fix : ctxt -> valu -> (v, t) bndr -> prop -> typ_proof =
     end
   else find_suitable ihs
 
-and get_posit : ctxt -> ordi array -> int list =
-  fun ctx os ->
-    let l = ref [] in
-    Array.iteri (fun i o -> if Ordinal.is_pos ctx.positives o then l := i :: !l) os;
-    List.rev !l
-
+(** function building the relations between ordinals *)
 and get_relat  : ordi array -> (int * int) list =
   fun os ->
     let l = ref [] in
@@ -614,7 +607,7 @@ and get_relat  : ordi array -> (int * int) list =
            (try hn (Array.length os - 1) o' with Not_found -> gn o')
         | _ -> ()
       and hn j o' =
-        if eq_expr ~strict:true o' os.(j) then l:= (i,j)::!l
+        if eq_expr ~strict:true o' os.(j) then l:= (j,i)::!l
         else if j > 0 then hn (j-1) o' else raise Not_found
       in
       gn o
@@ -627,8 +620,11 @@ and sub_generalise : ctxt -> prop -> prop -> sub_schema * ordi array =
     (* Extracting ordinal parameters from the goal type. *)
     let (ssch_judge, os) = Misc.bind2_ordinals b c in
 
-    let ssch_posit = get_posit ctx os in
+    (* build the relations *)
     let ssch_relat = get_relat os in
+    (* only keep the relations with a positive ordinals *)
+    let is_posit (i,_) = Ordinal.is_pos ctx.positives os.(i) in
+    let ssch_relat = List.filter is_posit ssch_relat in
 
     (* Build the judgment. *)
     (* Output.bug_msg "Schema: %a" Print.omb omb;*)
@@ -639,7 +635,7 @@ and sub_generalise : ctxt -> prop -> prop -> sub_schema * ordi array =
       Scp.create_symbol ctx.callgraph "$" names
     in
     (* Assemble the schema. *)
-    ({ssch_index ; ssch_posit ; ssch_relat ; ssch_judge}, os)
+    ({ssch_index ; ssch_relat ; ssch_judge}, os)
 
 (* Generalisation (construction of a fix_schema). *)
 and fix_generalise : ctxt -> (v, t) bndr -> prop -> fix_schema * ordi array =
@@ -676,11 +672,10 @@ and elim_sub_schema : ctxt -> sub_schema -> sub_specialised =
     let sspe_param = Array.init arity (fun _ -> new_uvar ctx O) in
     let xs = Array.map (fun e -> e.elt) sspe_param in
     let sspe_judge = msubst sch.ssch_judge xs in
-    let sspe_posit = List.map (fun i -> (sspe_param.(i), None)) sch.ssch_posit in
     let sspe_relat = List.map (fun (i,j) -> (sspe_param.(i),sspe_param.(j)))
                               sch.ssch_relat
     in
-    { sspe_param ; sspe_posit ; sspe_relat; sspe_judge }
+    { sspe_param ; sspe_relat; sspe_judge }
 
 (* Instantiation of a schema with ordinal witnesses. *)
 and inst_fix_schema : ctxt -> fix_schema -> ordi array -> fix_specialised =
@@ -700,7 +695,8 @@ and inst_sub_schema : ctxt -> sub_schema -> ordi array -> sub_specialised =
     let cache = ref [] in
     let rec fn i =
       try List.assoc i !cache with Not_found ->
-        let bound = try Some (fn (List.assoc i sch.ssch_relat)) with Not_found -> None in
+          let bound = try Some (fn (List.assoc i sch.ssch_relat))
+                      with Not_found -> None in
         if bound <> None then bug_msg "tata";
         let res = Pos.none (OSch(bound, i, SubSch sch)) in
         cache := (i,res)::!cache;
@@ -709,21 +705,10 @@ and inst_sub_schema : ctxt -> sub_schema -> ordi array -> sub_specialised =
     let sspe_param = Array.init arity fn in
     let xs = Array.map (fun e -> e.elt) sspe_param in
     let sspe_judge = msubst sch.ssch_judge xs in
-    let posit i =
-      let bound =
-        try
-          let (j,_) = List.find (fun (j,i') -> i = i') sch.ssch_relat in
-          Some sspe_param.(j)
-        with
-          Not_found -> None
-      in
-      (sspe_param.(i), bound)
-    in
-    let sspe_posit = List.map posit sch.ssch_posit in
     let sspe_relat = List.map (fun (i,j) -> (sspe_param.(i),sspe_param.(j)))
                               sch.ssch_relat
     in
-    { sspe_param ; sspe_posit ; sspe_relat; sspe_judge }
+    { sspe_param ; sspe_relat; sspe_judge }
 
 (* Add a call to the call-graph. *)
 and add_call : ctxt -> (Scp.index * ordi array) -> bool -> unit =
@@ -738,7 +723,7 @@ and add_call : ctxt -> (Scp.index * ordi array) -> bool -> unit =
     Timed.(ctx.add_calls := todo :: !(ctx.add_calls))
 
 (* Build a call-matrix given the caller and the callee. *)
-and build_matrix : Scp.t -> (ordi * ordi option) list ->
+and build_matrix : Scp.t -> (ordi * ordi) list ->
                      (Scp.index * ordi array) ->
                      (Scp.index * ordi array) ->
                      Scp.matrix = fun calls pos callee caller ->

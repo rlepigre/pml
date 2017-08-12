@@ -189,7 +189,6 @@ let {eq_expr; eq_bndr; eq_ombinder} =
     in
     let eq_sub_schema sch1 sch2 =
       sch1.ssch_index = sch2.ssch_index &&
-      sch1.ssch_posit = sch2.ssch_posit &&
       sch1.ssch_relat = sch2.ssch_relat &&
       let omb1 = sch1.ssch_judge in
       let omb2 = sch1.ssch_judge in

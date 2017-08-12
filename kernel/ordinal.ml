@@ -9,7 +9,7 @@ open Output
 let log_ord = Log.register 'o' (Some "ord") "ordinal comparison"
 let log_ord = Log.(log_ord.p)
 
-type positives = (ordi * ordi option) list
+type positives = (ordi * ordi) list
 
 let is_pos : positives -> ordi -> bool =
   fun pos o ->
@@ -25,11 +25,10 @@ let candidate_pred : positives -> ordi -> ordi list = fun pos o ->
   let rec pred acc pos =
     match pos with
     | []               -> acc
-    | (k, Some p)::pos -> let acc =
-                            if eq_expr ~strict:true o k then p::acc
-                            else acc
-                          in pred acc pos
-    | _          ::pos -> pred acc pos
+    | (k, p)::pos -> let acc =
+                       if eq_expr ~strict:true o k then p::acc
+                       else acc
+                     in pred acc pos
   in pred [] pos
 
 let rec oadd : ordi -> int -> ordi =

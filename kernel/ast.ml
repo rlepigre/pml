@@ -158,8 +158,9 @@ and fix_schema =
 
 and sub_schema =
   { ssch_index : Scp.index (** index of the schema in the call graph *)
-  ; ssch_posit : int list  (** the index of positive ordinals        *)
-  ; ssch_relat : (int * int) list (** relation between ordinals      *)
+  ; ssch_relat : (int * int) list (** relation between ordinals:
+                                      j > i && j > 0, i and j being
+                                      indexes in the mbinder below *)
   ; ssch_judge : (o ex, p ex loc * p ex loc) mbinder (** judgement *) }
 
 and schema =
@@ -172,7 +173,6 @@ and fix_specialised =
 
 and sub_specialised =
   { sspe_param : o ex loc array
-  ; sspe_posit : (o ex loc * o ex loc option) list
   ; sspe_relat : (o ex loc * o ex loc) list
   ; sspe_judge : p ex loc * p ex loc }
 

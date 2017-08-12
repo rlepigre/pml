@@ -243,15 +243,10 @@ let print_ex : type a. a ex loc printer = fun ch e ->
     let (vars,(k1,k2)) = unmbind (mk_free O) sch.ssch_judge in
     let vars = Array.map (fun x -> Pos.none (free_of x)) vars in
     let print_vars = print_list print_ex "," in
-    let pos = List.map (fun i -> vars.(i)) sch.ssch_posit in
     let rel = List.map (fun (i,j) -> (vars.(i), vars.(j))) sch.ssch_relat in
     let print_cmp ch (i,j) = fprintf ch "%a<%a" print_ex i print_ex j in
     let print_rel = print_list print_cmp "," in
-    let sep =
-      if sch.ssch_posit <> [] && sch.ssch_relat <> [] then ", " else ""
-    in
-    fprintf ch "%a (%a%s%a ⊢ %a < %a)"
-            print_vars (Array.to_list vars) print_vars pos sep
+    fprintf ch "%a (%a ⊢ %a < %a)" print_vars (Array.to_list vars)
             print_rel rel print_ex k1 print_ex k2
 
  and print_sch ch = function
