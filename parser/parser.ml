@@ -7,12 +7,12 @@ open Raw
 
 let lsep s elt =
   parser
-  | EMPTY                      -> []
-  | e:elt es:{_:STR(s) elt}* $ -> e::es
+  | EMPTY                    -> []
+  | e:elt es:{_:STR(s) elt}* -> e::es
 
 let lsep_ne s elt =
   parser
-  | e:elt es:{_:STR(s) elt}* $ -> e::es
+  | e:elt es:{_:STR(s) elt}* -> e::es
 
 module KW =
   struct
