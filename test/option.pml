@@ -2,7 +2,7 @@
 def option<a:ο> : ο = [None of {} ; Some of a]
 
 // Smart constructors
-val none : ∀ a:ο, option<a> = None[]
+val none : ∀ a:ο, option<a> = None
 val some : ∀ a:ο, a ⇒ option<a> = fun x → Some[x]
 
 val map : ∀ a:ο, ∀ b:ο, (a ⇒ b) ⇒ option<a> ⇒ option<b> =

@@ -1,6 +1,6 @@
 type rec list<a:ο> = [ Nil of {}; Cns of { hd : a; tl : list } ]
 
-val nil : ∀a:ο, list<a> = Nil[]
+val nil : ∀a:ο, list<a> = Nil
 
 def tl : ι = fun l → case l { Cns[c] → c.tl }
 def hd : ι = fun l → case l { Cns[c] → c.hd }
@@ -17,13 +17,13 @@ val rec app : ∀b:ο, list<b> ⇒ list<b> ⇒ list<b> = fun l1 l2 →
 
 val rec app2 : ∀b:ο, list<b> ⇒ list<b> ⇒ list<b> = fun l1 l2 →
   case l1 {
-    | Nil[]  → nil
+    | Nil    → nil
     | Cns[c] → cns c.hd (app2 c.tl l2)
   }
 
 def app0 : ι = fix fun app l1 l2 →
   case l1 {
-    | Nil[]  → l2
+    | Nil    → l2
     | Cns[c] → let r = app c.tl l2 in
                cns c.hd r
   }
@@ -39,7 +39,7 @@ val rec app_total : ∀a:ο, ∀l1 l2 ∈list<a>, ∃v:ι, app l1 l2 ≡ v = fun
 val app_asso : ∀a:ο, ∀x1 x2 x3∈list<a>, app x1 (app x2 x3) ≡ app (app x1 x2) x3 =
   fix fun app_asso l1 l2 l3 →
     case l1 {
-      | Nil[] →
+      | Nil    →
          let total = app_total l2 l3 in
          {}
       | Cns[c] →
@@ -56,7 +56,7 @@ val app_asso : ∀a:ο, ∀x1 x2 x3∈list<a>, app x1 (app x2 x3) ≡ app (app x
 
 val map : ∀a b:ο, (a ⇒ b) ⇒ list<a> ⇒ list<b> = fix fun map f l →
   case l {
-    | Nil[] → Nil[]
+    | Nil    → Nil
     | Cns[c] → let hd = f c.hd in
                let tl = map f c.tl in
                Cns[{hd= hd; tl= tl}]
@@ -72,7 +72,7 @@ val compose_total : ∀a b c:ο, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c),
 val rec map_total : ∀a b:ο, ∀f∈(a ⇒ b), total<f,a> ⇒ ∀l∈list<a>, ∃v:ι, map f l ≡ v =
   fun fn ft ls →
     case ls {
-      | Nil[] → {}
+      | Nil    → {}
       | Cns[c] →
          let hd = c.hd in
          let tl = c.tl in
@@ -84,7 +84,7 @@ val map_map : ∀a b c:ο, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c), total<f,a> ⇒ to
     ∀l∈list<a>, map g (map f l) ≡ map (fun x → g (f x)) l =
  fun fn gn → fix fun map_map tf tg ls →
    case ls {
-     | Nil[] → {}
+     | Nil    → {}
      | Cns[c] →
         let hd = c.hd in let tl = c.tl in
         let tgf = compose_total fn gn tf tg hd in
@@ -102,7 +102,7 @@ val rec map_map : ∀a b c:ο, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c), total<f,a> �
     ∀l∈list<a>, map g (map f l) ≡ map (comp f g) l =
  fun fn gn tf tg ls →
    case ls {
-   | Nil[] → {}
+   | Nil    → {}
    | Cns[c] →
        let hd = c.hd in
        let tl = c.tl in

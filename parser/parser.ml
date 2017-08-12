@@ -2,7 +2,6 @@
 
 open Extra
 open Pos
-open Blank
 open Raw
 
 let lsep s elt =
@@ -61,6 +60,8 @@ let str_lit =
 let parser path_atom = id:''[a-zA-Z0-9_]+''
 let parser path = ps:{path_atom '.'}* f:path_atom -> ps @ [f]
 
+let parser goal_name = s:''\([^-]\|\(-[^}]\)\)*'' 
+
 let parser lid = id:''[a-z][a-zA-Z0-9_']*'' -> KW.check_not_keyword id; id
 let parser uid = id:''[A-Z][a-zA-Z0-9_']*'' -> KW.check_not_keyword id; id
 
@@ -100,6 +101,8 @@ let _print_   = KW.new_keyword "print"
 let _check_   = KW.new_keyword "check"
 
 let parser elipsis = "⋯" | "..."
+
+let parser neg = {"¬" -> false}?[true]
 
 let parser v_is_rec =
   | _rec_ -> true
@@ -141,7 +144,7 @@ type t_prio = [`A | `Ap | `S | `F]
 type mode = [`Any | `Prp of p_prio | `Trm of t_prio | `Stk | `Ord ]
 
 let parser goal =
-  | "{-" str:''\([^-]\|\(-[^}]\)\)*'' "-}" ->
+  | "{-" str:goal_name "-}" ->
       in_pos _loc (EGoal(String.trim str))
 
 let parser expr (m : mode) =
@@ -237,7 +240,7 @@ let parser expr (m : mode) =
       when m = `Trm`F
       -> in_pos _loc (ELAbs((List.hd args, List.tl args),t))
   (* Term (constructor) *)
-  | c:luid t:{"[" t:(expr (`Trm`F))? "]"}?[None]$
+  | c:luid t:{"[" t:(expr (`Trm`F)) "]"}?$
       when m = `Trm`A
       -> in_pos _loc (ECons(c, Option.map (fun t -> (t, ref `T)) t))
   (* Term (true boolean) *)
@@ -283,7 +286,7 @@ let parser expr (m : mode) =
       when m = `Trm`A
       -> in_pos _loc (EProj(t, ref `T, l))
   (* Term (case analysis) *)
-  | _case_ t:(expr (`Trm`F)) '{' ps:pattern* '}'
+  | _case_ t:(expr (`Trm`F)) '{' ps:{_:'|'? pattern}* '}'
       when m = `Trm`A
       -> in_pos _loc (ECase(t, ref `T, ps))
   (* Term (conditional) *)
@@ -378,41 +381,57 @@ and fun_arg =
   | id:llid                               -> (id, None  )
   | "(" id:llid ":" a:(expr (`Prp`A)) ")" -> (id, Some a)
 and pattern =
-  | '|'? c:luid x:{"[" x:{ llid {":" (expr (`Prp`F))}?
-                      | { EMPTY | '_' } -> (Pos.in_pos _loc "_", None)}
+  | c:luid x:{"[" x:{ llid {":" (expr (`Prp`F))}?
+                      | '_' -> (Pos.in_pos _loc "_", None)}
   "]"}?[(Pos.none "_", None)] arrow t:(expr (`Trm`F))
     -> (c, x, t)
 
-(** Toplevel. *)
-let parser toplevel =
-  | _sort_ id:llid '=' s:sort
-    -> fun () -> sort_def id s
-  | _def_  id:llid args:sort_args s:{':' sort}? '=' e:(expr  `Any)
-    -> fun () -> expr_def id args s e
-  | _type_ r:t_is_rec id:llid args:sort_args '=' e:(expr (`Prp`F))
-    -> fun () -> type_def _loc r id args e
-  | _val_ r:v_is_rec id:llid ':' a:(expr (`Prp`F)) '=' t:(expr (`Trm`F))
-    -> fun () -> val_def r id a t
-  | _check_ r:{"¬" -> false}?[true] a:(expr (`Prp`F)) "⊂" b:(expr (`Prp`F))
-    -> fun () -> check_sub a r b
-  | _include_ p:path
-    -> fun () -> include_file p
-and sort_arg =
-  | id:llid so:{":" s:sort}?
-and sort_args =
-  | EMPTY                            -> []
-  | '<' l:(lsep_ne "," sort_arg) '>' -> l
+(** Common entry points. *)
+let parser term = (expr (`Trm`F))
+let parser prop = (expr (`Prp`F))
+let parser any  = (expr `Any)
 
+(** Auxiliary parser for sort arguments. *)
+let parser sort_arg  = id:llid so:{":" s:sort}?
+let parser sort_args = {'<' l:(lsep_ne "," sort_arg) '>'}?[[]]
+
+(** Toplevel item. *)
+let parser toplevel =
+  (* Definition of a new sort. *)
+  | _sort_ id:llid '=' s:sort
+      -> fun () -> sort_def id s
+
+  (* Definition of an expression. *)
+  | _def_  id:llid args:sort_args s:{':' sort}? '=' e:any
+      -> fun () -> expr_def id args s e
+
+  (* Definition of a proposition (special case of expression). *)
+  | _type_ r:t_is_rec id:llid args:sort_args '=' e:prop
+      -> fun () -> type_def _loc r id args e
+
+  (* Definition of a value (to be computed). *)
+  | _val_ r:v_is_rec id:llid ':' a:prop '=' t:term
+      -> fun () -> val_def r id a t
+
+  (* Check of a subtyping relation. *)
+  | _check_ r:neg a:prop "⊂" b:prop
+      -> fun () -> check_sub a r b
+
+  (* Inclusion of a file. *)
+  | _include_ p:path
+      -> fun () -> include_file p
+
+(** Entry point of the parser. *)
+let parser entry = toplevel*
+
+(** Exception raised in case of parse error. *)
 exception No_parse of pos * string option
 
+(** Main parsing function taking as input a file name. *)
 let parse_file fn =
-  let open Earley in
-  try List.map (fun act -> act ()) (parse_file (parser toplevel*) blank fn)
-  with Parse_error(buf, pos, msgs) ->
+  let parse = Earley.parse_file entry Blank.blank in
+  try List.map (fun act -> act ()) (parse fn)
+  with Earley.Parse_error(buf, pos, msgs) ->
     let pos = Pos.locate buf pos buf pos in
-    let msg =
-      match msgs with
-      | []   -> None
-      | x::_ -> Some x
-    in
+    let msg = match msgs with [] -> None | x::_ -> Some x in
     raise (No_parse(pos, msg))

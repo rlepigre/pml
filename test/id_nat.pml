@@ -3,12 +3,12 @@ def snat<o:κ> = μo x [ Z ; S of x ]
 
 val rec id_nat : nat ⇒ nat = fun n →
   case n {
-    | Z[] → Z[]
+    | Z    → Z
     | S[p] → S[id_nat p]
   }
 
 val rec id_nat_id : ∀n∈nat, id_nat n ≡ n = fun m →
   case m {
-    | Z[] → {}
+    | Z    → {}
     | S[p] → let ind_hyp : id_nat p ≡ p = id_nat_id p in {}
   }

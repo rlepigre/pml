@@ -161,7 +161,7 @@ val map_map : ∀a b c:ο, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c),
   fun f g ftot gtot →
     fix fun map_map ls →
       case ls {
-        | Nil[]   → {}
+        | Nil     → {}
         | Cons[c] → let hd = c.hd in let tl = c.tl in
                      let tgf = compose_total f g ftot gtot hd in
                      let lem = ftot hd in

@@ -3,7 +3,7 @@ include test.list
 
 val length : ∀a:ο, list<a> ⇒ nat = fix fun length l →
   case l {
-    | Nil[] → zero
+    | Nil    → zero
     | Cns[c] → succ (length c.tl)
   }
 

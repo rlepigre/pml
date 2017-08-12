@@ -1,7 +1,7 @@
 
 type rec nat = [ Z ; S of nat ]
 
-val zero : nat = Z[]
+val zero : nat = Z
 val succ : nat ⇒ nat = fun n → S[n]
 
 val rec add : nat ⇒ nat ⇒ nat = fun n m →
@@ -18,7 +18,7 @@ val rec add_total : ∀n m∈nat, ∃v:ι, add n m ≡ v = fun n m →
 
 type rec list<a:ο> = [ Nil; Cns of { hd : a; tl : list }  ]
 
-val nil : ∀a:ο, list<a> = Nil[]
+val nil : ∀a:ο, list<a> = Nil
 val cns : ∀a:ο, a ⇒ list<a> ⇒ list<a> =
   fun e l → Cns[{ hd = e; tl = l }]
 
@@ -30,7 +30,7 @@ val rec length : ∀a:ο, list<a> ⇒ nat = fun l →
 
 val rec length_total : ∀a:ο, ∀l∈list<a>, ∃v:ι, v ≡ length l = fun l →
   case l {
-    | Nil[] → {}
+    | Nil    → {}
     | Cns[c] → let ind = length_total c.tl in {}
   }
 
@@ -46,7 +46,7 @@ val vcns : ∀a:ο,∀s:ι, ∀x∈a, vec<a,s> ⇒ vec<a,succ s> =
 val rec app : ∀a:ο, ∀n1 n2:ι, vec<a,n1> ⇒ vec<a,n2> ⇒ vec<a,add n1 n2> =
   fun l1 l2 →
   case l1 {
-    | Nil[] → l2
+    | Nil    → l2
     | Cns[c] →
        let lem : (∃v:ι, length c.tl ≡ v) = length_total c.tl in
        let r = app c.tl l2 in

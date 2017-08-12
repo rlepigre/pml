@@ -33,7 +33,7 @@ val rec add_assoc2 : ∀m n p∈nat, add m (add n p) ≡ add (add m n) p =
   fun m n p →
     use add_total n p;
     case m {
-      Z[] → qed
+      Z[_] → qed
       S[k] → use add_assoc2 k n p;
              use add_total k n;
              qed
