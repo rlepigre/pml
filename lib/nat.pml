@@ -100,3 +100,14 @@ val rec fact : nat ⇒ nat = fun n →
              S[_] → mul n (fact k)
            }
   }
+
+// Print a natural number.
+val rec print_nat : nat ⇒ {} = fun n →
+  case n {
+    Z    → print "Z"
+    S[k] → print "S"; print_nat k
+  }
+
+// Print a natural number with a newline.
+val println_nat : nat ⇒ {} = fun n →
+  print_nat n; print "\n"
