@@ -1058,6 +1058,10 @@ let if_then_else _loc c t e =
   let pats = [ no_arg "true" t ; no_arg "false" e ] in
   Pos.in_pos _loc (ECase(Pos.none (ECoer(c, p_bool None)), ref `T, pats))
 
+(* "let x : a = t in u" := "(fun (x:a) -> u) t" *)
+let let_binding _loc arg t u =
+ in_pos _loc (EAppl(Pos.make u.pos (ELAbs((arg, []), u)), t))
+
 (* Boolean values. *)
 let v_bool _loc b =
   let b = ECons(Pos.none (if b then "true" else "false"), None) in

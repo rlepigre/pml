@@ -61,6 +61,7 @@ let parser path_atom = id:''[a-zA-Z0-9_]+''
 let parser path = ps:{path_atom '.'}* f:path_atom -> ps @ [f]
 
 let parser goal_name = s:''\([^-]\|\(-[^}]\)\)*'' 
+let parser goal = "{-" str:goal_name "-}" -> String.trim str
 
 let parser lid = id:''[a-z][a-zA-Z0-9_']*'' -> KW.check_not_keyword id; id
 let parser uid = id:''[A-Z][a-zA-Z0-9_']*'' -> KW.check_not_keyword id; id
@@ -143,10 +144,6 @@ type t_prio = [`A | `Ap | `S | `F]
 
 type mode = [`Any | `Prp of p_prio | `Trm of t_prio | `Stk | `Ord ]
 
-let parser goal =
-  | "{-" str:goal_name "-}" ->
-      in_pos _loc (EGoal(String.trim str))
-
 let parser expr (m : mode) =
   (* Any (higher-order function) *)
   | "(" x:llid s:{":" s:sort} "↦" e:(expr `Any)
@@ -221,15 +218,10 @@ let parser expr (m : mode) =
   | "(" (expr (`Prp`F)) ")"
       when m = `Prp`A
   (* Proposition (coersion) *)
-  | (expr (`Prp`A))
-      when m = `Prp`M
-  | (expr (`Prp`M))
-      when m = `Prp`R
-  | (expr (`Prp`R))
-      when m = `Prp`F
-  (* Proposition (from anything) *)
-  | (expr (`Prp`F))
-      when m = `Any
+  | (expr (`Prp`A)) when m = `Prp`M
+  | (expr (`Prp`M)) when m = `Prp`R
+  | (expr (`Prp`R)) when m = `Prp`F
+  | (expr (`Prp`F)) when m = `Any
 
   (* Term (variable and higher-order application) *)
   | id:llid args:{"<" (lsep "," (expr `Any)) ">"}?[[]]
@@ -263,13 +255,11 @@ let parser expr (m : mode) =
   | t:(expr (`Trm`Ap)) u:(expr (`Trm`A))
       when m = `Trm`Ap
       -> in_pos _loc (EAppl(t,u))
-  (* Term (tet binding) *)
-  | _let_ id:llid_wc a:{':' a:(expr (`Prp`A))}? '='
-          t:(expr (`Trm`F)) _in_ u:(expr (`Trm`F))
+  (* Term (let binding) *)
+  | _let_ arg:let_arg '=' t:(expr (`Trm`F)) _in_ u:(expr (`Trm`F))
       when m = `Trm`F
-      -> let f = ELAbs(((id, a), []), u) in
-         in_pos _loc (EAppl(Pos.none f, t))
-  (* Term (Sequencing). *)
+      -> let_binding _loc arg t u
+  (* Term (sequencing). *)
   | t:(expr (`Trm`Ap)) ';' u:(expr (`Trm`S))
       when m = `Trm`S
       -> in_pos _loc (ESequ(t,u))
@@ -294,18 +284,19 @@ let parser expr (m : mode) =
       _else_ '{' e:(expr (`Trm`F)) '}'
       when m = `Trm`A
       -> if_then_else _loc c t e
-  (* Deduce tactic *)
+  (* Term ("deduce" tactic) *)
   | _deduce_ a:(expr (`Prp`F))$
       when m = `Trm`A
       -> deduce _loc a
-  (* Show tactic *)
+  (* Term ("show" tactic) *)
   | _show_ a:(expr (`Prp`F)) _using_ t:(expr (`Trm`Ap))$
       when m = `Trm`A
       -> show_using _loc a t
-  (* Use tactic *)
+  (* Term ("use" tactic) *)
   | _use_ t:(expr (`Trm`Ap))$
       when m = `Trm`A
       -> use _loc t
+  (* Term ("QED" tactic) *)
   | _qed_
       when m = `Trm`A
       -> qed _loc
@@ -325,15 +316,10 @@ let parser expr (m : mode) =
   | "(" t:(expr (`Trm`F)) ")"
       when m = `Trm`A
   (* Term (level coersions) *)
-  | (expr (`Trm`A))
-      when m = `Trm`Ap
-  | (expr (`Trm`Ap))
-      when m = `Trm`S
-  | (expr (`Trm`S))
-      when m = `Trm`F
-  (* Term (from anything) *)
-  | (expr (`Trm`F))
-      when m = `Any
+  | (expr (`Trm`A))  when m = `Trm`Ap
+  | (expr (`Trm`Ap)) when m = `Trm`S
+  | (expr (`Trm`S))  when m = `Trm`F
+  | (expr (`Trm`F))  when m = `Any
 
   (* Stack (variable and higher-order application) *)
   | id:llid args:{"<" (lsep "," (expr `Any)) ">"}?[[]]
@@ -352,8 +338,7 @@ let parser expr (m : mode) =
       when m = `Stk
       -> in_pos _loc (EFram(t,s))
   (* Stack (from anything) *)
-  | (expr `Stk)
-      when m = `Any
+  | (expr `Stk) when m = `Any
 
   (* Ordinal (variable and higher-order application) *)
   | id:llid args:{"<" (lsep "," (expr `Any)) ">"}?[[]]
@@ -368,18 +353,20 @@ let parser expr (m : mode) =
       when m = `Ord
       -> in_pos _loc (ESucc(o))
   (* Ordinal (from anything) *)
-  | (expr `Ord)
-      when m = `Any
+  | (expr `Ord) when m = `Any
 
-  (* Goam (term or stack) *)
-  | g:goal
+  (* Goal (term or stack) *)
+  | s:goal
       when m = `Stk || m = `Trm`A
-      -> g
+      -> in_pos _loc (EGoal(s))
 
 (* Function argument. *)
 and arg  =
   | id:llid_wc                               -> (id, None  )
   | "(" id:llid_wc ":" a:(expr (`Prp`A)) ")" -> (id, Some a)
+
+(* Argument of let-binding. *)
+and let_arg = id:llid_wc a:{':' a:(expr (`Prp`A))}?
 
 (* Pattern. *)
 and patt =
