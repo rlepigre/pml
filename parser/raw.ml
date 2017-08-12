@@ -1059,8 +1059,15 @@ let if_then_else _loc c t e =
   Pos.in_pos _loc (ECase(Pos.none (ECoer(c, p_bool None)), ref `T, pats))
 
 (* "let x : a = t in u" := "(fun (x:a) -> u) t" *)
-let let_binding _loc arg t u =
- in_pos _loc (EAppl(Pos.make u.pos (ELAbs((arg, []), u)), t))
+let let_binding _loc r (id,ao) t u =
+  let t =
+    if not r then t else
+    let t = Pos.make t.pos (EFixY(Pos.none (ELAbs(((id, None),[]), t)))) in
+    match ao with
+    | None   -> t
+    | Some a -> Pos.make t.pos (ECoer(t,a))
+  in
+  in_pos _loc (EAppl(Pos.make u.pos (ELAbs(((id, ao), []), u)), t))
 
 (* Boolean values. *)
 let v_bool _loc b =

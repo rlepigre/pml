@@ -33,3 +33,5 @@ def muc : τ = save a b → fun x → restore b x
 def mud : τ = save a b → save a → fun x → restore b x
 
 def app3<a:τ, b:τ, c:τ> = a b c
+
+def test = let rec id = fun x → id x in id

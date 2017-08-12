@@ -17,8 +17,8 @@ val test5 : {} = print_nat_list (take S[S[S[S[S[Z]]]]] naturals)
 
 // Stream of the natural numbers.
 val naturals : stream<nat> =
-  let aux : (nat ⇒ stream<nat>) = ((fix (fun f i _ →
-                       {hd = i; tl = f S[i]})) : (nat ⇒ stream<nat>))
+  let rec aux : nat ⇒ stream<nat> =
+    fun i _ → {hd = i; tl = aux S[i]}
   in aux Z
 
 // Stream of the natural numbers.

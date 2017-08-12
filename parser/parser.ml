@@ -260,9 +260,9 @@ let parser expr (m : mode) =
       when m = `Trm`P
       -> in_pos _loc (EAppl(t,u))
   (* Term (let binding) *)
-  | _let_ arg:let_arg '=' t:(expr (`Trm`F)) _in_ u:(expr (`Trm`F))
+  | _let_ r:v_is_rec arg:let_arg '=' t:(expr (`Trm`F)) _in_ u:(expr (`Trm`F))
       when m = `Trm`F
-      -> let_binding _loc arg t u
+      -> let_binding _loc r arg t u
   (* Term (sequencing). *)
   | t:(expr (`Trm`P)) ';' u:(expr (`Trm`S))
       when m = `Trm`S
@@ -367,10 +367,10 @@ let parser expr (m : mode) =
 (* Function argument. *)
 and arg  =
   | id:llid_wc                               -> (id, None  )
-  | "(" id:llid_wc ":" a:(expr (`Prp`A)) ")" -> (id, Some a)
+  | "(" id:llid_wc ":" a:(expr (`Prp`F)) ")" -> (id, Some a)
 
 (* Argument of let-binding. *)
-and let_arg = id:llid_wc a:{':' a:(expr (`Prp`A))}?
+and let_arg = id:llid_wc a:{':' a:(expr (`Prp`F))}?
 
 (* Pattern. *)
 and patt =
