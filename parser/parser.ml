@@ -4,44 +4,18 @@ open Extra
 open Pos
 open Raw
 
+(* Parser of a list separated by a given string. *)
 let lsep s elt =
   parser
   | EMPTY                    -> []
   | e:elt es:{_:STR(s) elt}* -> e::es
 
+(* Parser of a (non-empty) list separated by a given string. *)
 let lsep_ne s elt =
   parser
   | e:elt es:{_:STR(s) elt}* -> e::es
 
-module KW =
-  struct
-    let keywords = Hashtbl.create 20
-    let is_keyword : string -> bool = Hashtbl.mem keywords
-
-    let check_not_keyword : string -> unit = fun s ->
-      if is_keyword s then Earley.give_up ()
-
-    let new_keyword : string -> unit Earley.grammar = fun s ->
-      let ls = String.length s in
-      if ls < 1 then raise (Invalid_argument "invalid keyword");
-      if is_keyword s then raise (Invalid_argument "keyword already defined");
-      Hashtbl.add keywords s s;
-      let f str pos =
-        let str = ref str in
-        let pos = ref pos in
-        for i = 0 to ls - 1 do
-          let (c,str',pos') = Input.read !str !pos in
-          if c <> s.[i] then Earley.give_up ();
-          str := str'; pos := pos'
-        done;
-        let (c,_,_) = Input.read !str !pos in
-        match c with
-        | 'a'..'z' | 'A'..'Z' | '0'..'9' | '_' | '\'' -> Earley.give_up ()
-        | _                                           -> ((), !str, !pos)
-      in
-      Earley.black_box f (Charset.singleton s.[0]) false s
-  end
-
+(* String litteral. *)
 let str_lit =
   let normal = Earley.in_charset
     (List.fold_left Charset.del Charset.full ['\\'; '"'; '\r'])
@@ -57,73 +31,90 @@ let str_lit =
     (parser "\"" cs:schar* "\"" -> String.concat "" cs)
     Earley.no_blank
 
+(* Parser of a module path. *)
 let parser path_atom = id:''[a-zA-Z0-9_]+''
 let parser path = ps:{path_atom '.'}* f:path_atom -> ps @ [f]
 
+(* Parser for the contents of a goal. *)
 let parser goal_name = s:''\([^-]\|\(-[^}]\)\)*'' 
 let parser goal = "{-" str:goal_name "-}" -> String.trim str
 
-let parser lid = id:''[a-z][a-zA-Z0-9_']*'' -> KW.check_not_keyword id; id
-let parser uid = id:''[A-Z][a-zA-Z0-9_']*'' -> KW.check_not_keyword id; id
+(* Identifiers. *)
+let parser lid = id:''[a-z][a-zA-Z0-9_']*'' -> Keyword.check id; id
+let parser uid = id:''[A-Z][a-zA-Z0-9_']*'' -> Keyword.check id; id
 
+(* Located identifiers. *)
 let parser llid = id:lid -> in_pos _loc_id id
 let parser luid = id:uid -> in_pos _loc_id id
 
+(* Lowercase identifier or wildcard (located). *)
 let parser llid_wc =
   | id:lid -> in_pos _loc id
   | '_'    -> in_pos _loc "_"
 
-let _sort_    = KW.new_keyword "sort"
-let _include_ = KW.new_keyword "include"
-let _type_    = KW.new_keyword "type"
-let _def_     = KW.new_keyword "def"
-let _val_     = KW.new_keyword "val"
-let _fun_     = KW.new_keyword "fun"
-let _save_    = KW.new_keyword "save"
-let _restore_ = KW.new_keyword "restore"
-let _case_    = KW.new_keyword "case"
-let _of_      = KW.new_keyword "of"
-let _fix_     = KW.new_keyword "fix"
-let _rec_     = KW.new_keyword "rec"
-let _corec_   = KW.new_keyword "corec"
-let _let_     = KW.new_keyword "let"
-let _in_      = KW.new_keyword "in"
-let _if_      = KW.new_keyword "if"
-let _else_    = KW.new_keyword "else"
-let _true_    = KW.new_keyword "true"
-let _false_   = KW.new_keyword "false"
-let _bool_    = KW.new_keyword "bool"
-let _show_    = KW.new_keyword "show"
-let _use_     = KW.new_keyword "use"
-let _qed_     = KW.new_keyword "qed"
-let _using_   = KW.new_keyword "using"
-let _deduce_  = KW.new_keyword "deduce"
-let _print_   = KW.new_keyword "print"
-let _check_   = KW.new_keyword "check"
+(* Keywords. *)
+let _sort_    = Keyword.create "sort"
+let _include_ = Keyword.create "include"
+let _type_    = Keyword.create "type"
+let _def_     = Keyword.create "def"
+let _val_     = Keyword.create "val"
+let _fun_     = Keyword.create "fun"
+let _save_    = Keyword.create "save"
+let _restore_ = Keyword.create "restore"
+let _case_    = Keyword.create "case"
+let _of_      = Keyword.create "of"
+let _fix_     = Keyword.create "fix"
+let _rec_     = Keyword.create "rec"
+let _corec_   = Keyword.create "corec"
+let _let_     = Keyword.create "let"
+let _in_      = Keyword.create "in"
+let _if_      = Keyword.create "if"
+let _else_    = Keyword.create "else"
+let _true_    = Keyword.create "true"
+let _false_   = Keyword.create "false"
+let _bool_    = Keyword.create "bool"
+let _show_    = Keyword.create "show"
+let _use_     = Keyword.create "use"
+let _qed_     = Keyword.create "qed"
+let _using_   = Keyword.create "using"
+let _deduce_  = Keyword.create "deduce"
+let _print_   = Keyword.create "print"
+let _check_   = Keyword.create "check"
 
+(* Some useful tokens. *)
 let parser elipsis = "⋯" | "..."
+let parser arrow   = "→" | "->"
+let parser impl    = "⇒" | "=>"
+let parser scis    = "✂" | "8<"
+let parser equiv   = "≡" | "="
+let parser nequiv  = "≠"
+let parser neg_sym = "¬"
 
-let parser neg = {"¬" -> false}?[true]
+(* Optional negation symbol. *)
+let parser neg =
+  | EMPTY   -> true
+  | neg_sym -> false
 
+(* Optional "rec" annotation of a term. *)
 let parser v_is_rec =
-  | _rec_ -> true
-  | EMPTY -> false
+  | EMPTY   -> false
+  | _rec_   -> true
 
+(* Optional "rec" / "corec" annotation for a type. *)
 let parser t_is_rec =
   | EMPTY   -> `Non
   | _rec_   -> `Rec
   | _corec_ -> `CoRec
 
+(* Optional elipsis for extensible records. *)
 let parser is_strict =
-  | elipsis -> false
   | EMPTY   -> true
+  | elipsis -> false
 
-let parser arrow = "→" | "->"
-let parser impl  = "⇒" | "=>"
-let parser scis  = "✂" | "8<"
-let parser equiv =
-  | {"≡" | "="} -> true
-  | "≠"         -> false
+(* Equivalence / inequivalence symbol. *)
+let parser eq =
+  | equiv   -> true
+  | nequiv  -> false
 
 (* Parser for sorts. *)
 let parser sort (p : [`A | `F]) =
@@ -211,11 +202,11 @@ let parser expr (m : mode) =
       when m = `Prp`M
       -> in_pos _loc (EMemb(t,a))
   (* Proposition (restriction) *)
-  | a:(expr (`Prp`M)) "|" t:(expr (`Trm`P)) b:equiv u:(expr (`Trm`P))
+  | a:(expr (`Prp`M)) "|" t:(expr (`Trm`P)) b:eq u:(expr (`Trm`P))
       when m = `Prp`R
       -> in_pos _loc (ERest(Some a,EEquiv(t,b,u)))
   (* Proposition (equivalence) *)
-  | t:(expr (`Trm`P)) b:equiv u:(expr (`Trm`P))
+  | t:(expr (`Trm`P)) b:eq u:(expr (`Trm`P))
       when m = `Prp`A
       -> in_pos _loc (ERest(None,EEquiv(t,b,u)))
   (* Proposition (parentheses) *)
