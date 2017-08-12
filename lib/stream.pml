@@ -8,4 +8,16 @@ val rec id : ∀a, stream<a> ⇒ stream<a> = fun s _ →
 
 // Map function.
 val rec map : ∀a b, (a ⇒ b) ⇒ stream<a> ⇒ stream<b> = fun f s _ →
-  {hd = f (s {}).hd ; tl = map f (s {}).tl}
+  let c = s {} in
+  {hd = f c.hd ; tl = map f c.tl}
+
+include lib.nat
+
+// Stream of zeroes.
+val rec zeroes : stream<nat> = fun _ →
+  {hd = Z; tl = zeroes}
+
+// Stream of the natural numbers.
+//val rec naturals : stream<nat> = fun _ →
+//  {hd = Z; tl = map (fun n → S[n]) naturals}
+// FIXME needs size preserving map function
