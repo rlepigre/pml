@@ -286,7 +286,7 @@ let parser expr (m : mode) =
       when m = `Trm`A
       -> in_pos _loc (EProj(t, ref `T, l))
   (* Term (case analysis) *)
-  | _case_ t:(expr (`Trm`F)) '{' ps:{_:'|'? pattern}* '}'
+  | _case_ t:(expr (`Trm`F)) '{' ps:{_:'|'? patt _:arrow (expr (`Trm`F))}* '}'
       when m = `Trm`A
       -> in_pos _loc (ECase(t, ref `T, ps))
   (* Term (conditional) *)
@@ -377,14 +377,12 @@ let parser expr (m : mode) =
       -> g
 
 and fun_arg =
-  | '_'                                   -> (Pos.none "_", None)
-  | id:llid                               -> (id, None  )
-  | "(" id:llid ":" a:(expr (`Prp`A)) ")" -> (id, Some a)
-and pattern =
-  | c:luid x:{"[" x:{ llid {":" (expr (`Prp`F))}?
-                      | '_' -> (Pos.in_pos _loc "_", None)}
-  "]"}?[(Pos.none "_", None)] arrow t:(expr (`Trm`F))
-    -> (c, x, t)
+  | id:llid_wc                               -> (id, None  )
+  | "(" id:llid_wc ":" a:(expr (`Prp`A)) ")" -> (id, Some a)
+and pat_arg =
+  | EMPTY -> (Pos.none "_", None)
+  | '[' id:llid_wc ao:{":" (expr (`Prp`F))}? ']'
+and patt = c:luid (x,ao):pat_arg -> (c, x, ao)
 
 (** Common entry points. *)
 let parser term = (expr (`Trm`F))
