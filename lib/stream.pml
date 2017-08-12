@@ -12,6 +12,16 @@ val rec map : ∀a b, (a ⇒ b) ⇒ stream<a> ⇒ stream<b> = fun f s _ →
   {hd = f c.hd ; tl = map f c.tl}
 
 include lib.nat
+include lib.list
+
+// Compute the list of the first n elements of a stream.
+val rec take : ∀a, nat ⇒ stream<a> ⇒ list<a> = fun n s →
+  case n {
+    | Z    → Nil
+    | S[k] → let c = s {} in
+             let tl = take k c.tl in
+             Cons[{hd = c.hd; tl = tl}]
+  }
 
 // Stream of zeroes.
 val rec zeroes : stream<nat> = fun _ →
@@ -19,7 +29,7 @@ val rec zeroes : stream<nat> = fun _ →
 
 // Stream of the natural numbers starting at n.
 val rec naturals_from : nat ⇒ stream<nat> = fun n _ →
-  {hd = n; tl = nat_aux S[n]}
+  {hd = n; tl = naturals_from S[n]}
 
 // Stream of the natural numbers.
-val naturals : stream<nat> = nat_aux Z
+val naturals : stream<nat> = naturals_from Z
