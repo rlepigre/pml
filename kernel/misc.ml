@@ -133,7 +133,7 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
       | NoBox(v)     -> owits acc v
     in
     match (Norm.whnf e).elt with
-    | HDef(_,_)   -> []
+    | HDef(_,_)   -> acc
     | HApp(_,f,a) -> owits (owits acc f) a
     | HFun(_,_,f) -> owits acc (bndr_subst f Dumm)
     | UWit(s,t,a) ->
