@@ -183,8 +183,6 @@ let {eq_expr; eq_bndr; eq_ombinder} =
     let eq_ombinder2 omb1 omb2 = eq_ombinder2 oracle strict omb1 omb2 in
     let eq_fix_schema sch1 sch2 =
       sch1.fsch_index = sch2.fsch_index &&
-      sch1.fsch_posit = sch2.fsch_posit &&
-      sch1.fsch_relat = sch2.fsch_relat &&
       let (b1, omb1)  = sch1.fsch_judge in
       let (b2, omb2)  = sch2.fsch_judge in
       eq_bndr V b1 b2 && eq_ombinder omb1 omb2

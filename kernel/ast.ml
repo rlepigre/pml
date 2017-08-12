@@ -151,8 +151,6 @@ and value =
 
 and fix_schema =
   { fsch_index : Scp.index (** index of the schema in the call graph *)
-  ; fsch_posit : int list  (** the index of positive ordinals        *)
-  ; fsch_relat : (int * int) list (** relation between ordinals      *)
   ; fsch_judge : (v,t) bndr * (o ex, p ex loc) mbinder (** judgement *) }
   (* NOTE: [sch_judge = (vb,mob)] represents "λx.Y(λr.t, x) : a" where
      [mob] corresponds to "λr.t" and "mob" corresponds to "a", which is
@@ -170,12 +168,12 @@ and schema =
 
 and fix_specialised =
   { fspe_param : o ex loc array
-  ; fspe_posit : o ex loc list
   ; fspe_judge : (v,t) bndr * p ex loc }
 
 and sub_specialised =
   { sspe_param : o ex loc array
-  ; sspe_posit : o ex loc list
+  ; sspe_posit : (o ex loc * o ex loc option) list
+  ; sspe_relat : (o ex loc * o ex loc) list
   ; sspe_judge : p ex loc * p ex loc }
 
 (** Type of unification variables. *)
