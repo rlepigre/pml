@@ -79,7 +79,7 @@ type v_node =
   | VN_Cons of A.key loc * VPtr.t
   | VN_Reco of VPtr.t A.t
   | VN_Scis
-  | VN_VWit of ((v, t) bndr * p ex loc * p ex loc) * bool
+  | VN_VWit of ((v, t) bndr * p ex loc * p ex loc)
   | VN_UWit of (t ex loc * (v, p) bndr)
   | VN_EWit of (t ex loc * (v, p) bndr)
   | VN_HApp of v ho_appl
@@ -115,7 +115,7 @@ let print_v_node : out_channel -> v_node -> unit = fun ch n ->
   | VN_Reco(m)     -> let pelt ch (k, p) = prnt ch "%S=%a" k VPtr.print p in
                       prnt ch "VN_Reco(%a)" (Print.print_map pelt ":") m
   | VN_Scis        -> prnt ch "VN_Scis"
-  | VN_VWit((b,_,_),_) -> prnt ch "VN_VWit(ει%s)" (bndr_name b).elt
+  | VN_VWit(b,_,_) -> prnt ch "VN_VWit(ει%s)" (bndr_name b).elt
   | VN_UWit(_,b)   -> prnt ch "VN_UWit(ε∀%s)" (bndr_name b).elt
   | VN_EWit(_,b)   -> prnt ch "VN_EWit(ε∃%s)" (bndr_name b).elt
   | VN_HApp(e)     -> let HO_Appl(s,f,a) = e in
@@ -309,9 +309,9 @@ let eq_v_nodes : pool -> v_node -> v_node -> bool =
     | (VN_Cons(c1,p1), VN_Cons(c2,p2)) -> c1.elt = c2.elt && eq_vptr po p1 p2
     | (VN_Reco(m1)   , VN_Reco(m2)   ) -> A.equal (eq_vptr po) m1 m2
     | (VN_Scis       , VN_Scis       ) -> true
-    | (VN_VWit(w1,u1), VN_VWit(w2,u2)) -> let (f1,a1,b1) = w1 in
+    | (VN_VWit(w1)   , VN_VWit(w2)   ) -> let (f1,a1,b1) = w1 in
                                           let (f2,a2,b2) = w2 in
-                                          (u1 || u2) && eq_bndr V f1 f2 && eq_expr a1 a2
+                                          eq_bndr V f1 f2 && eq_expr a1 a2
                                           && eq_expr b1 b2
     | (VN_UWit(t1,b1), VN_UWit(t2,b2)) -> eq_expr t1 t2 && eq_bndr V b1 b2
     | (VN_EWit(t1,b1), VN_EWit(t2,b2)) -> eq_expr t1 t2 && eq_bndr V b1 b2
@@ -411,26 +411,6 @@ let insert_t_node : t_node -> pool -> TPtr.t * pool = fun nn po ->
       let po = add_parent_t_nodes ptr children po in
       (ptr, po)
 
-let eqsearch_chrono = Chrono.create "eqsearch"
-
-let vn_VWit =
-  fun po f a b ->
-    try
-      let vs = uvars (Pos.none (VWit(f,a,b))) in
-      if vs <> [] then raise Exit;
-      let eq (f',a',b', _) = eq_bndr V f f' && eq_expr ~strict:true a a' && eq_expr ~strict:true b b' in
-      let (_,_,_,t) = List.find (Chrono.add_time eqsearch_chrono eq) po.vwit_map in
-      (t, po)
-    with
-    | Not_found ->
-       let t = VN_VWit((f,a,b),false) in
-       let po = { po with vwit_map = (f,a,b,t) :: po.vwit_map } in
-       (t, po)
-    | Exit -> (VN_VWit((f,a,b),true), po)
-
-let search_chrono = Chrono.create "search"
-let vn_VWit po f a b = Chrono.add_time search_chrono (vn_VWit po f a) b
-
 (** Insertion of actual terms and values to the pool. *)
 let rec add_term : pool -> term -> TPtr.t * pool = fun po t ->
   match (Norm.whnf t).elt with
@@ -474,9 +454,7 @@ and     add_valu : pool -> valu -> VPtr.t * pool = fun po v ->
   | Scis        -> insert_v_node VN_Scis po
   | VDef(d)     -> add_valu po (Erase.to_valu d.value_eval)
   | VTyp(v,_)   -> add_valu po v
-  | VWit(f,a,b) ->
-     let (v, po) = vn_VWit po f a b in
-     insert_v_node v po
+  | VWit(f,a,b) -> insert_v_node (VN_VWit(f, a, b)) po
   | UWit(_,t,b) -> insert_v_node (VN_UWit(t,b)) po
   | EWit(_,t,b) -> insert_v_node (VN_EWit(t,b)) po
   | HApp(s,f,a) -> insert_v_node (VN_HApp(HO_Appl(s,f,a))) po
@@ -576,7 +554,7 @@ and     canonical_valu : VPtr.t -> pool -> valu * pool = fun p po ->
                             let (m, po) = A.fold fn m (A.empty, po) in
                             (Pos.none (Reco(m)), po)
         | VN_Scis        -> (Pos.none Scis, po)
-        | VN_VWit(w,_)   -> let (f,a,b) = w in (Pos.none (VWit(f,a,b)), po)
+        | VN_VWit(w)     -> let (f,a,b) = w in (Pos.none (VWit(f,a,b)), po)
         | VN_UWit(w)     -> let (t,b) = w in (Pos.none (UWit(V,t,b)), po)
         | VN_EWit(w)     -> let (t,b) = w in (Pos.none (EWit(V,t,b)), po)
         | VN_HApp(e)     -> let HO_Appl(s,f,a) = e in
