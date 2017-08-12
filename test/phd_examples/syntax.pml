@@ -1,4 +1,4 @@
-def delta : ι         = λx.x x
+def delta : ι         = fun x → x x
 def app<t:τ, u:τ> : τ = t u
 def omega : τ         = app<delta, delta>
 def neg<a:ο> : ο      = a ⇒ ∀x:ο, x

@@ -2,9 +2,9 @@ def unit : ο = {}
 def null : ο = []
 def triv : ο = {} ⇒ []
 def blop = ∀ x:ο, x
-def id = λx.x
-def stack = (λx.x) · ε
-def delta = λx.x x
+def id = fun x → x
+def stack = (fun x → x) · ε
+def delta = fun x → x x
 def omega : τ = delta delta
 def arrow<a:ο, b:ο> : ο = a ⇒ b
 
@@ -15,21 +15,21 @@ def test1 : τ =
   }
 
 def test2 : τ =
-  case (λx.x) C[{}] {
+  case (fun x → x) C[{}] {
     | C[z] → z
     | D[w] → C[w]
   }
 
-def fixid : τ = fix (λx.x)
+def fixid : τ = fix (fun x → x)
 
-def lamb_v : ι = λx.x
+def lamb_v : ι = fun x → x
 
-def lamb_t : τ = λx.x
+def lamb_t : τ = fun x → x
 
-def muI : τ = μa.[a]λx.x
-def mua : τ = μa b.λx.x
-def mub : τ = μa b.[a]λx.x
-def muc : τ = μa b.λx.[b]x
-def mud : τ = μa b.[a]λx.[b]x
+def muI : τ = save a → restore a (fun x → x)
+def mua : τ = save a b → fun x → x
+def mub : τ = save a b → restore a (fun x → x)
+def muc : τ = save a b → fun x → restore b x
+def mud : τ = save a b → save a → fun x → restore b x
 
 def app3<a:τ, b:τ, c:τ> = a b c

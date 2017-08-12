@@ -154,6 +154,7 @@ let parser expr (m : mode) =
   | id:llid args:{"<" (lsep "," (expr `Any)) ">"}?[[]]
       when m = `Prp`A
       -> in_pos _loc (EVari(id, args))
+  (* Proposition (boolean type) *)
   | _bool_
       when m = `Prp`A
       -> p_bool (Some _loc)
@@ -165,7 +166,7 @@ let parser expr (m : mode) =
   | "{" fs:(lsep_ne ";" (parser l:llid ":" a:(expr (`Prp`F)))) s:is_strict "}"
       when m = `Prp`A
       -> in_pos _loc (EProd(fs,s))
-  (* Extensible empty record. *)
+  (* Proposition (extensible empty record) *)
   | "{" elipsis "}"
       when m = `Prp`A
       -> in_pos _loc (EProd([],false))
@@ -181,7 +182,7 @@ let parser expr (m : mode) =
   | "∀" x:llid xs:llid* s:{':' s:sort}? ',' a:(expr (`Prp`F))
       when m = `Prp`F
       -> euniv _loc x xs s a
-  (* Dependent function type. *)
+  (* Proposition (dependent function type) *)
   | "∀" x:llid xs:llid* "∈" a:(expr (`Prp`F)) ',' b:(expr (`Prp`F))
       when m = `Prp`F
       -> euniv_in _loc x xs a b
@@ -209,6 +210,7 @@ let parser expr (m : mode) =
   | a:(expr (`Prp`M)) "|" t:(expr (`Trm`Ap)) b:equiv u:(expr (`Trm`Ap))
       when m = `Prp`R
       -> in_pos _loc (ERest(Some a,EEquiv(t,b,u)))
+  (* Proposition (equivalence) *)
   | t:(expr (`Trm`Ap)) b:equiv u:(expr (`Trm`Ap))
       when m = `Prp`A
       -> in_pos _loc (ERest(None,EEquiv(t,b,u)))
@@ -232,9 +234,6 @@ let parser expr (m : mode) =
       -> in_pos _loc (EVari(id, args))
   (* Term (lambda abstraction) *)
   | _fun_ args:fun_arg+ arrow t:(expr (`Trm`F))
-      when m = `Trm`F
-      -> in_pos _loc (ELAbs((List.hd args, List.tl args),t))
-  | "λ" args:fun_arg+ "." t:(expr (`Trm`F))
       when m = `Trm`F
       -> in_pos _loc (ELAbs((List.hd args, List.tl args),t))
   (* Term (constructor) *)
@@ -275,13 +274,7 @@ let parser expr (m : mode) =
   | _save_ args:llid+ arrow t:(expr (`Trm`F))
       when m = `Trm`F
       -> in_pos _loc (EMAbs((List.hd args, List.tl args),t))
-  | "μ" args:llid+ "." t:(expr (`Trm`F))
-      when m = `Trm`F
-      -> in_pos _loc (EMAbs((List.hd args, List.tl args),t))
   (* Term (name) *)
-  | "[" s:(expr `Stk) "]" t:(expr (`Trm`F))
-      when m = `Trm`F
-      -> in_pos _loc (EName(s,t))
   | _restore_ s:(expr `Stk) t:(expr (`Trm`F))
       when m = `Trm`F
       -> in_pos _loc (EName(s,t))
@@ -374,6 +367,8 @@ let parser expr (m : mode) =
   (* Ordinal (from anything) *)
   | (expr `Ord)
       when m = `Any
+
+  (* Goam (term or stack) *)
   | g:goal
       when m = `Stk || m = `Trm`A
       -> g
