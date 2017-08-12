@@ -236,7 +236,7 @@ let parser expr (m : mode) =
       when m = `Trm`A
       -> in_pos _loc (EVari(id, args))
   (* Term (lambda abstraction) *)
-  | _fun_ args:fun_arg+ arrow t:(expr (`Trm`F))
+  | _fun_ args:arg+ arrow t:(expr (`Trm`F))
       when m = `Trm`F
       -> in_pos _loc (ELAbs((List.hd args, List.tl args),t))
   (* Term (constructor) *)
@@ -376,13 +376,10 @@ let parser expr (m : mode) =
       when m = `Stk || m = `Trm`A
       -> g
 
-and fun_arg =
+and arg  =
   | id:llid_wc                               -> (id, None  )
   | "(" id:llid_wc ":" a:(expr (`Prp`A)) ")" -> (id, Some a)
-and pat_arg =
-  | EMPTY -> (Pos.none "_", None)
-  | '[' id:llid_wc ao:{":" (expr (`Prp`F))}? ']'
-and patt = c:luid (x,ao):pat_arg -> (c, x, ao)
+and patt = c:luid arg:{'[' id:llid_wc ao:{":" (expr (`Prp`F))}? ']'}?
 
 (** Common entry points. *)
 let parser term = (expr (`Trm`F))

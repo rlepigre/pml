@@ -172,7 +172,7 @@ and raw_ex' =
   | EMAbs of strloc ne_list * raw_ex
   | EName of raw_ex * raw_ex
   | EProj of raw_ex * flag * strloc
-  | ECase of raw_ex * flag * ((strloc * strloc * raw_ex option) * raw_ex) list
+  | ECase of raw_ex * flag * patt_ex list
   | EFixY of raw_ex
   | EPrnt of string
   | ECoer of raw_ex * raw_ex
@@ -185,6 +185,8 @@ and raw_ex' =
   | ESucc of raw_ex
 
   | EGoal of string
+
+and patt_ex = (strloc * (strloc * raw_ex option) option) * raw_ex
 
 let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
   let rec print ch e =
@@ -253,8 +255,11 @@ let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
     | EPosit(o)     -> Printf.fprintf ch "(%a>0)" print o
     | ENoBox(v)     -> Printf.fprintf ch "(%a↓)" print v
   and aux_arg ch (s,ao) = Printf.fprintf ch "(%S,%a)" s.elt aux_opt ao
-  and aux_patt ch ((c,x,ao),t) =
-    Printf.fprintf ch "(%S,(%S,%a),%a)" c.elt x.elt aux_opt ao print t
+  and aux_patt ch ((c,argo),t) =
+    match argo with
+    | None       -> Printf.fprintf ch "(%S,(_,None),%a)" c.elt print t
+    | Some(x,ao) -> Printf.fprintf ch "(%S,(%S,%a),%a)" c.elt x.elt
+                      aux_opt ao print t
   in print ch e
 
 exception Unbound_variable of string * Pos.pos option
@@ -529,7 +534,8 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
     | (EProj(_,_,_) , _        ) -> sort_clash e s
     | (ECase(v,r,l) , ST       ) ->
         begin
-          let fn ((_, x, ao), t) =
+          let fn ((_, argo), t) =
+            let (x, ao) = Option.default (Pos.none "_", None) argo in
             infer env (M.add x.elt (x.pos, Pos.none SV) vars) t _st;
             match ao with
             | None   -> ()
@@ -886,7 +892,8 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
         end
     | (ECase(v,r,l) , ST       ) ->
         begin
-          let fn ((c, x, ao), t) =
+          let fn ((c, argo), t) =
+            let (x, ao) = Option.default (Pos.none "_", None) argo in
             let f xx =
               let xx = (x.pos, Box(V, vari x.pos xx)) in
               let vars = M.add x.elt xx vars in
@@ -1047,7 +1054,7 @@ let p_bool _loc =
 
 (* "if c then t else e" := "case t:bool of { Tru[_] -> t | Fls[_] -> e }" *)
 let if_then_else _loc c t e =
-  let no_arg c t = ((Pos.none c, Pos.none "_", None), t) in
+  let no_arg c t = ((Pos.none c, None), t) in
   let pats = [ no_arg "true" t ; no_arg "false" e ] in
   Pos.in_pos _loc (ECase(Pos.none (ECoer(c, p_bool None)), ref `T, pats))
 
