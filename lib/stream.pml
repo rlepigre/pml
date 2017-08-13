@@ -1,6 +1,14 @@
 // Type of streams.
 type corec stream<a> = {} ⇒ {hd : a; tl : stream}
 
+// Head of a stream.
+val head : ∀a, stream<a> ⇒ a =
+  fun s → (s {}).hd
+
+// Tail of a stream.
+val tail : ∀a, stream<a> ⇒ stream<a> =
+  fun s → (s {}).tl
+
 // Identity function.
 val rec id : ∀a, stream<a> ⇒ stream<a> = fun s _ →
   let c = s {} in
