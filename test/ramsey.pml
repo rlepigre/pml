@@ -23,16 +23,22 @@ val abort : ∀y, (∀x,x) ⇒ y = fun x → x
 
 def to_term<s:σ> = fun x → abort (restore s x)
 
-// val rec aux : ∀o1 o2, ∀a, ∀f∈(a⇒bool), total<f,a> ⇒ (cstream_t<o1,f,a> ⇒ ∀x,x) ⇒ (cstream_f<o2,f,a> ⇒ ∀x,x) ⇒ stream<a> ⇒ ∀x,x
-//             = fun f ft ct cf s →
-//               let c = s {} in
-//               use ft c.hd;
-//               case f c.hd {
-//               | true  → deduce f c.hd ≡ true;
-//                         abort (ct { hd = c.hd; tl = (fun _ → save ct → abort (aux f ft to_term<ct> cf c.tl))})
-//               | false → deduce f c.hd ≡ false;
-//                         abort (cf { hd = c.hd; tl = (fun _ → save cf → abort (aux f ft ct to_term<cf> c.tl))})
-//               }
+//val rec aux : ∀o1 o2, ∀a, ∀f∈(a⇒bool), total<f,a>
+//              ⇒ (cstream_t<o1,f,a> ⇒ ∀x,x)
+//              ⇒ (cstream_f<o2,f,a> ⇒ ∀x,x)
+//              ⇒ stream<a> ⇒ ∀x,x =
+//  fun f ft ct cf s →
+//    let c = s {} in
+//    let hd = c.hd in
+//    let tl = c.tl in
+//    use ft hd;
+//    if f hd {
+//      let tl = fun _ → save ct → abort (aux f ft to_term<ct> cf c.tl) in
+//      abort (ct { hd = hd; tl = tl })
+//    } else {
+//      let tl = fun _ → save cf → abort (aux f ft ct to_term<cf> c.tl) in
+//      abort (cf { hd = hd; tl = tl })
+//    }
 
 // val infinite_tape
 //   : ∀a, ∀f∈(a ⇒ bool), total<f,a> ⇒ stream<a> ⇒ sum<stream_t<f,a>,stream_f<f,a>>
