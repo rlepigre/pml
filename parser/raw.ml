@@ -1,14 +1,13 @@
-(** Parser level abstract syntax tree. This module defines the low level AST
-    for the language. *)
+(** Parser level abstract syntax tree. This module defines the low level (raw)
+    AST for the language. This is where most syntactic sugars are applied. *)
 
-open Extra
-open Bindlib
-open Eq
-open Sorts
-open Pos
-open Ast
-open Env
+
 open Output
+open Extra
+open Sorts
+open Ast
+open Pos
+open Env
 
 (* Log function registration. *)
 let log_par = Log.register 'p' (Some "par") "syntax analysis"
@@ -23,6 +22,7 @@ and raw_sort' =
 and suvar = int * strloc option * raw_sort option ref
 
 let print_raw_sort : out_channel -> raw_sort -> unit = fun ch s ->
+  let open Printf in
   let rec print ch s =
     match s.elt with
     | SV          -> output_string ch "SV"
@@ -30,13 +30,13 @@ let print_raw_sort : out_channel -> raw_sort -> unit = fun ch s ->
     | SS          -> output_string ch "SS"
     | SP          -> output_string ch "SP"
     | SO          -> output_string ch "SO"
-    | SFun(a,b)   -> Printf.fprintf ch "SFun(%a,%a)" print a print b
-    | SVar(x)     -> Printf.fprintf ch "SVar(%S)" x
+    | SFun(a,b)   -> fprintf ch "SFun(%a,%a)" print a print b
+    | SVar(x)     -> fprintf ch "SVar(%S)" x
     | SUni(i,_,r) ->
         begin
           match !r with
-          | None   -> Printf.fprintf ch "SUni(%i,None)" i
-          | Some a -> Printf.fprintf ch "SUni(%i,Some(%a))" i print a
+          | None   -> fprintf ch "SUni(%i,None)" i
+          | Some a -> fprintf ch "SUni(%i,Some(%a))" i print a
         end
   in print ch s
 
@@ -53,6 +53,7 @@ let pretty_print_raw_sort : out_channel -> raw_sort -> unit = fun ch s ->
     | _           -> false
   in
   let rec print ch s =
+    let open Printf in
     match s.elt with
     | SV          -> output_string ch "ι"
     | ST          -> output_string ch "τ"
@@ -60,12 +61,12 @@ let pretty_print_raw_sort : out_channel -> raw_sort -> unit = fun ch s ->
     | SP          -> output_string ch "ο"
     | SO          -> output_string ch "κ"
     | SFun(a,b)   -> let (l,r) = if is_fun a then ("(",")") else ("","") in
-                     Printf.fprintf ch "%s%a%s→%a" l print a r print b
+                     fprintf ch "%s%a%s→%a" l print a r print b
     | SVar(x)     -> output_string ch x
     | SUni(i,_,r) ->
         begin
           match !r with
-          | None   -> Printf.fprintf ch "?%i" i
+          | None   -> fprintf ch "?%i" i
           | Some a -> print ch a
         end
   in print ch s
@@ -579,7 +580,7 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
     | (ESucc(_)     , _        ) -> sort_clash e s
   in infer env M.empty e s
 
-type boxed = Box : 'a sort * 'a ex loc bindbox -> boxed
+type boxed = Box : 'a sort * 'a ex loc Bindlib.bindbox -> boxed
 
 let box_set_pos : boxed -> Pos.popt -> boxed = fun (Box(s,e)) pos ->
   Box(s, Bindlib.box_apply (fun e -> {e with pos}) e)
@@ -587,14 +588,14 @@ let box_set_pos : boxed -> Pos.popt -> boxed = fun (Box(s,e)) pos ->
 let rec sort_filter : type a b. a sort -> boxed -> a box =
   fun s bx ->
     match (s, bx) with
-    | (T, Box(V,e)) -> valu (unbox e).pos e
+    | (T, Box(V,e)) -> valu (Bindlib.unbox e).pos e
     | (s, Box(k,e)) ->
         begin
           match Sorts.eq_sort k s with
-          | Eq  -> e
-          | NEq -> Printf.printf "ERROR: %a ≠ %a\n%!" Print.print_sort s
-                     Print.print_sort k;
-                   assert false (* FIXME #46 error management. *)
+          | Eq.Eq  -> e
+          | Eq.NEq -> Printf.printf "ERROR: %a ≠ %a\n%!"
+                        Print.print_sort s Print.print_sort k;
+                      assert false (* FIXME #46 error management. *)
         end
 
 let to_valu : boxed -> v box = sort_filter V
@@ -602,7 +603,7 @@ let to_valu : boxed -> v box = sort_filter V
 let to_term : boxed -> t box = fun e ->
   match e with
   | Box(T,e) -> e
-  | Box(V,e) -> valu (unbox e).pos e
+  | Box(V,e) -> valu (Bindlib.unbox e).pos e
   | _        -> assert false
 
 let to_stac : boxed -> s box = sort_filter S
@@ -621,7 +622,7 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
               try box_set_pos (snd (M.find x.elt vars)) e.pos
               with Not_found ->
                 let Expr(sx, d) = find_expr x.elt env in
-                let bx = Box(sx, box (Pos.make x.pos (HDef(sx,d)))) in
+                let bx = Box(sx, Bindlib.box (Pos.make x.pos (HDef(sx,d)))) in
                 box_set_pos bx e.pos
             in
             let rec build_app (Box(se,ex)) args =
@@ -636,8 +637,8 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
             let Box(se,ex) = build_app box args in
             let Sort s = unsugar_sort env s in
             match Sorts.eq_sort s se with
-            | Eq  -> Box(s, sort_filter s (Box(se,ex)))
-            | NEq ->
+            | Eq.Eq  -> Box(s, sort_filter s (Box(se,ex)))
+            | Eq.NEq ->
                 begin
                   match (s, se) with
                   | (T, V) -> Box(T, valu e.pos ex)
@@ -646,7 +647,7 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
           with Not_found ->
             let d = find_value x.elt env in
             if args <> [] then assert false; (* FIXME #46 *)
-            Box(V, box (Pos.make x.pos (VDef(d))))
+            Box(V, Bindlib.box (Pos.make x.pos (VDef(d))))
         end
     | (EHOFn(x,k,f) , SFun(a,b)) ->
         let Sort sa = unsugar_sort env a in
