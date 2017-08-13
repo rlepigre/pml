@@ -1,6 +1,9 @@
 include lib.nat
 include lib.stream
-include lib.algebraic
+
+type sum<a,b> = [ Inl of a; Inr of b ]
+
+type pro<a,b> = { fst : a; snd : b }
 
 type col_t<f,a> = ∃v, v∈a | f v ≡ true
 type col_f<f,a> = ∃v, v∈a | f v ≡ false
