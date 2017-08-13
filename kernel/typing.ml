@@ -170,7 +170,10 @@ let rec learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
            let f o = bndr_subst f (FixM(Pos.none o, f)) in
            let f = binder_from_fun "o" f in
            Pos.none (OWMu(o,twit,(None,f)))
-      in add_positive ctx o bound (** FIXME: rec call learn_equivalence *)
+      in
+      let ctx = add_positive ctx o bound in
+      (* NOTE: may loop on mu X.X *)
+      learn_equivalences ctx wit (bndr_subst f (FixM(bound,f)))
   | _          -> ctx
 
 let rec is_singleton : prop -> term option = fun t ->
@@ -216,7 +219,10 @@ let rec learn_neg_equivalences : ctxt -> valu -> term option -> prop -> ctxt =
            let f o = bndr_subst f (FixN(Pos.none o, f)) in
            let f = binder_from_fun "o" f in
            Pos.none (OWNu(o,twit,(None,f)))
-      in add_positive ctx o bound (** FIXME: rec call learn_equivalence *)
+      in
+      let ctx = add_positive ctx o bound in
+      (* NOTE: may loop on nu X.X *)
+      learn_neg_equivalences ctx wit arg (bndr_subst f (FixN(bound,f)))
     | _          -> ctx
 
 let term_is_value : term -> ctxt -> bool * ctxt = fun t ctx ->
