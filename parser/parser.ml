@@ -1,8 +1,13 @@
-#define LOCATE locate
+(** Main parsing module. This module defines an [Earley] parser for the
+    language. *)
+
 
 open Extra
 open Pos
 open Raw
+
+(* Definition of the [locate] function used by [Earley]. *)
+#define LOCATE locate
 
 (* Parser of a list separated by a given string. *)
 let lsep s elt =
@@ -366,8 +371,8 @@ and let_arg = id:llid_wc a:{':' a:(expr (`Prp`F))}?
 (* Pattern. *)
 and patt =
   | c:luid arg:{'[' id:llid_wc ao:{":" (expr (`Prp`F))}? ']'}?
-  | _true_  -> (Pos.in_pos _loc "true" , None)
-  | _false_ -> (Pos.in_pos _loc "false", None)
+  | _true_  -> (in_pos _loc "true" , None)
+  | _false_ -> (in_pos _loc "false", None)
 
 (* Common entry points. *)
 let parser term = (expr (`Trm`F))
@@ -411,7 +416,7 @@ let parser entry = toplevel*
 exception No_parse of pos * string option
 
 (** Main parsing function taking as input a file name. *)
-let parse_file fn =
+let parse_file : string -> toplevel list = fun fn ->
   let parse = Earley.parse_file entry Blank.blank in
   try List.map (fun act -> act ()) (parse fn)
   with Earley.Parse_error(buf, pos, msgs) ->
