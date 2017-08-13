@@ -12,20 +12,38 @@ val rec is_odd : nat ⇒ bool = fun n →
       }
   }
 
+val rec odd_total : ∀n∈nat, ∃v:ι, is_odd n ≡ v = fun n →
+  case n {
+    Z    → {}
+    S[p] →
+      case p {
+        Z    → {}
+        S[p] → odd_total p
+      }
+  }
+
+type bot = ∀x,x
+val abort : ∀y, bot ⇒ y = fun x → x
+
 type odd  = {v∈nat | is_odd v ≡ true }
 type even = {v∈nat | is_odd v ≡ false}
 
-//val rec aux : (stream<even> ⇒ []) ⇒ (stream<odd> ⇒ []) ⇒ stream<nat> ⇒ [] =
-//  fun fe fo s →
-//    let hd = (s {}).hd in
-//    let tl = (s {}).tl in
-//    if is_odd hd {
-//      let tl = save o → aux fe (fun x → restore o x) tl in
-//      fo (fun _ → {hd = hd; tl = tl})
-//    } else {
-//      let tl = save e → aux (fun x → restore e x) fo tl in
-//      fo (fun _ → {hd = hd; tl = tl})
-//    }
+type sstream<o,a> = νo stream {} ⇒ {hd : a; tl : stream}
+type csstream<o,a> = {hd : a; tl : sstream<o,a>}
+
+val rec aux : ∀a b, (csstream<a,even> ⇒ bot) ⇒ (csstream<b,odd> ⇒ bot)
+              ⇒ stream<nat> ⇒ bot =
+  fun fe fo s →
+    let hd = (s {}).hd in
+    let tl = (s {}).tl in
+    use odd_total hd;
+    if is_odd hd {
+      let tl = fun _ → save o → abort (aux fe (fun x → restore o x) tl) in
+      abort (fo {hd = hd; tl = tl})
+    } else {
+      let tl = fun _ → save e → abort (aux (fun x → restore e x) fo tl) in
+      abort (fe {hd = hd; tl = tl})
+    }
 
 //val itl : stream<nat> ⇒ either<stream<even>, stream<odd>> =
 //  fun s → save a → InL[save e → restore a InR[save o →
