@@ -371,7 +371,7 @@ let bind_spos_ordinals
     let e = Norm.whnf e in
     let adone = ref Nil in
     let res = match e.elt with
-    | _ when o = Any -> lift ~adone e
+      (*| _ when o = Any -> lift ~adone e*)
     | HDef(_,e)   -> ba e.expr_def
     | Func(a,b)   -> func e.pos (bind_all (neg o) a) (ba b)
     | Prod(m)     -> prod e.pos (A.map (fun (p,a) -> (p, ba a)) m)
@@ -386,10 +386,10 @@ let bind_spos_ordinals
     | FixN({ elt = Conv},f) when o = Pos ->
        fixn e.pos (new_ord ()) (bndr_name f)
             (fun x -> ba (bndr_subst f (mk_free P x)))
-    | FixM(o1,f) when o <> Any && (Norm.whnf o1).elt <> Conv ->
+    | FixM(o1,f) when (Norm.whnf o1).elt <> Conv ->
        fixm e.pos (search_ord o1) (bndr_name f)
             (fun x -> ba (bndr_subst f (mk_free P x)))
-    | FixN(o1,f) when o <> Any && (Norm.whnf o1).elt <> Conv ->
+    | FixN(o1,f) when (Norm.whnf o1).elt <> Conv ->
        fixn e.pos (search_ord o1) (bndr_name f)
             (fun x -> ba (bndr_subst f (mk_free P x)))
     | Memb(t,a)   -> memb e.pos (lift ~adone t) (ba a)
