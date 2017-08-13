@@ -6,6 +6,7 @@ open Eq
 open Sorts
 open Pos
 open Ast
+open Compare
 open Output
 
 type alist =
@@ -139,13 +140,13 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
     | UWit(s,t,a) ->
         begin
           match s with
-          | O -> if Compare.is_in e acc then acc else e :: acc
+          | O -> if is_in e acc then acc else e :: acc
           | _ -> acc
         end
     | EWit(s,t,a) ->
         begin
           match s with
-          | O -> if Compare.is_in e acc then acc else e :: acc
+          | O -> if is_in e acc then acc else e :: acc
           | _ -> acc
         end
     | UVar(_,_)   -> acc
@@ -189,9 +190,9 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
 
     | Conv        -> acc
     | Succ(o)     -> owits acc o
-    | OWMu(_,_,_) -> if Compare.is_in e acc then acc else e :: acc
-    | OWNu(_,_,_) -> if Compare.is_in e acc then acc else e :: acc
-    | OSch(_,_,_) -> if Compare.is_in e acc then acc else e :: acc
+    | OWMu(_,_,_) -> if is_in e acc then acc else e :: acc
+    | OWNu(_,_,_) -> if is_in e acc then acc else e :: acc
+    | OSch(_,_,_) -> if is_in e acc then acc else e :: acc
 
     | Vari _      -> assert false
     | Dumm        -> acc
@@ -222,7 +223,7 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
           begin
             try
               for i = 0 to arity - 1 do
-                if Compare.eq_expr ~strict:true os.(i) o
+                if eq_expr ~strict:true os.(i) o
                 then raise (Found_index(i))
               done;
               raise Not_found
@@ -358,7 +359,7 @@ let bind_spos_ordinals
   let assoc = ref [] in
   let search_ord o =
     try
-      let (_,v) = List.find (fun (o',_) -> Compare.eq_expr ~strict:true o o') !assoc in
+      let (_,v) = List.find (fun (o',_) -> eq_expr ~strict:true o o') !assoc in
       v
     with Not_found ->
       let v = new_ord () in
