@@ -68,8 +68,7 @@ let cname : type a. a ex loc -> string = fun e ->
   | OWMu _ -> "OWMu"
   | OWNu _ -> "OWNu"
   | OSch _ -> "OSch"
-  | VTyp _ -> "VTyp"
-  | TTyp _ -> "TTyp"
+  | Coer _ -> "Coer"
   | ITag _ -> "ITag"
   | Dumm   -> "Dumm"
   | VWit _ -> "VWit"
@@ -180,8 +179,7 @@ let print_ex : type a. a ex loc printer = fun ch e ->
     | Fram(t,s)   -> fprintf ch "[%a] %a" print_ex t print_ex s
     | Conv        -> output_string ch "∞"
     | Succ(o)     -> fprintf ch "%a+1" print_ex o
-    | VTyp(v,a)   -> fprintf ch "(%a : %a)" print_ex v print_ex a
-    | TTyp(t,a)   -> fprintf ch "(%a : %a)" print_ex t print_ex a
+    | Coer(_,e,a) -> fprintf ch "(%a : %a)" print_ex e print_ex a
     | ITag(_,i)   -> fprintf ch "#%i" i
     | Dumm        -> output_string ch "∅"
     (* TODO #53 give a number to all witnesses to distinguish equal ones even

@@ -947,11 +947,11 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
     | (ECoer(v,a)   , SV       ) ->
         let v = to_valu (unsugar env vars v _sv) in
         let a = to_prop (unsugar env vars a _sp) in
-        Box(V, vtyp e.pos v a)
+        Box(V, coer e.pos VoT_V v a)
     | (ECoer(t,a)   , ST       ) ->
         let t = to_term (unsugar env vars t _st) in
         let a = to_prop (unsugar env vars a _sp) in
-        Box(T, ttyp e.pos t a)
+        Box(T, coer e.pos VoT_T t a)
     (* Stacks. *)
     | (EEpsi        , SS       ) -> Box(S, epsi e.pos)
     | (EPush(v,pi)  , SS       ) ->

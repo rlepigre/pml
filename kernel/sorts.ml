@@ -33,3 +33,8 @@ let rec eq_sort : type a b. a sort -> b sort -> (a,b) Eq.t = fun s1 s2 ->
   | (O       , O       ) -> Eq
   | (F(a1,b1), F(a2,b2)) -> eq_sort a1 a2 &&& eq_sort b1 b2
   | (_       , _       ) -> NEq
+
+(** Filter type for the sorts of terms and values. *)
+type _ v_or_t =
+  | VoT_V : v v_or_t
+  | VoT_T : t v_or_t

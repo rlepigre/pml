@@ -108,10 +108,8 @@ type _ ex =
 
   (* Type annotations. *)
 
-  | VTyp : v ex loc * p ex loc                     -> v  ex
-  (** Type coercion on a term. *)
-  | TTyp : t ex loc * p ex loc                     -> t  ex
-  (** Type coercion on a term. *)
+  | Coer : 'a v_or_t * 'a ex loc * p ex loc        -> 'a ex
+  (** Type coercion on a value or a term. *)
 
   (* Special constructors. *)
 
@@ -281,9 +279,6 @@ let unit_reco = reco None A.empty
 let scis : popt -> vbox =
   fun pos -> box (Pos.make pos Scis)
 
-let vtyp : popt -> vbox -> pbox -> vbox =
-  fun p -> box_apply2 (fun v a -> Pos.make p (VTyp(v,a)))
-
 (** {5 Term constructors} *)
 
 let t_vari : popt -> tvar -> tbox = vari
@@ -325,8 +320,10 @@ let fixy : popt -> strloc -> (vvar -> tbox) -> vbox -> tbox =
 let prnt : popt -> string -> tbox =
   fun p s -> box (Pos.make p (Prnt(s)))
 
-let ttyp : popt -> tbox -> pbox -> tbox =
-  fun p -> box_apply2 (fun t a -> Pos.make p (TTyp(t,a)))
+(** {5 Type annotation constructors} *)
+
+let coer : type a. popt -> a v_or_t -> a box -> pbox -> a box =
+  fun p t -> box_apply2 (fun e a -> Pos.make p (Coer(t,e,a)))
 
 (** {5 Stack constructors} *)
 
@@ -485,57 +482,57 @@ let build_t_fixy : (v,t) bndr -> term = fun b ->
 
 let rec sort : type a b. a ex loc ->  a sort * a ex loc= fun e ->
   match e.elt with
-  | HDef(s,_)   -> (s, e)
-  | HApp(d,u,v) -> let (F(_,s),_) = sort u in (s,e)
-  | HFun(d,c,r) -> (F(d, c), e)
-  | UWit(s,_,_) -> (s,e)
-  | EWit(s,_,_) -> (s,e)
-  | UVar(s,_)   -> (s,e)
-  | ITag(s,_)   -> (s,e)
-  | Goal(s,_)   -> (s,e)
+  | HDef(s,_)       -> (s, e)
+  | HApp(d,u,v)     -> let (F(_,s),_) = sort u in (s,e)
+  | HFun(d,c,r)     -> (F(d, c), e)
+  | UWit(s,_,_)     -> (s,e)
+  | EWit(s,_,_)     -> (s,e)
+  | UVar(s,_)       -> (s,e)
+  | ITag(s,_)       -> (s,e)
+  | Goal(s,_)       -> (s,e)
 
-  | Func _      -> (P,e)
-  | Prod _      -> (P,e)
-  | DSum _      -> (P,e)
-  | Univ _      -> (P,e)
-  | Exis _      -> (P,e)
-  | FixM _      -> (P,e)
-  | FixN _      -> (P,e)
-  | Memb _      -> (P,e)
-  | Rest _      -> (P,e)
-  | Impl _      -> (P,e)
+  | Func _          -> (P,e)
+  | Prod _          -> (P,e)
+  | DSum _          -> (P,e)
+  | Univ _          -> (P,e)
+  | Exis _          -> (P,e)
+  | FixM _          -> (P,e)
+  | FixN _          -> (P,e)
+  | Memb _          -> (P,e)
+  | Rest _          -> (P,e)
+  | Impl _          -> (P,e)
 
-  | VWit _      -> (V,e)
-  | LAbs _      -> (V,e)
-  | Cons _      -> (V,e)
-  | Reco _      -> (V,e)
-  | Scis        -> (V,e)
-  | VDef _      -> (V,e)
-  | VTyp _      -> (V,e)
+  | VWit _          -> (V,e)
+  | LAbs _          -> (V,e)
+  | Cons _          -> (V,e)
+  | Reco _          -> (V,e)
+  | Scis            -> (V,e)
+  | VDef _          -> (V,e)
+  | Coer(VoT_V,_,_) -> (V,e)
 
-  | Valu _      -> (T,e)
-  | Appl _      -> (T,e)
-  | MAbs _      -> (T,e)
-  | Name _      -> (T,e)
-  | Proj _      -> (T,e)
-  | Case _      -> (T,e)
-  | FixY _      -> (T,e)
-  | Prnt _      -> (T,e)
-  | TTyp _      -> (T,e)
+  | Valu _          -> (T,e)
+  | Appl _          -> (T,e)
+  | MAbs _          -> (T,e)
+  | Name _          -> (T,e)
+  | Proj _          -> (T,e)
+  | Case _          -> (T,e)
+  | FixY _          -> (T,e)
+  | Prnt _          -> (T,e)
+  | Coer(VoT_T,_,_) -> (T,e)
 
-  | Epsi        -> (S,e)
-  | Push _      -> (S,e)
-  | Fram _      -> (S,e)
-  | SWit _      -> (S,e)
+  | Epsi            -> (S,e)
+  | Push _          -> (S,e)
+  | Fram _          -> (S,e)
+  | SWit _          -> (S,e)
 
-  | Conv        -> (O,e)
-  | Succ _      -> (O,e)
-  | OWMu _      -> (O,e)
-  | OWNu _      -> (O,e)
-  | OSch _      -> (O,e)
+  | Conv            -> (O,e)
+  | Succ _          -> (O,e)
+  | OWMu _          -> (O,e)
+  | OWNu _          -> (O,e)
+  | OSch _          -> (O,e)
 
-  | Vari(s,_)   -> (s,e)
-  | Dumm        -> Output.bug_msg "Dumm in Ast.sort"; assert false
+  | Vari(s,_)       -> (s,e)
+  | Dumm            -> Output.bug_msg "Dumm in Ast.sort"; assert false
 
 let isVal : type a.a ex loc -> v ex loc option = fun e ->
   match sort e with

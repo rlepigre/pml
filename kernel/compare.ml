@@ -87,8 +87,7 @@ let uvar_iter : type a. bool -> bool -> uvar_fun -> a ex loc -> unit =
     | Conv        -> ()
     | Succ(o)     -> uvar_iter o
     (* NOTE type annotations ignored. *)
-    | VTyp(v,_)   -> uvar_iter v
-    | TTyp(t,_)   -> uvar_iter t
+    | Coer(_,e,_) -> uvar_iter e
     | ITag(_)     -> ()
     | Dumm        -> ()
     | Goal(_)     -> ()
@@ -302,10 +301,8 @@ let {eq_expr; eq_bndr; eq_ombinder} =
     | (Conv          , Conv          ) -> true
     | (Succ(o1)      , Succ(o2)      ) -> eq_expr o1 o2
     (* NOTE type annotations ignored. *)
-    | (VTyp(v1,_)    , _             ) -> eq_expr v1 e2
-    | (_             , VTyp(v2,_)    ) -> eq_expr e1 v2
-    | (TTyp(t1,_)    , _             ) -> eq_expr t1 e2
-    | (_             , TTyp(t2,_)    ) -> eq_expr e1 t2
+    | (Coer(_,e1,_)  , _             ) -> eq_expr e1 e2
+    | (_             , Coer(_,e2,_)  ) -> eq_expr e1 e2
     | (ITag(_,i1)    , ITag(_,i2)    ) -> i1 = i2
     (* NOTE should not be compare dummy expressions. *)
     | (Dumm          , Dumm          ) -> false

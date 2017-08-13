@@ -75,7 +75,7 @@ let (lift, lift_cond) =
             | Reco(m)     -> reco e.pos (A.map (fun (p,v) -> (p, lift v)) m)
             | Scis        -> box e
             | VDef(_)     -> box e
-            | VTyp(v,a)   -> vtyp e.pos (lift v) (lift a)
+            | Coer(t,e,a) -> coer e.pos t (lift e) (lift a)
 
             | Valu(v)     -> valu e.pos (lift v)
             | Appl(t,u)   -> appl e.pos (lift t) (lift u)
@@ -92,7 +92,6 @@ let (lift, lift_cond) =
                                (fun x -> lift (bndr_subst f (mk_free V x)))
                                (lift v)
             | Prnt(s)     -> prnt e.pos s
-            | TTyp(t,a)   -> ttyp e.pos (lift t) (lift a)
 
             | Epsi        -> box e
             | Push(v,s)   -> push e.pos (lift v) (lift s)
@@ -170,7 +169,6 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
     | Reco(m)     -> A.fold (fun _ (_,v) acc -> owits acc v) m acc
     | Scis        -> acc
     | VDef(_)     -> acc
-    | VTyp(v,_)   -> owits acc v
 
     | Valu(v)     -> owits acc v
     | Appl(t,u)   -> owits (owits acc t) u
@@ -181,7 +179,8 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
                      A.fold fn m (owits acc v)
     | FixY(f,v)   -> owits (owits acc (bndr_subst f Dumm)) v
     | Prnt(_)     -> acc
-    | TTyp(t,_)   -> owits acc t
+
+    | Coer(_,e,_) -> owits acc e
 
     | Epsi        -> acc
     | Push(v,s)   -> owits (owits acc v) s
@@ -273,7 +272,6 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
       | Reco(m)     -> reco e.pos (A.map (fun (p,v) -> (p, bind_all v)) m)
       | Scis        -> box e
       | VDef(_)     -> box e
-      | VTyp(v,a)   -> vtyp e.pos (bind_all v) (bind_all a)
 
       | Valu(v)     -> valu e.pos (bind_all v)
       | Appl(t,u)   -> appl e.pos (bind_all t) (bind_all u)
@@ -290,7 +288,8 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
                             (fun x -> bind_all (bndr_subst f (mk_free V x)))
                             (bind_all v)
       | Prnt(s)     -> prnt e.pos s
-      | TTyp(t,a)   -> ttyp e.pos (bind_all t) (bind_all a)
+
+      | Coer(t,e,a) -> coer e.pos t (bind_all e) (bind_all a)
 
       | Epsi        -> box e
       | Push(v,s)   -> push e.pos (bind_all v) (bind_all s)

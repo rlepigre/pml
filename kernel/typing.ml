@@ -854,7 +854,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
     | Scis        ->
         raise Reachable
     (* Coercion. *)
-    | VTyp(v,a)   ->
+    | Coer(_,v,a) ->
         let t = Pos.make v.pos (Valu(v)) in
         let p1 = subtype ctx t a c in
         let ctx = learn_neg_equivalences ctx v None c in
@@ -975,7 +975,7 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
         let ps = A.fold check m [] in
         Typ_DSum_e(p,List.rev ps)
     (* Coercion. *)
-    | TTyp(t,a)   ->
+    | Coer(_,t,a)   ->
         let p1= subtype ctx t a c in
         let ctx =
           match to_value t ctx.equations with
@@ -1059,6 +1059,7 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
         wrn_msg "goal %S %a" str Pos.print_short_pos_opt s.pos;
         Stk_Goal(str)
     (* Constructors that cannot appear in user-defined stacks. *)
+    | Coer(_,_,_) -> .
     | Epsi        -> unexpected "Empty stack during typing..."
     | UWit(_,_,_) -> unexpected "∀-witness during typing..."
     | EWit(_,_,_) -> unexpected "∃-witness during typing..."
