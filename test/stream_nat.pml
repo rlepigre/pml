@@ -21,7 +21,13 @@ val naturals : stream<nat> =
     fun i _ → {hd = i; tl = aux S[i]}
   in aux Z
 
+type sstream<o,a> = νo stream {} ⇒ {hd : a; tl : stream}
+
+// Map function.
+val rec map : ∀o, ∀a b, (a ⇒ b) ⇒ sstream<o,a> ⇒ sstream<o,b> = fun f s _ →
+  let c = s {} in
+  {hd = f c.hd ; tl = map f c.tl}
+
 // Stream of the natural numbers.
-//val rec naturals : stream<nat> = fun _ →
-//  {hd = Z; tl = map (fun n → S[n]) naturals}
-// FIXME needs size preserving map function
+val rec naturals : stream<nat> = fun _ →
+  {hd = Z; tl = map (fun n → S[n]) naturals}

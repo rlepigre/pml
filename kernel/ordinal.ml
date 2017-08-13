@@ -56,7 +56,9 @@ let rec leq_i_ordi : positives -> ordi -> int -> ordi -> bool =
     | (OWNu(o,_,_),_     )
     | (OSch(Some o,_,_),_) -> let i = if is_pos pos o then i-1 else i in
                               leq_i_ordi pos o i o2
-    | (_       , _       ) -> false
+    | (_       , _       ) -> try let (_,o) = List.find (fun (o,_) -> eq_expr ~strict:true o o2) pos in
+                                  leq_i_ordi pos o1 (i-1) o
+                              with Not_found -> false
 
 let ordi_chrono = Chrono.create "ordi"
 

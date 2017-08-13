@@ -290,6 +290,16 @@ let rec subtype =
            gen_subtype ctx a b
       (* Mu left and Nu right rules. *)
       | (FixM(o,f)  , _          ) when t_is_val ->
+         begin (* heuristic to instanciate some unification variables *)
+           match b.elt with
+           | FixM(ol,f) ->
+              begin
+                match (Norm.whnf ol).elt with
+                | UVar(O,v) -> uvar_set v o
+                | _ -> ()
+              end
+           | _ -> ()
+          end;
           let o' =
             let f o = bndr_subst f (FixM(Pos.none o, f)) in
             let f = binder_from_fun "o" f in
@@ -299,6 +309,16 @@ let rec subtype =
           let a = bndr_subst f (FixM(o',f)) in
           Sub_FixM_l(false, subtype ctx t a b)
       | (_          , FixN(o,f)  ) when t_is_val ->
+         begin (* heuristic to instanciate some unification variables *)
+           match a.elt with
+           | FixN(ol,f) ->
+              begin
+                match (Norm.whnf ol).elt with
+                | UVar(O,v) -> uvar_set v o
+                | _ -> ()
+              end
+           | _ -> ()
+          end;
           let o' =
             let f o = bndr_subst f (FixN(Pos.none o, f)) in
             let f = binder_from_fun "o" f in
@@ -697,7 +717,6 @@ and inst_sub_schema : ctxt -> sub_schema -> ordi array -> sub_specialised =
       try List.assoc i !cache with Not_found ->
           let bound = try Some (fn (List.assoc i sch.ssch_relat))
                       with Not_found -> None in
-        if bound <> None then bug_msg "tata";
         let res = Pos.none (OSch(bound, i, SubSch sch)) in
         cache := (i,res)::!cache;
         res
@@ -761,7 +780,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
        let (x,tx) = unbind (mk_free V) (snd f) in
        begin
          match tx.elt with
-         (* Fixpoint. Temporary code *)
+         (* Fixpoint *)
          | FixY(b,{elt = Vari(V,y)}) ->
             assert(eq_vars x y); (* x must not be free in b *)
             let w = Pos.none (Valu(v)) in

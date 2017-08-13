@@ -240,15 +240,11 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
                             (fun x -> bind_all (bndr_subst f (mk_free a x)))
       | UWit(s,t,f) ->
          begin
-           try var_of_ordi_wit s e with Not_found -> box e (*
-             uwit e.pos (bind_all t) (bndr_name f) s ~prev:(snd f)
-                  (fun x -> bind_all (bndr_subst f (mk_free s x)))*)
+           try var_of_ordi_wit s e with Not_found -> box e
          end
       | EWit(s,t,f) ->
          begin
-           try var_of_ordi_wit s e with Not_found -> box e (*
-             uwit e.pos (bind_all t) (bndr_name f) s
-                  (fun x -> bind_all (bndr_subst f (mk_free s x)))*)
+           try var_of_ordi_wit s e with Not_found -> box e
          end
       | UVar(_,_)   -> box e
       | ITag(_,_)   -> box e
@@ -269,10 +265,7 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
       | Rest(a,c)   -> rest e.pos (bind_all a) (bind_all_cond c)
       | Impl(c,a)   -> impl e.pos (bind_all_cond c) (bind_all a)
 
-      | VWit(f,a,b) -> box e (*
-             vwit e.pos (bndr_name f) ~prev:(snd f)
-                         (fun x -> bind_all (bndr_subst f (mk_free V x)))
-                         (bind_all a) (bind_all b)*)
+      | VWit(f,a,b) -> box e
       | LAbs(a,f)   -> labs e.pos (Option.map bind_all a) (bndr_name f)
                             (fun x -> bind_all (bndr_subst f (mk_free V x)))
       | Cons(c,v)   -> cons e.pos c (bind_all v)
@@ -362,6 +355,16 @@ let bind_spos_ordinals
     vars := v::!vars;
     box_apply Pos.none (box_of_var v)
   in
+  let assoc = ref [] in
+  let search_ord o =
+    try
+      let (_,v) = List.find (fun (o',_) -> Compare.eq_expr ~strict:true o o') !assoc in
+      v
+    with Not_found ->
+      let v = new_ord () in
+      assoc := (o,v) :: !assoc;
+      v
+  in
   let rec bind_all : occ -> p ex loc -> p box = fun o e ->
     let ba = bind_all o in
     let e = Norm.whnf e in
@@ -381,6 +384,12 @@ let bind_spos_ordinals
             (fun x -> ba (bndr_subst f (mk_free P x)))
     | FixN({ elt = Conv},f) when o = Pos ->
        fixn e.pos (new_ord ()) (bndr_name f)
+            (fun x -> ba (bndr_subst f (mk_free P x)))
+    | FixM(o1,f) when o <> Any && (Norm.whnf o1).elt <> Conv ->
+       fixm e.pos (search_ord o1) (bndr_name f)
+            (fun x -> ba (bndr_subst f (mk_free P x)))
+    | FixN(o1,f) when o <> Any && (Norm.whnf o1).elt <> Conv ->
+       fixn e.pos (search_ord o1) (bndr_name f)
             (fun x -> ba (bndr_subst f (mk_free P x)))
     | Memb(t,a)   -> memb e.pos (lift ~adone t) (ba a)
     | Rest(a,c)   -> rest e.pos (ba a) (lift_cond ~adone c)
