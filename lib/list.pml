@@ -7,27 +7,27 @@ val nil : ∀a, list<a> = Nil
 val cons : ∀a, a ⇒ list<a> ⇒ list<a> =
   fun hd tl { Cons[{hd ; tl}] }
 
-val hd : ∀a, list<a> ⇒ option<a> =
+val head : ∀a, list<a> ⇒ option<a> =
   fun l {
     case l {
-      Nil     → none
-      Cons[c] → some c.hd
+      Nil        → none
+      Cons[{hd}] → some hd
     }
   }
 
-val tl : ∀a, list<a> ⇒ option<list<a>> =
+val tail : ∀a, list<a> ⇒ option<list<a>> =
   fun l {
     case l {
-      Nil     → none
-      Cons[c] → some c.tl
+      Nil        → none
+      Cons[{tl}] → some tl
     }
   }
 
 val rec length : ∀a, list<a> ⇒ nat =
   fun l {
     case l {
-      Nil     → zero
-      Cons[c] → succ (length c.tl)
+      Nil        → zero
+      Cons[{tl}] → succ (length tl)
     }
   }
 
@@ -42,8 +42,8 @@ val rec map : ∀a b, (a ⇒ b) ⇒ list<a> ⇒ list<b> =
 val rec fold_left : ∀a b, (a ⇒ b ⇒ a) ⇒ a ⇒ list<b> ⇒ a =
   fun fn acc l {
     case l {
-      Nil     → acc
-      Cons[c] → fold_left fn (fn acc c.hd) c.tl
+      Nil           → acc
+      Cons[{hd;tl}] → fold_left fn (fn acc hd) tl
     }
   }
 
@@ -52,7 +52,7 @@ val sum : list<nat> ⇒ nat = fold_left add zero
 val rec app : ∀b, list<b> ⇒ list<b> ⇒ list<b> =
   fun l1 l2 {
     case l1 {
-      | Nil     → nil
-      | Cons[c] → cons c.hd (app c.tl l2)
+      | Nil           → nil
+      | Cons[{hd;tl}] → cons hd (app tl l2)
     }
   }
