@@ -5,7 +5,7 @@ type rec list<a> = [Nil ; Cons of {hd : a ; tl : list}]
 
 val nil : ∀a, list<a> = Nil
 val cons : ∀a, a ⇒ list<a> ⇒ list<a> =
-  fun hd tl { Cons[{hd = hd; tl = tl}] }
+  fun hd tl { Cons[{hd ; tl}] }
 
 val hd : ∀a, list<a> ⇒ option<a> =
   fun l {

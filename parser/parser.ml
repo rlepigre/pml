@@ -244,9 +244,9 @@ let parser expr (m : mode) =
       when m = `Trm`A
       -> v_bool _loc false
   (* Term (record) *)
-  | "{" fs:(lsep_ne ";" (parser l:llid "=" a:(expr (`Trm`F)))) "}"
+  | "{" fs:(lsep_ne ";" field) "}"
       when m = `Trm`A
-      -> in_pos _loc (EReco(List.map (fun (l,a) -> (l, a, ref `T)) fs))
+      -> record _loc fs
   (* Term (scisors) *)
   | scis
       when m = `Trm`A
@@ -367,6 +367,9 @@ and arg  =
 
 (* Argument of let-binding. *)
 and let_arg = id:llid_wc a:{':' a:(expr (`Prp`F))}?
+
+(* Record field. *)
+and field = l:llid {"=" a:(expr (`Trm`F))}?
 
 (* Pattern. *)
 and patt =

@@ -1019,6 +1019,14 @@ let include_file : string list -> toplevel = fun path ->
   Include(path)
 
 (** syntactic sugars *)
+
+let record _loc fs =
+  let fn (l, ao) =
+    let a = Option.default (Pos.make l.pos (EVari(l, []))) ao in
+    (l, a, ref `T)
+  in
+  in_pos _loc (EReco(List.map fn fs))
+
 (* TODO #33: keep position in l *)
 let erest a l =
   List.fold_left (fun a x ->
