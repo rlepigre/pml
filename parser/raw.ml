@@ -1068,15 +1068,28 @@ let if_then_else _loc c t e =
   Pos.in_pos _loc (ECase(Pos.none (ECoer(c, p_bool None)), ref `T, pats))
 
 (* "let x : a = t in u" := "(fun (x:a) -> u) t" *)
-let let_binding _loc r (id,ao) t u =
-  let t =
-    if not r then t else
-    let t = Pos.make t.pos (EFixY(Pos.none (ELAbs(((id, None),[]), t)))) in
-    match ao with
-    | None   -> t
-    | Some a -> Pos.make t.pos (ECoer(t,a))
-  in
-  in_pos _loc (EAppl(Pos.make u.pos (ELAbs(((id, ao), []), u)), t))
+let let_binding _loc r arg t u =
+  match arg with
+  | `LetArgVar(id,ao) ->
+      let t =
+        if not r then t else
+        let fix = EFixY(Pos.none (ELAbs(((id, None),[]), t))) in
+        let t = Pos.make t.pos fix in
+        match ao with
+        | None   -> t
+        | Some a -> Pos.make t.pos (ECoer(t,a))
+      in
+      in_pos _loc (EAppl(Pos.make u.pos (ELAbs(((id, ao), []), u)), t))
+  | `LetArgRec(fs)    ->
+      if r then Earley.give_up (); (* "let rec" is meaningless here. *)
+      let u = Pos.make u.pos (ELAbs((List.hd fs, List.tl fs), u)) in
+      let x = Pos.none "$rec$" in
+      let fn u (l,_) =
+        let pr = Pos.none (EProj(Pos.none (EVari(x, [])), ref `T,  l)) in
+        Pos.make u.pos (EAppl(u, pr))
+      in
+      let u = List.fold_left fn u fs in
+      in_pos _loc (EAppl(Pos.make u.pos (ELAbs(((x, None), []), u)), t))
 
 (* Boolean values. *)
 let v_bool _loc b =

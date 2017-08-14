@@ -360,13 +360,17 @@ let parser expr (m : mode) =
       when m = `Stk || m = `Trm`A
       -> in_pos _loc (EGoal(s))
 
+and arg_type = id:llid ao:{":" a:(expr (`Prp`F))}?
+
 (* Function argument. *)
 and arg  =
   | id:llid_wc                               -> (id, None  )
   | "(" id:llid_wc ":" a:(expr (`Prp`F)) ")" -> (id, Some a)
 
 (* Argument of let-binding. *)
-and let_arg = id:llid_wc a:{':' a:(expr (`Prp`F))}?
+and let_arg =
+  | id:llid_wc ao:{':' a:(expr (`Prp`F))}? -> `LetArgVar(id,ao)
+  | '{' fs:(lsep_ne ";" arg_type) '}'      -> `LetArgRec(fs)
 
 (* Record field. *)
 and field = l:llid {"=" a:(expr (`Trm`F))}?

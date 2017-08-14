@@ -19,8 +19,8 @@ val rec id : ∀a, stream<a> ⇒ stream<a> =
 // Map function.
 val rec map : ∀a b, (a ⇒ b) ⇒ stream<a> ⇒ stream<b> =
   fun f s _ {
-    let c = s {} in
-    {hd = f c.hd ; tl = map f c.tl}
+    let {hd ; tl} = s {} in
+    {hd = f hd ; tl = map f tl}
   }
 
 include lib.nat
