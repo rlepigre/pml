@@ -36,12 +36,12 @@ val rec add_perm_assoc : ∀n m p∈nat,
     | Z → add_perm_nZ m ; add_perm_nZ (add_perm m p)
     | S[n'] →
       show add_perm (add_perm m p) n' ≡ add_perm n' (add_perm m p)
-        using add_perm_comm (add_perm m p) n';
+        using { add_perm_comm (add_perm m p) n' };
       show add_perm m n' ≡ add_perm n' m
-        using add_perm_comm m n';
+        using { add_perm_comm m n' };
       add_perm_total n' m;
       show add_perm (add_perm n' m) p ≡ add_perm p (add_perm n' m)
-        using add_perm_comm (add_perm n' m) p;
+        using { add_perm_comm (add_perm n' m) p };
       add_perm_assoc n' m p
     }
   }

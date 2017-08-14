@@ -232,7 +232,7 @@ let parser expr (m : mode) =
       when m = `Trm`F
       -> in_pos _loc (ELAbs((List.hd args, List.tl args),t))
   (* Term (constructor) *)
-  | c:luid t:{"[" t:(expr (`Trm`F)) "]"}?$
+  | c:luid t:{"[" t:(expr (`Trm`F)) "]"}?
       when m = `Trm`A
       -> in_pos _loc (ECons(c, Option.map (fun t -> (t, ref `T)) t))
   (* Term (true boolean) *)
@@ -285,15 +285,15 @@ let parser expr (m : mode) =
       when m = `Trm`A
       -> if_then_else _loc c t e
   (* Term ("deduce" tactic) *)
-  | _deduce_ a:(expr (`Prp`F))$
+  | _deduce_ '{' a:(expr (`Prp`F)) '}'
       when m = `Trm`A
       -> deduce _loc a
   (* Term ("show" tactic) *)
-  | _show_ a:(expr (`Prp`F)) _using_ t:(expr (`Trm`P))$
+  | _show_ a:(expr (`Prp`F)) _using_ '{' t:(expr (`Trm`F)) '}'
       when m = `Trm`A
       -> show_using _loc a t
   (* Term ("use" tactic) *)
-  | _use_ t:(expr (`Trm`P))$
+  | _use_ '{' t:(expr (`Trm`F)) '}'
       when m = `Trm`A
       -> use _loc t
   (* Term ("QED" tactic) *)

@@ -37,7 +37,7 @@ val rec strong_add_total : ∀n∈nat, ∀m∈(∃x,x), ∃v:ι, add n m ≡ v =
   fun n m {
     case n {
       Z    → {}
-      S[p] → use strong_add_total p m
+      S[p] → use { strong_add_total p m }
     }
   }
 

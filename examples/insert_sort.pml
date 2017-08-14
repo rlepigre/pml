@@ -80,9 +80,9 @@ val rec isort_sorted : ∀a:ο, ∀o∈ord<a>, ∀l∈list<a>,
     case l {
       Nil     → {}
       Cons[c] →
-        use isort_total o c.tl;
-        use isort_sorted o c.tl;
-        use insert_sorted o c.hd (isort o c.tl)
+        use { isort_total o c.tl };
+        use { isort_sorted o c.tl };
+        use { insert_sorted o c.hd (isort o c.tl) }
     }
   }
 

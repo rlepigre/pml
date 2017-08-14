@@ -6,7 +6,7 @@ val rec app_total : ∀a, ∀l1 l2 ∈list<a>, ∃v:ι, app l1 l2 ≡ v =
   fun l1 l2 {
     case l1 {
       Nil     → {}
-      Cons[c] → use app_total c.tl l2
+      Cons[c] → use { app_total c.tl l2 }
     }
   }
 
@@ -33,7 +33,7 @@ def cmp<f:ι,g:ι> = fun x { g (f x) }
 
 val compose_total : ∀a b c, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c),
                     total<f,a> ⇒ total<g,b> ⇒ total<cmp<f,g>, a> =
-  fun f g tf tg a { use tf a; use tg (f a) }
+  fun f g tf tg a { use { tf a}; use { tg (f a) } }
 
 val rec map_total : ∀a b, ∀f∈(a⇒b), total<f,a>
                     ⇒ ∀l∈list<a>, ∃v:ι, map f l ≡ v =

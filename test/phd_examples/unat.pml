@@ -144,15 +144,15 @@ val rec mul_comm : ∀n m∈nat, mul n m ≡ mul m n =
 val rec mul_comm : ∀n m∈nat, mul n m ≡ mul m n =
   fun n m {
     case n {
-      Zero[_] → deduce mul Zero m ≡ Zero;
-                show mul m Zero ≡ Zero using mul_n_zero m
-    | Succ[k] → deduce mul Succ[k] m ≡ add m (mul k m);
-                show mul k m ≡ mul m k using mul_comm k m;
+      Zero[_] → deduce { mul Zero m ≡ Zero };
+                show mul m Zero ≡ Zero using { mul_n_zero m }
+      Succ[k] → deduce { mul Succ[k] m ≡ add m (mul k m) };
+                show mul k m ≡ mul m k using { mul_comm k m };
                 show mul m Succ[k] ≡ add (mul m k) m
-                  using mul_succ m k;
-                show ∃v:ι, mul k m ≡ v using mul_total k m;
+                  using { mul_succ m k };
+                show ∃v:ι, mul k m ≡ v using { mul_total k m };
                 show add (mul k m) m ≡ add m (mul k m)
-                  using add_comm (mul k m) m
+                  using { add_comm (mul k m) m }
     }
   }
 
@@ -197,8 +197,8 @@ val rec length_total : ∀a:ο, ∀l∈list<a>, ∃v:ι, v ≡ length l =
 val compose_total : ∀a b c:ο, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c),
                     total<f,a> ⇒ total<g,b> ⇒ total<(fun x { g (f x) }), a> =
   fun f g ftot gtot a {
-    show ∃v:ι, f a ≡ v using ftot a;
-    show ∃w:ι, g (f a) ≡ w using gtot (f a)
+    show ∃v:ι, f a ≡ v using { ftot a };
+    show ∃w:ι, g (f a) ≡ w using { gtot (f a) }
   }
 
 val map_map : ∀a b c:ο, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c),
