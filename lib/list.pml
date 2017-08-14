@@ -34,8 +34,8 @@ val rec length : ∀a, list<a> ⇒ nat =
 val rec map : ∀a b, (a ⇒ b) ⇒ list<a> ⇒ list<b> =
   fun fn l {
     case l {
-      Nil     → nil
-      Cons[c] → cons (fn c.hd) (map fn c.tl)
+      Nil           → nil
+      Cons[{hd;tl}] → cons (fn hd) (map fn tl)
     }
   }
 

@@ -278,7 +278,7 @@ let parser expr (m : mode) =
   (* Term (case analysis) *)
   | _case_ t:(expr (`Trm`F)) '{' ps:{_:'|'? patt _:arrow (expr (`Trm`F))}* '}'
       when m = `Trm`A
-      -> in_pos _loc (ECase(t, ref `T, ps))
+      -> pattern_matching _loc t ps
   (* Term (conditional) *)
   | _if_ c:(expr (`Trm`F)) '{' t:(expr (`Trm`F)) '}'
       _else_ '{' e:(expr (`Trm`F)) '}'
@@ -377,9 +377,9 @@ and field = l:llid {"=" a:(expr (`Trm`F))}?
 
 (* Pattern. *)
 and patt =
-  | c:luid arg:{'[' id:llid_wc ao:{":" (expr (`Prp`F))}? ']'}?
-  | _true_  -> (in_pos _loc "true" , None)
-  | _false_ -> (in_pos _loc "false", None)
+  | c:luid arg:{'[' let_arg ']'}? -> (c, arg)
+  | _true_                        -> (in_pos _loc "true" , None)
+  | _false_                       -> (in_pos _loc "false", None)
 
 (* Common entry points. *)
 let parser term = (expr (`Trm`F))

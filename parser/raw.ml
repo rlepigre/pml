@@ -1091,6 +1091,27 @@ let let_binding _loc r arg t u =
       let u = List.fold_left fn u fs in
       in_pos _loc (EAppl(Pos.make u.pos (ELAbs(((x, None), []), u)), t))
 
+let pattern_matching _loc t ps =
+  let fn ((c,pat), t) =
+    let (pat, t) =
+      match pat with
+      | None                    -> (None        , t)
+      | Some(`LetArgVar(id,ao)) -> (Some (id,ao), t)
+      | Some(`LetArgRec(fs)   ) ->
+          let t = Pos.make t.pos (ELAbs((List.hd fs, List.tl fs), t)) in
+          let x = Pos.none "$rec$" in
+          let fn t (l,_) =
+            let pr = Pos.none (EProj(Pos.none (EVari(x, [])), ref `T,  l)) in
+            Pos.make t.pos (EAppl(t, pr))
+          in
+          (Some (x, None), List.fold_left fn t fs)
+    in ((c,pat), t)
+  in
+  let ps = List.map fn ps in
+  in_pos _loc (ECase(t, ref `T, ps))
+
+(* (strloc * (strloc * raw_ex option) option) * raw_ex *)
+
 (* Boolean values. *)
 let v_bool _loc b =
   let b = ECons(Pos.none (if b then "true" else "false"), None) in
