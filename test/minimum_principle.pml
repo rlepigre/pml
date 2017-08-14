@@ -1,3 +1,4 @@
+include lib.either
 include lib.nat
 include lib.nat_proofs
 
@@ -9,9 +10,10 @@ type bot = ∀x:ο,x
 
 type snat<o> = μo nat [ Z ; S of nat ]
 
-val leq_size : ∀o, ∀m∈snat<o+1>, ∀n∈nat, [ Ok of leq m n ≡ true ; Bad of n∈snat<o> ]
-  = fun m n →
-      {- case m  -}
+val leq_size : ∀o, ∀m∈snat<o+1>, ∀n∈nat, either<leq m n ≡ true, n∈snat<o>> =
+  fun m n {
+    {- case m  -}
+  }
 
 // val rec fn : ∀o, ∀f∈(nat ⇒ nat), total<f,nat> ⇒ ∀n∈nat, ∀q∈(snat<o> | q ≡ f n),
 //                        (∀n∈ nat, min<n,f> ⇒ bot) ⇒ bot =
@@ -20,8 +22,8 @@ val leq_size : ∀o, ∀m∈snat<o+1>, ∀n∈nat, [ Ok of leq m n ≡ true ; Ba
 //         use ft p;
 //         use leq_total q (f p);
 //         case leq_size q (f p) {
-//           Ok      → {}
-//           Bad[fp] → fn f ft p fp k
+//           InL     → {}
+//           InR[fp] → fn f ft p fp k
 //         }) : min<n,f>)
 
 

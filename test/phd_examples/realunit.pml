@@ -16,4 +16,4 @@ val u : unit = {}
 
 // But not by any other record.
 // val fail : unit = {l = {}}
-val true_unit : ∀x∈unit, x ≡ {} = fun x → {}
+val true_unit : ∀x∈unit, x ≡ {} = fun x { {} }

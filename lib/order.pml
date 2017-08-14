@@ -7,18 +7,20 @@ type ord<a> = ∃cmp,
   ; trans : ∀x y z∈a, (cmp x y ≡ true ⇒ cmp y z ≡ true ⇒ cmp x y ≡ true)
   ; total : ∀x y∈a, or (cmp x y) (cmp y x) ≡ true }
 
-val rec sorted : ∀a, ∀o∈ord<a>, ∀l∈list<a>, bool = fun o l →
-  case l {
-    Nil      → true
-    Cons[c1] →
-      let hd = c1.hd in
-      let tl = c1.tl in
-      case tl {
-        Nil      → true
-        Cons[c2] →
-          let hd2 = c2.hd in
-          land<(o.cmp) hd hd2, sorted o tl>
-      }
+val rec sorted : ∀a, ∀o∈ord<a>, ∀l∈list<a>, bool =
+  fun o l {
+    case l {
+      Nil      → true
+      Cons[c1] →
+        let hd = c1.hd in
+        let tl = c1.tl in
+        case tl {
+          Nil      → true
+          Cons[c2] →
+            let hd2 = c2.hd in
+            land<(o.cmp) hd hd2, sorted o tl>
+        }
+    }
   }
 
 type slist<a,o> = {l∈list<a> | sorted o l ≡ true}

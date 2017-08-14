@@ -228,7 +228,7 @@ let parser expr (m : mode) =
       when m = `Trm`A
       -> in_pos _loc (EVari(id, args))
   (* Term (lambda abstraction) *)
-  | _fun_ args:arg+ arrow t:(expr (`Trm`F))
+  | _fun_ args:arg+ '{' t:(expr (`Trm`F)) '}'
       when m = `Trm`F
       -> in_pos _loc (ELAbs((List.hd args, List.tl args),t))
   (* Term (constructor) *)
@@ -264,7 +264,7 @@ let parser expr (m : mode) =
       when m = `Trm`S
       -> in_pos _loc (ESequ(t,u))
   (* Term (mu abstraction) *)
-  | _save_ args:llid+ arrow t:(expr (`Trm`F))
+  | _save_ args:llid+ '{' t:(expr (`Trm`F)) '}'
       when m = `Trm`F
       -> in_pos _loc (EMAbs((List.hd args, List.tl args),t))
   (* Term (name) *)
