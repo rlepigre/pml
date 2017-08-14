@@ -28,6 +28,22 @@ val rec map : ∀o, ∀a b, (a ⇒ b) ⇒ sstream<o,a> ⇒ sstream<o,b> = fun f 
   let c = s {} in
   {hd = f c.hd ; tl = map f c.tl}
 
+
+val cons : ∀o, ∀a, a ⇒ sstream<o+1,a> ⇒ sstream<o,a> =
+  fun a s _ → { hd = a; tl = s }
+
+// Map function.
+//val rec map : ∀o, ∀a b, (a ⇒ b) ⇒ sstream<o,a> ⇒ sstream<o,b> = fun f s →
+//  let c = s {} in
+//  cons (f c.hd) (map f c.tl)
+// Does not work, we do not know that o > 0 when computing s {}
+
+//val rec map : ∀a b, (a ⇒ b) ⇒ stream<a> ⇒ stream<b> = fun f s →
+//  let c = s {} in
+//  cons (f c.hd) (map f c.tl)
+// idem, but loose termination only because positivity is not there when
+// type the recursive call
+
 // Stream of the natural numbers.
 val rec naturals : stream<nat> = fun _ →
-  {hd = Z; tl = map (fun n → S[n]) naturals}
+  {hd = Z; tl = map succ naturals}

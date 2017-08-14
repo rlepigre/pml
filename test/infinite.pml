@@ -31,20 +31,35 @@ type even = {v∈nat | is_odd v ≡ false}
 type sstream<o,a> = νo stream {} ⇒ {hd : a; tl : stream}
 type csstream<o,a> = {hd : a; tl : sstream<o,a>}
 
-//val rec aux : ∀a b, (csstream<a,even> ⇒ bot) ⇒ (csstream<b,odd> ⇒ bot)
-//              ⇒ stream<nat> ⇒ bot =
-//  fun fe fo s →
-//    let hd = (s {}).hd in
-//    let tl = (s {}).tl in
-//    use odd_total hd;
-//    if is_odd hd {
-//      let tl = fun _ → save o → abort (aux fe (fun x → restore o x) tl) in
-//      fo {hd = hd; tl = tl}
-//    } else {
-//      let tl = fun _ → save e → abort (aux (fun x → restore e x) fo tl) in
-//      fe {hd = hd; tl = tl}
-//    }
+val rec aux : ∀a b, (csstream<a,even> ⇒ bot) ⇒ (csstream<b,odd> ⇒ bot)
+             ⇒ stream<nat> ⇒ bot =
+ fun fe fo s →
+   let hd = (s {}).hd in
+   let tl = (s {}).tl in
+   use odd_total hd;
+   if is_odd hd {
+     fo {hd = hd; tl = fun _ → save o → abort (aux fe (fun x → restore o x) tl)}
+   } else {
+     fe {hd = hd; tl = fun _ → save e → abort (aux (fun x → restore e x) fo tl)}
+   }
 
-//val itl : stream<nat> ⇒ either<stream<even>, stream<odd>> =
-//  fun s → save a → InL[save e → restore a InR[save o →
-//    aux (fun x → restore e x) (fun x → restore o x) s]]
+val itl : stream<nat> ⇒ either<stream<even>, stream<odd>> =
+  fun s → save a → InL[fun _ → save e → restore a
+                   InR[fun _ → save o →
+   abort (aux (fun x → restore e x) (fun x → restore o x) s)]]
+
+include test.stream_nat
+
+val test : nat ⇒ {} = fun n →
+   case itl naturals {
+   | InL[s] → let l = take n s in print "InL "; print_nat_list l
+   | InR[s] → let l = take n s in print "InR "; print_nat_list l
+   }
+
+val test0 : {} = test Z
+val test1 : {} = test S[Z]
+val test2 : {} = test S[S[Z]]
+val test3 : {} = test S[S[S[Z]]]
+val test4 : {} = test S[S[S[S[Z]]]]
+val test5 : {} = test S[S[S[S[S[Z]]]]]
+val test6 : {} = test S[S[S[S[S[S[Z]]]]]]

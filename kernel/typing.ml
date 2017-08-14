@@ -294,6 +294,37 @@ let rec subtype =
            Sub_Exis_l(subtype ctx t (bndr_subst f wit) b)
          else
            gen_subtype ctx a b
+      (* Membership on the left. *)
+      | (Memb(u,c)  , _          ) ->
+         if t_is_val then
+           try
+             let equations = learn ctx.equations (Equiv(t,true,u)) in
+             Sub_Memb_l(Some(subtype {ctx with equations} t c b))
+           with Contradiction -> Sub_Memb_l(None)
+         (* NOTE may need a backtrack because a right rule could work *)
+         else gen_subtype ctx a b
+      (* Restriction on the left. *)
+      | (Rest(c,e)  , _          ) ->
+         if t_is_val then
+           begin
+             try
+               let equations = learn ctx.equations e in
+               Sub_Rest_l(Some(subtype {ctx with equations} t c b))
+             with Contradiction -> Sub_Rest_l(None)
+           end
+          (* NOTE may need a backtrack because a right rule could work *)
+          else gen_subtype ctx a b
+      (* Implication on the right. *)
+      | (_          , Impl(e,c)  ) ->
+         if t_is_val then
+           begin
+             try
+               let equations = learn ctx.equations e in
+               Sub_Rest_l(Some(subtype {ctx with equations} t a c))
+             with Contradiction -> Sub_Rest_l(None)
+           end
+          (* NOTE may need a backtrack because a right rule could work *)
+          else gen_subtype ctx a b
       (* Mu left and Nu right rules. *)
       | (FixM(o,f)  , _          ) when t_is_val ->
          begin (* heuristic to instanciate some unification variables *)
@@ -422,37 +453,6 @@ let rec subtype =
       | (_          , Exis(s,f)  ) ->
           let u = new_uvar ctx s in
           Sub_Exis_r(subtype ctx t a (bndr_subst f u.elt))
-      (* Membership on the left. *)
-      | (Memb(u,c)  , _          ) ->
-         if t_is_val then
-           try
-             let equations = learn ctx.equations (Equiv(t,true,u)) in
-             Sub_Memb_l(Some(subtype {ctx with equations} t c b))
-           with Contradiction -> Sub_Memb_l(None)
-         (* NOTE may need a backtrack because a right rule could work *)
-         else gen_subtype ctx a b
-      (* Restriction on the left. *)
-      | (Rest(c,e)  , _          ) ->
-         if t_is_val then
-           begin
-             try
-               let equations = learn ctx.equations e in
-               Sub_Rest_l(Some(subtype {ctx with equations} t c b))
-             with Contradiction -> Sub_Rest_l(None)
-           end
-          (* NOTE may need a backtrack because a right rule could work *)
-          else gen_subtype ctx a b
-      (* Implication on the right. *)
-      | (_          , Impl(e,c)  ) ->
-         if t_is_val then
-           begin
-             try
-               let equations = learn ctx.equations e in
-               Sub_Rest_l(Some(subtype {ctx with equations} t a c))
-             with Contradiction -> Sub_Rest_l(None)
-           end
-          (* NOTE may need a backtrack because a right rule could work *)
-          else gen_subtype ctx a b
       (* Membership on the right. *)
       | (_          , Memb(u,b)  ) when t_is_val ->
           let equations = prove ctx.equations (Equiv(t,true,u)) in
@@ -893,6 +893,18 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
   | Type_error _ as e -> raise e
   | e -> type_error (E(V,v)) c e
 
+and is_typed : type a. a v_or_t -> a ex loc -> bool = fun t e ->
+  let e = Norm.whnf e in
+  match (t,e.elt) with
+  | _, Coer(_,_,a) -> uvars a = []
+  | _, VWit(_,a,_) -> uvars a = []
+  | _, Appl(t,_)   -> is_typed VoT_T t
+  | _, Valu(v)     -> is_typed VoT_V v
+  | _, Proj(v,_)   -> is_typed VoT_V v
+  | _, Cons(_,v)   -> is_typed VoT_V v
+  | _, VDef _      -> true
+  | _              -> false
+
 and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
   log_typ "proving the term judgment:\n  %a\n  ⊢ %a\n  : %a"
     print_pos ctx.positives Print.ex t Print.ex c;
@@ -913,12 +925,16 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
         let a = new_uvar ctx P in
         let (is_val, ctx) = term_is_value u ctx in
         let ae = if is_val then Pos.none (Memb(u, a)) else a in
-        let p2 = type_term ctx u a in
-        (* NOTE: should learn_equivalences from the type of t, and
-           use these equivalences while typing u. Would require to
-           type t first and u second which breaks a lot of examples currently.
-           Only useful for Scott integer and similar inductive type  *)
-        let p1 = type_term ctx t (Pos.none (Func(ae,c))) in
+        let (p1,p2) =
+          if is_typed VoT_T t && not (is_typed VoT_T u) then
+            let p1 = type_term ctx t (Pos.none (Func(ae,c))) in
+            let p2 = type_term ctx u a in
+            (p1,p2)
+          else
+            let p2 = type_term ctx u a in
+            let p1 = type_term ctx t (Pos.none (Func(ae,c))) in
+            (p1,p2)
+        in
         if is_val then Typ_Func_s(p1,p2) else Typ_Func_e(p1,p2)
     (* μ-abstraction. *)
     | MAbs(b)     ->
