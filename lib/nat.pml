@@ -73,11 +73,23 @@ val rec compare : nat ⇒ nat ⇒ [Ls ; Eq ; Gr] = fun n m →
 
 // Equality function.
 val eq : nat ⇒ nat ⇒ bool = fun n m →
-  case compare n m {
-    Ls[_] → false
-    Eq[_] → true
-    Gr[_] → false
-  }
+  case compare n m { Ls → false | Eq → true | Gr → false }
+
+val neq : nat ⇒ nat ⇒ bool = fun n m →
+  case compare n m { Ls → true | Eq → false | Gr → true }
+
+val leq : nat ⇒ nat ⇒ bool = fun n m →
+  case compare n m { Ls → true | Eq → true | Gr → false }
+
+val lt : nat ⇒ nat ⇒ bool = fun n m →
+  case compare n m { Ls → true | Eq → false | Gr → false }
+
+val geq : nat ⇒ nat ⇒ bool = fun n m →
+  case compare n m { Ls → false | Eq → true | Gr → true }
+
+val gt : nat ⇒ nat ⇒ bool = fun n m →
+  case compare n m { Ls → false | Eq → false | Gr → true }
+
 
 //// More functions //////////////////////////////////////////////////////////
 

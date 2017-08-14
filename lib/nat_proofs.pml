@@ -213,3 +213,26 @@ val rec mul_assoc : ∀m n p∈nat, mul m (mul n p) ≡ mul (mul m n) p =
             deduce mul S[k] (mul n p) ≡ mul (mul S[k] n) p;
             qed
    }
+
+val rec compare_total : ∀x y∈nat, ∃v:ι, compare x y ≡ v = fun x y →
+  case x {
+    Z    → case y {
+             Z    → {}
+             S[_] → {}
+           }
+    S[x] → case y {
+             Z    → {}
+             S[y] → compare_total x y
+           }
+  }
+
+def common = fun x y →
+  use compare_total x y;
+  case compare x y { Ls → {} | Eq → {} | Gr → {} }
+
+val  eq_total : ∀x y∈nat, ∃v:ι,  eq x y ≡ v = common
+val neq_total : ∀x y∈nat, ∃v:ι, neq x y ≡ v = common
+val leq_total : ∀x y∈nat, ∃v:ι, leq x y ≡ v = common
+val  lt_total : ∀x y∈nat, ∃v:ι,  lt x y ≡ v = common
+val geq_total : ∀x y∈nat, ∃v:ι, geq x y ≡ v = common
+val  gt_total : ∀x y∈nat, ∃v:ι,  gt x y ≡ v = common
