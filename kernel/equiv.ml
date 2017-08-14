@@ -304,6 +304,8 @@ let eq_v_nodes : pool -> v_node -> v_node -> bool =
   fun po n1 n2 -> n1 == n2 ||
     let eq_expr e1 e2 = eq_expr ~strict:true e1 e2 in
     let eq_bndr b1 b2 = eq_bndr ~strict:true b1 b2 in
+    (* FIXME #40, use oracle for VN_LAbs *)
+    (* FIXME #50 (note), share VN_VWit and alike *)
     match (n1, n2) with
     | (VN_LAbs(b1)   , VN_LAbs(b2)   ) -> eq_bndr V b1 b2
     | (VN_Cons(c1,p1), VN_Cons(c2,p2)) -> c1.elt = c2.elt && eq_vptr po p1 p2
@@ -322,6 +324,8 @@ let eq_t_nodes : pool -> t_node -> t_node -> bool =
   fun po n1 n2 -> n1 == n2 ||
     let eq_expr e1 e2 = eq_expr ~strict:true e1 e2 in
     let eq_bndr b1 b2 = eq_bndr ~strict:true b1 b2 in
+    (* FIXME #40, use oracle for TN_MAbs and alike *)
+    (* FIXME #50 (note), share VN_VWit and alike *)
     match (n1, n2) with
     | (TN_Valu(p1)     , TN_Valu(p2)     ) -> eq_vptr po p1 p2
     | (TN_Appl(p11,p12), TN_Appl(p21,p22)) -> eq_tptr po p11 p21
@@ -939,7 +943,9 @@ let find_proj : pool -> valu -> string -> valu * pool = fun po v l ->
        in
        let po = if (VPtrSet.mem vp po.bs) then add_vptr_nobox wp po else po in
        (w, po)
-  with Not_found -> assert false (* TODO #42: check for contradiction ? *)
+  with e -> bug_msg "unexpected exception in find_proj: %s" (Printexc.to_string e);
+            assert false
+
 
 (* NOTE: sum with one case should not fail, and be treated as projection *)
 let find_sum : pool -> valu -> (string * valu * pool) option = fun po v ->

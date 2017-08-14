@@ -459,14 +459,14 @@ let rec subtype =
           Sub_Memb_r(subtype {ctx with equations} t a b)
       (* Restriction on the right. *)
       | (_          , Rest(c,e)  ) ->
-         begin  (* FIXME #42 contradiction poss, if ineq ? *)
+         begin
             let prf = subtype ctx t a c in
             let _ = prove ctx.equations e in
             Sub_Rest_r(prf)
           end
       (* Implication on the left. *)
       | (Impl(e,c)   , _        ) ->
-         begin  (* FIXME #42 contradiction poss, if ineq ? *)
+         begin
             let prf = subtype ctx t c b in
             let _ = prove ctx.equations e in
             Sub_Rest_r(prf)
