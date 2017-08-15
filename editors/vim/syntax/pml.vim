@@ -18,7 +18,7 @@ highlight link Str Character
 
 " Keywords
 syntax keyword Keyword fun save restore case of fix let in rec corec using
-syntax keyword Keyword use type def val sort if else deduce show qed
+syntax keyword Keyword use type def val sort if else deduce show qed such that
 syntax match   Keyword "λ"
 syntax match   Keyword "μ"
 syntax match   Keyword "ν"

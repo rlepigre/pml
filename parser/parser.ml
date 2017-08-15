@@ -72,6 +72,8 @@ let _fix_     = Keyword.create "fix"
 let _rec_     = Keyword.create "rec"
 let _corec_   = Keyword.create "corec"
 let _let_     = Keyword.create "let"
+let _such_    = Keyword.create "such"
+let _that_    = Keyword.create "that"
 let _in_      = Keyword.create "in"
 let _if_      = Keyword.create "if"
 let _else_    = Keyword.create "else"
@@ -94,6 +96,9 @@ let parser scis    = "✂" | "8<"
 let parser equiv   = "≡" | "="
 let parser nequiv  = "≠"
 let parser neg_sym = "¬"
+
+(* Such that. *)
+let parser _st_ = _:_such_ _:_that_
 
 (* Optional negation symbol. *)
 let parser neg =
@@ -135,6 +140,10 @@ let parser sort (p : [`A | `F]) =
 
 (* Entry point for sorts. *)
 let sort = sort `F
+
+(* Auxiliary parser for sort arguments. *)
+let parser s_arg  = id:llid so:{":" s:sort}?
+let parser s_args = {'<' l:(lsep_ne "," s_arg) '>'}?[[]]
 
 (* Priorities for parsing expressions. *)
 type p_prio = [`A | `M | `R | `F] (* Atom, Memb, Rest, Full *)
@@ -312,6 +321,10 @@ let parser expr (m : mode) =
   | "(" t:(expr (`Trm`F)) ":" a:(expr (`Prp`F)) ")"
       when m = `Trm`A
       -> in_pos _loc (ECoer(t,a))
+  (* Term (let such that) *)
+  | _let_ vs:s_arg+ _st_ x:llid_wc ':' a:(expr (`Prp`F)) _in_ u:(expr (`Trm`F))
+      when m = `Trm`F
+      -> esuch _loc vs x a u
   (* Term (parentheses) *)
   | "(" t:(expr (`Trm`F)) ")"
       when m = `Trm`A
@@ -360,6 +373,7 @@ let parser expr (m : mode) =
       when m = `Stk || m = `Trm`A
       -> in_pos _loc (EGoal(s))
 
+(* Variable with optional type. *)
 and arg_type = id:llid ao:{":" a:(expr (`Prp`F))}?
 
 (* Function argument. *)
@@ -386,10 +400,6 @@ let parser term = (expr (`Trm`F))
 let parser prop = (expr (`Prp`F))
 let parser any  = (expr `Any)
 
-(* Auxiliary parser for sort arguments. *)
-let parser sort_arg  = id:llid so:{":" s:sort}?
-let parser sort_args = {'<' l:(lsep_ne "," sort_arg) '>'}?[[]]
-
 (* Toplevel item. *)
 let parser toplevel =
   (* Definition of a new sort. *)
@@ -397,11 +407,11 @@ let parser toplevel =
       -> fun () -> sort_def id s
 
   (* Definition of an expression. *)
-  | _def_  id:llid args:sort_args s:{':' sort}? '=' e:any
+  | _def_  id:llid args:s_args s:{':' sort}? '=' e:any
       -> fun () -> expr_def id args s e
 
   (* Definition of a proposition (special case of expression). *)
-  | _type_ r:t_is_rec id:llid args:sort_args '=' e:prop
+  | _type_ r:t_is_rec id:llid args:s_args '=' e:prop
       -> fun () -> type_def _loc r id args e
 
   (* Definition of a value (to be computed). *)

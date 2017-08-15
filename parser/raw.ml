@@ -177,6 +177,7 @@ and raw_ex' =
   | EFixY of raw_ex
   | EPrnt of string
   | ECoer of raw_ex * raw_ex
+  | ESuch of (strloc * raw_sort) ne_list * (strloc option * raw_ex) * raw_ex
 
   | EEpsi
   | EPush of raw_ex * raw_ex
@@ -235,6 +236,10 @@ let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
     | EFixY(t)      -> Printf.fprintf ch "EFixY(%a)" print t
     | EPrnt(s)      -> Printf.fprintf ch "EPrnt(%S)" s
     | ECoer(t,a)    -> Printf.fprintf ch "ECoer(%a,%a)" print t print a
+    | ESuch(vs,j,u) -> let x = Option.default (Pos.none "_") (fst j) in
+                       Printf.fprintf ch "ESuch(%a,%s,%a,%a)"
+                         (print_list aux_sort ", ") (ne_list_to_list vs)
+                         x.elt print (snd j) print u
     | EEpsi         -> Printf.fprintf ch "EEpsi"
     | EPush(v,s)    -> Printf.fprintf ch "EPush(%a,%a)" print v print s
     | EFram(t,s)    -> Printf.fprintf ch "EFram(%a,%a)" print t print s
@@ -245,6 +250,7 @@ let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
   and aux_ps ch (l,e) = Printf.fprintf ch "(%S,%a)" l.elt aux_opt e
   and aux_rec ch (l,e,_) = Printf.fprintf ch "(%S,%a)" l.elt print e
   and aux_var ch x = Printf.fprintf ch "%S" x.elt
+  and aux_sort ch (x,s) = Printf.fprintf ch "%s:%a" x.elt print_raw_sort s
   and aux_cons ch = function
     | None      -> Printf.fprintf ch "None"
     | Some(e,_) -> Printf.fprintf ch "Some(%a)" print e
@@ -558,9 +564,30 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
     | (EPrnt(_)     , ST       ) -> ()
     | (EPrnt(_)     , _        ) -> sort_clash e s
     | (ECoer(t,a)   , SV       )
-    | (ECoer(t,a)   , ST       ) -> infer env vars t s; infer env vars a _sp
-    | (ECoer(t,a)   , SUni(r)  ) -> infer env vars t s; infer env vars a _sp
+    | (ECoer(t,a)   , ST       )
+    | (ECoer(t,a)   , SUni(_)  ) -> infer env vars t s; infer env vars a _sp
     | (ECoer(t,_)   , _        ) -> sort_clash e s
+    | (ESuch(vs,j,v), SV       )
+    | (ESuch(vs,j,v), ST       )
+    | (ESuch(vs,j,v), SUni(_)  ) ->
+        begin
+          let (xo,a) = j in
+          let gn x =
+            try
+              let s = sort_repr env (snd (M.find x.elt vars)) in
+              match s.elt with
+              | SV | SS | SUni(_) -> ()
+              | _                 ->
+                  sort_clash (Pos.make x.pos (EVari(x,[]))) s
+            with Not_found -> unbound_var x.elt x.pos
+          in
+          Option.iter gn xo;
+          let fn vars (x,s) = M.add x.elt (x.pos, s) vars in
+          let vars = List.fold_left fn vars (ne_list_to_list vs) in
+          infer env vars a _sp;
+          infer env vars v s
+        end
+    | (ESuch(_,_,_) , _        ) -> sort_clash e s
     (* Stacks. *)
     | (EEpsi        , SS       ) -> ()
     | (EPush(v,s)   , SS       ) -> infer env vars v _sv; infer env vars s _ss
@@ -944,6 +971,7 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
         Box(T, valu e.pos v)
     | (EPrnt(s)     , ST       ) ->
         Box(T, prnt e.pos s)
+    (* Type annotations. *)
     | (ECoer(v,a)   , SV       ) ->
         let v = to_valu (unsugar env vars v _sv) in
         let a = to_prop (unsugar env vars a _sp) in
@@ -952,6 +980,12 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
         let t = to_term (unsugar env vars t _st) in
         let a = to_prop (unsugar env vars a _sp) in
         Box(T, coer e.pos VoT_T t a)
+    | (ESuch(vs,j,t), SV       ) ->
+        bug_msg "\"let ... such that ... in ...\" not implemented.";
+        unsugar env vars t _sv (* FIXME FIXME FIXME *)
+    | (ESuch(vs,j,t), ST       ) ->
+        bug_msg "\"let ... such that ... in ...\" not implemented.";
+        unsugar env vars t _st (* FIXME FIXME FIXME *)
     (* Stacks. *)
     | (EEpsi        , SS       ) -> Box(S, epsi e.pos)
     | (EPush(v,pi)  , SS       ) ->
@@ -1056,6 +1090,16 @@ let euniv_in _loc x xs a b =
 let esett _loc x a =
   let a = Pos.none (EMemb(Pos.make x.pos (EVari(x,[])), a)) in
   in_pos _loc (EExis((x,[]), _sv, a))
+
+(* "let ... such that ..." *)
+let esuch _loc vs x a u =
+  let fn (x,so) =
+    (x, match so with Some s -> s | None -> new_sort_uvar (Some x))
+  in
+  let x = if x.elt = "_" then None else Some x in
+  let vs = List.map fn vs in
+  let vs = (List.hd vs, List.tl vs) in
+  in_pos _loc (ESuch(vs,(x,a),u))
 
 (* The built it type of booleans. *)
 let p_bool _loc =
