@@ -356,7 +356,11 @@ let bind_spos_ordinals
     box_apply Pos.none (box_of_var v)
   in
   let assoc = ref [] in
-  let search_ord o =
+  let rec search_ord o =
+    let o = Norm.whnf o in
+    match o.elt with
+    | Succ o -> succ None (search_ord o)
+    | _ ->
     try
       let (_,v) = List.find (fun (o',_) -> eq_expr ~strict:true o o') !assoc in
       v

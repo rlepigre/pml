@@ -327,22 +327,28 @@ let rec subtype =
           else gen_subtype ctx a b
       (* Mu left and Nu right rules. *)
       | (FixM(o,f)  , _          ) when t_is_val ->
-         begin (* heuristic to instanciate some unification variables *)
-           match b.elt with
-           | FixM(ol,f) ->
-              begin
-                match (Norm.whnf ol).elt with
-                | UVar(O,v) -> uvar_set v o
-                | _ -> ()
-              end
-           | _ -> ()
+          begin (* heuristic to instanciate some unification variables *)
+            match b.elt with
+            | FixM(ol,f) ->
+               begin
+                 match (Norm.whnf ol).elt with
+                 | UVar(O,v) -> uvar_set v o
+                 | _ -> ()
+               end
+            | _ -> ()
           end;
-          let o' =
-            let f o = bndr_subst f (FixM(Pos.none o, f)) in
-            let f = binder_from_fun "o" f in
-            Pos.none (OWMu(o,t,(None,f)))
+          let ctx, o' =
+            let o = Norm.whnf o in
+            match o.elt with
+              Succ o' -> (ctx, o')
+            | _ ->
+               let o' =
+                 let f o = bndr_subst f (FixM(Pos.none o, f)) in
+                 let f = binder_from_fun "o" f in
+                 Pos.none (OWMu(o,t,(None,f)))
+               in
+               (add_positive ctx o o', o')
           in
-          let ctx = add_positive ctx o o' in
           let a = bndr_subst f (FixM(o',f)) in
           Sub_FixM_l(false, subtype ctx t a b)
       | (_          , FixN(o,f)  ) when t_is_val ->
@@ -356,12 +362,18 @@ let rec subtype =
               end
            | _ -> ()
           end;
-          let o' =
-            let f o = bndr_subst f (FixN(Pos.none o, f)) in
-            let f = binder_from_fun "o" f in
-            Pos.none (OWNu(o,t,(None, f)))
+          let ctx, o' =
+            let o = Norm.whnf o in
+            match o.elt with
+              Succ o' -> (ctx, o')
+            | _ ->
+               let o' =
+                 let f o = bndr_subst f (FixN(Pos.none o, f)) in
+                 let f = binder_from_fun "o" f in
+                 Pos.none (OWNu(o,t,(None, f)))
+               in
+               (add_positive ctx o o', o')
           in
-          let ctx = add_positive ctx o o' in
           let b = bndr_subst f (FixN(o',f)) in
           Sub_FixN_r(false, subtype ctx t a b)
       | _ ->
