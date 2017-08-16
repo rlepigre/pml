@@ -15,9 +15,9 @@
     (modify-syntax-entry ?( "(" pml2-mode-syntax-table)
     (modify-syntax-entry ?{ "(" pml2-mode-syntax-table)
     (modify-syntax-entry ?[ "(" pml2-mode-syntax-table)
-    (modify-syntax-entry ?) "w" pml2-mode-syntax-table)
-    (modify-syntax-entry ?} "w" pml2-mode-syntax-table)
-    (modify-syntax-entry ?] "w" pml2-mode-syntax-table)
+    (modify-syntax-entry ?) ")" pml2-mode-syntax-table)
+    (modify-syntax-entry ?} ")" pml2-mode-syntax-table)
+    (modify-syntax-entry ?] ")" pml2-mode-syntax-table)
     ; comments definition
     ; . means punctuation
     ; // 12 means first and second char of one line comments
@@ -73,28 +73,22 @@
 
 ; test if current position must be indented in a fixed
 ; from the parenthesis level
-(defun pml2-lvl-keyword ()
-       (or
-            (equal (char-after) ?|)
-            (equal (char-after) ?\;)
-            (equal (char-after) ?\))
-            (equal (char-after) ?\])
-            (equal (char-after) ?})
-            (equal (buffer-substring (point) (+ (point) 3)) "def")
-            (equal (buffer-substring (point) (+ (point) 3)) "val")
-            (equal (buffer-substring (point) (+ (point) 4)) "type")))
-
-(defun pml2-extra-indent-keyword ()
-       (or
-            (equal (buffer-substring (point) (+ (point) 3)) "fun")))
+(defun pml2-opening ()
+  (or
+   (equal (char-after) ?\()
+   (equal (char-after) ?\[)
+   (equal (char-after) ?{)))
 
 (defun pml2-closing ()
-       (or
-            (equal (char-after) ?|)
-            (equal (char-after) ?\;)
-            (equal (char-after) ?\))
-            (equal (char-after) ?\])
-            (equal (char-after) ?})))
+  (or
+   (equal (buffer-substring (point) (+ (point) 3)) "def")
+   (equal (buffer-substring (point) (+ (point) 3)) "val")
+   (equal (buffer-substring (point) (+ (point) 4)) "type")
+   (equal (char-after) ?|)
+   (equal (char-after) ?\;)
+   (equal (char-after) ?\))
+   (equal (char-after) ?\])
+   (equal (char-after) ?})))
 
 (defun pml2-is-comment ()
        (equal (buffer-substring (point) (+ (point) 2)) "//"))
@@ -108,70 +102,41 @@
        (if (search-forward-regexp "[^ \t\n\r]" pos2 t)
          (progn (backward-char) t)))
 
+(defconst begin-decl-regexp
+  "\\(val\\)\\|\\(type\\)\\|\\(def\\)")
+
+(defconst let-in
+  "\\(let\\)\\|\\(in\\)")
+
 (defun pml2-indent-function ()
-       (save-excursion
-            ; ppss = parenthesis level computed
-            ; for the line beginning.
-            (beginning-of-line)
-            (if (equal (point) 1) ; particular case for the first line
-                (indent-line-to 0)   ; to avoid error
-	    (let ((ppss (syntax-ppss))
-		  (pos1 (point))
-		  (lvl nil)
-		  (pos2 nil)
-		  (pos3 nil)
-                  (extra 2))
-                 ; compute in plvl the column of the first non blanlk
-                 ; on the opening parenthesis
-                 (if (car (cdr ppss))
-                     (progn
-                          (goto-char (car (cdr ppss)))
-                          (pml2-move-to-first-non-blank)
-                          (setq pos3 (point))
-                          (beginning-of-line)
-                          (setq plvl (- pos3 (point)))
-                          (goto-char pos1))
-                     (setq plvl 0))
-                 ; special cases indented directly from plvl
-                 (pml2-move-to-first-non-blank)
-		 (if (pml2-lvl-keyword)
-                     (indent-line-to plvl)
-                 ; special case for comments indented from
-                 ; the next line if non empty,
-                 ; otherwise back to default
-                 (if (and (pml2-is-comment)
-                          (let ((res nil))
-                               (next-line)
-                               (setq res
-                                     (and (pml2-move-to-first-non-blank)
-                                          (not (pml2-closing))))
-                               (if (not res) (previous-line))
-                               res))
-                     (progn
-                          (setq pos3 (point))
-                          (beginning-of-line)
-		          (setq pos2 (point))
-                          (setq pos3 (- pos3 pos2))
-                          (goto-char pos1)
-		          (indent-line-to pos3))
-                 ; general cases indented from the previous
-                 ; non empty line
-                 (previous-line)
-                 (while (not (pml2-move-to-first-non-blank)) (previous-line))
-                 (if (pml2-extra-indent-keyword) (setq extra 4))
-		 (setq pos3 (point))
-  		 (beginning-of-line)
-		 (setq pos2 (point))
-                 ; indent on the chat after the keywords below,
-                 ; if the line is non empty
-		 (if (search-forward-regexp
-		          "\\(\\(→\\)\\|\\(⇒\\)\\)[ \t]*[^ \t\n\r]"
-		          pos1 t)
-		     (setq pos3 (- (match-end 0) 1)))
-		 (setq pos3 (- pos3 pos2))
-		 (setq pos3 (max pos3 (+ extra plvl)))
-		 (goto-char pos1)
-		 (indent-line-to pos3)))))))
+  (save-excursion
+                                        ; ppss = parenthesis level computed
+                                        ; for the line beginning.
+    (beginning-of-line)
+    (let ((pos (point))
+          (line (line-number-at-pos))
+          (pos-min 0)
+          (line-min 0)
+          (ppss (syntax-ppss)))
+      (search-backward-regexp begin-decl-regexp)
+      (setq pos-min (point))
+      (setq line-min (line-number-at-pos))
+      (setq plvl (+ 2 (* 4 (car ppss))))
+      (message (int-to-string plvl))
+      (goto-char pos)
+      (pml2-move-to-first-non-blank)
+      (if (pml2-opening) (setq plvl (+ plvl 2)))
+      (message  (int-to-string plvl))
+      (if (pml2-closing) (setq plvl (- plvl 2)))
+      (if (not (equal (buffer-substring (point) (+ (point) 2)) "in"))
+          (progn
+            (search-backward-regexp let-in (car (cdr ppss)))
+            (if (equal (buffer-substring (point) (+ (point) 3)) "let")
+                (setq plvl (+ plvl 2))))) ; TODO nested lets like: let let in in
+      (goto-char pos)
+      (message  (int-to-string plvl))
+      (indent-line-to plvl))))
+
 
  ;;;###autoload
 (define-derived-mode pml2-mode fundamental-mode "Pml2"
