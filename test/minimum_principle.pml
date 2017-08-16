@@ -20,7 +20,7 @@ val rec leq_size :
       }
       S[m] →
       case n {
-        Z  → case m { Z → InR[Z] | S[_] → InR[Z] } // case for m because of o > 0 is needed
+        Z  → InR[Z]
         S[n] →
         case m {  // case for n because leq use compare
           Z     → case n { Z → InL | S[_] → InL}

@@ -972,7 +972,6 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
         in
         let ts = A.fold fn m A.empty in
         let _p1 = subtype ctx (Pos.none (Valu v)) a (Pos.none (DSum(ts))) in
-        let ctx = learn_equivalences ctx v a in
         let check d (p,f) ps =
           log_typ "Checking case %s." d;
           let (_,a) = A.find d ts in
