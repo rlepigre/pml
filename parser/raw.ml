@@ -142,6 +142,9 @@ type flag = [`V | `T] ref
 type 'a ne_list = 'a * 'a list
 let ne_list_to_list : 'a ne_list -> 'a list = fun (x,xs) -> x::xs
 
+let map_ne_list : ('a -> 'b) -> 'a ne_list -> 'b ne_list =
+  fun f (x,xs) -> (f x, List.map f xs)
+
 type raw_ex = raw_ex' loc
 and raw_cond =
   | EEquiv of (raw_ex * bool * raw_ex)
@@ -980,9 +983,9 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
         let t = to_term (unsugar env vars t _st) in
         let a = to_prop (unsugar env vars a _sp) in
         Box(T, coer e.pos VoT_T t a)
-    | (ESuch(vs,j,t), SV       ) ->
+    | (ESuch(vs,j,v), SV       ) ->
         bug_msg "\"let ... such that ... in ...\" not implemented.";
-        unsugar env vars t _sv (* FIXME FIXME FIXME *)
+        unsugar env vars v _sv (* FIXME FIXME FIXME *)
     | (ESuch(vs,j,t), ST       ) ->
         bug_msg "\"let ... such that ... in ...\" not implemented.";
         unsugar env vars t _st (* FIXME FIXME FIXME *)
