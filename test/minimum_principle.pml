@@ -38,13 +38,15 @@ val rec leq_size :
 // val rec fn : ∀o, ∀f∈(nat ⇒ nat), total<f,nat> ⇒ ∀n∈nat, ∀q∈(snat<o> | q ≡ f n),
 //     (∀n∈ nat, min<n,f> ⇒ bot) ⇒ bot =
 //   fun f ft n q k {
-//     k (n:nat) ((fun p →
-//         use ft p;
-//         use leq_total q (f p);
-//         case leq_size q (f p) {
+//     let o such that q : snat<o> in
+//     k (n:nat) (fun p {
+//         let _ = ft p in
+//         let _ = leq_total q (f p) in
+//         case (leq_size q (f p) : either<leq q (f p) ≡ true, n∈snat<o>>) {
 //           InL     → {}
 //           InR[fp] → fn f ft p fp k
-//         }) : min<n,f>)
+//         }} : min<n,f>)
+//   }
 
 
 //val minimum_principle : ∀f∈(nat ⇒ nat), total<f,nat> ⇒ ∃n:ι, min<n,f> =
