@@ -88,7 +88,15 @@
    (equal (char-after) ?\;)
    (equal (char-after) ?\))
    (equal (char-after) ?\])
-   (equal (char-after) ?})))
+   (equal (char-after) ?})
+;   (let ((pos
+;          (search-forward-regexp "\\(→\\)\\|\n" nil t)))
+;     (message (int-to-string depth))
+;     (message (int-to-string (car (syntax-ppss))))
+;     (message (buffer-substring (- pos 1) pos))
+;     (and (equal (car (syntax-ppss)) depth)
+;          (equal (buffer-substring (- pos 1) pos) "→")))
+   ))
 
 (defun pml2-is-comment ()
        (equal (buffer-substring (point) (+ (point) 2)) "//"))
@@ -121,20 +129,18 @@
       (search-backward-regexp begin-decl-regexp)
       (setq pos-min (point))
       (setq line-min (line-number-at-pos))
-      (setq plvl (+ 2 (* 4 (car ppss))))
-      (message (int-to-string plvl))
+      (setq plvl (+ 2 (* 2 (car ppss))))
       (goto-char pos)
       (pml2-move-to-first-non-blank)
       (if (pml2-opening) (setq plvl (+ plvl 2)))
-      (message  (int-to-string plvl))
       (if (pml2-closing) (setq plvl (- plvl 2)))
+      (pml2-move-to-first-non-blank)
       (if (not (equal (buffer-substring (point) (+ (point) 2)) "in"))
           (progn
-            (search-backward-regexp let-in (car (cdr ppss)))
+            (search-backward-regexp let-in (car (cdr ppss)) t)
             (if (equal (buffer-substring (point) (+ (point) 3)) "let")
                 (setq plvl (+ plvl 2))))) ; TODO nested lets like: let let in in
       (goto-char pos)
-      (message  (int-to-string plvl))
       (indent-line-to plvl))))
 
 
