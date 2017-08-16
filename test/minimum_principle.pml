@@ -10,7 +10,8 @@ type bot = ∀x:ο,x
 
 type snat<o> = μo nat [ Z ; S of nat ]
 
-val rec leq_size : ∀o, ∀m∈snat<o+1>, ∀n∈nat, either<leq m n ≡ true, n∈snat<o>> =
+val rec leq_size :
+      ∀o, ∀m∈snat<o+1>, ∀n∈nat, either<leq m n ≡ true, n∈snat<o>> =
   fun m n {
     case m {
       Z → case n {

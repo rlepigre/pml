@@ -31,7 +31,8 @@
 (defconst pml2-font-lock-keywords
   (list (cons (concat "\\<"
 		      (regexp-opt '("case" "of" "val" "let" "in" "rec" "fun" "eval"
-				    "include" "type" "if" "else" "check"
+				    "include" "type" "if" "else" "check" "save"
+                                    "restore"
                                     "fix" "unfold" "clear" "quit" "parse" "latex"
                                     "exit" "set" "html" "such" "that" "abort"
 				    "def" "sort" "show" "deduce" "using"))
@@ -98,9 +99,6 @@
 ;          (equal (buffer-substring (- pos 1) pos) "→")))
    ))
 
-(defun pml2-is-comment ()
-       (equal (buffer-substring (point) (+ (point) 2)) "//"))
-
 ; move to the first non blank char at the beginning of a
 ; line. Return nil if the line has only blank
 (defun pml2-move-to-first-non-blank ()
@@ -110,11 +108,8 @@
        (if (search-forward-regexp "[^ \t\n\r]" pos2 t)
          (progn (backward-char) t)))
 
-(defconst begin-decl-regexp
-  "\\(val\\)\\|\\(type\\)\\|\\(def\\)")
-
 (defconst let-in
-  "\\(let\\)\\|\\(in\\)")
+  "\\(let\\)\\|\\(type\\)\\|\\(val\\)\\|\\(def\\)\\|\\(in\\)\\|=")
 
 (defun pml2-indent-function ()
   (save-excursion
@@ -123,23 +118,24 @@
     (beginning-of-line)
     (let ((pos (point))
           (line (line-number-at-pos))
-          (pos-min 0)
-          (line-min 0)
           (ppss (syntax-ppss)))
-      (search-backward-regexp begin-decl-regexp)
-      (setq pos-min (point))
-      (setq line-min (line-number-at-pos))
       (setq plvl (+ 2 (* 2 (car ppss))))
       (goto-char pos)
       (pml2-move-to-first-non-blank)
       (if (pml2-opening) (setq plvl (+ plvl 2)))
       (if (pml2-closing) (setq plvl (- plvl 2)))
       (pml2-move-to-first-non-blank)
-      (if (not (equal (buffer-substring (point) (+ (point) 2)) "in"))
+      (if (not (or
+                (equal (char-after) ?=)
+                (equal (buffer-substring (point) (+ (point) 2)) "in")))
           (progn
             (search-backward-regexp let-in (car (cdr ppss)) t)
-            (if (equal (buffer-substring (point) (+ (point) 3)) "let")
-                (setq plvl (+ plvl 2))))) ; TODO nested lets like: let let in in
+            (if (or
+                 (equal (buffer-substring (point) (+ (point) 3)) "let")
+                 (equal (buffer-substring (point) (+ (point) 3)) "val")
+                 (equal (buffer-substring (point) (+ (point) 3)) "def")
+                 (equal (buffer-substring (point) (+ (point) 4)) "type"))
+                (setq plvl (+ plvl 4))))) ; TODO nested lets like: let let in in
       (goto-char pos)
       (indent-line-to plvl))))
 
