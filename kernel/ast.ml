@@ -111,6 +111,11 @@ type _ ex =
 
   | Coer : 'a v_or_t * 'a ex loc * p ex loc        -> 'a ex
   (** Type coercion on a value or a term. *)
+  (* TODO
+  | Such : 'a v_or_t * 'b v_or_s * 'b var option
+         * ('c, p ex loc * 'a ex loc) bseq         -> 'a ex
+  *)
+  (** Extraction of witness by pattern-matching. *)
 
   (* Special constructors. *)
 
@@ -137,6 +142,12 @@ and cond =
   (** Positivity of the given ordinal. *)
   | NoBox of v ex loc
   (** Value that are not Box, i.e. real value *)
+
+and (_,_) bseq =
+  | Last : 'c sort * ('c ex, 'b            ) binder
+           -> (('c ex, 'b          ) binder, 'b) bseq
+  | More : 'c sort * ('c ex, (('a,'b) bseq)) binder
+           -> (('c ex, ('a,'b) bseq) binder, 'b) bseq
 
 and 'a expr =
   { expr_name : strloc
