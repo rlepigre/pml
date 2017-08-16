@@ -117,14 +117,13 @@
                                         ; for the line beginning.
     (beginning-of-line)
     (let ((pos (point))
-          (line (line-number-at-pos))
           (ppss (syntax-ppss)))
       (setq plvl (+ 2 (* 2 (car ppss))))
       (goto-char pos)
       (pml2-move-to-first-non-blank)
       (if (pml2-opening) (setq plvl (+ plvl 2)))
       (if (pml2-closing) (setq plvl (- plvl 2)))
-      (pml2-move-to-first-non-blank)
+      (beginning-of-line)
       (if (not (or
                 (equal (char-after) ?=)
                 (equal (buffer-substring (point) (+ (point) 2)) "in")))

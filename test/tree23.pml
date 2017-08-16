@@ -9,50 +9,35 @@ type rec tree23<a:ο> = [
 type cmp = [ Le ; Eq ; Ge ]
 
 val rec mem : ∀a:ο, (a⇒a⇒cmp) ⇒ a => tree23<a> => bool =
-  fun f x t {
+  fun f z t {
     case t {
-    | E     → false
-    | N2[c] →
-       case f x c.x {
-       | Le → mem f x c.l
-       | Eq → true
-       | Ge → mem f x c.r }
-    | N3[c] →
-       case f x c.x {
-       | Le → mem f x c.l
-       | Eq → true
-       | Ge →
-       case f x c.y {
-       | Le → mem f x c.m
-       | Eq → true
-       | Ge → mem f x c.r }}
+      E     → false
+      N2[{l; x; r}] →
+        case f z x { Le → mem f z l | Eq → true | Ge → mem f z r }
+      N3[{l; x; m; y; r}] →
+        case f z x { Le → mem f z l | Eq → true | Ge →
+          case f z y { Le → mem f z m | Eq → true | Ge → mem f z r }
+        }
     }
   }
 
 def cmp_total<f,a:ο> = ∀x y∈a, ∃v:ι, f x y ≡ v
 
-val mem_total : ∀a:ο, ∀f∈(a⇒a⇒cmp), cmp_total<f,a> ⇒ ∀x∈a, ∀t∈tree23<a>, ∃v:ι, mem f x t ≡ v =
-  fun f ft x {
+val mem_total : ∀a:ο, ∀f∈(a⇒a⇒cmp), cmp_total<f,a> ⇒ ∀x∈a, ∀t∈tree23<a>,
+      ∃v:ι, mem f x t ≡ v =
+  fun f ft z {
     fix fun mem_total t {
       case t {
-      | E     → {}
-      | N2[c] →
-         let _ = ft x c.x in
-         case f x c.x {
-         | Le → mem_total c.l
-         | Eq → {}
-         | Ge → mem_total c.r }
-      | N3[c] →
-         let _ = ft x c.x in
-         case f x c.x {
-         | Le → mem_total c.l
-         | Eq → {}
-         | Ge →
-         let _ = ft x c.y in
-         case f x c.y {
-         | Le → mem_total c.m
-         | Eq → {}
-         | Ge → mem_total c.r }}
+        E     → {}
+        N2[{l; x; r}] →
+          let _ = ft z x in
+          case f z x { Le → mem_total l | Eq → {} | Ge → mem_total r }
+        N3[{l; x; m; y; r}] →
+          let _ = ft z x in
+          case f z x { Le → mem_total l | Eq → {} | Ge →
+            let _ = ft z y in
+            case f z y { Le → mem_total m | Eq → {} | Ge → mem_total r }
+        }
       }
     }
   }
