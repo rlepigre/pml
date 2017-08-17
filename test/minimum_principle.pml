@@ -10,28 +10,27 @@ type bot = ∀x:ο,x
 
 type snat<o> = μo nat [ Z ; S of nat ]
 
-val rec leq_size :
-      ∀o, ∀m∈snat<o+1>, ∀n∈nat, either<leq m n ≡ true, n∈snat<o>> =
+val rec leq_size : ∀o, ∀m∈snat<o+1>, ∀n∈nat, either<leq m n ≡ true, n∈snat<o>> =
   fun m n {
     case m {
       Z → case n {
-        Z    → InL
-        S[n] → InL
-      }
-      S[m] →
-      case n {
-        Z  → InR[Z]
-        S[n] →
-        case m {  // case for n because leq use compare
-          Z     → case n { Z → InL | S[_] → InL}
-          S[m'] →
-          case leq_size S[m'] n {
-            InL    → InL
-            InR[p] → InR[S[p]]
-          }
+          Z    → InL
+          S[n] → InL
         }
+      S[m] →
+        case n {
+          Z  → InR[Z]
+          S[n] →
+            case m {  // case for n because leq use compare
+              Z     → case n { Z → InL | S[_] → InL}
+              S[m'] →
+                case leq_size S[m'] n {
+                  InL    → InL
+                  InR[p] → InR[S[p]]
+                  }
+              }
+          }
       }
-    }
   }
 
 

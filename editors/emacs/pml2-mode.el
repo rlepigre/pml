@@ -1,11 +1,5 @@
 (provide 'pml2-mode)
 
-(defvar pml2-mode-map
-  (let ((map (make-sparse-keymap)))
-    (define-key map [foo] 'pml2-do-foo)
-    map)
-  "Keymap for `pml2-mode'.")
-
 (defvar pml2-mode-syntax-table
   (let ((pml2-mode-syntax-table (make-syntax-table)))
 
@@ -80,24 +74,22 @@
    (equal (char-after) ?\[)
    (equal (char-after) ?{)))
 
-(defun pml2-closing ()
-  (or
-   (equal (buffer-substring (point) (+ (point) 3)) "def")
-   (equal (buffer-substring (point) (+ (point) 3)) "val")
-   (equal (buffer-substring (point) (+ (point) 4)) "type")
-   (equal (char-after) ?|)
-   (equal (char-after) ?\;)
-   (equal (char-after) ?\))
-   (equal (char-after) ?\])
-   (equal (char-after) ?})
-;   (let ((pos
-;          (search-forward-regexp "\\(→\\)\\|\n" nil t)))
-;     (message (int-to-string depth))
-;     (message (int-to-string (car (syntax-ppss))))
-;     (message (buffer-substring (- pos 1) pos))
-;     (and (equal (car (syntax-ppss)) depth)
-;          (equal (buffer-substring (- pos 1) pos) "→")))
-   ))
+(defun pml2-closing (depth)
+  (save-excursion
+    (or
+     (equal (buffer-substring (point) (+ (point) 3)) "def")
+     (equal (buffer-substring (point) (+ (point) 3)) "val")
+     (equal (buffer-substring (point) (+ (point) 4)) "type")
+     (equal (char-after) ?|)
+     (equal (char-after) ?\;)
+     (equal (char-after) ?\))
+     (equal (char-after) ?\])
+     (equal (char-after) ?})
+     (let ((pos
+            (search-forward-regexp "\\(→\\)\\|\n" nil t)))
+       (and (equal (car (syntax-ppss pos)) depth)
+            (equal (buffer-substring (- pos 1) pos) "→")))
+     )))
 
 ; move to the first non blank char at the beginning of a
 ; line. Return nil if the line has only blank
@@ -111,33 +103,101 @@
 (defconst let-in
   "\\(let\\)\\|\\(type\\)\\|\\(val\\)\\|\\(def\\)\\|\\(in\\)\\|=")
 
+(defun pml2-is-delim-case (pos)
+  (save-excursion
+    (goto-char pos)
+    (let ((ppss (syntax-ppss))
+          (curdepth 0)
+          (limit 0)
+          (depth 0))
+      (setq limit (car (cdr ppss)))
+      (setq depth (car ppss))
+      (setq curdepth (+ depth 1))
+      (while (> curdepth depth)
+          (if (search-backward "case" limit t)
+              (setq curdepth (car (syntax-ppss)))
+            (setq curdepth -1)))
+      (eq curdepth depth))))
+
+(defun pml2-depth (ppss)
+  (save-excursion
+    (if (and ppss (car ppss))
+        (+
+         (if (pml2-is-delim-case (- (car ppss) 1))
+             4 2)
+         (pml2-depth (cdr (syntax-ppss (- (car ppss) 1)))))
+      2)))
+
 (defun pml2-indent-function ()
   (save-excursion
                                         ; ppss = parenthesis level computed
                                         ; for the line beginning.
-    (beginning-of-line)
+    (pml2-move-to-first-non-blank)
     (let ((pos (point))
           (ppss (syntax-ppss)))
-      (setq plvl (+ 2 (* 2 (car ppss))))
-      (goto-char pos)
-      (pml2-move-to-first-non-blank)
+      (setq plvl (pml2-depth (cdr ppss)))
       (if (pml2-opening) (setq plvl (+ plvl 2)))
-      (if (pml2-closing) (setq plvl (- plvl 2)))
-      (beginning-of-line)
-      (if (not (or
-                (equal (char-after) ?=)
-                (equal (buffer-substring (point) (+ (point) 2)) "in")))
-          (progn
-            (search-backward-regexp let-in (car (cdr ppss)) t)
-            (if (or
-                 (equal (buffer-substring (point) (+ (point) 3)) "let")
-                 (equal (buffer-substring (point) (+ (point) 3)) "val")
-                 (equal (buffer-substring (point) (+ (point) 3)) "def")
-                 (equal (buffer-substring (point) (+ (point) 4)) "type"))
-                (setq plvl (+ plvl 4))))) ; TODO nested lets like: let let in in
+      (if (pml2-closing (car ppss)) (setq plvl (- plvl 2)))
       (goto-char pos)
       (indent-line-to plvl))))
 
+(defvar pml2-program-buffer
+  nil)
+
+(defun pml2-select-program-buffer ()
+  (if (and pml2-program-buffer (buffer-live-p pml2-program-buffer))
+      (set-buffer pml2-program-buffer)
+    (progn
+      (setq pml2-program-buffer (get-buffer-create "*pml-interaction*"))
+      (pop-to-buffer pml2-program-buffer)
+      (comint-mode)
+      (make-local-variable 'comint-output-filter-functions)
+      (make-local-variable 'comint-exec-hook)
+      ;(setq comint-output-filter-functions
+	;    '(comint-postoutput-scroll-to-bottom pml2-filter-comint-output))
+      (setq comint-exec-hook nil))))
+
+(defvar pml2-program-name
+  "/home/raffalli/Caml/pml2_rodolphe/main.native") ; FIXME
+
+(defvar pml2-program-options
+  nil)
+
+(defvar pml2-program-buffer
+  nil)
+
+(defun pml2-compile ()
+  "compile the current buffer with pml"
+  (interactive)
+  (save-buffer)
+  ;(setq pml2-last-goal nil)
+  ;(pml2-remove-spans)
+  (let ((switches
+	 (append pml2-program-options (list buffer-file-name))))
+    ;(setq pml2-pending-output "")
+    (pml2-select-program-buffer)
+    (cd "/home/raffalli/Caml/pml2_rodolphe") ; FIXME
+    (setq pml2-process
+	  (comint-exec pml2-program-buffer "pml-process" pml2-program-name nil switches))
+;    (display-progress-feedback 'pml2-compilation (concat "compiling: " buffer-file-name))
+    (process-send-string pml2-process "\n")))
+
+(defvar pml2-mode-map
+  (let ((pml2-mode-map (make-keymap)))
+    (progn
+      (define-key pml2-mode-map (kbd "C-c C-c") 'pml2-compile)
+;      (define-key pml-mode-map (kbd "C-c g") 'pml-submit-expr-to-goal)
+;      (define-key pml-mode-map (kbd "C-c r") 'pml-submit-region-to-goal)
+;      (define-key pml-mode-map (kbd "C-c e") 'pml-remove-spans)
+;      (define-key pml-mode-map (kbd "C-c k") 'pml-kill-process)
+;      (define-key pml-mode-map (kbd "RET") 'pml-newline-copy-indent)
+;      (define-key pml-mode-map (kbd "TAB") 'pml-forward-indent)
+;      (define-key pml-mode-map (kbd "C-TAB") 'pml-backward-indent)
+;      (define-key pml-mode-map (kbd "C-S-TAB") 'pml-indent-line)
+;      (if is-xemacs
+;	  (define-key pml-mode-map [(meta shift button1)] 'pml-handle-click))
+    pml2-mode-map))
+  "Keymap for PML major mode")
 
  ;;;###autoload
 (define-derived-mode pml2-mode fundamental-mode "Pml2"
@@ -149,13 +209,11 @@
   ;(setq-local font-lock-defaults
   ;            '(pml2-font-lock-keywords))
   (set-input-method "Pml2")
-                                        ;(setq-local imenu-generic-expression
-                                        ;pml2-imenu-generic-expression)
-                                        ;(setq-local outline-regexp pml2-outline-regexp)
-
-
- ;;; Indentation
-
+  ;(setq-local imenu-generic-expression
+  ;pml2-imenu-generic-expression)
+  ;(setq-local outline-regexp pml2-outline-regexp)
+  ;;; Indentation
+  (use-local-map pml2-mode-map)
   (set (make-local-variable 'indent-line-function) #'pml2-indent-function))
 
 (add-to-list 'auto-mode-alist '("\\.pml\\'" . pml2-mode))
