@@ -111,11 +111,12 @@ type _ ex =
 
   | Coer : 'a v_or_t * 'a ex loc * p ex loc        -> 'a ex
   (** Type coercion on a value or a term. *)
-  (* TODO
-  | Such : 'a v_or_t * 'b v_or_s * 'b var option
-         * ('c, p ex loc * 'a ex loc) bseq         -> 'a ex
-  *)
+  (* FIXME #58 *)
+  (* Commented to avoid warning (not matched in any pattern)
+  | Such : 'a v_or_t * ('b v_or_s * 'b ex loc) option
+           * ('c, p ex loc * 'a ex loc) bseq       -> 'a ex
   (** Extraction of witness by pattern-matching. *)
+  *)
 
   (* Special constructors. *)
 
@@ -144,10 +145,8 @@ and cond =
   (** Value that are not Box, i.e. real value *)
 
 and (_,_) bseq =
-  | Last : 'c sort * ('c ex, 'b            ) binder
-           -> (('c ex, 'b          ) binder, 'b) bseq
-  | More : 'c sort * ('c ex, (('a,'b) bseq)) binder
-           -> (('c ex, ('a,'b) bseq) binder, 'b) bseq
+  | BLast : 'c sort * ('c ex, 'b          ) binder -> ('c -> 'b, 'b) bseq
+  | BMore : 'c sort * ('c ex, ('a,'b) bseq) binder -> ('c -> 'a, 'b) bseq
 
 and 'a expr =
   { expr_name : strloc
@@ -204,6 +203,13 @@ and ('a, 'b) bndr = popt * ('a ex, 'b ex loc) binder
 (** Type of an expression in a (bindlib) bindbox.
     @see <https://www.lama.univ-savoie.fr/~raffalli/bindlib.html> bindlib *)
 and 'a box = 'a ex loc bindbox
+
+(** Sequence of functions to build and [bseq]. *)
+type (_,_) fseq =
+  | FLast : 'c sort * strloc * ('c var -> 'b bindbox  )
+            -> ('c -> 'b, 'b) fseq
+  | FMore : 'c sort * strloc * ('c var -> ('a,'b) fseq)
+            -> ('c -> 'a, 'b) fseq
 
 (** Binder substitution function. *)
 let bndr_subst : ('a, 'b) bndr -> 'a ex -> 'b ex loc =
@@ -336,6 +342,28 @@ let prnt : popt -> string -> tbox =
 
 let coer : type a. popt -> a v_or_t -> a box -> pbox -> a box =
   fun p t -> box_apply2 (fun e a -> Pos.make p (Coer(t,e,a)))
+
+(* FIXME #58 *)
+(* This code works, but it is commented as the Succ constructor.
+let such : type a b c. popt -> a v_or_t -> (b v_or_s * b box) option
+           -> (c, p ex loc * a ex loc) fseq -> a box =
+  let rec aux : type a c. (c, p ex loc * a ex loc) fseq
+                  -> (c, p ex loc * a ex loc) bseq bindbox = fun fs ->
+    match fs with
+    | FLast(s,x,f) ->
+        box_apply (fun b -> BLast(s,b)) (vbind (mk_free s) x.elt f)
+    | FMore(s,x,f) ->
+        let b = vbind (mk_free s) x.elt (fun x -> aux (f x)) in
+        box_apply (fun b -> BMore(s,b)) b
+  in
+  fun p t eo fn ->
+    let eo =
+      match eo with
+      | None      -> box None
+      | Some(t,e) -> box_apply (fun e -> Some(t,e)) e
+    in
+    box_apply2 (fun eo b -> Pos.make p (Such(t,eo,b))) eo (aux fn)
+*)
 
 (** {5 Stack constructors} *)
 

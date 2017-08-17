@@ -985,10 +985,10 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
         Box(T, coer e.pos VoT_T t a)
     | (ESuch(vs,j,v), SV       ) ->
         bug_msg "\"let ... such that ... in ...\" not implemented.";
-        unsugar env vars v _sv (* FIXME FIXME FIXME *)
+        unsugar env vars v _sv (* FIXME FIXME FIXME #58 *)
     | (ESuch(vs,j,t), ST       ) ->
         bug_msg "\"let ... such that ... in ...\" not implemented.";
-        unsugar env vars t _st (* FIXME FIXME FIXME *)
+        unsugar env vars t _st (* FIXME FIXME FIXME #58 *)
     (* Stacks. *)
     | (EEpsi        , SS       ) -> Box(S, epsi e.pos)
     | (EPush(v,pi)  , SS       ) ->
