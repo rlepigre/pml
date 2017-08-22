@@ -41,7 +41,7 @@ let parser path_atom = id:''[a-zA-Z0-9_]+''
 let parser path = ps:{path_atom '.'}* f:path_atom -> ps @ [f]
 
 (* Parser for the contents of a goal. *)
-let parser goal_name = s:''\([^-]\|\(-[^}]\)\)*'' 
+let parser goal_name = s:''\([^-]\|\(-[^}]\)\)*''
 let parser goal = "{-" str:goal_name "-}" -> String.trim str
 
 (* Identifiers. *)

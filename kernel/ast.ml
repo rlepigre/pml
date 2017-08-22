@@ -111,9 +111,7 @@ type _ ex =
 
   | Coer : 'a v_or_t * 'a ex loc * p ex loc        -> 'a ex
   (** Type coercion on a value or a term. *)
-  (* FIXME #58 Commented to avoid warning (not matched in any pattern)
   | Such : 'a v_or_t * 'b desc * ('a,'b) such_t    -> 'a ex
-  *)
   (** Extraction of witness by pattern-matching. *)
 
   (* Special constructors. *)
@@ -348,29 +346,20 @@ let prnt : popt -> string -> tbox =
 let coer : type a. popt -> a v_or_t -> a box -> pbox -> a box =
   fun p t -> box_apply2 (fun e a -> Pos.make p (Coer(t,e,a)))
 
-(* FIXME #58 *)
-(* This code works, but it is commented as the Succ constructor. *)
-(*
 let such : type a b. popt -> a v_or_t -> b desc -> such_var bindbox
            -> (b, p ex loc * a ex loc) fseq -> a box =
   let rec aux : type a c. c desc -> (c, p ex loc * a ex loc) fseq
                   -> (c, p ex loc * a ex loc) bseq bindbox = fun d fs ->
     match (d, fs) with
-    | (LastS(s)  , FLast(x,f)) ->
+    | (LastS(s,_)  , FLast(x,f)) ->
         box_apply (fun b -> BLast(b)) (vbind (mk_free s) x.elt f)
-    | (MoreS(s,d), FMore(x,f)) ->
+    | (MoreS(s,_,d), FMore(x,f)) ->
         let b = vbind (mk_free s) x.elt (fun x -> aux d (f x)) in
         box_apply (fun b -> BMore(b)) b
   in
   fun p t d sv f ->
     let fn sv b = Pos.make p (Such(t,d,{opt_var = sv; binder = b})) in
     box_apply2 fn sv (aux d f)
-*)
-
-(* FIXME #58 temporary version. *)
-let such : type a b. popt -> a v_or_t -> b desc -> such_var bindbox
-           -> (b, p ex loc * a ex loc) fseq -> a box =
-  fun p t d sv f -> assert false
 
 let sv_none : such_var bindbox =
   box SV_None
@@ -565,6 +554,7 @@ let rec sort : type a b. a ex loc ->  a sort * a ex loc= fun e ->
   | Scis            -> (V,e)
   | VDef _          -> (V,e)
   | Coer(VoT_V,_,_) -> (V,e)
+  | Such(VoT_V,_,_) -> (V,e)
 
   | Valu _          -> (T,e)
   | Appl _          -> (T,e)
@@ -575,6 +565,7 @@ let rec sort : type a b. a ex loc ->  a sort * a ex loc= fun e ->
   | FixY _          -> (T,e)
   | Prnt _          -> (T,e)
   | Coer(VoT_T,_,_) -> (T,e)
+  | Such(VoT_T,_,_) -> (T,e)
 
   | Epsi            -> (S,e)
   | Push _          -> (S,e)

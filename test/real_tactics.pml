@@ -386,7 +386,7 @@ val rec find_list : ∀a:ο, ∀pred∈(a ⇒ bool), total<pred,a> ⇒
       Nil     → none
       Cons[c] →
         save a {
-          some (find pred pred_tot c.hd (fun _ { 
+          some (find pred pred_tot c.hd (fun _ {
               restore a (find_list pred pred_tot c.tl)
             }))
         }

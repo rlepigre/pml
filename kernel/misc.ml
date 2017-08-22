@@ -75,7 +75,9 @@ let (lift, lift_cond) =
             | Reco(m)     -> reco e.pos (A.map (fun (p,v) -> (p, lift v)) m)
             | Scis        -> box e
             | VDef(_)     -> box e
+
             | Coer(t,e,a) -> coer e.pos t (lift e) (lift a)
+            | Such(_,_,b) -> assert false (* FIXME #58 *)
 
             | Valu(v)     -> valu e.pos (lift v)
             | Appl(t,u)   -> appl e.pos (lift t) (lift u)
@@ -181,6 +183,7 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
     | Prnt(_)     -> acc
 
     | Coer(_,e,_) -> owits acc e
+    | Such(_,_,b) -> assert false (* FIXME #58 *)
 
     | Epsi        -> acc
     | Push(v,s)   -> owits (owits acc v) s
@@ -290,6 +293,7 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
       | Prnt(s)     -> prnt e.pos s
 
       | Coer(t,e,a) -> coer e.pos t (bind_all e) (bind_all a)
+      | Such(_,_,b) -> assert false (* FIXME #58 *)
 
       | Epsi        -> box e
       | Push(v,s)   -> push e.pos (bind_all v) (bind_all s)

@@ -989,7 +989,7 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
         let t = to_term (unsugar env vars t _st) in
         let a = to_prop (unsugar env vars a _sp) in
         Box(T, coer e.pos VoT_T t a)
-    | (ESuch(vs,j,v), SV       ) ->
+    | (ESuch(vs,j,e), s        ) when s = SV || s = ST ->
         let xs = map_ne_list (fun (x,s) -> (x, unsugar_sort env s)) vs in
         let (var, a) = j in
         let rec build_desc (x,xs) =
@@ -1000,7 +1000,8 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
                                 Desc(MoreS(sy, y, d))
         in
         let Desc d = build_desc xs in
-        let rec build_seq : type a b. a v_or_t -> 'c -> b desc -> (b, p ex loc * a ex loc) fseq = 
+        let rec build_seq : type a b. a v_or_t -> 'c -> b desc
+            -> (b, p ex loc * a ex loc) fseq =
           fun vot vars d ->
             match d with
             | LastS(sx, x)    ->
@@ -1008,8 +1009,8 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
                   let xx = (x.pos, Box(sx, vari x.pos xx)) in
                   let vars = M.add x.elt xx vars in
                   let a = to_prop (unsugar env vars a _sp) in
-                  let v = to_v_or_t vot (unsugar env vars v _sv) in
-                  Bindlib.box_pair a v
+                  let e = to_v_or_t vot (unsugar env vars e (Pos.none s)) in
+                  Bindlib.box_pair a e
                 in
                 FLast(x, fn)
             | MoreS(sy, y, d) ->
@@ -1031,10 +1032,12 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
                 | Box(_,_) -> assert false (* should not happen *)
               end
         in
-        Box(V, such e.pos VoT_V d sv (build_seq VoT_V vars d))
-    | (ESuch(vs,j,t), ST       ) ->
-        bug_msg "\"let ... such that ... in ...\" not implemented.";
-        unsugar env vars t _st (* FIXME FIXME FIXME #58 *)
+        begin
+          match s with
+          | SV -> Box(V, such e.pos VoT_V d sv (build_seq VoT_V vars d))
+          | ST -> Box(T, such e.pos VoT_T d sv (build_seq VoT_T vars d))
+          | _  -> assert false (* should not happen *)
+        end
     (* Stacks. *)
     | (EEpsi        , SS       ) -> Box(S, epsi e.pos)
     | (EPush(v,pi)  , SS       ) ->
@@ -1085,7 +1088,7 @@ let type_def : Pos.pos -> [`Non | `Rec | `CoRec] -> strloc
     | `Non   -> e
     | `Rec   -> in_pos _loc (EFixM(Pos.none EConv, id, e))
     | `CoRec -> in_pos _loc (EFixN(Pos.none EConv, id, e))
-  in      
+  in
   expr_def id args (Some (Pos.none SP)) e
 
 let val_def : bool -> strloc -> raw_ex -> raw_ex -> toplevel = fun r id a t ->

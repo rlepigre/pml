@@ -872,6 +872,9 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
         let ctx = learn_neg_equivalences ctx v None c in
         let p2 = type_valu ctx v a in
         Typ_VTyp(p1,p2)
+    (* Such that. *)
+    | Such(_,_,_) ->
+        assert false (* FIXME #58 *)
     (* Witness. *)
     | VWit(_,a,_) ->
         let (b, equations) = check_nobox v ctx.equations in
@@ -1013,6 +1016,9 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
         in
         let p2 = type_term ctx t a in
         Typ_TTyp(p1,p2)
+    (* Such that. *)
+    | Such(_,_,_) ->
+        assert false (* FIXME #58 *)
     (* Definition. *)
     | HDef(_,d)   ->
         begin
@@ -1087,6 +1093,7 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
         Stk_Goal(str)
     (* Constructors that cannot appear in user-defined stacks. *)
     | Coer(_,_,_) -> .
+    | Such(_,_,_) -> .
     | Epsi        -> unexpected "Empty stack during typing..."
     | UWit(_,_,_) -> unexpected "∀-witness during typing..."
     | EWit(_,_,_) -> unexpected "∃-witness during typing..."

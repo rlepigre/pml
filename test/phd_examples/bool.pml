@@ -52,7 +52,7 @@ val eq_asso : ∀a b c∈boolean, eq (eq a b) c ≡ eq a (eq b c) =
       Tru[_] → case b {
                  Tru[_] → case c { Tru[_] → {} | Fls[_] → {} }
                  Fls[_] → case c { Tru[_] → {} | Fls[_] → {} }
-               } 
+               }
     }
   }
 

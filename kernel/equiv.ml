@@ -434,6 +434,7 @@ let rec add_term : pool -> term -> TPtr.t * pool = fun po t ->
                    insert_t_node (TN_FixY(b,pv)) po
   | Prnt(s)     -> insert_t_node (TN_Prnt(s)) po
   | Coer(_,t,_) -> add_term po t
+  | Such(_,_,_) -> assert false (* FIXME #58 *)
   | UWit(_,t,b) -> insert_t_node (TN_UWit((t,b))) po
   | EWit(_,t,b) -> insert_t_node (TN_EWit((t,b))) po
   | HApp(s,f,a) -> insert_t_node (TN_HApp(HO_Appl(s,f,a))) po
@@ -458,6 +459,7 @@ and     add_valu : pool -> valu -> VPtr.t * pool = fun po v ->
   | Scis        -> insert_v_node VN_Scis po
   | VDef(d)     -> add_valu po (Erase.to_valu d.value_eval)
   | Coer(_,v,_) -> add_valu po v
+  | Such(_,_,_) -> assert false (* FIXME #58 *)
   | VWit(f,a,b) -> insert_v_node (VN_VWit(f, a, b)) po
   | UWit(_,t,b) -> insert_v_node (VN_UWit(t,b)) po
   | EWit(_,t,b) -> insert_v_node (VN_EWit(t,b)) po

@@ -27,6 +27,7 @@ let rec valu_erasure : valu -> e_vbox = fun v ->
   | Goal(_,s)   -> vscis
   | VDef(d)     -> box d.value_eval
   | Coer(_,v,_) -> valu_erasure v
+  | Such(_,_,_) -> assert false (* FIXME #58 *)
   | ITag(_)     -> erasure_error "a tag cannot be erased (value)"
   | Dumm        -> erasure_error "a dummy value cannot be erased (value)"
   | VWit(_)     -> erasure_error "a witness cannot be erased (value)"
@@ -60,6 +61,7 @@ and     term_erasure : term -> e_tbox = fun t ->
                    in tfixy (binder_name (snd b)) f (valu_erasure v)
   | Prnt(s)     -> tprnt s
   | Coer(_,t,_) -> term_erasure t
+  | Such(_,_,_) -> assert false (* FIXME #58 *)
   | ITag(_)     -> erasure_error "a tag cannot be erased (term)"
   | Dumm        -> erasure_error "a dummy value cannot be erased (term)"
   | UWit(_)     -> erasure_error "a witness cannot be erased (term)"
@@ -84,6 +86,7 @@ and     stac_erasure : stac -> e_sbox = fun s ->
   | EWit(_)   -> erasure_error "a witness cannot be erased (stack)"
   | UVar(_)   -> erasure_error "unif. variables cannot be erased (stack)"
   | Coer(_)   -> .
+  | Such(_)   -> .
 
 
 let valu_erasure : valu -> e_valu =
