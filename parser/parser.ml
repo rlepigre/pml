@@ -143,7 +143,8 @@ let sort = sort `F
 
 (* Auxiliary parser for sort arguments. *)
 let parser s_arg  = id:llid so:{":" s:sort}?
-let parser s_args = {'<' l:(lsep_ne "," s_arg) '>'}?[[]]
+let parser s_lst  = l:(lsep_ne "," s_arg)
+let parser s_args = {'<' l:s_lst '>'}?[[]]
 
 (* Priorities for parsing expressions. *)
 type p_prio = [`A | `M | `R | `F] (* Atom, Memb, Rest, Full *)
@@ -322,7 +323,7 @@ let parser expr (m : mode) =
       when m = `Trm`A
       -> in_pos _loc (ECoer(t,a))
   (* Term (let such that) *)
-  | _let_ vs:s_arg+ _st_ x:llid_wc ':' a:(expr (`Prp`F)) _in_ u:(expr (`Trm`F))
+  | _let_ vs:s_lst _st_ x:llid_wc ':' a:(expr (`Prp`F)) _in_ u:(expr (`Trm`F))
       when m = `Trm`F
       -> esuch _loc vs x a u
   (* Term (parentheses) *)
