@@ -181,7 +181,7 @@ let print_ex : type a. a ex loc printer = fun ch e ->
     | Conv        -> output_string ch "∞"
     | Succ(o)     -> fprintf ch "%a+1" print_ex o
     | Coer(_,e,a) -> fprintf ch "(%a : %a)" print_ex e print_ex a
-    | Such(_,_,_) -> assert false (* FIXME #58 *)
+    | Such(_,_,_) -> fprintf ch "(let ? such that ? in ?)" (* FIXME #58 *)
     | ITag(_,i)   -> fprintf ch "#%i" i
     | Dumm        -> output_string ch "∅"
     (* TODO #53 give a number to all witnesses to distinguish equal ones even

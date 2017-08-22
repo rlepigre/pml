@@ -24,6 +24,10 @@ exception Subtype_error of term * prop * prop * exn
 let subtype_error : term -> prop -> prop -> exn -> 'a =
   fun t a b e -> raise (Subtype_error(t,a,b,e))
 
+exception Cannot_unify of prop * prop
+let cannot_unify : prop -> prop -> 'a =
+  fun a b -> raise (Cannot_unify(a,b))
+
 exception Loops of term
 let loops : term -> 'a =
   fun t -> raise (Loops(t))
@@ -895,8 +899,16 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
         let p2 = type_valu ctx v a in
         Typ_VTyp(p1,p2)
     (* Such that. *)
-    | Such(_,d,b) ->
-        assert false (* FIXME #58 *)
+    | Such(_,_,r) ->
+        let (a,v) = instantiate ctx r.binder in
+        let b =
+          match r.opt_var with
+          | SV_None    -> c
+          | SV_Valu(v) -> extract_vwit_type v
+          | SV_Stac(s) -> extract_swit_type s
+        in
+        if eq_expr a b then Typ_TSuch(type_valu ctx v c)
+        else cannot_unify a b
     (* Witness. *)
     | VWit(_,a,_) ->
         let (b, equations) = check_nobox v ctx.equations in
@@ -1047,10 +1059,8 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
           | SV_Valu(v) -> extract_vwit_type v
           | SV_Stac(s) -> extract_swit_type s
         in
-        if eq_expr a b then
-          Typ_TSuch(type_term ctx t c)
-        else
-          assert false (* FIXME #58 *)
+        if eq_expr a b then Typ_TSuch(type_term ctx t c)
+        else cannot_unify a b
     (* Definition. *)
     | HDef(_,d)   ->
         begin

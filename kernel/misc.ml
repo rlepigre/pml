@@ -77,7 +77,14 @@ let (lift, lift_cond) =
             | VDef(_)     -> box e
 
             | Coer(t,e,a) -> coer e.pos t (lift e) (lift a)
-            | Such(_,_,b) -> assert false (* FIXME #58 *)
+            | Such(t,d,r) -> let sv =
+                               match r.opt_var with
+                               | SV_None    -> sv_none
+                               | SV_Valu(v) -> sv_valu (lift v)
+                               | SV_Stac(s) -> sv_stac (lift s)
+                             in
+                             let f = assert false in (* FIXME #58 *)
+                             such e.pos t d sv f
 
             | Valu(v)     -> valu e.pos (lift v)
             | Appl(t,u)   -> appl e.pos (lift t) (lift u)
@@ -183,7 +190,7 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
     | Prnt(_)     -> acc
 
     | Coer(_,e,_) -> owits acc e
-    | Such(_,_,b) -> assert false (* FIXME #58 *)
+    | Such(_,_,b) -> owits acc (bseq_dummy b.binder)
 
     | Epsi        -> acc
     | Push(v,s)   -> owits (owits acc v) s
@@ -293,7 +300,14 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
       | Prnt(s)     -> prnt e.pos s
 
       | Coer(t,e,a) -> coer e.pos t (bind_all e) (bind_all a)
-      | Such(_,_,b) -> assert false (* FIXME #58 *)
+      | Such(t,d,r) -> let sv =
+                         match r.opt_var with
+                         | SV_None    -> sv_none
+                         | SV_Valu(v) -> sv_valu (bind_all v)
+                         | SV_Stac(s) -> sv_stac (bind_all s)
+                       in
+                       let f = assert false in (* FIXME #58 *)
+                       such e.pos t d sv f
 
       | Epsi        -> box e
       | Push(v,s)   -> push e.pos (bind_all v) (bind_all s)

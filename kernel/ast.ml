@@ -526,9 +526,9 @@ let build_v_fixy : (v,t) bndr -> valu = fun b ->
 let build_t_fixy : (v,t) bndr -> term = fun b ->
   Pos.none (Valu(build_v_fixy b))
 
-let rec bseq_dummy : type a b. (a, b) bseq -> b = fun seq ->
+let rec bseq_dummy : type a b. (a, prop * b) bseq -> b = fun seq ->
   match seq with
-  | BLast(_,f) -> subst f Dumm
+  | BLast(_,f) -> snd (subst f Dumm)
   | BMore(_,f) -> bseq_dummy (subst f Dumm)
 
 let rec sort : type a b. a ex loc ->  a sort * a ex loc= fun e ->

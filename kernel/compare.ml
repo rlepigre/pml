@@ -88,7 +88,7 @@ let uvar_iter : type a. bool -> bool -> uvar_fun -> a ex loc -> unit =
     | Succ(o)     -> uvar_iter o
     (* NOTE type annotations ignored. *)
     | Coer(_,e,_) -> uvar_iter e
-    | Such(_,_,_) -> assert false (* FIXME #58 *)
+    | Such(_,_,r) -> uvar_iter (bseq_dummy r.binder)
     | ITag(_)     -> ()
     | Dumm        -> ()
     | Goal(_)     -> ()
@@ -304,8 +304,8 @@ let {eq_expr; eq_bndr; eq_ombinder} =
     (* NOTE type annotations ignored. *)
     | (Coer(_,e1,_)  , _             ) -> eq_expr e1 e2
     | (_             , Coer(_,e2,_)  ) -> eq_expr e1 e2
-    | (Such(_,_,_)   , _             ) -> assert false (* FIXME #58 *)
-    | (_             , Such(_,_,_)   ) -> assert false (* FIXME #58 *)
+    | (Such(_,_,r)   , _             ) -> eq_expr (bseq_dummy r.binder) e2
+    | (_             , Such(_,_,r)   ) -> eq_expr e1 (bseq_dummy r.binder)
     | (ITag(_,i1)    , ITag(_,i2)    ) -> i1 = i2
     (* NOTE should not be compare dummy expressions. *)
     | (Dumm          , Dumm          ) -> false
