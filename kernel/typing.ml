@@ -93,12 +93,12 @@ let rec instantiate : type a b. ctxt -> (a, b) bseq -> b =
 let extract_vwit_type : valu -> prop = fun v ->
   match (Norm.whnf v).elt with
   | VWit(_,a,_) -> a
-  | _           -> assert false (* FIXME #58 *)
+  | _           -> assert false (* should not happen *)
 
 let extract_swit_type : stac -> prop = fun s ->
   match (Norm.whnf s).elt with
-  | SWit(_,a) -> a
-  | _         -> assert false (* FIXME #58 *)
+  | SWit(_,a)   -> a
+  | _           -> assert false (* should not happen *)
 
 type typ_rule =
   | Typ_VTyp   of sub_proof * typ_proof
