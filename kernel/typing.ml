@@ -41,6 +41,7 @@ let log_sub = Log.(log_sub.p)
 let log_typ = Log.register 't' (Some "typ") "typing informations"
 let log_typ = Log.(log_typ.p)
 
+(* Context. *)
 type ctxt  =
   { uvarcount : int ref
   ; equations : eq_ctxt
@@ -76,9 +77,30 @@ let add_positive : ctxt -> ordi -> ordi -> ctxt = fun ctx o oo ->
   | Succ(_) -> ctx
   | _       -> {ctx with positives = (o,oo) :: ctx.positives}
 
+(* Instantation of heterogenous binder with uvars. *)
+let rec instantiate : type a b. ctxt -> (a, b) bseq -> b =
+  fun ctx seq ->
+    match seq with
+    | BLast(s,f) -> let u = new_uvar ctx s in
+                    subst f u.elt
+    | BMore(s,f) -> let u = new_uvar ctx s in
+                    instantiate ctx (subst f u.elt)
+
+let extract_vwit_type : valu -> prop = fun v ->
+  match (Norm.whnf v).elt with
+  | VWit(_,a,_) -> a
+  | _           -> assert false (* FIXME #58 *)
+
+let extract_swit_type : stac -> prop = fun s ->
+  match (Norm.whnf s).elt with
+  | SWit(_,a) -> a
+  | _         -> assert false (* FIXME #58 *)
+
 type typ_rule =
   | Typ_VTyp   of sub_proof * typ_proof
   | Typ_TTyp   of sub_proof * typ_proof
+  | Typ_TSuch  of typ_proof
+  | Typ_VSuch  of typ_proof
   | Typ_VWit   of sub_proof
   | Typ_VDef   of value * sub_proof
   | Typ_DSum_i of sub_proof * typ_proof
@@ -873,7 +895,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
         let p2 = type_valu ctx v a in
         Typ_VTyp(p1,p2)
     (* Such that. *)
-    | Such(_,_,_) ->
+    | Such(_,d,b) ->
         assert false (* FIXME #58 *)
     (* Witness. *)
     | VWit(_,a,_) ->
@@ -1017,8 +1039,18 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
         let p2 = type_term ctx t a in
         Typ_TTyp(p1,p2)
     (* Such that. *)
-    | Such(_,_,_) ->
-        assert false (* FIXME #58 *)
+    | Such(_,_,r) ->
+        let (a,t) = instantiate ctx r.binder in
+        let b =
+          match r.opt_var with
+          | SV_None    -> c
+          | SV_Valu(v) -> extract_vwit_type v
+          | SV_Stac(s) -> extract_swit_type s
+        in
+        if eq_expr a b then
+          Typ_TSuch(type_term ctx t c)
+        else
+          assert false (* FIXME #58 *)
     (* Definition. *)
     | HDef(_,d)   ->
         begin

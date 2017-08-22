@@ -150,8 +150,8 @@ and such_var =
   | SV_Stac : s ex loc -> such_var
 
 and (_,_) bseq =
-  | BLast : ('a ex, 'r          ) binder -> ('a     , 'r) bseq
-  | BMore : ('a ex, ('b,'r) bseq) binder -> ('a * 'b, 'r) bseq
+  | BLast : 'a sort * ('a ex, 'r          ) binder -> ('a     , 'r) bseq
+  | BMore : 'a sort * ('a ex, ('b,'r) bseq) binder -> ('a * 'b, 'r) bseq
 
 and 'a expr =
   { expr_name : strloc
@@ -352,10 +352,12 @@ let such : type a b. popt -> a v_or_t -> b desc -> such_var bindbox
                   -> (c, p ex loc * a ex loc) bseq bindbox = fun d fs ->
     match (d, fs) with
     | (LastS(s,_)  , FLast(x,f)) ->
-        box_apply (fun b -> BLast(b)) (vbind (mk_free s) x.elt f)
+        box_apply (fun b -> BLast(s,b)) (vbind (mk_free s) x.elt f)
     | (MoreS(s,_,d), FMore(x,f)) ->
         let b = vbind (mk_free s) x.elt (fun x -> aux d (f x)) in
-        box_apply (fun b -> BMore(b)) b
+        box_apply (fun b -> BMore(s,b)) b
+    | (LastS(_,_)  , FMore(_,_)) -> .
+    | (MoreS(_,_,_), FLast(_,_)) -> assert false (* . *)
   in
   fun p t d sv f ->
     let fn sv b = Pos.make p (Such(t,d,{opt_var = sv; binder = b})) in
@@ -524,6 +526,10 @@ let build_v_fixy : (v,t) bndr -> valu = fun b ->
 let build_t_fixy : (v,t) bndr -> term = fun b ->
   Pos.none (Valu(build_v_fixy b))
 
+let rec bseq_dummy : type a b. (a, b) bseq -> b = fun seq ->
+  match seq with
+  | BLast(_,f) -> subst f Dumm
+  | BMore(_,f) -> bseq_dummy (subst f Dumm)
 
 let rec sort : type a b. a ex loc ->  a sort * a ex loc= fun e ->
   match e.elt with
