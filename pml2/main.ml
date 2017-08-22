@@ -247,6 +247,8 @@ let _ =
                       Pos.print_short_pos p msg;
                     Quote.quote_file stderr p
       end
+  | Typing.Cannot_unify(a,b) ->
+      err_msg "Unable to unify %a and %a." Print.ex a Print.ex b
   | Typing.Reachable            ->
       err_msg "Reachable scissors"
   | Equiv.Failed_to_prove(rel)  ->

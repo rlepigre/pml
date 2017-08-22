@@ -989,7 +989,7 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
         let t = to_term (unsugar env vars t _st) in
         let a = to_prop (unsugar env vars a _sp) in
         Box(T, coer e.pos VoT_T t a)
-    | (ESuch(vs,j,e), s        ) when s = SV || s = ST ->
+    | (ESuch(vs,j,r), s        ) when s = SV || s = ST ->
         let xs = map_ne_list (fun (x,s) -> (x, unsugar_sort env s)) vs in
         let (var, a) = j in
         let rec build_desc (x,xs) =
@@ -1009,7 +1009,7 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
                   let xx = (x.pos, Box(sx, vari x.pos xx)) in
                   let vars = M.add x.elt xx vars in
                   let a = to_prop (unsugar env vars a _sp) in
-                  let e = to_v_or_t vot (unsugar env vars e (Pos.none s)) in
+                  let e = to_v_or_t vot (unsugar env vars r (Pos.none s)) in
                   Bindlib.box_pair a e
                 in
                 FLast(x, fn)
