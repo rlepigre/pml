@@ -367,6 +367,20 @@ let such : type a b. popt -> a v_or_t -> b desc -> such_var bindbox
     box_apply2 fn sv (aux d f)
 *)
 
+(* FIXME #58 temporary version. *)
+let such : type a b. popt -> a v_or_t -> b desc -> such_var bindbox
+           -> (b, p ex loc * a ex loc) fseq -> a box =
+  fun p t d sv f -> assert false
+
+let sv_none : such_var bindbox =
+  box SV_None
+
+let sv_valu : vbox -> such_var bindbox =
+  box_apply (fun v -> SV_Valu(v))
+
+let sv_stac : sbox -> such_var bindbox =
+  box_apply (fun s -> SV_Stac(s))
+
 (** {5 Stack constructors} *)
 
 let s_vari : popt -> svar -> sbox = vari

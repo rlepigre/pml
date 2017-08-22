@@ -46,5 +46,7 @@ type _ v_or_s =
 
 (** Description type for a vector of sort-indexed objects. *)
 type _ desc =
-  | LastS : 'a sort           -> 'a        desc
-  | MoreS : 'a sort * 'b desc -> ('a * 'b) desc
+  | LastS : 'a sort * Pos.strloc           -> 'a        desc
+  | MoreS : 'a sort * Pos.strloc * 'b desc -> ('a * 'b) desc
+
+type any_desc = Desc : 'a desc -> any_desc

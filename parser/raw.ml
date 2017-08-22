@@ -640,6 +640,12 @@ let to_stac : boxed -> s box = sort_filter S
 let to_prop : boxed -> p box = sort_filter P
 let to_ordi : boxed -> o box = sort_filter O
 
+let to_v_or_t : type a. a v_or_t -> boxed -> a box =
+  fun vot b ->
+    match vot with
+    | VoT_V -> to_valu b
+    | VoT_T -> to_term b
+
 let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
   infer_sorts env e s;
   let rec unsugar env vars e s =
@@ -984,8 +990,48 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
         let a = to_prop (unsugar env vars a _sp) in
         Box(T, coer e.pos VoT_T t a)
     | (ESuch(vs,j,v), SV       ) ->
-        bug_msg "\"let ... such that ... in ...\" not implemented.";
-        unsugar env vars v _sv (* FIXME FIXME FIXME #58 *)
+        let xs = map_ne_list (fun (x,s) -> (x, unsugar_sort env s)) vs in
+        let (var, a) = j in
+        let rec build_desc (x,xs) =
+          match xs with
+          | []               -> let (x, Sort sx) = x in
+                                Desc(LastS(sx, x))
+          | (y, Sort sy)::xs -> let Desc d = build_desc (x,xs) in
+                                Desc(MoreS(sy, y, d))
+        in
+        let Desc d = build_desc xs in
+        let rec build_seq : type a b. a v_or_t -> 'c -> b desc -> (b, p ex loc * a ex loc) fseq = 
+          fun vot vars d ->
+            match d with
+            | LastS(sx, x)    ->
+                let fn xx =
+                  let xx = (x.pos, Box(sx, vari x.pos xx)) in
+                  let vars = M.add x.elt xx vars in
+                  let a = to_prop (unsugar env vars a _sp) in
+                  let v = to_v_or_t vot (unsugar env vars v _sv) in
+                  Bindlib.box_pair a v
+                in
+                FLast(x, fn)
+            | MoreS(sy, y, d) ->
+                let fn yy =
+                  let yy = (y.pos, Box(sy, vari y.pos yy)) in
+                  let vars = M.add y.elt yy vars in
+                  build_seq vot vars d
+                in
+                FMore(y, fn)
+        in
+        let sv =
+          match var with
+          | None   -> sv_none
+          | Some x ->
+              begin
+                match snd (M.find x.elt vars) with
+                | Box(V,v) -> sv_valu v
+                | Box(S,s) -> sv_stac s
+                | Box(_,_) -> assert false (* should not happen *)
+              end
+        in
+        Box(V, such e.pos VoT_V d sv (build_seq VoT_V vars d))
     | (ESuch(vs,j,t), ST       ) ->
         bug_msg "\"let ... such that ... in ...\" not implemented.";
         unsugar env vars t _st (* FIXME FIXME FIXME #58 *)
