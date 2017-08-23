@@ -48,8 +48,8 @@ val rec fn : ∀o, ∀f∈(nat ⇒ nat), total<f,nat> ⇒ ∀n∈nat, ∀q∈(sn
   }
 
 
-//val minimum_principle : ∀f∈(nat ⇒ nat), total<f,nat> ⇒ ∃n:ι, min<n,f> =
-//  fun f ft { save ct {
-//      let ct : ∀n∈ nat, min<n,f> ⇒ bot = fun n mi { restore ct mi } in
-//        ((fn f ft Z) : ∀q∈(nat | q ≡ f Z),
-//    (∀n∈ nat, min<n,f> ⇒ bot) ⇒ bot ) (f Z) ct}}
+val minimum_principle : ∀f∈(nat ⇒ nat), total<f,nat> ⇒ ∃n:ι, min<n,f> =
+  fun f ft { save ct {
+      let ct : ∀n∈ nat, min<n,f> ⇒ bot = fun n mi { restore ct mi } in
+      use { ft Z};
+      fn f ft Z (f Z) ct}}
