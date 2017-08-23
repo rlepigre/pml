@@ -907,8 +907,11 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
           | SV_Valu(v) -> extract_vwit_type v
           | SV_Stac(s) -> extract_swit_type s
         in
-        if eq_expr a b then Typ_TSuch(type_valu ctx v c)
-        else cannot_unify a b
+        let _ =
+          try
+            ignore(gen_subtype ctx b a);
+          with _ -> cannot_unify b a
+        in Typ_TSuch(type_valu ctx v c)
     (* Witness. *)
     | VWit(_,a,_) ->
         let (b, equations) = check_nobox v ctx.equations in
@@ -1059,8 +1062,11 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
           | SV_Valu(v) -> extract_vwit_type v
           | SV_Stac(s) -> extract_swit_type s
         in
-        if eq_expr a b then Typ_TSuch(type_term ctx t c)
-        else cannot_unify a b
+        let _ =
+          try
+            ignore(gen_subtype ctx b a);
+          with _ -> cannot_unify b a
+        in Typ_TSuch(type_term ctx t c)
     (* Definition. *)
     | HDef(_,d)   ->
         begin

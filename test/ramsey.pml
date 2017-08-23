@@ -82,26 +82,14 @@ val infinite_tape2 : ∀a, ∀f∈color<a>, stream<a>
     }
   }
 
-// val ramsey2 : ∀a, ∀f∈(a ⇒ a ⇒ bool), stream<a>
-//   ⇒ either<stream<nat>,stream<nat>> =
-//   fun f s {
-//     let a such that f : a ⇒ a ⇒ bool in
-//     let color1 : color<a> = fun a1 s {
-//       let color2 : color<a> = fun a2 s {
-//           if f a1 a2 { inl s } else { inr s } } in
-//       infinite_tape2 color2 s // could use infinite_tape here
-//     } in
-//     infinite_tape2 color1 s
-//   }
-
-val ramsey2 : ∀f∈(nat ⇒ nat ⇒ bool), stream<nat>
-  ⇒ either<stream<nat>,stream<nat>> =
+val ramsey2 : ∀a, ∀f∈(a ⇒ a ⇒ bool), stream<a>
+  ⇒ either<stream<a>,stream<a>> =
   fun f s {
-      let color1 : color<nat> = fun a1 s {
-        let color2 : color<nat> = fun a2 s {
-          if f a1 a2 { inl s } else { inr s }
-        } in
-        infinite_tape2 color2 s // could use infinite_tape here
-      } in
-      infinite_tape2 color1 s
+    let a such that f : a ⇒ a ⇒ bool in
+    let color1 : color<a> = fun a1 s {
+      let color2 : color<a> = fun a2 s {
+          if f a1 a2 { inl s } else { inr s } } in
+      infinite_tape2 color2 s // could use infinite_tape here
+    } in
+    infinite_tape2 color1 s
   }
