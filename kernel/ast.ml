@@ -18,119 +18,119 @@ module A = Assoc
 type _ ex =
   (* Variables. *)
 
-  | Vari : 'a sort * 'a var                        -> 'a ex
+  | Vari : 'a sort * 'a var                          -> 'a ex
   (** Variables (of some sort). *)
 
   (* Higher order stuff. *)
 
-  | HFun : 'a sort * 'b sort * ('a, 'b) bndr       -> ('a -> 'b) ex
+  | HFun : 'a sort * 'b sort * ('a, 'b) bndr         -> ('a -> 'b) ex
   (** Higher-order function. *)
-  | HApp : 'a sort * ('a -> 'b) ex loc * 'a ex loc -> 'b ex
+  | HApp : 'a sort * ('a -> 'b) ex loc * 'a ex loc   -> 'b ex
   (** Corresponding higher-order application. *)
-  | HDef : 'a sort * 'a expr                       -> 'a ex
+  | HDef : 'a sort * 'a expr                         -> 'a ex
   (** Definition of an expression. *)
 
   (* Proposition constructors. *)
 
-  | Func : p ex loc * p ex loc                     -> p  ex
+  | Func : p ex loc * p ex loc                       -> p  ex
   (** Arrow type. *)
-  | Prod : (pos option * p ex loc) A.t             -> p  ex
+  | Prod : (pos option * p ex loc) A.t               -> p  ex
   (** Product (or record) type. *)
-  | DSum : (pos option * p ex loc) A.t             -> p  ex
+  | DSum : (pos option * p ex loc) A.t               -> p  ex
   (** Disjoint sum type. *)
-  | Univ : 'a sort * ('a, p) bndr                  -> p  ex
+  | Univ : 'a sort * ('a, p) bndr                    -> p  ex
   (** Universal quantification. *)
-  | Exis : 'a sort * ('a, p) bndr                  -> p  ex
+  | Exis : 'a sort * ('a, p) bndr                    -> p  ex
   (** Existential quantification. *)
-  | FixM : o ex loc * (p, p) bndr                  -> p  ex
+  | FixM : o ex loc * (p, p) bndr                    -> p  ex
   (** Inductive type with an ordinal size. *)
-  | FixN : o ex loc * (p, p) bndr                  -> p  ex
+  | FixN : o ex loc * (p, p) bndr                    -> p  ex
   (** Coinductive type with an ordinal size. *)
-  | Memb : t ex loc * p ex loc                     -> p  ex
+  | Memb : t ex loc * p ex loc                       -> p  ex
   (** Membership type. *)
-  | Rest : p ex loc * cond                         -> p  ex
+  | Rest : p ex loc * cond                           -> p  ex
   (** Restriction type. *)
-  | Impl : cond * p ex loc                         -> p  ex
+  | Impl : cond * p ex loc                           -> p  ex
   (** Conditional implication. *)
 
   (* Value constructors. *)
 
-  | LAbs : p ex loc option * (v, t) bndr           -> v  ex
+  | LAbs : p ex loc option * (v, t) bndr             -> v  ex
   (** Lambda abstraction. *)
-  | Cons : A.key loc * v ex loc                    -> v  ex
+  | Cons : A.key loc * v ex loc                      -> v  ex
   (** Constructor with exactly one argument. *)
-  | Reco : (popt * v ex loc) A.t                   -> v  ex
+  | Reco : (popt * v ex loc) A.t                     -> v  ex
   (** Record. *)
-  | Scis :                                            v  ex
+  | Scis :                                              v  ex
   (** PML scisors. *)
-  | VDef : value                                   -> v  ex
+  | VDef : value                                     -> v  ex
   (** Definition of a value. *)
 
   (* Term constructors. *)
 
-  | Valu : v ex loc                                -> t  ex
+  | Valu : v ex loc                                  -> t  ex
   (** Value as a term. *)
-  | Appl : t ex loc * t ex loc                     -> t  ex
+  | Appl : t ex loc * t ex loc                       -> t  ex
   (** Application. *)
-  | MAbs : (s, t) bndr                             -> t  ex
+  | MAbs : (s, t) bndr                               -> t  ex
   (** Mu abstraction. *)
-  | Name : s ex loc * t ex loc                     -> t  ex
+  | Name : s ex loc * t ex loc                       -> t  ex
   (** Named term. *)
-  | Proj : v ex loc * A.key loc                    -> t  ex
+  | Proj : v ex loc * A.key loc                      -> t  ex
   (** Record projection. *)
-  | Case : v ex loc * (popt * (v, t) bndr) A.t     -> t  ex
+  | Case : v ex loc * (popt * (v, t) bndr) A.t       -> t  ex
   (** Case analysis. *)
-  | FixY : (v, t) bndr * v ex loc                  -> t  ex
+  | FixY : (v, t) bndr * v ex loc                    -> t  ex
   (** Fixpoint combinator Y(λx.t, v). *)
-  | Prnt : string                                  -> t  ex
+  | Prnt : string                                    -> t  ex
   (** Printing instruction. *)
 
   (* Stack constructors. *)
 
-  | Epsi :                                            s  ex
+  | Epsi :                                              s  ex
   (** Empty stack. *)
-  | Push : v ex loc * s ex loc                     -> s  ex
+  | Push : v ex loc * s ex loc                       -> s  ex
   (** Value pushed on a stack. *)
-  | Fram : t ex loc * s ex loc                     -> s  ex
+  | Fram : t ex loc * s ex loc                       -> s  ex
   (** Stack frame. *)
 
   (* Ordinal constructors. *)
 
-  | Conv :                                            o  ex
+  | Conv :                                              o  ex
   (** Convergent ordinal. *)
-  | Succ : o ex loc                                -> o  ex
+  | Succ : o ex loc                                  -> o  ex
   (** Successor of an ordinal. *)
-  | OWMu : o ex loc * t ex loc * (o, p) bndr       -> o  ex
+  | OWMu : int * (o ex loc * t ex loc * (o, p) bndr) -> o  ex
   (** Ordinal mu witness. *)
-  | OWNu : o ex loc * t ex loc * (o, p) bndr       -> o  ex
+  | OWNu : int * (o ex loc * t ex loc * (o, p) bndr) -> o  ex
   (** Ordinal nu witness. *)
-  | OSch : o ex loc option * int * schema          -> o  ex
+  | OSch : int * (o ex loc option * int * schema)    -> o  ex
   (** Ordinal schema witness. *)
 
   (* Type annotations. *)
 
-  | Coer : 'a v_or_t * 'a ex loc * p ex loc        -> 'a ex
+  | Coer : 'a v_or_t * 'a ex loc * p ex loc          -> 'a ex
   (** Type coercion on a value or a term. *)
-  | Such : 'a v_or_t * 'b desc * ('a,'b) such_t    -> 'a ex
+  | Such : 'a v_or_t * 'b desc * ('a,'b) such_t      -> 'a ex
   (** Extraction of witness by pattern-matching. *)
 
   (* Special constructors. *)
 
-  | ITag : 'a sort * int                           -> 'a ex
+  | ITag : 'a sort * int                             -> 'a ex
   (** Integer tag (usuful for comparision). *)
-  | Dumm :                                            'a ex
+  | Dumm :                                              'a ex
   (** Dummy constructor.*)
-  | VWit : (v, t) bndr * p ex loc * p ex loc       -> v  ex
+  | VWit : int * ((v, t) bndr * p ex loc * p ex loc) -> v  ex
   (** Value witness. *)
-  | SWit : (s, t) bndr * p ex loc                  -> s  ex
+  | SWit : int * ((s, t) bndr * p ex loc)            -> s  ex
   (** Stack witness. *)
-  | UWit : 'a sort * t ex loc * ('a, p) bndr       -> 'a ex
+  | UWit : int * 'a sort * (t ex loc * ('a, p) bndr) -> 'a ex
   (** Universal quantifier witness. *)
-  | EWit : 'a sort * t ex loc * ('a, p) bndr       -> 'a ex
+  | EWit : int * 'a sort * (t ex loc * ('a, p) bndr) -> 'a ex
   (** Existential quantifier witness. *)
-  | UVar : 'a sort * 'a uvar                       -> 'a ex
+  | UVar : 'a sort * 'a uvar                         -> 'a ex
   (** Unification variable. *)
-  | Goal : 'a sort * string                        -> 'a ex
+  | Goal : 'a sort * string                          -> 'a ex
 
 and cond =
   | Equiv of (t ex loc * bool * t ex loc)
@@ -534,8 +534,8 @@ let rec sort : type a b. a ex loc ->  a sort * a ex loc= fun e ->
   | HDef(s,_)       -> (s, e)
   | HApp(d,u,v)     -> let (F(_,s),_) = sort u in (s,e)
   | HFun(d,c,r)     -> (F(d, c), e)
-  | UWit(s,_,_)     -> (s,e)
-  | EWit(s,_,_)     -> (s,e)
+  | UWit(_,s,_)     -> (s,e)
+  | EWit(_,s,_)     -> (s,e)
   | UVar(s,_)       -> (s,e)
   | ITag(s,_)       -> (s,e)
   | Goal(s,_)       -> (s,e)
@@ -601,3 +601,38 @@ let vdot : valu -> string -> term = fun v c ->
   let f x = valu None (vari None x) in
   let id = (None, Pos.none "x", f) in
   unbox (case None (box v) (A.singleton c id))
+
+
+let owmu_counter = ref (-1)
+let ownu_counter = ref (-1)
+let osch_counter = ref (-1)
+let vwit_counter = ref (-1)
+let swit_counter = ref (-1)
+let uwit_counter = ref (-1)
+let ewit_counter = ref (-1)
+
+let reset_counters : unit -> unit = fun () ->
+  owmu_counter := (-1); ownu_counter := (-1); osch_counter := (-1);
+  vwit_counter := (-1); swit_counter := (-1); uwit_counter := (-1);
+  ewit_counter := (-1)
+
+let owmu : ordi -> term -> (o, p) bndr -> ordi =
+  fun o t b -> incr owmu_counter; Pos.none (OWMu(!owmu_counter, (o,t,b)))
+
+let ownu : ordi -> term -> (o, p) bndr -> ordi =
+  fun o t b -> incr ownu_counter; Pos.none (OWNu(!ownu_counter, (o,t,b)))
+
+let osch : ordi option -> int -> schema -> ordi =
+  fun o i s -> incr osch_counter; Pos.none (OSch(!osch_counter, (o,i,s)))
+
+let vwit : (v,t) bndr -> prop -> prop -> valu =
+  fun f a b -> incr vwit_counter; Pos.none (VWit(!vwit_counter, (f,a,b)))
+
+let swit : (s,t) bndr -> prop -> stac =
+  fun f a -> incr swit_counter; Pos.none (SWit(!swit_counter, (f,a)))
+
+let uwit : type a. a sort -> term -> (a,p) bndr -> a ex loc =
+  fun s t f -> incr uwit_counter; Pos.none (UWit(!uwit_counter, s, (t,f)))
+
+let ewit : type a. a sort -> term -> (a,p) bndr -> a ex loc =
+  fun s t f -> incr ewit_counter; Pos.none (EWit(!ewit_counter, s, (t,f)))

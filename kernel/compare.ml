@@ -92,13 +92,20 @@ let uvar_iter : type a. bool -> bool -> uvar_fun -> a ex loc -> unit =
     | ITag(_)     -> ()
     | Dumm        -> ()
     | Goal(_)     -> ()
-    | VWit(f,a,b) -> if todo e then (buvar_iter f; uvar_iter a; uvar_iter b)
-    | SWit(b,a)   -> if todo e then (buvar_iter b; uvar_iter a)
-    | UWit(_,t,b) -> if todo e then (uvar_iter t; buvar_iter b)
-    | EWit(_,t,b) -> if todo e then (uvar_iter t; buvar_iter b)
-    | OWMu(o,t,b) -> if todo e then (uvar_iter o; uvar_iter t; buvar_iter b)
-    | OWNu(o,t,b) -> if todo e then (uvar_iter o; uvar_iter t; buvar_iter b)
-    | OSch(o,i,s) ->
+    | VWit(_,w)   -> let (f,a,b) = w in
+                     if todo e then (buvar_iter f; uvar_iter a; uvar_iter b)
+    | SWit(_,w)   -> let (b,a) = w in
+                     if todo e then (buvar_iter b; uvar_iter a)
+    | UWit(_,_,w) -> let (t,b) = w in
+                     if todo e then (uvar_iter t; buvar_iter b)
+    | EWit(_,_,w) -> let (t,b) = w in
+                     if todo e then (uvar_iter t; buvar_iter b)
+    | OWMu(_,w)   -> let (o,t,b) = w in
+                     if todo e then (uvar_iter o; uvar_iter t; buvar_iter b)
+    | OWNu(_,w)   -> let (o,t,b) = w in
+                     if todo e then (uvar_iter o; uvar_iter t; buvar_iter b)
+    | OSch(_,w)   ->
+       let (o,i,s) = w in
        if todo e then
          begin
            match s with
@@ -309,16 +316,30 @@ let {eq_expr; eq_bndr; eq_ombinder} =
     | (ITag(_,i1)    , ITag(_,i2)    ) -> i1 = i2
     (* NOTE should not be compare dummy expressions. *)
     | (Dumm          , Dumm          ) -> false
-    | (VWit(f1,a1,b1), VWit(f2,a2,b2)) -> eq_bndr V f1 f2 && eq_expr a1 a2
+    | (VWit(_,w1)    , VWit(_,w2)    ) -> let (f1,a1,b1) = w1 in
+                                          let (f2,a2,b2) = w2 in
+                                          eq_bndr V f1 f2 && eq_expr a1 a2
                                           && eq_expr b1 b2
-    | (SWit(f1,a1)   , SWit(f2,a2)   ) -> eq_bndr S f1 f2 && eq_expr a1 a2
-    | (UWit(s1,t1,b1), UWit(_,t2,b2) ) -> eq_bndr s1 b1 b2 && eq_expr t1 t2
-    | (EWit(s1,t1,b1), EWit(_,t2,b2) ) -> eq_bndr s1 b1 b2 && eq_expr t1 t2
-    | (OWMu(o1,t1,b1), OWMu(o2,t2,b2)) -> eq_expr o1 o2 && eq_expr t1 t2
+    | (SWit(_,w1)    , SWit(_,w2)    ) -> let (f1,a1) = w1 in
+                                          let (f2,a2) = w2 in
+                                          eq_bndr S f1 f2 && eq_expr a1 a2
+    | (UWit(_,s1,w1) , UWit(_,_,w2)  ) -> let (t1,b1) = w1 in
+                                          let (t2,b2) = w2 in
+                                          eq_bndr s1 b1 b2 && eq_expr t1 t2
+    | (EWit(_,s1,w1) , EWit(_,_,w2)  ) -> let (t1,b1) = w1 in
+                                          let (t2,b2) = w2 in
+                                          eq_bndr s1 b1 b2 && eq_expr t1 t2
+    | (OWMu(_,w1)    , OWMu(_,w2)    ) -> let (o1,t1,b1) = w1 in
+                                          let (o2,t2,b2) = w2 in
+                                          eq_expr o1 o2 && eq_expr t1 t2
                                           && eq_bndr O b1 b2
-    | (OWNu(o1,t1,b1), OWNu(o2,t2,b2)) -> eq_expr o1 o2 && eq_expr t1 t2
+    | (OWNu(_,w1)    , OWNu(_,w2)    ) -> let (o1,t1,b1) = w1 in
+                                          let (o2,t2,b2) = w2 in
+                                          eq_expr o1 o2 && eq_expr t1 t2
                                           && eq_bndr O b1 b2
-    | (OSch(o1,i1,s1), OSch(o2,i2,s2)) -> i1 = i2 && eq_opt_expr o1 o2
+    | (OSch(_,w1)    , OSch(_,w2)    ) -> let (o1,i1,s1) = w1 in
+                                          let (o2,i2,s2) = w2 in
+                                          i1 = i2 && eq_opt_expr o1 o2
                                           && eq_schema s1 s2
     | (UVar(_,u1)    , UVar(_,u2)    ) ->
        if strict then u1.uvar_key = u2.uvar_key else

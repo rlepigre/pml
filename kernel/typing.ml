@@ -71,7 +71,7 @@ let empty_ctxt () =
 let new_uvar : type a. ctxt -> a sort -> a ex loc = fun ctx s ->
   let c = ctx.uvarcount in
   let i = !c in incr c;
-  log_uni "?%i : %a" i Print.print_sort s;
+  log_uni "?%i : %a" i Print.sort s;
   Pos.none (UVar(s, {uvar_key = i; uvar_val = ref None}))
 
 let add_positive : ctxt -> ordi -> ordi -> ctxt = fun ctx o oo ->
@@ -92,13 +92,13 @@ let rec instantiate : type a b. ctxt -> (a, b) bseq -> b =
 
 let extract_vwit_type : valu -> prop = fun v ->
   match (Norm.whnf v).elt with
-  | VWit(_,a,_) -> a
-  | _           -> assert false (* should not happen *)
+  | VWit(_,(_,a,_)) -> a
+  | _               -> assert false (* should not happen *)
 
 let extract_swit_type : stac -> prop = fun s ->
   match (Norm.whnf s).elt with
-  | SWit(_,a)   -> a
-  | _           -> assert false (* should not happen *)
+  | SWit(_,(_,a))   -> a
+  | _               -> assert false (* should not happen *)
 
 type typ_rule =
   | Typ_VTyp   of sub_proof * typ_proof
@@ -123,9 +123,9 @@ type typ_rule =
   | Typ_Prnt   of sub_proof
 
 and  stk_rule =
-  | Stk_Push   of sub_proof * typ_proof * stk_proof
+  | Stk_Push   of sub_rule * typ_proof * stk_proof
   | Stk_Fram   of typ_proof * stk_proof
-  | Stk_SWit   of sub_proof
+  | Stk_SWit   of sub_rule
   | Stk_Goal   of string
 
 and  sub_rule =
@@ -167,8 +167,8 @@ let rec learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
                   learn_equivalences {ctx with equations} wit a
   | Rest(a,c)  -> let equations = learn ctx.equations c in
                   learn_equivalences {ctx with equations} wit a
-  | Exis(s, f) -> let t = EWit(s,twit,f) in
-                  learn_equivalences ctx wit (bndr_subst f t)
+  | Exis(s, f) -> let t = ewit s twit f in
+                  learn_equivalences ctx wit (bndr_subst f t.elt)
   | Prod(fs)   ->
      A.fold (fun lbl (_, b) ctx ->
          let (v,pool) =  find_proj ctx.equations.pool wit lbl in
@@ -195,7 +195,7 @@ let rec learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
                so we can build an eps < o *)
            let f o = bndr_subst f (FixM(Pos.none o, f)) in
            let f = binder_from_fun "o" f in
-           Pos.none (OWMu(o,twit,(None,f)))
+           owmu o twit (None, f)
       in
       let ctx = add_positive ctx o bound in
       (* NOTE: may loop on mu X.X *)
@@ -225,8 +225,8 @@ let rec learn_neg_equivalences : ctxt -> valu -> term option -> prop -> ctxt =
     | HDef(_,e), _  -> learn_neg_equivalences ctx wit arg e.expr_def
     | Impl(c,a), _  -> let equations = learn ctx.equations c in
                        learn_neg_equivalences {ctx with equations} wit arg a
-    | Univ(s, f), _ -> let t = UWit(s,twit,f) in
-                       learn_neg_equivalences ctx wit arg (bndr_subst f t)
+    | Univ(s, f), _ -> let t = uwit s twit f in
+                       learn_neg_equivalences ctx wit arg (bndr_subst f t.elt)
     | Func(a,b), Some arg ->
        begin
          match is_singleton a with
@@ -244,7 +244,7 @@ let rec learn_neg_equivalences : ctxt -> valu -> term option -> prop -> ctxt =
                so we can build an eps < o *)
            let f o = bndr_subst f (FixN(Pos.none o, f)) in
            let f = binder_from_fun "o" f in
-           Pos.none (OWNu(o,twit,(None,f)))
+           ownu o twit (None, f)
       in
       let ctx = add_positive ctx o bound in
       (* NOTE: may loop on nu X.X *)
@@ -310,14 +310,13 @@ let rec subtype =
       (* Universal quantification on the right. *)
       | (_          , Univ(s,f)  ) ->
          if t_is_val then
-           Sub_Univ_r(subtype ctx t a (bndr_subst f (UWit(s,t,f))))
+           Sub_Univ_r(subtype ctx t a (bndr_subst f (uwit s t f).elt))
          else
            gen_subtype ctx a b
       (* Existential quantification on the left. *)
       | (Exis(s,f)  , _          ) ->
          if t_is_val then
-           let wit = EWit(s,t,f) in
-           Sub_Exis_l(subtype ctx t (bndr_subst f wit) b)
+           Sub_Exis_l(subtype ctx t (bndr_subst f (ewit s t f).elt) b)
          else
            gen_subtype ctx a b
       (* Membership on the left. *)
@@ -371,7 +370,7 @@ let rec subtype =
                let o' =
                  let f o = bndr_subst f (FixM(Pos.none o, f)) in
                  let f = binder_from_fun "o" f in
-                 Pos.none (OWMu(o,t,(None,f)))
+                 owmu o t (None,f)
                in
                (add_positive ctx o o', o')
           in
@@ -396,7 +395,7 @@ let rec subtype =
                let o' =
                  let f o = bndr_subst f (FixN(Pos.none o, f)) in
                  let f = binder_from_fun "o" f in
-                 Pos.none (OWNu(o,t,(None, f)))
+                 ownu o t (None, f)
                in
                (add_positive ctx o o', o')
           in
@@ -411,7 +410,7 @@ let rec subtype =
       | (Func(a1,b1), Func(a2,b2)) when t_is_val ->
          let fn x = appl None (box t) (valu None (vari None x)) in
          let f = (None, unbox (vbind (mk_free V) "x" fn)) in
-         let vwit = Pos.none (VWit(f,a2,b2)) in
+         let vwit = vwit f a2 b2 in
          let ctx = learn_nobox ctx vwit in
          let wit = Pos.none (Valu(vwit)) in
          let ctx, wit = match is_singleton a2 with
@@ -464,7 +463,7 @@ let rec subtype =
             in
             let wit =
               let f = bndr_from_fun "x" (fun x -> Valu(Pos.none x)) in
-              Pos.none (VWit(f, a, a))
+              vwit f a a
             in
             let equations =
               learn ctx.equations (Equiv(t,true,Pos.none (Valu(wit))))
@@ -548,7 +547,7 @@ and gen_subtype : ctxt -> prop -> prop -> sub_rule =
   fun ctx a b ->
     let wit =
       let f = bndr_from_fun "x" (fun x -> Valu(Pos.none x)) in
-      Pos.none (Valu(Pos.none (VWit(f, a, b))))
+      Pos.none (Valu(vwit f a b))
     in
     Sub_Gene(subtype ctx wit a b)
 
@@ -669,7 +668,10 @@ and get_relat  : ordi array -> (int * int) list =
     let l = ref [] in
     Array.iteri (fun i o ->
       let rec gn o = match (Norm.whnf o).elt with
-        | OWMu(o',_,_) | OWNu(o',_,_) | OSch(Some o',_,_) | Succ o' ->
+        | OWMu(_,(o',_,_))
+        | OWNu(_,(o',_,_))
+        | OSch(_,(Some o',_,_))
+        | Succ(o') ->
            (try hn (Array.length os - 1) o' with Not_found -> gn o')
         | _ -> ()
       and hn j o' =
@@ -747,7 +749,7 @@ and elim_sub_schema : ctxt -> sub_schema -> sub_specialised =
 and inst_fix_schema : ctxt -> fix_schema -> ordi array -> fix_specialised =
   fun ctx sch os ->
     let arity = mbinder_arity (snd sch.fsch_judge) in
-    let rec fn i = Pos.none (OSch(None, i, FixSch sch)) in
+    let rec fn i = osch None i (FixSch sch) in
     let fspe_param = Array.init arity fn in
     let xs = Array.map (fun e -> e.elt) fspe_param in
     let a = msubst (snd sch.fsch_judge) xs in
@@ -763,7 +765,7 @@ and inst_sub_schema : ctxt -> sub_schema -> ordi array -> sub_specialised =
       try List.assoc i !cache with Not_found ->
           let bound = try Some (fn (List.assoc i sch.ssch_relat))
                       with Not_found -> None in
-        let res = Pos.none (OSch(bound, i, SubSch sch)) in
+        let res = osch bound i (SubSch sch) in
         cache := (i,res)::!cache;
         res
     in
@@ -833,7 +835,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
             (* NOTE UWit is almost always use with value *)
             let rec break_univ c =
               match (Norm.whnf c).elt with
-              | Univ(O,f) -> break_univ (bndr_subst f (UWit(O,w,f)))
+              | Univ(O,f) -> break_univ (bndr_subst f (uwit O w f).elt)
               | _         -> c
             in
             let c = break_univ c in
@@ -849,15 +851,15 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
             let b = new_uvar ctx P in
             let c' = Pos.none (Func(a,b)) in
             let p1 = subtype ctx t c' c in
-            let wit = VWit(f, a, b) in
-            let twit = Pos.none(Valu (Pos.none wit)) in
+            let wit = vwit f a b in
+            let twit = Pos.none(Valu wit) in
             (* Learn the equivalence that are valid in the witness. *)
             begin
               try
-                let ctx = learn_nobox ctx (Pos.none wit) in
-                let ctx = learn_equivalences ctx (Pos.none wit) a in
+                let ctx = learn_nobox ctx wit in
+                let ctx = learn_equivalences ctx wit a in
                 let ctx = learn_neg_equivalences ctx v (Some twit) c in
-                let p2 = type_term ctx (bndr_subst f wit) b in
+                let p2 = type_term ctx (bndr_subst f wit.elt) b in
                 Typ_Func_i(p1,Some p2)
               with Contradiction -> Typ_Func_i(p1, None)
             end
@@ -915,7 +917,8 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
           with _ -> cannot_unify b a
        in Typ_TSuch(type_valu ctx v c)
     (* Witness. *)
-    | VWit(_,a,_) ->
+    | VWit(_,w)   ->
+        let (_,a,_) = w in
         let (b, equations) = check_nobox v ctx.equations in
         assert b;
         let p = subtype {ctx with equations} t a c in
@@ -950,14 +953,14 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
 and is_typed : type a. a v_or_t -> a ex loc -> bool = fun t e ->
   let e = Norm.whnf e in
   match (t,e.elt) with
-  | _, Coer(_,_,a) -> uvars a = []
-  | _, VWit(_,a,_) -> uvars a = []
-  | _, Appl(t,_)   -> is_typed VoT_T t
-  | _, Valu(v)     -> is_typed VoT_V v
-  | _, Proj(v,_)   -> is_typed VoT_V v
-  | _, Cons(_,v)   -> is_typed VoT_V v
-  | _, VDef _      -> true
-  | _              -> false
+  | _, Coer(_,_,a)     -> uvars a = []
+  | _, VWit(_,(_,a,_)) -> uvars a = []
+  | _, Appl(t,_)       -> is_typed VoT_T t
+  | _, Valu(v)         -> is_typed VoT_V v
+  | _, Proj(v,_)       -> is_typed VoT_V v
+  | _, Cons(_,v)       -> is_typed VoT_V v
+  | _, VDef _          -> true
+  | _                  -> false
 
 and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
   log_typ "proving the term judgment:\n  %a\n  ⊢ %a\n  : %a"
@@ -992,7 +995,7 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
         if is_val then Typ_Func_s(p1,p2) else Typ_Func_e(p1,p2)
     (* μ-abstraction. *)
     | MAbs(b)     ->
-        let t = bndr_subst b (SWit(b,c)) in
+        let t = bndr_subst b (swit b c).elt in
         Typ_Mu(type_term ctx t c)
     (* Named term. *)
     | Name(pi,t)  ->
@@ -1019,7 +1022,7 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
           let (_,a) = A.find d ts in
           let vd = vdot v d in
           let a = Pos.none (Memb(vd, a)) in
-          let wit = Pos.none (VWit(f, a, c)) in
+          let wit = vwit f a c in
           let t = bndr_subst f wit.elt in
           (try
             let ctx = learn_nobox ctx wit in
@@ -1114,11 +1117,7 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
     | Push(v,pi)  ->
         let a = new_uvar ctx P in
         let b = new_uvar ctx P in
-        let wit =
-          let f = bndr_from_fun "x" (fun x -> Valu(Pos.none x)) in
-          Pos.none (Valu(Pos.none (VWit(f, a, b))))
-        in
-        let p1 = subtype ctx wit (Pos.none (Func(a,b))) c in
+        let p1 = gen_subtype ctx (Pos.none (Func(a,b))) c in
         let p2 = type_valu ctx v a in
         let p3 = type_stac ctx pi b in
         Stk_Push(p1,p2,p3)
@@ -1127,12 +1126,9 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
         let p1 = type_term ctx t (Pos.none (Func(c,a))) in
         let p2 = type_stac ctx pi a in
         Stk_Fram(p1,p2)
-    | SWit(_,a)   ->
-        let wit =
-          let f = bndr_from_fun "x" (fun x -> Valu(Pos.none x)) in
-          Pos.none (Valu(Pos.none (VWit(f, a, c))))
-        in
-        Stk_SWit(subtype ctx wit c a)
+    | SWit(_,w)   ->
+        let (_,a) = w in
+        Stk_SWit(gen_subtype ctx c a)
     (* Definition. *)
     | HDef(_,d)   ->
         begin
@@ -1159,6 +1155,7 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
   | e -> type_error (E(S,s)) c e
 
 let type_check : term -> prop -> prop * typ_proof = fun t a ->
+  reset_counters ();
   let ctx = empty_ctxt () in
   let prf = type_term ctx t a in
   List.iter (fun f -> f ()) (List.rev !(ctx.add_calls));
@@ -1171,6 +1168,7 @@ let type_check t = Chrono.add_time type_chrono (type_check t)
 
 let is_subtype : prop -> prop -> bool = fun a b ->
   try
+    reset_counters ();
     let ctx = empty_ctxt () in
     let _ = gen_subtype ctx a b in
     let la = uvars a in

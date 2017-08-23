@@ -68,7 +68,7 @@ let (lift, lift_cond) =
             | Rest(a,c)   -> rest e.pos (lift a) (lift_cond ~adone c)
             | Impl(c,a)   -> impl e.pos (lift_cond ~adone c) (lift a)
 
-            | VWit(t,a,b) -> box e
+            | VWit(_,_)   -> box e
             | LAbs(a,f)   -> labs e.pos (Option.map lift a) (bndr_name f)
                                   (fun x -> lift (bndr_subst f (mk_free V x)))
             | Cons(c,v)   -> cons e.pos c (lift v)
@@ -124,9 +124,9 @@ let (lift, lift_cond) =
 
             | Conv        -> box e
             | Succ(o)     -> succ e.pos (lift o)
-            | OWMu(o,t,b) -> box e
-            | OWNu(o,t,b) -> box e
-            | OSch(o,i,s) -> box e
+            | OWMu(_,_)   -> box e
+            | OWNu(_,_)   -> box e
+            | OSch(_,_)   -> box e
             | Vari(_,x)   -> vari e.pos x
             | Dumm        -> box e
         in
@@ -160,13 +160,13 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
     | HDef(_,_)   -> acc
     | HApp(_,f,a) -> owits (owits acc f) a
     | HFun(_,_,f) -> owits acc (bndr_subst f Dumm)
-    | UWit(s,t,a) ->
+    | UWit(_,s,_) ->
         begin
           match s with
           | O -> if is_in e acc then acc else e :: acc
           | _ -> acc
         end
-    | EWit(s,t,a) ->
+    | EWit(_,s,_) ->
         begin
           match s with
           | O -> if is_in e acc then acc else e :: acc
@@ -187,7 +187,7 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
     | Rest(a,c)   -> owits (from_cond acc c) a
     | Impl(c,a)   -> owits (from_cond acc c) a
 
-    | VWit(_,_,_) -> acc
+    | VWit(_,_)   -> acc
     | LAbs(_,f)   -> owits acc (bndr_subst f Dumm)
     | Cons(_,v)   -> owits acc v
     | Reco(m)     -> A.fold (fun _ (_,v) acc -> owits acc v) m acc
@@ -214,9 +214,9 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
 
     | Conv        -> acc
     | Succ(o)     -> owits acc o
-    | OWMu(_,_,_) -> if is_in e acc then acc else e :: acc
-    | OWNu(_,_,_) -> if is_in e acc then acc else e :: acc
-    | OSch(_,_,_) -> if is_in e acc then acc else e :: acc
+    | OWMu(_,_)   -> if is_in e acc then acc else e :: acc
+    | OWNu(_,_)   -> if is_in e acc then acc else e :: acc
+    | OSch(_,_)   -> if is_in e acc then acc else e :: acc
 
     | Vari _      -> assert false
     | Dumm        -> acc
@@ -263,14 +263,8 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
       | HApp(s,f,a) -> happ e.pos s (bind_all f) (bind_all a)
       | HFun(a,b,f) -> hfun e.pos a b (bndr_name f)
                             (fun x -> bind_all (bndr_subst f (mk_free a x)))
-      | UWit(s,t,f) ->
-         begin
-           try var_of_ordi_wit s e with Not_found -> box e
-         end
-      | EWit(s,t,f) ->
-         begin
-           try var_of_ordi_wit s e with Not_found -> box e
-         end
+      | UWit(_,s,_) -> (try var_of_ordi_wit s e with Not_found -> box e)
+      | EWit(_,s,_) -> (try var_of_ordi_wit s e with Not_found -> box e)
       | UVar(_,_)   -> box e
       | ITag(_,_)   -> box e
       | Goal(_,_)   -> box e
@@ -290,7 +284,7 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
       | Rest(a,c)   -> rest e.pos (bind_all a) (bind_all_cond c)
       | Impl(c,a)   -> impl e.pos (bind_all_cond c) (bind_all a)
 
-      | VWit(f,a,b) -> box e
+      | VWit(_,_)   -> box e
       | LAbs(a,f)   -> labs e.pos (Option.map bind_all a) (bndr_name f)
                             (fun x -> bind_all (bndr_subst f (mk_free V x)))
       | Cons(c,v)   -> cons e.pos c (bind_all v)
@@ -347,18 +341,9 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
                             (bind_all a)*)
       | Conv        -> box e
       | Succ(o)     -> succ e.pos (bind_all o)
-      | OWMu(o,t,f) ->
-         begin
-           try var_of_ordi_wit O e with Not_found -> box e
-         end
-      | OWNu(o,t,f) ->
-         begin
-           try var_of_ordi_wit O e with Not_found -> box e
-         end
-      | OSch(o,i,sch) ->
-         begin
-           try var_of_ordi_wit O e with Not_found -> box e
-         end
+      | OWMu(_,_)   -> (try var_of_ordi_wit O e with Not_found -> box e)
+      | OWNu(_,_)   -> (try var_of_ordi_wit O e with Not_found -> box e)
+      | OSch(_,_)   -> (try var_of_ordi_wit O e with Not_found -> box e)
       | Vari(_,x)   -> vari e.pos x
       | Dumm        -> box e
     in

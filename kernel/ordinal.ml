@@ -52,9 +52,9 @@ let rec leq_i_ordi : positives -> ordi -> int -> ordi -> bool =
     | (_       , _       ) when i <  0 && eq_expr o1 (oadd o2 (-i)) -> true
     | (_       , Succ(o2)) -> leq_i_ordi pos o1 (i-1) o2
     | (Succ(o1), _       ) -> leq_i_ordi pos o1 (i+1) o2
-    | (OWMu(o,_,_),_     )
-    | (OWNu(o,_,_),_     )
-    | (OSch(Some o,_,_),_) -> let i = if is_pos pos o then i-1 else i in
+    | (OWMu(_,(o,_,_)),_ )
+    | (OWNu(_,(o,_,_)),_ )
+    | (OSch(_,(Some o,_,_)),_) -> let i = if is_pos pos o then i-1 else i in
                               leq_i_ordi pos o i o2
     | (_       , _       ) ->
        try

@@ -165,9 +165,6 @@ let files =
       , Arg.String(Log.set_enabled)
       , Printf.sprintf "str Enable the provided logs. Available options:\n%s."
           (Log.opts_to_string ((String.make 20 ' ') ^ "- ")) )
-    ; ( "--full-terms"
-      , Arg.Set Print.print_full
-      , " Fully display terms (including the definition of witnesses)." )
     ; ( "--full-compare"
       , Arg.Set Compare.full_eq
       , " Show all the steps when comparing expressions.")
@@ -253,7 +250,7 @@ let _ =
       err_msg "Reachable scissors"
   | Equiv.Failed_to_prove(rel)  ->
       err_msg "Failed to prove an equational relation.";
-      err_msg "  %a" Equiv.print_relation_pos rel
+      err_msg "  %a" Print.cond rel
   | Check_failed(a,n,b) ->
       let (l,r) = if n then ("","") else ("¬(",")") in
       err_msg "Failed to prove a subtyping relation.";

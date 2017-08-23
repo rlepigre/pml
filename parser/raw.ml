@@ -624,7 +624,7 @@ let rec sort_filter : type a b. a sort -> boxed -> a box =
           match Sorts.eq_sort k s with
           | Eq.Eq  -> e
           | Eq.NEq -> Printf.printf "ERROR: %a ≠ %a\n%!"
-                        Print.print_sort s Print.print_sort k;
+                        Print.sort s Print.sort k;
                       assert false (* FIXME #46 error management. *)
         end
 

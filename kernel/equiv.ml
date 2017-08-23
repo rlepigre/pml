@@ -79,9 +79,9 @@ type v_node =
   | VN_Cons of A.key loc * VPtr.t
   | VN_Reco of VPtr.t A.t
   | VN_Scis
-  | VN_VWit of ((v, t) bndr * p ex loc * p ex loc)
-  | VN_UWit of (t ex loc * (v, p) bndr)
-  | VN_EWit of (t ex loc * (v, p) bndr)
+  | VN_VWit of int * ((v, t) bndr * p ex loc * p ex loc)
+  | VN_UWit of int * (t ex loc * (v, p) bndr)
+  | VN_EWit of int * (t ex loc * (v, p) bndr)
   | VN_HApp of v ho_appl
   | VN_UVar of v uvar
   | VN_ITag of int
@@ -98,8 +98,8 @@ type t_node =
   | TN_Case of VPtr.t * (v, t) bndr A.t
   | TN_FixY of (v, t) bndr * VPtr.t
   | TN_Prnt of string
-  | TN_UWit of (t ex loc * (t, p) bndr)
-  | TN_EWit of (t ex loc * (t, p) bndr)
+  | TN_UWit of int * (t ex loc * (t, p) bndr)
+  | TN_EWit of int * (t ex loc * (t, p) bndr)
   | TN_HApp of t ho_appl
   | TN_UVar of t uvar
   | TN_ITag of int
@@ -108,16 +108,19 @@ type t_map = (PtrSet.t * t_node) TPtrMap.t
 (** Printing function for value nodes. *)
 let print_v_node : out_channel -> v_node -> unit = fun ch n ->
   let prnt = Printf.fprintf in
-  let pex = Print.print_ex in
+  let pex = Print.ex in
   match n with
   | VN_LAbs(b)     -> prnt ch "VN_LAbs(%a)" pex (Pos.none (LAbs(None,b)))
   | VN_Cons(c,pv)  -> prnt ch "VN_Cons(%s,%a)" c.elt VPtr.print pv
   | VN_Reco(m)     -> let pelt ch (k, p) = prnt ch "%S=%a" k VPtr.print p in
                       prnt ch "VN_Reco(%a)" (Print.print_map pelt ":") m
   | VN_Scis        -> prnt ch "VN_Scis"
-  | VN_VWit(b,_,_) -> prnt ch "VN_VWit(ει%s)" (bndr_name b).elt
-  | VN_UWit(_,b)   -> prnt ch "VN_UWit(ε∀%s)" (bndr_name b).elt
-  | VN_EWit(_,b)   -> prnt ch "VN_EWit(ε∃%s)" (bndr_name b).elt
+  | VN_VWit(_,w)   -> let (b,_,_) = w in
+                      prnt ch "VN_VWit(ει%s)" (bndr_name b).elt
+  | VN_UWit(_,w)   -> let (_,b) = w in
+                      prnt ch "VN_UWit(ε∀%s)" (bndr_name b).elt
+  | VN_EWit(_,w)   -> let (_,b) = w in
+                      prnt ch "VN_EWit(ε∃%s)" (bndr_name b).elt
   | VN_HApp(e)     -> let HO_Appl(s,f,a) = e in
                       prnt ch "VN_HApp(%a)" pex (Pos.none (HApp(s,f,a)))
   | VN_UVar(v)     -> prnt ch "VN_UVar(%a)" pex (Pos.none (UVar(V,v)))
@@ -126,7 +129,7 @@ let print_v_node : out_channel -> v_node -> unit = fun ch n ->
 (** Printing function for term nodes. *)
 let print_t_node : out_channel -> t_node -> unit = fun ch n ->
   let prnt = Printf.fprintf in
-  let pex = Print.print_ex in
+  let pex = Print.ex in
   match n with
   | TN_Valu(pv)    -> prnt ch "TN_Valu(%a)" VPtr.print pv
   | TN_Appl(pt,pu) -> prnt ch "TN_Appl(%a,%a)" TPtr.print pt TPtr.print pu
@@ -141,11 +144,13 @@ let print_t_node : out_channel -> t_node -> unit = fun ch n ->
   | TN_FixY(b,pv)  -> prnt ch "TN_FixY(%a,%a)" pex (Pos.none (LAbs(None,b)))
                         VPtr.print pv
   | TN_Prnt(s)     -> prnt ch "TN_Prnt(%S)" s
-  | TN_UWit(_,b)   -> prnt ch "TN_UWit(ε∀%s)" (bndr_name b).elt
-  | TN_EWit(_,b)   -> prnt ch "TN_EWit(ε∃%s)" (bndr_name b).elt
+  | TN_UWit(_,w)   -> let (_,b) = w in
+                      prnt ch "TN_UWit(ε∀%s)" (bndr_name b).elt
+  | TN_EWit(_,w)   -> let (_,b) = w in
+                      prnt ch "TN_EWit(ε∃%s)" (bndr_name b).elt
   | TN_HApp(e)     -> let HO_Appl(s,f,a) = e in
                       let e = Pos.none (HApp(s,f,a)) in
-                      prnt ch "TN_HApp(%a)" Print.print_ex e
+                      prnt ch "TN_HApp(%a)" Print.ex e
   | TN_UVar(v)     -> prnt ch "TN_UVar(%a)" pex (Pos.none (UVar(T,v)))
   | TN_ITag(n)     -> prnt ch "TN_ITag(%d)" n
 
@@ -311,12 +316,16 @@ let eq_v_nodes : pool -> v_node -> v_node -> bool =
     | (VN_Cons(c1,p1), VN_Cons(c2,p2)) -> c1.elt = c2.elt && eq_vptr po p1 p2
     | (VN_Reco(m1)   , VN_Reco(m2)   ) -> A.equal (eq_vptr po) m1 m2
     | (VN_Scis       , VN_Scis       ) -> true
-    | (VN_VWit(w1)   , VN_VWit(w2)   ) -> let (f1,a1,b1) = w1 in
+    | (VN_VWit(_,w1) , VN_VWit(_,w2) ) -> let (f1,a1,b1) = w1 in
                                           let (f2,a2,b2) = w2 in
                                           eq_bndr V f1 f2 && eq_expr a1 a2
                                           && eq_expr b1 b2
-    | (VN_UWit(t1,b1), VN_UWit(t2,b2)) -> eq_expr t1 t2 && eq_bndr V b1 b2
-    | (VN_EWit(t1,b1), VN_EWit(t2,b2)) -> eq_expr t1 t2 && eq_bndr V b1 b2
+    | (VN_UWit(_,w1) , VN_UWit(_,w2) ) -> let (t1,b1) = w1 in
+                                          let (t2,b2) = w2 in
+                                          eq_expr t1 t2 && eq_bndr V b1 b2
+    | (VN_EWit(_,w1) , VN_EWit(_,w2) ) -> let (t1,b1) = w1 in
+                                          let (t2,b2) = w2 in
+                                          eq_expr t1 t2 && eq_bndr V b1 b2
     | (VN_ITag(n1)   , VN_ITag(n2)   ) -> n1 = n2
     | (_             , _             ) -> false
 
@@ -340,8 +349,12 @@ let eq_t_nodes : pool -> t_node -> t_node -> bool =
     | (TN_FixY(b1,p1)  , TN_FixY(b2,p2)  ) -> eq_bndr V b1 b2
                                               && eq_vptr po p1 p2
     | (TN_Prnt(s1)     , TN_Prnt(s2)     ) -> s1 = s2
-    | (TN_UWit(t1,b1)  , TN_UWit(t2,b2)  ) -> eq_expr t1 t2 && eq_bndr T b1 b2
-    | (TN_EWit(t1,b1)  , TN_EWit(t2,b2)  ) -> eq_expr t1 t2 && eq_bndr T b1 b2
+    | (TN_UWit(_,w1)   , TN_UWit(_,w2)   ) -> let (t1,b1) = w1 in
+                                              let (t2,b2) = w2 in
+                                              eq_expr t1 t2 && eq_bndr T b1 b2
+    | (TN_EWit(_,w1)   , TN_EWit(_,w2)   ) -> let (t1,b1) = w1 in
+                                              let (t2,b2) = w2 in
+                                              eq_expr t1 t2 && eq_bndr T b1 b2
     | (TN_ITag(n1)     , TN_ITag(n2)     ) -> n1 = n2
     | (_               , _               ) -> false
 
@@ -435,8 +448,8 @@ let rec add_term : pool -> term -> TPtr.t * pool = fun po t ->
   | Prnt(s)     -> insert_t_node (TN_Prnt(s)) po
   | Coer(_,t,_) -> add_term po t
   | Such(_,_,r) -> add_term po (bseq_dummy r.binder)
-  | UWit(_,t,b) -> insert_t_node (TN_UWit((t,b))) po
-  | EWit(_,t,b) -> insert_t_node (TN_EWit((t,b))) po
+  | UWit(i,_,w) -> insert_t_node (TN_UWit(i,w)) po
+  | EWit(i,_,w) -> insert_t_node (TN_EWit(i,w)) po
   | HApp(s,f,a) -> insert_t_node (TN_HApp(HO_Appl(s,f,a))) po
   | HDef(_,d)   -> add_term po d.expr_def
   | UVar(_,v)   -> insert_t_node (TN_UVar(v)) po
@@ -460,9 +473,9 @@ and     add_valu : pool -> valu -> VPtr.t * pool = fun po v ->
   | VDef(d)     -> add_valu po (Erase.to_valu d.value_eval)
   | Coer(_,v,_) -> add_valu po v
   | Such(_,_,r) -> add_valu po (bseq_dummy r.binder)
-  | VWit(f,a,b) -> insert_v_node (VN_VWit(f, a, b)) po
-  | UWit(_,t,b) -> insert_v_node (VN_UWit(t,b)) po
-  | EWit(_,t,b) -> insert_v_node (VN_EWit(t,b)) po
+  | VWit(i,w)   -> insert_v_node (VN_VWit(i,w)) po
+  | UWit(i,_,w) -> insert_v_node (VN_UWit(i,w)) po
+  | EWit(i,_,w) -> insert_v_node (VN_EWit(i,w)) po
   | HApp(s,f,a) -> insert_v_node (VN_HApp(HO_Appl(s,f,a))) po
   | HDef(_,d)   -> add_valu po d.expr_def
   | UVar(_,v)   -> insert_v_node (VN_UVar(v)) po
@@ -526,8 +539,8 @@ let rec canonical_term : TPtr.t -> pool -> term * pool = fun p po ->
         | TN_FixY(b,pv)  -> let (v, po) = canonical_valu pv po in
                             (Pos.none (FixY(b,v)), po)
         | TN_Prnt(s)     -> (Pos.none (Prnt(s)), po)
-        | TN_UWit(w)     -> let (t,b) = w in (Pos.none (UWit(T,t,b)), po)
-        | TN_EWit(w)     -> let (t,b) = w in (Pos.none (EWit(T,t,b)), po)
+        | TN_UWit(i,w)   -> (Pos.none (UWit(i,T,w)), po)
+        | TN_EWit(i,w)   -> (Pos.none (EWit(i,T,w)), po)
         | TN_HApp(e)     -> let HO_Appl(s,f,a) = e in
                             (Pos.none (HApp(s,f,a)), po)
         | TN_UVar(v)     -> begin
@@ -560,9 +573,9 @@ and     canonical_valu : VPtr.t -> pool -> valu * pool = fun p po ->
                             let (m, po) = A.fold fn m (A.empty, po) in
                             (Pos.none (Reco(m)), po)
         | VN_Scis        -> (Pos.none Scis, po)
-        | VN_VWit(w)     -> let (f,a,b) = w in (Pos.none (VWit(f,a,b)), po)
-        | VN_UWit(w)     -> let (t,b) = w in (Pos.none (UWit(V,t,b)), po)
-        | VN_EWit(w)     -> let (t,b) = w in (Pos.none (EWit(V,t,b)), po)
+        | VN_VWit(i,w)   -> (Pos.none (VWit(i,w)), po)
+        | VN_UWit(i,w)   -> (Pos.none (UWit(i,V,w)), po)
+        | VN_EWit(i,w)   -> (Pos.none (EWit(i,V,w)), po)
         | VN_HApp(e)     -> let HO_Appl(s,f,a) = e in
                             (Pos.none (HApp(s,f,a)), po)
         | VN_UVar(v)     -> begin
@@ -805,7 +818,7 @@ let is_equal : pool -> Ptr.t -> Ptr.t -> bool = fun po p1 p2 ->
   if Ptr.compare p1 p2 = 0 then true else
   let (t1, po) = canonical p1 po in
   let (t2, po) = canonical p2 po in
-  log "test term equality %a = %a" Print.print_ex t1 Print.print_ex t2;
+  log "test term equality %a = %a" Print.ex t1 Print.ex t2;
   eq_expr t1 t2
 
 (* Equational context type. *)
@@ -820,8 +833,8 @@ type inequiv = term * term
 
 let eq_val : eq_ctxt -> valu -> valu -> bool = fun {pool} v1 v2 ->
   if v1.elt == v2.elt then true else begin
-  log2 "eq_val: inserting %a = %a in context\n%a" Print.print_ex v1
-          Print.print_ex v2 (print_pool "        ") pool;
+  log2 "eq_val: inserting %a = %a in context\n%a" Print.ex v1
+          Print.ex v2 (print_pool "        ") pool;
   let (p1, pool) = add_valu pool v1 in
   let (p2, pool) = add_valu pool v2 in
   log2 "eq_val: insertion at %a and %a" VPtr.print p1 VPtr.print p2;
@@ -829,13 +842,13 @@ let eq_val : eq_ctxt -> valu -> valu -> bool = fun {pool} v1 v2 ->
   if VPtr.compare p1 p2 = 0 then true else
   let (t1, pool) = canonical (Ptr.V_ptr p1) pool in
   let (t2, pool) = canonical (Ptr.V_ptr p2) pool in
-  log "eq_val: test %a = %a" Print.print_ex t1 Print.print_ex t2;
+  log "eq_val: test %a = %a" Print.ex t1 Print.ex t2;
   eq_expr t1 t2 end
 
 let eq_trm : eq_ctxt -> term -> term -> bool = fun {pool} t1 t2 ->
   if t1.elt == t2.elt then true else begin
-  log2 "eq_trm: inserting %a = %a in context\n%a" Print.print_ex t1
-          Print.print_ex t2 (print_pool "        ") pool;
+  log2 "eq_trm: inserting %a = %a in context\n%a" Print.ex t1
+          Print.ex t2 (print_pool "        ") pool;
   let (p1, pool) = add_term pool t1 in
   let (p2, pool) = add_term pool t2 in
   log2 "eq_trm: insertion at %a and %a" TPtr.print p1 TPtr.print p2;
@@ -843,14 +856,14 @@ let eq_trm : eq_ctxt -> term -> term -> bool = fun {pool} t1 t2 ->
   if TPtr.compare p1 p2 = 0 then true else
   let (t1, pool) = canonical (Ptr.T_ptr p1) pool in
   let (t2, pool) = canonical (Ptr.T_ptr p2) pool in
-  log "eq_trm: %a = %a" Print.print_ex t1 Print.print_ex t2;
+  log "eq_trm: %a = %a" Print.ex t1 Print.ex t2;
   eq_expr t1 t2 end
 
 (* Adds an equivalence to a context, producing a bigger context. The
    exception [Contradiction] is raised when expected. *)
 let add_equiv : equiv -> eq_ctxt -> eq_ctxt = fun (t,u) {pool} ->
-  log2 "add_equiv: inserting %a = %a in context\n%a" Print.print_ex t
-    Print.print_ex u (print_pool "        ") pool;
+  log2 "add_equiv: inserting %a = %a in context\n%a" Print.ex t
+    Print.ex u (print_pool "        ") pool;
   if eq_expr ~strict:true t u then
     begin
       log2 "add_equiv: trivial proof";
@@ -879,7 +892,7 @@ let add_vptr_nobox : VPtr.t -> pool -> pool = fun vp po ->
      PtrSet.fold reinsert nps po
 
 let add_nobox : valu -> pool -> pool = fun v po ->
-  log2 "add_nobox: inserting %a not box in context\n%a" Print.print_ex v
+  log2 "add_nobox: inserting %a not box in context\n%a" Print.ex v
     (print_pool "        ") po;
   let (vp, po) = add_valu po v in
   add_vptr_nobox vp po
@@ -887,8 +900,8 @@ let add_nobox : valu -> pool -> pool = fun v po ->
 (* Adds an inequivalence to a context, producing a bigger context. The
    exception [Contradiction] is raised when expected. *)
 let add_inequiv : inequiv -> eq_ctxt -> eq_ctxt = fun (t,u) {pool} ->
-  log2 "add_inequiv: inserting %a ≠ %a in context\n%a" Print.print_ex t
-    Print.print_ex u (print_pool "        ") pool;
+  log2 "add_inequiv: inserting %a ≠ %a in context\n%a" Print.ex t
+    Print.ex u (print_pool "        ") pool;
   if eq_expr ~strict:true t u then
     begin
       log2 "immediate contradiction";
@@ -919,8 +932,8 @@ let proj_eps : valu -> string -> valu = fun v l ->
                    (proj None (box v) (Pos.none l))
   in
   let bndr x = rest None unit_prod (eq x) in
-  Pos.none (EWit(V, Pos.none (Valu(Pos.none (Reco A.empty))),
-                 (None, unbox (vbind (mk_free V) "x" bndr))))
+  let t = Pos.none (Valu(Pos.none (Reco A.empty))) in
+  ewit V t (None, unbox (vbind (mk_free V) "x" bndr))
 
 let find_proj : pool -> valu -> string -> valu * pool = fun po v l ->
   try
@@ -968,44 +981,13 @@ let find_sum : pool -> valu -> (string * valu * pool) option = fun po v ->
 
 type relation = cond
 
-(* TODO #49 share with print.ml *)
-let print_relation = fun ch -> let open Printf in let open Print in
-  function
-    | Equiv(t,b,u) -> let sym = if b then "=" else "≠" in
-                      fprintf ch "%a %s %a" print_ex t sym print_ex u
-    | NoBox(v)     -> fprintf ch "%a↓" print_ex v
-    | Posit(o)     -> print_ex ch o
-
-(* TODO #49 share with print.ml *)
-let print_relation_pos : out_channel -> relation -> unit = fun ch c ->
-  match c with
-  | Equiv (t,b,u) ->
-     begin
-       match t.pos with
-       | None   -> Print.print_ex ch t
-       | Some p -> Printf.fprintf ch "(%a)" print_short_pos p
-     end;
-     output_string ch (if b then " = " else " ≠ ");
-     begin
-       match u.pos with
-       | None   -> Print.print_ex ch u
-       | Some p -> Printf.fprintf ch "(%a)" print_short_pos p
-     end
-  | NoBox(v) ->
-     begin
-       match v.pos with
-       | None   -> Print.print_ex ch v
-       | Some p -> Printf.fprintf ch "(%a)" print_short_pos p
-     end
-  | Posit _ -> assert false
-
 exception Failed_to_prove of relation
 let equiv_error : relation -> 'a =
   fun rel -> raise (Failed_to_prove rel)
 
 (* Adds no box to the bool *)
 let check_nobox : valu -> eq_ctxt -> bool * eq_ctxt = fun v {pool} ->
-  log2 "inserting %a not box in context\n%a" Print.print_ex v
+  log2 "inserting %a not box in context\n%a" Print.ex v
     (print_pool "        ") pool;
   let (vp, pool) = add_valu pool v in
   let (vp, pool) = find (Ptr.V_ptr vp) pool in
@@ -1015,7 +997,7 @@ let check_nobox : valu -> eq_ctxt -> bool * eq_ctxt = fun v {pool} ->
 
 (* Test whether a term is equivalent to a value or not. *)
 let is_value : term -> eq_ctxt -> bool * eq_ctxt = fun t {pool} ->
-  log2 "inserting %a not box in context\n%a" Print.print_ex t
+  log2 "inserting %a not box in context\n%a" Print.ex t
     (print_pool "        ") pool;
   let (pt, pool) = add_term pool t in
   log2 "insertion at %a" TPtr.print pt;
@@ -1024,7 +1006,7 @@ let is_value : term -> eq_ctxt -> bool * eq_ctxt = fun t {pool} ->
   let res = match pt with Ptr.V_ptr(_) -> true | Ptr.T_ptr(_) -> false in
   log2 "normalisation to %a" Ptr.print pt;
   log2 "obtained context:\n%a" (print_pool "        ") pool;
-  log "%a is%s a value" Print.print_ex t (if res then "" else " not");
+  log "%a is%s a value" Print.ex t (if res then "" else " not");
   (res, {pool})
 
 (* Test whether a term is equivalent to a value or not. *)
@@ -1038,7 +1020,7 @@ let to_value : term -> eq_ctxt -> valu option * eq_ctxt = fun t {pool} ->
   | Ptr.T_ptr(_) -> None, { pool }
 
 let learn : eq_ctxt -> relation -> eq_ctxt = fun ctx rel ->
-  log "learning %a" print_relation rel;
+  log "learning %a" Print.cond rel;
   try
     let ctx =
       match rel with
@@ -1048,13 +1030,13 @@ let learn : eq_ctxt -> relation -> eq_ctxt = fun ctx rel ->
       | NoBox(v) ->
          {pool = add_nobox v ctx.pool }
     in
-    log "learned  %a" print_relation rel; ctx
+    log "learned  %a" Print.cond rel; ctx
   with Contradiction ->
     log "contradiction in the context";
     raise Contradiction
 
 let prove : eq_ctxt -> relation -> eq_ctxt = fun ctx rel ->
-  log "proving  %a" print_relation rel;
+  log "proving  %a" Print.cond rel;
   try
     begin
       match rel with
@@ -1065,10 +1047,10 @@ let prove : eq_ctxt -> relation -> eq_ctxt = fun ctx rel ->
          let (b, ctx) = check_nobox v ctx in
          if b then raise Contradiction
     end;
-    log "failed to prove %a" print_relation rel;
+    log "failed to prove %a" Print.cond rel;
     equiv_error rel
   with Contradiction ->
-    log "proved   %a" print_relation rel;
+    log "proved   %a" Print.cond rel;
     ctx
 
 let learn ctx rel = Chrono.add_time equiv_chrono (learn ctx) rel
