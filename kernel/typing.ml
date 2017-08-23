@@ -901,17 +901,19 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
     (* Such that. *)
     | Such(_,_,r) ->
         let (a,v) = instantiate ctx r.binder in
-        let (b, t0) =
+        let (b,wopt) =
           match r.opt_var with
-          | SV_None    -> (c, Pos.none (Valu v))
-          | SV_Valu(v) -> (extract_vwit_type v, Pos.none (Valu v))
-          | SV_Stac(s) -> (extract_swit_type s, assert false)
+          | SV_None    -> (c                  , Some(t))
+          | SV_Valu(v) -> (extract_vwit_type v, Some(Pos.none (Valu v)))
+          | SV_Stac(s) -> (extract_swit_type s, None)
         in
         let _ =
           try
-            ignore(subtype ctx (Pos.none(Valu v)) b a);
+            match wopt with
+            | None   -> ignore(gen_subtype ctx b a)
+            | Some t -> ignore(subtype ctx t b a)
           with _ -> cannot_unify b a
-        in Typ_TSuch(type_valu ctx v c)
+       in Typ_TSuch(type_valu ctx v c)
     (* Witness. *)
     | VWit(_,a,_) ->
         let (b, equations) = check_nobox v ctx.equations in
@@ -1056,15 +1058,17 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
     (* Such that. *)
     | Such(_,_,r) ->
         let (a,t) = instantiate ctx r.binder in
-        let (b,t0) =
+        let (b,wopt) =
           match r.opt_var with
-          | SV_None    -> (c, t)
-          | SV_Valu(v) -> (extract_vwit_type v, Pos.none (Valu v))
-          | SV_Stac(s) -> (extract_swit_type s, assert false) (* FIXME *)
+          | SV_None    -> (c                  , Some(t))
+          | SV_Valu(v) -> (extract_vwit_type v, Some(Pos.none (Valu v)))
+          | SV_Stac(s) -> (extract_swit_type s, None)
         in
         let _ =
           try
-            ignore(subtype ctx t0 b a);
+            match wopt with
+            | None   -> ignore(gen_subtype ctx b a)
+            | Some t -> ignore(subtype ctx t b a)
           with _ -> cannot_unify b a
         in Typ_TSuch(type_term ctx t c)
     (* Definition. *)
