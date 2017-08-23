@@ -106,7 +106,25 @@ let rec ex : type a. a ex loc printer = fun ch e ->
   | Conv        -> output_string ch "∞"
   | Succ(o)     -> fprintf ch "%a+1" ex o
   | Coer(_,e,a) -> fprintf ch "(%a : %a)" ex e ex a
-  | Such(_,_,_) -> fprintf ch "(let ? such that ? in ?)" (* FIXME #58 *)
+  | Such(_,_,r) ->
+      output_string ch "let ";
+      let rec aux : type a b. (a, prop * b ex loc) bseq -> unit = fun seq ->
+        match seq with
+        | BLast(s,b) ->
+            let (x,(a,t)) = unbind (mk_free s) b in
+            fprintf ch "%s:%a s.t. " (name_of x) sort s;
+            let _ =
+              match r.opt_var with
+              | SV_None    -> output_string ch "_"
+              | SV_Valu(v) -> ex ch v
+              | SV_Stac(s) -> ex ch s
+            in
+            fprintf ch " : %a in %a" ex a ex t
+        | BMore(s,b) ->
+            let (x,seq) = unbind (mk_free s) b in
+            fprintf ch "%s:%a, " (name_of x) sort s;
+            aux seq
+      in aux r.binder
   | ITag(_,i)   -> fprintf ch "#%i" i
   | Dumm        -> output_string ch "∅"
   | VWit(i,_)   -> fprintf ch "ει%i" i
