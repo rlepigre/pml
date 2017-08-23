@@ -979,7 +979,11 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
         let (_, _, r) = type_valu ctx v c in r
     (* Application or strong application. *)
     | Appl(t,u)   ->
-        let a = new_uvar ctx P in
+        (* try to get the type of u. usefull in let syntactic sugar *)
+        let a = match (Norm.whnf t).elt with
+          | Valu{elt = LAbs(Some a, _)} -> a
+          | _ -> new_uvar ctx P
+        in
         let (is_val, ctx) = term_is_value u ctx in
         let ae = if is_val then Pos.none (Memb(u, a)) else a in
         let (p1,p2) =
@@ -1000,9 +1004,11 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
     (* Named term. *)
     | Name(pi,t)  ->
         let a = new_uvar ctx P in
-        let p1 = type_term ctx t a in
-        let p2 = type_stac ctx pi a in
-        Typ_Name(p1,p2)
+        (* type stack before seems better, generate subtyping
+           constraints in the correct direction *)
+        let p1 = type_stac ctx pi a in
+        let p2 = type_term ctx t a in
+        Typ_Name(p2,p1)
     (* Projection. *)
     | Proj(v,l)   ->
         let c = Pos.none (Prod(A.singleton l.elt (None, c))) in
