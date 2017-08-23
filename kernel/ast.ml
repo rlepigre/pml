@@ -211,8 +211,8 @@ and 'a box = 'a ex loc bindbox
 
 (** Sequence of functions to build and [bseq]. *)
 type (_,_) fseq =
-  | FLast : strloc * ('c var -> 'r bindbox  ) -> ('c     , 'r) fseq
-  | FMore : strloc * ('c var -> ('a,'r) fseq) -> ('c * 'a, 'r) fseq
+  | FLast : 'c sort * strloc * ('c var -> 'r bindbox  ) -> ('c     , 'r) fseq
+  | FMore : 'c sort * strloc * ('c var -> ('a,'r) fseq) -> ('c * 'a, 'r) fseq
 
 (** Binder substitution function. *)
 let bndr_subst : ('a, 'b) bndr -> 'a ex -> 'b ex loc =
@@ -347,21 +347,19 @@ let coer : type a. popt -> a v_or_t -> a box -> pbox -> a box =
   fun p t -> box_apply2 (fun e a -> Pos.make p (Coer(t,e,a)))
 
 let such : type a b. popt -> a v_or_t -> b desc -> such_var bindbox
-           -> (b, p ex loc * a ex loc) fseq -> a box =
-  let rec aux : type a c. c desc -> (c, p ex loc * a ex loc) fseq
-                  -> (c, p ex loc * a ex loc) bseq bindbox = fun d fs ->
-    match (d, fs) with
-    | (LastS(s,_)  , FLast(x,f)) ->
+           -> (b, prop * a ex loc) fseq -> a box =
+  let rec aux : type a c. (c, p ex loc * a ex loc) fseq
+      -> (c, prop * a ex loc) bseq bindbox = fun fs ->
+    match fs with
+    | FLast(s,x,f) ->
         box_apply (fun b -> BLast(s,b)) (vbind (mk_free s) x.elt f)
-    | (MoreS(s,_,d), FMore(x,f)) ->
-        let b = vbind (mk_free s) x.elt (fun x -> aux d (f x)) in
+    | FMore(s,x,f) ->
+        let b = vbind (mk_free s) x.elt (fun x -> aux (f x)) in
         box_apply (fun b -> BMore(s,b)) b
-    | (LastS(_,_)  , FMore(_,_)) -> .
-    | (MoreS(_,_,_), FLast(_,_)) -> assert false (* . *)
   in
   fun p t d sv f ->
     let fn sv b = Pos.make p (Such(t,d,{opt_var = sv; binder = b})) in
-    box_apply2 fn sv (aux d f)
+    box_apply2 fn sv (aux f)
 
 let sv_none : such_var bindbox =
   box SV_None

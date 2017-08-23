@@ -1012,14 +1012,14 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
                   let e = to_v_or_t vot (unsugar env vars r (Pos.none s)) in
                   Bindlib.box_pair a e
                 in
-                FLast(x, fn)
+                FLast(sx, x, fn)
             | MoreS(sy, y, d) ->
                 let fn yy =
                   let yy = (y.pos, Box(sy, vari y.pos yy)) in
                   let vars = M.add y.elt yy vars in
                   build_seq vot vars d
                 in
-                FMore(y, fn)
+                FMore(sy, y, fn)
         in
         let sv =
           match var with

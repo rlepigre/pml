@@ -306,8 +306,23 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
                          | SV_Valu(v) -> sv_valu (bind_all v)
                          | SV_Stac(s) -> sv_stac (bind_all s)
                        in
-                       let f = assert false in (* FIXME #58 *)
-                       such e.pos t d sv f
+                       let rec aux : type a b. (a, prop * b ex loc) bseq
+                           -> (a, prop * b ex loc) fseq =
+                         fun b ->
+                           match b with
+                           | BLast(s,b) ->
+                               let x = binder_name b in
+                               let f x =
+                                 let (p,e) = subst b (mk_free s x) in
+                                 box_pair (bind_all p) (bind_all e)
+                               in
+                               FLast(s, Pos.none x, f)
+                           | BMore(s,b) ->
+                               let x = binder_name b in
+                               let f x = aux (subst b (mk_free s x)) in
+                               FMore(s, Pos.none x, f)
+                       in
+                       such e.pos t d sv (aux r.binder)
 
       | Epsi        -> box e
       | Push(v,s)   -> push e.pos (bind_all v) (bind_all s)
