@@ -7,15 +7,11 @@ open Ast
 open Output
 open Printf
 
+(* Indicate whether to print the definition of witnesses. *)
+let print_full = ref false
+
 let print_map : (string * 'a) printer -> string -> 'a A.t printer =
   fun pelem sep ch m -> print_list pelem sep ch (A.bindings m)
-
-let is_tuple ls =
-  try
-    for i = 1 to List.length ls do
-      if not (List.mem_assoc (string_of_int i) ls) then raise Exit
-    done; true
-  with Exit -> false
 
 let rec print_sort : type a. a sort printer = fun ch s ->
   match s with
@@ -24,60 +20,8 @@ let rec print_sort : type a. a sort printer = fun ch s ->
   | S      -> output_string ch "σ"
   | P      -> output_string ch "ο"
   | O      -> output_string ch "κ"
-  | F(a,b) -> if match a with F(_,_) -> true | _ -> false then
-                fprintf ch "(%a) → %a" print_sort a print_sort b
-              else
-                fprintf ch "%a → %a" print_sort a print_sort b
-
-let print_full = ref false
-
-let cname : type a. a ex loc -> string = fun e ->
-  match e.elt with
-  | Vari _ -> "Vari"
-  | HFun _ -> "HFun"
-  | HApp _ -> "HApp"
-  | HDef _ -> "HDef"
-  | Func _ -> "Func"
-  | Prod _ -> "Prod"
-  | DSum _ -> "DSum"
-  | Univ _ -> "Univ"
-  | Exis _ -> "Exis"
-  | FixM _ -> "FixM"
-  | FixN _ -> "FixN"
-  | Memb _ -> "Memb"
-  | Rest _ -> "Rest"
-  | Impl _ -> "Impl"
-  | LAbs _ -> "LAbs"
-  | Cons _ -> "Cons"
-  | Reco _ -> "Reco"
-  | Scis   -> "Scis"
-  | VDef _ -> "VDef"
-  | Valu _ -> "Valu"
-  | Appl _ -> "Appl"
-  | MAbs  _ -> "MAbs "
-  | Name _ -> "Name"
-  | Proj _ -> "Proj"
-  | Case _ -> "Case"
-  | FixY _ -> "FixY"
-  | Prnt _ -> "Prnt"
-  | Epsi   -> "Epsi"
-  | Push _ -> "Push"
-  | Fram _ -> "Fram"
-  | Conv   -> "Conv"
-  | Succ _ -> "Succ"
-  | OWMu _ -> "OWMu"
-  | OWNu _ -> "OWNu"
-  | OSch _ -> "OSch"
-  | Coer _ -> "Coer"
-  | Such _ -> "Such"
-  | ITag _ -> "ITag"
-  | Dumm   -> "Dumm"
-  | VWit _ -> "VWit"
-  | SWit _ -> "SWit"
-  | UWit _ -> "UWit"
-  | EWit _ -> "EWit"
-  | UVar _ -> "UVar"
-  | Goal _ -> "Goal"
+  | F(a,b) -> let (l,r) = match a with F(_,_) -> ("(",")") | _ -> ("","") in
+              fprintf ch "%s%a%s → %a" l print_sort a r print_sort b
 
 let print_ex : type a. a ex loc printer = fun ch e ->
   let adone = Ahash.create 101 in
