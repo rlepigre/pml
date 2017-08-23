@@ -901,15 +901,15 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
     (* Such that. *)
     | Such(_,_,r) ->
         let (a,v) = instantiate ctx r.binder in
-        let b =
+        let (b, t0) =
           match r.opt_var with
-          | SV_None    -> c
-          | SV_Valu(v) -> extract_vwit_type v
-          | SV_Stac(s) -> extract_swit_type s
+          | SV_None    -> (c, Pos.none (Valu v))
+          | SV_Valu(v) -> (extract_vwit_type v, Pos.none (Valu v))
+          | SV_Stac(s) -> (extract_swit_type s, assert false)
         in
         let _ =
           try
-            ignore(gen_subtype ctx b a);
+            ignore(subtype ctx (Pos.none(Valu v)) b a);
           with _ -> cannot_unify b a
         in Typ_TSuch(type_valu ctx v c)
     (* Witness. *)
@@ -1056,15 +1056,15 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
     (* Such that. *)
     | Such(_,_,r) ->
         let (a,t) = instantiate ctx r.binder in
-        let b =
+        let (b,t0) =
           match r.opt_var with
-          | SV_None    -> c
-          | SV_Valu(v) -> extract_vwit_type v
-          | SV_Stac(s) -> extract_swit_type s
+          | SV_None    -> (c, t)
+          | SV_Valu(v) -> (extract_vwit_type v, Pos.none (Valu v))
+          | SV_Stac(s) -> (extract_swit_type s, assert false) (* FIXME *)
         in
         let _ =
           try
-            ignore(gen_subtype ctx b a);
+            ignore(subtype ctx t0 b a);
           with _ -> cannot_unify b a
         in Typ_TSuch(type_term ctx t c)
     (* Definition. *)

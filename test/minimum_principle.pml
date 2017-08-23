@@ -34,19 +34,22 @@ val rec leq_size : ∀o, ∀m∈snat<o+1>, ∀n∈nat, either<leq m n ≡ true, 
   }
 
 
-// val rec fn : ∀o, ∀f∈(nat ⇒ nat), total<f,nat> ⇒ ∀n∈nat, ∀q∈(snat<o> | q ≡ f n),
-//     (∀n∈ nat, min<n,f> ⇒ bot) ⇒ bot =
-//   fun f ft n q k {
-//     let o such that q : snat<o> in
-//     k (n:nat) (fun p {
-//         let _ = ft p in
-//         let _ = leq_total q (f p) in
-//         case (leq_size q (f p) : either<leq q (f p) ≡ true, n∈snat<o>>) {
-//           InL     → {}
-//           InR[fp] → fn f ft p fp k
-//         }} : min<n,f>)
-//   }
+val rec fn : ∀o, ∀f∈(nat ⇒ nat), total<f,nat> ⇒ ∀n∈nat, ∀q∈(snat<o> | q ≡ f n),
+    (∀n∈ nat, min<n,f> ⇒ bot) ⇒ bot =
+  fun f ft n q k {
+    let o such that q : snat<o+1> in
+    k (n:nat) (fun p {
+        let _ = ft p in
+        let _ = leq_total q (f p) in
+        case leq_size (q:snat<o+1>) (f p) {
+          InL     → {}
+          InR[fp] → fn f ft p fp k
+        }} : min<n,f>)
+  }
 
 
 //val minimum_principle : ∀f∈(nat ⇒ nat), total<f,nat> ⇒ ∃n:ι, min<n,f> =
-//  fun f ft → save ct →
+//  fun f ft { save ct {
+//      let ct : ∀n∈ nat, min<n,f> ⇒ bot = fun n mi { restore ct mi } in
+//        ((fn f ft Z) : ∀q∈(nat | q ≡ f Z),
+//    (∀n∈ nat, min<n,f> ⇒ bot) ⇒ bot ) (f Z) ct}}
