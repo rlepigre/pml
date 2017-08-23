@@ -33,14 +33,13 @@ val rec leq_size : ∀o, ∀m∈snat<o+1>, ∀n∈nat, either<leq m n ≡ true, 
       }
   }
 
-
-val rec fn : ∀o, ∀f∈(nat ⇒ nat), total<f,nat> ⇒ ∀n∈nat, ∀q∈(snat<o> | q ≡ f n),
+val rec fn : ∀f∈(nat ⇒ nat), total<f,nat> ⇒ ∀n∈nat, ∀q∈(nat | q ≡ f n),
     (∀n∈ nat, min<n,f> ⇒ bot) ⇒ bot =
   fun f ft n q k {
     let o such that q : snat<o+1> in
     k (n:nat) (fun p {
-        let _ = ft p in
-        let _ = leq_total q (f p) in
+        use {ft p};
+        use {leq_total q (f p)};
         case leq_size (q:snat<o+1>) (f p) {
           InL     → {}
           InR[fp] → fn f ft p fp k
