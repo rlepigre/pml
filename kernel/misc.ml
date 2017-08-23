@@ -83,8 +83,23 @@ let (lift, lift_cond) =
                                | SV_Valu(v) -> sv_valu (lift v)
                                | SV_Stac(s) -> sv_stac (lift s)
                              in
-                             let f = assert false in (* FIXME #58 *)
-                             such e.pos t d sv f
+                             let rec aux : type a b. (a, prop * b ex loc) bseq
+                                 -> (a, prop * b ex loc) fseq =
+                               fun b ->
+                                 match b with
+                                 | BLast(s,b) ->
+                                     let x = binder_name b in
+                                     let f x =
+                                       let (p,e) = subst b (mk_free s x) in
+                                       box_pair (lift p) (lift e)
+                                     in
+                                     FLast(s, Pos.none x, f)
+                                 | BMore(s,b) ->
+                                     let x = binder_name b in
+                                     let f x = aux (subst b (mk_free s x)) in
+                                     FMore(s, Pos.none x, f)
+                             in
+                             such e.pos t d sv (aux r.binder)
 
             | Valu(v)     -> valu e.pos (lift v)
             | Appl(t,u)   -> appl e.pos (lift t) (lift u)
