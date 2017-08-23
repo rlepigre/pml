@@ -67,8 +67,8 @@ let rec ex : type a. a ex loc printer = fun ch e ->
   | Memb(t,a)   -> let (l,r) = if is_arrow a then ("(",")") else ("","") in
                    fprintf ch "%a ∈ %s%a%s" ex t l ex a r
   | Rest(a,e)   -> let (l,r) = if is_arrow a then ("(",")") else ("","") in
-                   fprintf ch "(%s%a%s | %a)" l ex a r cond e
-  | Impl(e,a)   -> fprintf ch "%a ↪ %a" cond e ex a
+                   fprintf ch "(%s%a%s | %a)" l ex a r rel e
+  | Impl(e,a)   -> fprintf ch "%a ↪ %a" rel e ex a
   | LAbs(ao,b)  -> let (x,t) = unbind (mk_free V) (snd b) in
                    begin
                      match ao with
@@ -119,7 +119,7 @@ let rec ex : type a. a ex loc printer = fun ch e ->
   | UVar(_,u)   -> fprintf ch "?%i" u.uvar_key
   | Goal(_,s)   -> fprintf ch "{- %s -}" s
 
-and cond ch cnd =
+and rel ch cnd =
   let eq b = if b then "=" else "≠" in
     match cnd with
     | Equiv(t,b,u) -> fprintf ch "%a %s %a" ex t (eq b) ex u

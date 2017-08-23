@@ -978,11 +978,8 @@ let find_sum : pool -> valu -> (string * valu * pool) option = fun po v ->
          | _ -> raise Not_found
   with Not_found -> None
 
-
-type relation = cond
-
-exception Failed_to_prove of relation
-let equiv_error : relation -> 'a =
+exception Failed_to_prove of rel
+let equiv_error : rel -> 'a =
   fun rel -> raise (Failed_to_prove rel)
 
 (* Adds no box to the bool *)
@@ -1019,8 +1016,8 @@ let to_value : term -> eq_ctxt -> valu option * eq_ctxt = fun t {pool} ->
      Some v, { pool }
   | Ptr.T_ptr(_) -> None, { pool }
 
-let learn : eq_ctxt -> relation -> eq_ctxt = fun ctx rel ->
-  log "learning %a" Print.cond rel;
+let learn : eq_ctxt -> rel -> eq_ctxt = fun ctx rel ->
+  log "learning %a" Print.rel rel;
   try
     let ctx =
       match rel with
@@ -1030,13 +1027,13 @@ let learn : eq_ctxt -> relation -> eq_ctxt = fun ctx rel ->
       | NoBox(v) ->
          {pool = add_nobox v ctx.pool }
     in
-    log "learned  %a" Print.cond rel; ctx
+    log "learned  %a" Print.rel rel; ctx
   with Contradiction ->
     log "contradiction in the context";
     raise Contradiction
 
-let prove : eq_ctxt -> relation -> eq_ctxt = fun ctx rel ->
-  log "proving  %a" Print.cond rel;
+let prove : eq_ctxt -> rel -> eq_ctxt = fun ctx rel ->
+  log "proving  %a" Print.rel rel;
   try
     begin
       match rel with
@@ -1047,10 +1044,10 @@ let prove : eq_ctxt -> relation -> eq_ctxt = fun ctx rel ->
          let (b, ctx) = check_nobox v ctx in
          if b then raise Contradiction
     end;
-    log "failed to prove %a" Print.cond rel;
+    log "failed to prove %a" Print.rel rel;
     equiv_error rel
   with Contradiction ->
-    log "proved   %a" Print.cond rel;
+    log "proved   %a" Print.rel rel;
     ctx
 
 let learn ctx rel = Chrono.add_time equiv_chrono (learn ctx) rel

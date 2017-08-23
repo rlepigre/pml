@@ -48,9 +48,9 @@ type _ ex =
   (** Coinductive type with an ordinal size. *)
   | Memb : t ex loc * p ex loc                       -> p  ex
   (** Membership type. *)
-  | Rest : p ex loc * cond                           -> p  ex
+  | Rest : p ex loc * rel                            -> p  ex
   (** Restriction type. *)
-  | Impl : cond * p ex loc                           -> p  ex
+  | Impl : rel * p ex loc                            -> p  ex
   (** Conditional implication. *)
 
   (* Value constructors. *)
@@ -132,7 +132,7 @@ type _ ex =
   (** Unification variable. *)
   | Goal : 'a sort * string                          -> 'a ex
 
-and cond =
+and rel =
   | Equiv of (t ex loc * bool * t ex loc)
   (** Equivalence between terms. *)
   | Posit of o ex loc
@@ -257,8 +257,6 @@ type tbox = t box    (** Term    bindbox type. *)
 type sbox = s box    (** Stack   bindbox type. *)
 type pbox = p box    (** Type    bindbox type. *)
 type obox = o box    (** Ordinal bindbox type. *)
-
-type condbox = cond bindbox
 
 (** {6 Smart constructors} *)
 
@@ -425,22 +423,22 @@ let fixn : popt -> obox -> strloc -> (pvar -> pbox) -> pbox =
 let memb : popt -> tbox -> pbox -> pbox =
   fun p -> box_apply2 (fun t a -> Pos.make p (Memb(t,a)))
 
-let rest : popt -> pbox -> condbox -> pbox =
+let rest : popt -> pbox -> rel bindbox -> pbox =
   fun p -> box_apply2 (fun a c -> Pos.make p (Rest(a,c)))
 
-let impl : popt -> condbox -> pbox -> pbox =
+let impl : popt -> rel bindbox -> pbox -> pbox =
   fun p -> box_apply2 (fun c a -> Pos.make p (Impl(c,a)))
 
 (** {5 Condition constructors} *)
 
-let equiv : tbox -> bool -> tbox -> condbox =
+let equiv : tbox -> bool -> tbox -> rel bindbox =
   fun t b u ->
     box_apply2 (fun t u -> Equiv(t,b,u)) t u
 
-let posit : obox -> condbox =
+let posit : obox -> rel bindbox =
   box_apply (fun o -> Posit(o))
 
-let nobox : vbox -> condbox =
+let nobox : vbox -> rel bindbox =
   box_apply (fun v -> NoBox(v))
 
 (** {5 Ordinal constructors} *)

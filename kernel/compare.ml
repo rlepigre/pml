@@ -150,7 +150,7 @@ let uvar_occurs : type a b. a uvar -> b ex loc -> bool = fun u e ->
 let nb_vis_uvars a =
   List.length (uvars ~ignore_epsilon:true ~ignore_fixpoint:true a)
 
-let uvar_occurs_cond : type a. a uvar -> cond -> bool = fun u c ->
+let uvar_occurs_rel : type a. a uvar -> rel -> bool = fun u c ->
   match c with
   | Equiv(t,_,s) -> uvar_occurs u t || uvar_occurs u s
   | NoBox(v)     -> uvar_occurs u v;
@@ -351,11 +351,11 @@ let {eq_expr; eq_bndr; eq_ombinder} =
        let rec remove_occur_check : type a. a ex loc -> a ex loc = fun b ->
          let b = Norm.whnf b in
          match b.elt with
-         | Impl(c,e) when uvar_occurs_cond u1 c
+         | Impl(c,e) when uvar_occurs_rel u1 c
              -> remove_occur_check e
          | Func({elt = Memb(t,a)}, b) when uvar_occurs u1 t
            -> remove_occur_check (Pos.none (Func(a,b)))
-         | Func({elt = Rest(a,c)}, b) when uvar_occurs_cond u1 c
+         | Func({elt = Rest(a,c)}, b) when uvar_occurs_rel u1 c
            -> remove_occur_check (Pos.none (Func(a,b)))
          | _ -> b (* NOTE #48: more cases are possible *)
        in
@@ -365,13 +365,12 @@ let {eq_expr; eq_bndr; eq_ombinder} =
        let rec remove_occur_check : type a. a ex loc -> a ex loc = fun b ->
          let b = Norm.whnf b in
          match b.elt with
-         | Rest(e,c) when uvar_occurs_cond u2 c
-             -> remove_occur_check e
-         | Memb(t,a) when uvar_occurs u2 t
-           -> remove_occur_check a
-         | Func({elt = Impl(c,a)}, b) when uvar_occurs_cond u2 c
-           ->
-            remove_occur_check (Pos.none (Func(a,b)))
+         | Rest(e,c) when uvar_occurs_rel u2 c ->
+             remove_occur_check e
+         | Memb(t,a) when uvar_occurs u2 t     ->
+             remove_occur_check a
+         | Func({elt = Impl(c,a)}, b) when uvar_occurs_rel u2 c ->
+             remove_occur_check (Pos.none (Func(a,b)))
          | _ -> b (* NOTE #48: more cases are possible *)
        in
        let e1 = remove_occur_check e1 in

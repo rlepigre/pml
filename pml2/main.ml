@@ -250,7 +250,7 @@ let _ =
       err_msg "Reachable scissors"
   | Equiv.Failed_to_prove(rel)  ->
       err_msg "Failed to prove an equational relation.";
-      err_msg "  %a" Print.cond rel
+      err_msg "  %a" Print.rel rel
   | Check_failed(a,n,b) ->
       let (l,r) = if n then ("","") else ("¬(",")") in
       err_msg "Failed to prove a subtyping relation.";
