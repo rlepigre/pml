@@ -1147,6 +1147,17 @@ let euniv_in _loc x xs a b =
   in
   p (EUniv((x,xs),p SV,c))
 
+let eexis_in _loc x xs a b =
+  let p x = Pos.in_pos _loc x in
+  let l = List.map (fun x -> p (EMemb(p (EVari(x,[])), a))) (x::xs) in
+  let c = tuple_type _loc (l @ [b]) in
+  (* Alternatives, only with pair
+  let c = List.fold_right (fun x c ->
+    tuple_type _loc [p (EMemb(p (EVari(x,[])), a)); c]) (x::xs) b
+  in
+  *)
+  p (EExis((x,xs),p SV,c))
+
 let esett _loc x a =
   let a = Pos.none (EMemb(Pos.make x.pos (EVari(x,[])), a)) in
   in_pos _loc (EExis((x,[]), _sv, a))

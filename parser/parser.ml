@@ -207,6 +207,10 @@ let parser expr (m : mode) =
   | "∃" x:llid xs:llid* s:{':' s:sort}? ',' a:(expr (`Prp`F))
       when m = `Prp`F
       -> eexis _loc x xs s a
+  (* Proposition (dependent pair) *)
+  | "∃" x:llid xs:llid* "∈" a:(expr (`Prp`F)) ',' b:(expr (`Prp`F))
+      when m = `Prp`F
+      -> eexis_in _loc x xs a b
   (* Proposition (set type) *)
   | "{" x:llid "∈" a:(expr (`Prp`F)) "}"
       when m = `Prp`A

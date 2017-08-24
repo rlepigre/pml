@@ -48,12 +48,12 @@ val rec fn : ∀f∈(nat ⇒ nat), total<f,nat> ⇒ ∀n∈nat, ∀q∈(nat | q 
 
 type prod<a,b> = {fst : a ; snd : b }
 
-val minimum_principle : ∀f∈(nat ⇒ nat), total<f,nat> ⇒ ∃n:ι, (prod<n∈nat, min<n,f>>) =
+val minimum_principle : ∀f∈(nat ⇒ nat), total<f,nat> ⇒ ∃n∈nat, min<n,f> =
   fun f ft {
     save s {
       let k : ∀n∈ nat, min<n,f> ⇒ bot =
         fun n mi {
-          restore s ({ fst = n; snd=mi }:prod<n∈nat, min<n,f>>)
+          restore s ((n, mi):n∈nat × min<n,f>)
         }
       in
       use { ft Z };
