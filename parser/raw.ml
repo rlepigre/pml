@@ -953,27 +953,37 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
     | (EFixY(v)     , SV       ) ->
         begin
           match v.elt with
-          | ELAbs(((x,ao), []   ), t) ->
-              if ao <> None then assert false; (* FIXME #46 *)
+          | ELAbs(((x,ao), l), t) ->
+              let t =
+                match l with
+                | []    -> t
+                | y::ys -> Pos.none (ELAbs((y,ys), t))
+              in
               let fn xx =
                 let xx = (x.pos, Box(V, vari x.pos xx)) in
                 let vars = M.add x.elt xx vars in
                 to_term (unsugar env vars t _st)
               in
               let fn xx = fixy e.pos x fn (vari None xx) in
-              Box(V, labs e.pos None (Pos.none "x") fn)
-          | ELAbs(((x,ao), y::ys), t) ->
-              if ao <> None then assert false; (* FIXME #46 *)
-              let t = Pos.none (ELAbs((y,ys), t)) in
-              let fn xx =
-                let xx = (x.pos, Box(V, vari x.pos xx)) in
-                let vars = M.add x.elt xx vars in
-                to_term (unsugar env vars t _st)
+              let fix = labs e.pos None (Pos.none "x") fn in
+              let fix =
+                match ao with
+                | None -> fix
+                | Some k ->
+                   let k = to_prop (unsugar env vars k _sp) in
+                   coer v.pos VoT_V fix k
               in
-              let fn xx = fixy e.pos x fn (vari None xx) in
-              Box(V, labs e.pos None (Pos.none "x") fn)
+              Box(V,fix)
           | _                         ->
-              assert false (* FIXME #46 *)
+             (* perform eta expansion to force
+                abs under fixpoint *)
+             let x = Pos.none "x" in
+             let fn xx = appl v.pos (to_term (unsugar env vars v _st))
+                              (valu None (vari None xx))
+             in
+             let fn xx = fixy e.pos x fn (vari None xx) in
+             let fix = labs e.pos None x fn in
+             Box(V,fix)
         end
     | (EFixY(_)     , ST       ) ->
         let v = to_valu (unsugar env vars e _sv) in
