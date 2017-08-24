@@ -9,6 +9,11 @@ open Raw
 (* Definition of the [locate] function used by [Earley]. *)
 #define LOCATE locate
 
+(* check if a location is only one line *)
+let same_line _loc1 _loc2 =
+  if _loc1.start_line <> _loc2.end_line
+  then give_up ()
+
 (* Parser of a list separated by a given string. *)
 let lsep s elt =
   parser
@@ -161,7 +166,8 @@ type mode = [`Any | `Prp of p_prio | `Trm of t_prio | `Stk | `Ord ]
 (* Parser for expressions. *)
 let parser bloc (m : mode * unit grammar) =
   | '{' t:(expr (`Trm`F)) '}' when fst m = `Trm`A || fst m = `Trm`I -> t
-  | (snd m) t:(expr (`Trm`R)) when fst m = `Trm`R || fst m = `Trm`I -> t
+  | p:(snd m) t:(expr (`Trm`R)) when fst m = `Trm`R || fst m = `Trm`I ->
+     same_line _loc_p _loc_t; t
 
 and expr (m : mode) =
   (* Any (higher-order function) *)
