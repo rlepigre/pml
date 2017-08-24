@@ -161,7 +161,11 @@ type mode = [`Any | `Prp of p_prio | `Trm of t_prio | `Stk | `Ord ]
 (* Parser for expressions. *)
 let parser bloc (m : mode) =
   | '{' t:(expr (`Trm`F)) '}' when m = `Trm`A || m = `Trm`I -> t
-  | t:(expr (`Trm`P))         when m = `Trm`R || m = `Trm`I -> t
+  | t:(expr (`Trm`R))         when m = `Trm`R || m = `Trm`I -> t
+
+and fbloc (m : mode) =
+  | '{' t:(expr (`Trm`F)) '}' when m = `Trm`A || m = `Trm`I -> t
+  | arrow t:(expr (`Trm`R))   when m = `Trm`R || m = `Trm`I -> t
 
 and expr (m : mode) =
   (* Any (higher-order function) *)
@@ -256,8 +260,7 @@ and expr (m : mode) =
       when m = `Trm`A
       -> in_pos _loc (EVari(id, args))
   (* Term (lambda abstraction) *)
-  | _fun_ args:arg+ '{' t:(expr (`Trm`F)) '}'
-      when m = `Trm`F
+  | _fun_ args:arg+ t:(fbloc m)
       -> in_pos _loc (ELAbs((List.hd args, List.tl args),t))
   (* Term (constructor) *)
   | c:luid t:{"[" t:(expr (`Trm`F)) "]"}?
@@ -296,8 +299,7 @@ and expr (m : mode) =
       when m = `Trm`S
       -> in_pos _loc (ESequ(t,u))
   (* Term (mu abstraction) *)
-  | _save_ args:llid+ '{' t:(expr (`Trm`F)) '}'
-      when m = `Trm`F
+  | _save_ args:llid+ t:(fbloc m)
       -> in_pos _loc (EMAbs((List.hd args, List.tl args),t))
   (* Term (name) *)
   | _restore_ s:(expr `Stk) t:(expr (`Trm`A))

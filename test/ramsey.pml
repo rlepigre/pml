@@ -19,9 +19,9 @@ type cstream_f<o,f,a> = {hd : col_f<f,a>; tl : stream_f<o,f,a>}
 
 def total<f, a> : ο = ∀x∈a, ∃y:ι, f x ≡ y
 
-val abort : ∀y, (∀x,x) ⇒ y = fun x { x }
+val abort : ∀y, (∀x,x) ⇒ y = fun x → x
 
-def to_term<s:σ> = fun x { abort (restore s x) }
+def to_term<s:σ> = fun x → abort (restore s x)
 
 val rec aux : ∀o1 o2, ∀a, ∀f∈(a⇒bool), total<f,a>
              ⇒ (cstream_t<o1,f,a> ⇒ ∀x,x)
@@ -33,11 +33,9 @@ val rec aux : ∀o1 o2, ∀a, ∀f∈(a⇒bool), total<f,a>
     let tl = c.tl in
     use ft hd;
     if f hd then {
-      ct { hd = hd; tl = fun _ {
-        save ct { abort (aux f ft to_term<ct> cf c.tl) } } }
+      ct { hd = hd; tl = fun _ → save ct → abort (aux f ft to_term<ct> cf c.tl)}
     } else {
-      cf { hd = hd; tl = fun _ {
-        save cf { abort (aux f ft ct to_term<cf> c.tl) } } }
+      cf { hd = hd; tl = fun _ → save cf → abort (aux f ft ct to_term<cf> c.tl)}
     }
   }
 

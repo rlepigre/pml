@@ -38,8 +38,8 @@ val rec fn : ∀f∈(nat ⇒ nat), total<f,nat> ⇒ ∀n∈nat, ∀q∈(nat | q 
   fun f ft n q k {
     let o such that q : snat<o+1> in
     k (n:nat) (fun p {
-        use {ft p};
-        use {leq_total q (f p)};
+        use ft p;
+        use leq_total q (f p);
         case leq_size (q:snat<o+1>) (f p) {
           InL     → {}
           InR[fp] → fn f ft p fp k
@@ -52,11 +52,9 @@ val minimum_principle : ∀f∈(nat ⇒ nat), total<f,nat> ⇒ ∃n∈nat, min<n
   fun f ft {
     save s {
       let k : ∀n∈ nat, min<n,f> ⇒ bot =
-        fun n mi {
-          restore s ((n, mi):n∈nat × min<n,f>)
-        }
+        fun n mi → restore s ((n, mi):n∈nat × min<n,f>)
       in
-      use { ft Z };
+      use ft Z;
       fn f ft Z (f Z) k
     }
   }
