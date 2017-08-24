@@ -32,7 +32,7 @@ val rec aux : ∀o1 o2, ∀a, ∀f∈(a⇒bool), total<f,a>
     let hd = c.hd in
     let tl = c.tl in
     use { ft hd };
-    if f hd {
+    if f hd then {
       ct { hd = hd; tl = fun _ {
         save ct { abort (aux f ft to_term<ct> cf c.tl) } } }
     } else {
@@ -88,7 +88,7 @@ val ramsey2 : ∀a, ∀f∈(a ⇒ a ⇒ bool), stream<a>
     let a such that f : a ⇒ a ⇒ bool in
     let color1 : color<a> = fun a1 s {
       let color2 : color<a> = fun a2 s {
-          if f a1 a2 { inl s } else { inr s } } in
+          if f a1 a2 then inl s else inr s } in
       infinite_tape2 color2 s // could use infinite_tape here
     } in
     infinite_tape2 color1 s

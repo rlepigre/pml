@@ -145,9 +145,9 @@ val rec mul_comm : ∀n m∈nat, mul n m ≡ mul m n =
 val rec mul_comm : ∀n m∈nat, mul n m ≡ mul m n =
   fun n m {
     case n {
-      Zero    → deduce { mul Zero m ≡ Zero };
+      Zero    → deduce mul Zero m ≡ Zero;
                 show mul m Zero ≡ Zero using { mul_n_zero m }
-      Succ[k] → deduce { mul Succ[k] m ≡ add m (mul k m) } ;
+      Succ[k] → deduce mul Succ[k] m ≡ add m (mul k m);
                 show mul k m ≡ mul m k using { mul_comm k m };
                 show mul m Succ[k] ≡ add (mul m k) m using { mul_succ m k };
                 show ∃v:ι, mul k m ≡ v using { mul_total k m };
@@ -249,9 +249,8 @@ val rec insert : ∀a:ο, ord<a> ⇒ a ⇒ list<a> ⇒ list<a> =
     case l {
       Nil[_]  → Cons[{hd = x; tl = Nil}]
       Cons[c] → let hd = c.hd in let tl = c.tl in
-                if o.cmp x hd {
-                  Cons[{hd = x ; tl = l}]
-                } else {
+                if o.cmp x hd then Cons[{hd = x ; tl = l}]
+                else {
                   let tl = insert o x tl in
                   Cons[{hd = hd ; tl = tl}]
                 }
@@ -288,7 +287,7 @@ val rec insert_total : ∀a:ο, ∀o∈ord<a>, ∀x∈a, ∀l∈list<a>,
       Nil      → {}
       Cons[c1] → let hd = c1.hd in let tl = c1.tl in
                  let lem = o.tot x hd in
-                 if o.cmp x hd { {} }
+                 if o.cmp x hd then {}
                  else { let ih = insert_total o x tl in {} }
     }
   }
@@ -310,7 +309,7 @@ val rec isorted : ∀a:ο, ∀o∈ord<a>, ∀x∈a, ∀l∈slist<a,o>,
       Nil[_]   → {}
       Cons[c1] →
        let lem = o.tot x c1.hd in
-       if o.cmp x c1.hd { {} }
+       if o.cmp x c1.hd then {}
        else {
          let lem = o.tot c1.hd x in
          let lem = o.dis x c1.hd in
@@ -320,12 +319,10 @@ val rec isorted : ∀a:ο, ∀o∈ord<a>, ∀x∈a, ∀l∈slist<a,o>,
              let lem = insert_total o x c2.tl in
              let lem = o.tot c1.hd c2.hd in
              let lem = o.tot x c2.hd in
-             if o.cmp c1.hd c2.hd {
+             if o.cmp c1.hd c2.hd then {
                let lem = isorted o x c1.tl in
-               if o.cmp x c2.hd { {} } else { {} }
-             } else {
-               ✂
-             }
+               if o.cmp x c2.hd then {} else {}
+             } else ✂
          }
        }
     }
@@ -353,7 +350,7 @@ val rec exists : ∀a, (a ⇒ bool) ⇒ list<a> ⇒ bool =
   fun pred l {
     case l {
       Nil     → false
-      Cons[c] → if pred c.hd { true } else { exists pred c.tl }
+      Cons[c] → if pred c.hd then true else exists pred c.tl
     }
   }
 
@@ -366,8 +363,7 @@ val rec find : ∀a:ο, ∀pred∈(a ⇒ bool), total<pred,a> ⇒
     case l {
       Nil[_]  → exc {}
       Cons[c] → let lem = pred_tot c.hd in
-                if pred c.hd { c.hd }
-                else { find pred pred_tot c.tl exc }
+                if pred c.hd then c.hd else find pred pred_tot c.tl exc
     }
   }
 

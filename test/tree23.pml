@@ -194,11 +194,10 @@ val rec height_total : ∀a:ο, ∀t∈tree23<a>, ∀n∈nat, ∃v:ι, height t 
       | N3[c] → let _ = height_total c.l p in
                 let _ = height_total c.m p in
                 let _ = height_total c.r p in
-                if height c.l p {
+                if height c.l p then
                   cond<height c.m p,{},{}>
-                } else {
+                else
                   cond<height c.m p,{},{}>
-                }
       }
     }
   }

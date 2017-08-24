@@ -7,7 +7,7 @@ val rec insert : ∀a:ο, ord<a> ⇒ a ⇒ list<a> ⇒ list<a> =
     case l {
       Nil     → Cons[{hd = x; tl = Nil}]
       Cons[c] → let hd = c.hd in let tl = c.tl in
-                if o.cmp x hd {
+                if o.cmp x hd then {
                   Cons[{hd = x ; tl = l}]
                 } else {
                   let tl = insert o x tl in
@@ -31,7 +31,7 @@ val rec insert_total : ∀a:ο, ∀o∈ord<a>, ∀x∈a, ∀l∈list<a>,
       Nil[_]   → {}
       Cons[c1] → let hd = c1.hd in let tl = c1.tl in
                  let lem = o.termi x hd in
-                 if o.cmp x hd { {} } else { insert_total o x tl }
+                 if o.cmp x hd then {} else insert_total o x tl
     }
   }
 
@@ -52,9 +52,8 @@ val rec insert_sorted : ∀a:ο, ∀o∈ord<a>, ∀x∈a, ∀l∈slist<a,o>,
       Nil      → {}
       Cons[c1] →
         let lem = o.termi x c1.hd in
-        if o.cmp x c1.hd {
-          {}
-        } else {
+        if o.cmp x c1.hd then  {}
+        else {
           let lem = o.termi c1.hd x in
           let lem = o.total x c1.hd in
           case c1.tl {
@@ -63,12 +62,10 @@ val rec insert_sorted : ∀a:ο, ∀o∈ord<a>, ∀x∈a, ∀l∈slist<a,o>,
               let lem = insert_total o x c2.tl in
               let lem = o.termi c1.hd c2.hd in
               let lem = o.termi x c2.hd in
-              if o.cmp c1.hd c2.hd {
+              if o.cmp c1.hd c2.hd then {
                 let lem = insert_sorted o x c1.tl in
-                if o.cmp x c2.hd { {} } else { {} }
-              } else {
-                ✂
-              }
+                if o.cmp x c2.hd then {} else {}
+              } else ✂
           }
         }
     }

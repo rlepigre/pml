@@ -7,7 +7,7 @@ val rec exists : ∀a, (a ⇒ bool) ⇒ list<a> ⇒ bool =
   fun pred l {
     case l {
       Nil[_]  → false
-      Cons[c] → if pred c.hd { true } else { exists pred c.tl }
+      Cons[c] → if pred c.hd then true else exists pred c.tl
     }
   }
 
@@ -28,7 +28,7 @@ val rec conjunction : list<bool> ⇒ bool =
     save k {
       case l {
         Nil[_]  → true
-        Cons[c] → if c.hd { conjunction c.tl } else { restore k false }
+        Cons[c] → if c.hd then conjunction c.tl else restore k false
       }
     }
   }

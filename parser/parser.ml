@@ -78,6 +78,7 @@ let _such_    = Keyword.create "such"
 let _that_    = Keyword.create "that"
 let _in_      = Keyword.create "in"
 let _if_      = Keyword.create "if"
+let _then_    = Keyword.create "then"
 let _else_    = Keyword.create "else"
 let _true_    = Keyword.create "true"
 let _false_   = Keyword.create "false"
@@ -151,13 +152,18 @@ let parser s_args = {'<' l:s_lst '>'}?[[]]
 
 (* Priorities for parsing expressions. *)
 type p_prio = [`A | `M | `R | `P | `F] (* Atom, Memb, Rest, Prod, Full *)
-type t_prio = [`A | `P | `S | `F] (* Atom, Appl, Sequ, Full *)
+type t_prio = [`A | `P | `R | `S | `F | `I] (* Atom, Appl, Prefix, Sequ, Full, If *)
+(* `If is not really a priority level, just a trick the the then bloc *)
 
 (* Parsing mode for expressions. *)
 type mode = [`Any | `Prp of p_prio | `Trm of t_prio | `Stk | `Ord ]
 
 (* Parser for expressions. *)
-let parser expr (m : mode) =
+let parser bloc (m : mode) =
+  | '{' t:(expr (`Trm`F)) '}' when m = `Trm`A || m = `Trm`I -> t
+  | t:(expr (`Trm`P))         when m = `Trm`R || m = `Trm`I -> t
+
+and expr (m : mode) =
   (* Any (higher-order function) *)
   | "(" x:llid s:{":" s:sort} "↦" e:(expr `Any)
       when m = `Any
@@ -286,7 +292,7 @@ let parser expr (m : mode) =
       when m = `Trm`F
       -> let_binding _loc r arg t u
   (* Term (sequencing). *)
-  | t:(expr (`Trm`P)) ';' u:(expr (`Trm`S))
+  | t:(expr (`Trm`R)) ';' u:(expr (`Trm`S))
       when m = `Trm`S
       -> in_pos _loc (ESequ(t,u))
   (* Term (mu abstraction) *)
@@ -294,8 +300,8 @@ let parser expr (m : mode) =
       when m = `Trm`F
       -> in_pos _loc (EMAbs((List.hd args, List.tl args),t))
   (* Term (name) *)
-  | _restore_ s:(expr `Stk) t:(expr (`Trm`F))
-      when m = `Trm`F
+  | _restore_ s:(expr `Stk) t:(expr (`Trm`A))
+      when m = `Trm`P
       -> in_pos _loc (EName(s,t))
   (* Term (projection) *)
   | t:(expr (`Trm`A)) "." l:{llid | lnum}
@@ -306,21 +312,17 @@ let parser expr (m : mode) =
       when m = `Trm`A
       -> pattern_matching _loc t ps
   (* Term (conditional) *)
-  | _if_ c:(expr (`Trm`F)) '{' t:(expr (`Trm`F)) '}'
-      _else_ '{' e:(expr (`Trm`F)) '}'
-      when m = `Trm`A
+  | _if_ c:(expr (`Trm`F)) _then_ t:(bloc (`Trm`I)) _else_ e:(bloc m)
       -> if_then_else _loc c t e
   (* Term ("deduce" tactic) *)
-  | _deduce_ '{' a:(expr (`Prp`F)) '}'
+  | _deduce_ a:(expr (`Prp`F))$
       when m = `Trm`A
       -> deduce _loc a
   (* Term ("show" tactic) *)
-  | _show_ a:(expr (`Prp`F)) _using_ '{' t:(expr (`Trm`F)) '}'
-      when m = `Trm`A
+  | _show_ a:(expr (`Prp`F)) _using_ t:(bloc m)
       -> show_using _loc a t
   (* Term ("use" tactic) *)
-  | _use_ '{' t:(expr (`Trm`F)) '}'
-      when m = `Trm`A
+  | _use_ t:(bloc m)
       -> use _loc t
   (* Term ("QED" tactic) *)
   | _qed_
@@ -347,7 +349,8 @@ let parser expr (m : mode) =
       when m = `Trm`A
   (* Term (level coersions) *)
   | (expr (`Trm`A)) when m = `Trm`P
-  | (expr (`Trm`P)) when m = `Trm`S
+  | (expr (`Trm`P)) when m = `Trm`R
+  | (expr (`Trm`R)) when m = `Trm`S
   | (expr (`Trm`S)) when m = `Trm`F
   | (expr (`Trm`F)) when m = `Any
 

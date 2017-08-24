@@ -41,7 +41,7 @@ val rec aux : ∀a b, (csstream<a,even> ⇒ bot) ⇒ (csstream<b,odd> ⇒ bot)
     let hd = (s {}).hd in
     let tl = (s {}).tl in
     use { odd_total hd };
-    if is_odd hd {
+    if is_odd hd then {
       fo {hd = hd; tl = fun _ { save o {
         abort (aux fe (fun x { restore o x }) tl) } }}
     } else {
