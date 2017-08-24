@@ -26,7 +26,7 @@
   (list (cons (concat "\\<"
 		      (regexp-opt '("case" "of" "val" "let" "in" "rec" "fun" "eval"
 				    "include" "type" "if" "else" "check" "save"
-                                    "restore" "use" "then"
+                                    "restore" "use" "then" "qed"
                                     "fix" "unfold" "clear" "quit" "parse" "latex"
                                     "exit" "set" "html" "such" "that" "abort"
 				    "def" "sort" "show" "deduce" "using"))

@@ -89,9 +89,9 @@ val eq_asso : ∀x y z∈bool, eq (eq x y) z ≡ eq x (eq y z) =
 // Commutativity of equivalence using lemmas.
 val eq_comm3 : ∀x y∈bool, eq (eq x y) (eq y x) ≡ true =
   fun b1 b2 {
-    show ∃v:ι, eq b1 b2 ≡ v using { eq_total b1 b2 };
-    show eq (eq b1 b2) (eq b1 b2) ≡ true using { eq_refl (eq b1 b2) };
-    show eq b1 b2 ≡ eq b2 b1 using { eq_comm b1 b2 };
+    show ∃v:ι, eq b1 b2 ≡ v using eq_total b1 b2;
+    show eq (eq b1 b2) (eq b1 b2) ≡ true using eq_refl (eq b1 b2);
+    show eq b1 b2 ≡ eq b2 b1 using eq_comm b1 b2;
     deduce eq (eq b1 b2) (eq b2 b1) ≡ true;
     qed
   }
