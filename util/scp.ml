@@ -164,7 +164,6 @@ open Output
 let log_scp = Log.register 'y' (Some "scp") "size change principle"
 let log_scp = Log.(log_scp.p)
 
-(* TODO #49 use the right printing function (from output) *)
 let print_call : out_channel -> symbol IMap.t -> call -> unit = fun ff tbl c ->
   let caller_sym = IMap.find c.caller tbl in
   let callee_sym = IMap.find c.callee tbl in
