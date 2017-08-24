@@ -89,6 +89,7 @@ let _true_    = Keyword.create "true"
 let _false_   = Keyword.create "false"
 let _bool_    = Keyword.create "bool"
 let _show_    = Keyword.create "show"
+let _from_    = Keyword.create "from"
 let _use_     = Keyword.create "use"
 let _qed_     = Keyword.create "qed"
 let _using_   = Keyword.create "using"
@@ -329,6 +330,9 @@ and expr (m : mode) =
   (* Term ("use" tactic) *)
   | _use_ t:(bloc (m, empty ()))
       -> use _loc t
+  (* Term ("from" tactic) *)
+  | _from_   a:(expr (`Prp`F)) ';' p:(expr (`Trm`S)) when m = `Trm`S
+      -> from _loc a p
   (* Term ("QED" tactic) *)
   | _qed_
       when m = `Trm`A

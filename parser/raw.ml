@@ -1267,3 +1267,9 @@ let use _loc t =
 (* "qed" := "{}" *)
 let qed _loc =
   Pos.in_pos _loc (EReco([]))
+
+(* "from a; p" := "let _ = p : a in {}" *)
+let from _loc a p =
+  let_binding _loc false (`LetArgVar(Pos.none "",None))
+    (Pos.in_pos _loc (ECoer(p,a)))
+    (Pos.in_pos _loc (EReco []))

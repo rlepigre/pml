@@ -137,3 +137,9 @@ val rec mul_comm : ∀n m∈nat, mul n m ≡ mul m n =
                 t_show<add (mul k m) m ≡ add m (mul k m), add_comm (mul k m) m>
     }
   }
+
+include lib.bool
+
+val t1 : ∀a∈bool, imp a a ≡ true = fun a {
+    if a {from a ≡ true; qed } else qed
+   }
