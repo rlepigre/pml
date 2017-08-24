@@ -26,6 +26,7 @@ syntax match   Keyword "Λ"
 syntax match   Keyword "[][{}()=<>,:.|]"
 syntax match   Keyword "⇒"
 syntax match   Keyword "→"
+syntax match   Keyword "×"
 syntax match   Keyword "∈"
 
 " Constructors
@@ -58,6 +59,8 @@ syntax match Type "<ordinal>"
 
 " Abbreviations
 abbreviate ->        →
+abbreviate =>        ⇒
+abbreviate *         ×
 abbreviate <iota>    ι
 abbreviate <value>   ι
 abbreviate <tau>     τ

@@ -1106,6 +1106,14 @@ let include_file : string list -> toplevel = fun path ->
 
 (** syntactic sugars *)
 
+let tuple_type _loc bs =
+  let fn i a = (Pos.none (string_of_int (i+1)), a) in
+  in_pos _loc (EProd(List.mapi fn bs, true))
+
+let tuple_term _loc ts =
+  let fn i t = (Pos.none (string_of_int (i+1)), t, ref `T) in
+  in_pos _loc (EReco(List.mapi fn ts))
+
 let record _loc fs =
   let fn (l, ao) =
     let a = Option.default (Pos.make l.pos (EVari(l, []))) ao in

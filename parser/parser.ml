@@ -47,10 +47,12 @@ let parser goal = "{-" str:goal_name "-}" -> String.trim str
 (* Identifiers. *)
 let parser lid = id:''[a-z][a-zA-Z0-9_']*'' -> Keyword.check id; id
 let parser uid = id:''[A-Z][a-zA-Z0-9_']*'' -> Keyword.check id; id
+let parser num = id:''[0-9]+''              -> id
 
 (* Located identifiers. *)
-let parser llid = id:lid -> in_pos _loc_id id
-let parser luid = id:uid -> in_pos _loc_id id
+let parser llid = id:lid -> in_pos _loc id
+let parser luid = id:uid -> in_pos _loc id
+let parser lnum = id:num -> in_pos _loc id
 
 (* Lowercase identifier or wildcard (located). *)
 let parser llid_wc =
@@ -96,6 +98,7 @@ let parser scis    = "✂" | "8<"
 let parser equiv   = "≡" | "="
 let parser nequiv  = "≠"
 let parser neg_sym = "¬"
+let parser prod    = "×" | "*"
 
 (* Such that. *)
 let parser _st_ = _:_such_ _:_that_
@@ -147,7 +150,7 @@ let parser s_lst  = l:(lsep_ne "," s_arg)
 let parser s_args = {'<' l:s_lst '>'}?[[]]
 
 (* Priorities for parsing expressions. *)
-type p_prio = [`A | `M | `R | `F] (* Atom, Memb, Rest, Full *)
+type p_prio = [`A | `M | `R | `P | `F] (* Atom, Memb, Rest, Prod, Full *)
 type t_prio = [`A | `P | `S | `F] (* Atom, Appl, Sequ, Full *)
 
 (* Parsing mode for expressions. *)
@@ -169,9 +172,13 @@ let parser expr (m : mode) =
       when m = `Prp`A
       -> p_bool (Some _loc)
   (* Proposition (implication) *)
-  | a:(expr (`Prp`R)) impl b:(expr (`Prp`F))
+  | a:(expr (`Prp`P)) impl b:(expr (`Prp`F))
       when m = `Prp`F
       -> in_pos _loc (EFunc(a,b))
+  (* Proposition (tuple type) *)
+  | a:(expr (`Prp`R)) bs:{_:prod b:(expr (`Prp`R))}+
+      when m = `Prp`P
+      -> tuple_type _loc (a::bs)
   (* Proposition (non-empty product) *)
   | "{" fs:(lsep_ne ";" (parser l:llid ":" a:(expr (`Prp`F)))) s:is_strict "}"
       when m = `Prp`A
@@ -230,7 +237,8 @@ let parser expr (m : mode) =
   (* Proposition (coersion) *)
   | (expr (`Prp`A)) when m = `Prp`M
   | (expr (`Prp`M)) when m = `Prp`R
-  | (expr (`Prp`R)) when m = `Prp`F
+  | (expr (`Prp`R)) when m = `Prp`P
+  | (expr (`Prp`P)) when m = `Prp`F
   | (expr (`Prp`F)) when m = `Any
 
   (* Term (variable and higher-order application) *)
@@ -257,6 +265,10 @@ let parser expr (m : mode) =
   | "{" fs:(lsep_ne ";" field) "}"
       when m = `Trm`A
       -> record _loc fs
+  (* Term (tuple) *)
+  | "(" t:(expr (`Trm`F)) "," ts:(lsep_ne "," (expr (`Trm`F))) ")"
+      when m = `Trm`A
+      -> tuple_term _loc (t::ts)
   (* Term (scisors) *)
   | scis
       when m = `Trm`A
@@ -282,7 +294,7 @@ let parser expr (m : mode) =
       when m = `Trm`F
       -> in_pos _loc (EName(s,t))
   (* Term (projection) *)
-  | t:(expr (`Trm`A)) "." l:llid
+  | t:(expr (`Trm`A)) "." l:{llid | lnum}
       when m = `Trm`A
       -> in_pos _loc (EProj(t, ref `T, l))
   (* Term (case analysis) *)
@@ -388,7 +400,7 @@ and let_arg =
   | '{' fs:(lsep_ne ";" arg_type) '}'      -> `LetArgRec(fs)
 
 (* Record field. *)
-and field = l:llid {"=" a:(expr (`Trm`F))}?
+and field = l:llid {"=" t:(expr (`Trm`F))}?
 
 (* Pattern. *)
 and patt =
