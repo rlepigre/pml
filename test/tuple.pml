@@ -9,3 +9,22 @@ val pair : ∀x y, x ⇒ y ⇒ x × y =
 
 val triple : ∀x y z, x ⇒ y ⇒ z ⇒ x × y × z =
   fun x y z { (x, y, z) }
+
+val curry : ∀x y z, (x ⇒ y ⇒ z) ⇒ x × y ⇒ z =
+  fun f c {
+    let (x,y) = c in
+    f x y
+  }
+
+type rec list<a> = [Nil ; Cons of a × list]
+
+val rec map : ∀a b, (a ⇒ b) ⇒ list<a> ⇒ list<b> =
+  fun f l {
+    case l {
+      Nil          → Nil
+      Cons[(x, l)] → let hd = f x in
+                     let tl = map f l in
+                     Cons[(hd,tl)]
+      // Cons[(x, l)] → Cons[(f x, map f l)] // FIXME should work
+    }
+  }

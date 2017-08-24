@@ -1205,6 +1205,17 @@ let let_binding _loc r arg t u =
       in
       let u = List.fold_left fn u fs in
       in_pos _loc (EAppl(Pos.make u.pos (ELAbs(((x, None), []), u)), t))
+  | `LetArgTup(fs)    ->
+      if r then Earley.give_up (); (* "let rec" is meaningless here. *)
+      let u = Pos.make u.pos (ELAbs((List.hd fs, List.tl fs), u)) in
+      let x = Pos.none "$tup$" in
+      let is = List.mapi (fun i _ -> Pos.none (string_of_int (i+1))) fs in
+      let fn u l =
+        let pr = Pos.none (EProj(Pos.none (EVari(x, [])), ref `T,  l)) in
+        Pos.make u.pos (EAppl(u, pr))
+      in
+      let u = List.fold_left fn u is in
+      in_pos _loc (EAppl(Pos.make u.pos (ELAbs(((x, None), []), u)), t))
 
 let pattern_matching _loc t ps =
   let fn ((c,pat), t) =
@@ -1220,6 +1231,15 @@ let pattern_matching _loc t ps =
             Pos.make t.pos (EAppl(t, pr))
           in
           (Some (x, None), List.fold_left fn t fs)
+      | Some(`LetArgTup(fs)   ) ->
+          let t = Pos.make t.pos (ELAbs((List.hd fs, List.tl fs), t)) in
+          let x = Pos.none "$tup$" in
+          let is = List.mapi (fun i _ -> Pos.none (string_of_int (i+1))) fs in
+          let fn t l =
+            let pr = Pos.none (EProj(Pos.none (EVari(x, [])), ref `T,  l)) in
+            Pos.make t.pos (EAppl(t, pr))
+          in
+          (Some (x, None), List.fold_left fn t is)
     in ((c,pat), t)
   in
   let ps = List.map fn ps in

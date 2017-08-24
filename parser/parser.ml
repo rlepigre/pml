@@ -396,7 +396,7 @@ and expr (m : mode) =
       -> in_pos _loc (EGoal(s))
 
 (* Variable with optional type. *)
-and arg_type = id:llid ao:{":" a:(expr (`Prp`F))}?
+and arg_t = id:llid ao:{":" a:(expr (`Prp`F))}?
 
 (* Function argument. *)
 and arg  =
@@ -405,8 +405,9 @@ and arg  =
 
 (* Argument of let-binding. *)
 and let_arg =
-  | id:llid_wc ao:{':' a:(expr (`Prp`F))}? -> `LetArgVar(id,ao)
-  | '{' fs:(lsep_ne ";" arg_type) '}'      -> `LetArgRec(fs)
+  | id:llid_wc ao:{':' a:(expr (`Prp`F))}?     -> `LetArgVar(id,ao)
+  | '{' fs:(lsep_ne ";" arg_t) '}'             -> `LetArgRec(fs)
+  | '(' f:arg_t ',' fs:(lsep_ne "," arg_t) ')' -> `LetArgTup(f::fs)
 
 (* Record field. *)
 and field = l:llid {"=" t:(expr (`Trm`F))}?
