@@ -216,7 +216,7 @@ val rec mul_assoc : ∀m n p∈nat, mul m (mul n p) ≡ mul (mul m n) p =
   fun m n p {
     case m {
       Z    → from mul Z (mul n p) ≡ mul (mul Z n) p;
-             use mul_total n p;
+             use mul_total n p; // FIXME #59
              deduce mul Z (mul n p) ≡ Z;
              from Z ≡ mul (mul Z n) p;
              deduce mul (mul Z n) p ≡ mul Z p;
