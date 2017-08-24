@@ -1,7 +1,7 @@
 (** Main parsing module. This module defines an [Earley] parser for the
     language. *)
 
-
+open Earley
 open Extra
 open Pos
 open Raw
@@ -22,7 +22,7 @@ let lsep_ne s elt =
 
 (* String litteral. *)
 let str_lit =
-  let normal = Earley.in_charset
+  let normal = in_charset
     (List.fold_left Charset.del Charset.full ['\\'; '"'; '\r'])
   in
   let schar = parser
@@ -32,9 +32,9 @@ let str_lit =
     | "\\t"    -> "\t"
     | c:normal -> String.make 1 c
   in
-  Earley.change_layout
+  change_layout
     (parser "\"" cs:schar* "\"" -> String.concat "" cs)
-    Earley.no_blank
+    no_blank
 
 (* Parser of a module path. *)
 let parser path_atom = id:''[a-zA-Z0-9_]+''
@@ -159,13 +159,9 @@ type t_prio = [`A | `P | `R | `S | `F | `I] (* Atom, Appl, Prefix, Sequ, Full, I
 type mode = [`Any | `Prp of p_prio | `Trm of t_prio | `Stk | `Ord ]
 
 (* Parser for expressions. *)
-let parser bloc (m : mode) =
-  | '{' t:(expr (`Trm`F)) '}' when m = `Trm`A || m = `Trm`I -> t
-  | t:(expr (`Trm`R))         when m = `Trm`R || m = `Trm`I -> t
-
-and fbloc (m : mode) =
-  | '{' t:(expr (`Trm`F)) '}' when m = `Trm`A || m = `Trm`I -> t
-  | arrow t:(expr (`Trm`R))   when m = `Trm`R || m = `Trm`I -> t
+let parser bloc (m : mode * unit grammar) =
+  | '{' t:(expr (`Trm`F)) '}' when fst m = `Trm`A || fst m = `Trm`I -> t
+  | (snd m) t:(expr (`Trm`R)) when fst m = `Trm`R || fst m = `Trm`I -> t
 
 and expr (m : mode) =
   (* Any (higher-order function) *)
@@ -260,7 +256,7 @@ and expr (m : mode) =
       when m = `Trm`A
       -> in_pos _loc (EVari(id, args))
   (* Term (lambda abstraction) *)
-  | _fun_ args:arg+ t:(fbloc m)
+  | _fun_ args:arg+ t:(bloc (m, arrow))
       -> in_pos _loc (ELAbs((List.hd args, List.tl args),t))
   (* Term (constructor) *)
   | c:luid t:{"[" t:(expr (`Trm`F)) "]"}?
@@ -299,7 +295,7 @@ and expr (m : mode) =
       when m = `Trm`S
       -> in_pos _loc (ESequ(t,u))
   (* Term (mu abstraction) *)
-  | _save_ args:llid+ t:(fbloc m)
+  | _save_ args:llid+ t:(bloc (m,arrow))
       -> in_pos _loc (EMAbs((List.hd args, List.tl args),t))
   (* Term (name) *)
   | _restore_ s:(expr `Stk) t:(expr (`Trm`A))
@@ -314,17 +310,18 @@ and expr (m : mode) =
       when m = `Trm`A
       -> pattern_matching _loc t ps
   (* Term (conditional) *)
-  | _if_ c:(expr (`Trm`F)) _then_ t:(bloc (`Trm`I)) _else_ e:(bloc m)
+  | _if_ c:(expr (`Trm`F)) t:(bloc (`Trm`I, _then_))
+                    _else_ e:(bloc (m, empty ()))
       -> if_then_else _loc c t e
   (* Term ("deduce" tactic) *)
   | _deduce_ a:(expr (`Prp`F))$
       when m = `Trm`A
       -> deduce _loc a
   (* Term ("show" tactic) *)
-  | _show_ a:(expr (`Prp`F)) _using_ t:(bloc m)
+  | _show_ a:(expr (`Prp`F)) _using_ t:(bloc (m, empty ()))
       -> show_using _loc a t
   (* Term ("use" tactic) *)
-  | _use_ t:(bloc m)
+  | _use_ t:(bloc (m, empty ()))
       -> use _loc t
   (* Term ("QED" tactic) *)
   | _qed_
@@ -457,9 +454,9 @@ exception No_parse of pos * string option
 
 (** Main parsing function taking as input a file name. *)
 let parse_file : string -> toplevel list = fun fn ->
-  let parse = Earley.parse_file entry Blank.blank in
+  let parse = parse_file entry Blank.blank in
   try List.map (fun act -> act ()) (parse fn)
-  with Earley.Parse_error(buf, pos, msgs) ->
+  with Parse_error(buf, pos, msgs) ->
     let pos = Pos.locate buf pos buf pos in
     let msg = match msgs with [] -> None | x::_ -> Some x in
     raise (No_parse(pos, msg))

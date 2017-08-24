@@ -319,7 +319,7 @@ val rec isorted : ∀a:ο, ∀o∈ord<a>, ∀x∈a, ∀l∈slist<a,o>,
               let lem = insert_total o x c2.tl in
               let lem = o.tot c1.hd c2.hd in
               let lem = o.tot x c2.hd in
-              if o.cmp c1.hd c2.hd then {
+              if o.cmp c1.hd c2.hd {
                 let lem = isorted o x c1.tl in
                 if o.cmp x c2.hd then {} else {}
               } else ✂

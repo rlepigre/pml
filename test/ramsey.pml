@@ -32,7 +32,7 @@ val rec aux : ∀o1 o2, ∀a, ∀f∈(a⇒bool), total<f,a>
     let hd = c.hd in
     let tl = c.tl in
     use ft hd;
-    if f hd then {
+    if f hd {
       ct { hd = hd; tl = fun _ → save ct → abort (aux f ft to_term<ct> cf c.tl)}
     } else {
       cf { hd = hd; tl = fun _ → save cf → abort (aux f ft ct to_term<cf> c.tl)}

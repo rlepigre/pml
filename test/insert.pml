@@ -46,7 +46,7 @@ val rec sorted_total : ∀a:ο, ∀o∈order<a>, ∀l∈list<a>, ∃v:ι, v ≡ 
               let hd2 = c2.hd in let tl2 = c2.tl in
               let ind : (∃v:ι, v ≡ sorted o tl) = sorted_total o tl in
               let lem = o.tmp hd hd2 in
-              if o.cmp hd hd2 then {
+              if o.cmp hd hd2 {
                 let lem : o.cmp hd hd2 ≡ tru = {} in
                 let lem : sorted o l ≡ sorted o tl = {} in {}
               } else {
@@ -110,7 +110,7 @@ val rec insert_sorted : ∀a:ο, ∀o∈order<a>, ∀x∈a, ∀l∈slist<a,o>,
          let hd = c1.hd in let tl = c1.tl in
          let lem = insert_total o x tl in
          let lem = o.tmp x hd in
-         if cmp x hd then {
+         if cmp x hd {
            let lem = tail_sorted o hd tl {} in {}
          } else {
            let lem : (∃v:ι, v ≡ cmp x hd) = o.tmp x hd in
@@ -123,7 +123,7 @@ val rec insert_sorted : ∀a:ο, ∀o∈order<a>, ∀x∈a, ∀l∈slist<a,o>,
                 let lem = insert_total o x tl2 in
                 let lem : (∃v:ι, v ≡ cmp hd hd2) = o.tmp hd hd2 in
                 let lem : (∃v:ι, v ≡ cmp x hd2) = o.tmp x hd2 in
-                if cmp hd hd2 then {
+                if cmp hd hd2 {
                    let lem = insert_sorted o x tl in
                    if cmp x hd2 then {} else {
                      let lem : (∃v:ι, v ≡ cmp hd2 x) = o.tmp hd2 x in

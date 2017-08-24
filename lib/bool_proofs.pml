@@ -3,7 +3,7 @@ include lib.bool
 // Equivalence is total.
 val eq_total :  ∀x y∈bool, ∃v:ι, eq x y ≡ v =
   fun b1 b2 {
-    if b1 then {
+    if b1 {
       if b2 then {} else {}
     } else {
       if b2 then {} else {}
@@ -19,7 +19,7 @@ val not_total : ∀x∈bool, ∃v:ι, not x ≡ v =
 // Disjunction is total.
 val or_total : ∀x y∈bool, ∃v:ι, or x y ≡ v =
   fun b1 b2 {
-    if b1 then {
+    if b1 {
       if b2 then {} else {}
     } else {
       if b2 then {} else {}
@@ -29,7 +29,7 @@ val or_total : ∀x y∈bool, ∃v:ι, or x y ≡ v =
 // Conjunction is total.
 val and_total : ∀x y∈bool, ∃v:ι, and x y ≡ v =
   fun b1 b2 {
-    if b1 then {
+    if b1 {
       if b2 then {} else {}
     } else {
       if b2 then {} else {}
@@ -51,7 +51,7 @@ val eq_refl : ∀x∈bool, eq x x ≡ true =
 // Equivalence is commutative.
 val eq_comm : ∀x y∈bool, eq x y ≡ eq y x =
   fun b1 b2 {
-    if b1 then {
+    if b1 {
       if b2 then {} else {}
     } else {
       if b2 then {} else {}
@@ -61,7 +61,7 @@ val eq_comm : ∀x y∈bool, eq x y ≡ eq y x =
 // The commutation of equivalence is equivalent.
 val eq_comm2 : ∀x y∈bool, eq (eq x y) (eq y x) ≡ true =
   fun b1 b2 {
-    if b1 then {
+    if b1 {
       if b2 then {} else {}
     } else {
       if b2 then {} else {}
@@ -71,14 +71,14 @@ val eq_comm2 : ∀x y∈bool, eq (eq x y) (eq y x) ≡ true =
 // Equivalence is associative.
 val eq_asso : ∀x y z∈bool, eq (eq x y) z ≡ eq x (eq y z) =
   fun b1 b2 b3 {
-    if b1 then {
-      if b2 then {
+    if b1 {
+      if b2 {
         if b3 then {} else {}
       } else {
         if b3 then {} else {}
       }
     } else {
-      if b2 then {
+      if b2 {
         if b3 then {} else {}
       } else {
         if b3 then {} else {}
