@@ -65,6 +65,7 @@ module Ptr =
   end
 module PtrMap = Map.Make(Ptr)
 module PtrSet = Set.Make(Ptr)
+module TPtrSet = Set.Make(TPtr)
 
 (** Type of a pointer map, used to keep track of equivalences. *)
 type eq_map = Ptr.t PtrMap.t
@@ -72,6 +73,14 @@ type eq_map = Ptr.t PtrMap.t
 (** Wrapper for higher-order application. *)
 type _ ho_appl =
   | HO_Appl : 'a sort * ('a -> 'b) ex loc * 'a ex loc -> 'b ho_appl
+
+let eq_ho_appl : type a. a ho_appl -> a ho_appl -> bool =
+  fun a1 a2 ->
+    let open Eq in
+    let (HO_Appl(s1,f1,e1), HO_Appl(s2,f2,e2)) = (a1, a2) in
+    match eq_sort s1 s2 with
+    | Eq -> eq_expr f1 f2 && eq_expr e1 e2
+    | NEq -> false
 
 (** Type of a value node. *)
 type v_node =
@@ -161,7 +170,9 @@ type pool =
   ; bs     : b_map
   ; next   : int
   ; eq_map : eq_map
-  ; vwit_map : ((v, t) bndr * p ex loc * p ex loc * v_node) list }
+  ; vwit_map : ((v, t) bndr * p ex loc * p ex loc * v_node) list
+  ; in_norm : TPtrSet.t
+  }
 
 
 let is_empty : pool -> bool =
@@ -198,7 +209,8 @@ let empty_pool : pool =
   ; bs     = VPtrSet.empty
   ; next   = 0
   ; eq_map = PtrMap.empty
-  ; vwit_map = [] }
+  ; vwit_map = []
+  ; in_norm = TPtrSet.empty }
 
 (** Node search. *)
 let find_v_node : VPtr.t -> pool -> PtrSet.t * v_node = fun p po ->
@@ -327,6 +339,7 @@ let eq_v_nodes : pool -> v_node -> v_node -> bool =
                                           let (t2,b2) = w2 in
                                           eq_expr t1 t2 && eq_bndr V b1 b2
     | (VN_ITag(n1)   , VN_ITag(n2)   ) -> n1 = n2
+    | (VN_HApp(e1)   , VN_HApp(e2)   ) -> eq_ho_appl e1 e2
     | (_             , _             ) -> false
 
 let eq_t_nodes : pool -> t_node -> t_node -> bool =
@@ -356,6 +369,7 @@ let eq_t_nodes : pool -> t_node -> t_node -> bool =
                                               let (t2,b2) = w2 in
                                               eq_expr t1 t2 && eq_bndr T b1 b2
     | (TN_ITag(n1)     , TN_ITag(n2)     ) -> n1 = n2
+    | (TN_HApp(e1)     , TN_HApp(e2)     ) -> eq_ho_appl e1 e2
     | (_               , _               ) -> false
 
 
@@ -611,6 +625,9 @@ let insert_appl : Ptr.t -> Ptr.t -> pool -> Ptr.t * pool = fun pt pu po ->
 (** Normalisation function. *)
 let rec normalise : TPtr.t -> pool -> Ptr.t * pool =
   fun p po ->
+    let in_norm = po.in_norm in
+    if TPtrSet.mem p in_norm then find (Ptr.T_ptr p) po else
+    let po = { po with in_norm = TPtrSet.add p in_norm } in
     let (p, po) =
        match snd (TPtrMap.find p po.ts) with
        | TN_Valu(pv)    -> (Ptr.V_ptr pv, po)
@@ -703,7 +720,7 @@ let rec normalise : TPtr.t -> pool -> Ptr.t * pool =
           end
        | TN_ITag(n)      -> (Ptr.T_ptr p, po)
     in
-    find p po
+    find p { po with in_norm }
 
 and check_eq : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
   let (p1, po) = find p1 po in
@@ -773,7 +790,7 @@ and union : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
     match (p1, p2) with
     | (Ptr.T_ptr _  , Ptr.V_ptr _  ) -> join p1 p2 po
     | (Ptr.V_ptr _  , Ptr.T_ptr _  ) -> join p2 p1 po
-    | (Ptr.T_ptr _  , Ptr.T_ptr _  ) -> join p1 p2 po
+    | (Ptr.T_ptr _  , Ptr.T_ptr _  ) -> age_join p1 p2 po
     | (Ptr.V_ptr vp1, Ptr.V_ptr vp2) ->
        begin
          let (_,n1) = VPtrMap.find vp1 po.vs in
