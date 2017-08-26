@@ -1,6 +1,6 @@
 OCAMLBUILD := ocamlbuild -docflags -hide-warnings -use-ocamlfind -r -quiet
 
-all: pml2 check
+all: pml2 lib check
 
 .PHONY: libs libs_byte doc
 doc: depchecks kernel_doc util_doc
@@ -32,66 +32,67 @@ endif
 
 # Compilation of the util modules.
 .PHONY: util util_byte util_doc
-util: util/util.cmxa
-util_byte: util/util.cma
+util: _build/util/util.cmxa
+util_byte: _build/util/util.cma
 util_doc: util/util.docdir/index.html
 
 UTILFILES := $(wildcard util/*.ml) $(wildcard util/*.mli)
 
-util/util.cmxa: $(UTILFILES)
-	$(OCAMLBUILD) $@
+_build/util/util.cmxa: $(UTILFILES)
+	$(OCAMLBUILD) util/util.cmxa
 
-util/util.cma: $(UTILFILES)
-	$(OCAMLBUILD) $@
+_build/util/util.cma: $(UTILFILES)
+	$(OCAMLBUILD) util/util.cma
 
 util/util.docdir/index.html: $(UTILFILES)
 	$(OCAMLBUILD) $@
 
 # Compilation of the kernel.
 .PHONY: kernel kernel_byte kernel_doc
-kernel: kernel/kernel.cmxa
-kernel_byte: kernel/kernel.cma
+kernel: _build/kernel/kernel.cmxa
+kernel_byte: _build/kernel/kernel.cma
 kernel_doc: kernel/kernel.docdir/index.html
 
 KERNELFILES := $(wildcard kernel/*.ml) $(wildcard kernel/*.mli)
 
-kernel/kernel.cmxa: $(KERNELFILES)
-	$(OCAMLBUILD) $@
+_build/kernel/kernel.cmxa: $(KERNELFILES)
+	$(OCAMLBUILD) kernel/kernel.cmxa
 
-kernel/kernel.cma: $(KERNELFILES)
-	$(OCAMLBUILD) $@
+_build/kernel/kernel.cma: $(KERNELFILES)
+	$(OCAMLBUILD) kernel/kernel.cma
 
 kernel/kernel.docdir/index.html: $(KERNELFILES)
 	$(OCAMLBUILD) $@
 
 # Compilation of the parser.
 .PHONY: parser parser_byte
-parser: parser/parser.cmxa
-parser_byte: parser/parser.cma
+parser: _build/parser/parser.cmxa
+parser_byte: _build/parser/parser.cma
 
 PARSERFILES := $(wildcard parser/*.ml) $(wildcard parser/*.mli)
 
-parser/parser.cmxa: $(KERNELFILES)
-	$(OCAMLBUILD) $@
+_build/parser/parser.cmxa: $(KERNELFILES)
+	$(OCAMLBUILD) parser/parser.cmxa
 
-parser/parser.cma: $(KERNELFILES)
-	$(OCAMLBUILD) $@
+_build/parser/parser.cma: $(KERNELFILES)
+	$(OCAMLBUILD) parser/parser.cma
 
 # Compilation of PML2.
 .PHONY: pml2 pml2_byte
-pml2: pml2/main.native
-pml2_byte: pml2/main.byte
+pml2: _build/pml2/main.native
+pml2_byte: _build/pml2/main.byte
 
-main.byte: pml2/main.byte
-main.native: pml2/main.native
+main.byte: _build/pml2/main.byte
+main.native: _build/pml2/main.native
 
-pml2/main.native:
+ML_FILES = $(wildcard */*.ml)
+_build/pml2/main.native: $(ML_FILES)
 	@rm -f main.native
-	$(OCAMLBUILD) $@
+	$(OCAMLBUILD) pml2/main.native
 
-pml2/main.byte:
+_build/pml2/main.byte: $(ML_FILES)
 	@rm -f main.byte
-	$(OCAMLBUILD) $@
+	$(OCAMLBUILD) pml2/main.byte
 
 check:
 	@f=`grep FIXME */*.ml */*.mli | wc -l`;\
@@ -108,10 +109,17 @@ check:
 	@wc -L */*.ml */*.mli | grep -e "\([89][0-9]\)\|\([1-9][0-9][0-9]\)"; true
 
 
+# Lib target
+# NOTE: PML is doing the dependencies analysis himself
+.PHONY: lib
+LIB_FILES = $(wildcard lib/*.pml)
+lib: main.native $(LIB_FILES)
+	@for f in $(LIB_FILES); do ./main.native --quiet $$f || break ; done
+
 # Test target.
 .PHONY: test
-TEST_FILES = $(wildcard lib/*.pml examples/*.pml test/*.pml test/phd_examples/*.pml)
-test: main.native $(TEST_FILES)
+TEST_FILES = $(wildcard examples/*.pml test/*.pml test/phd_examples/*.pml)
+test: main.native lib $(TEST_FILES)
 	@for f in $(TEST_FILES); do ./main.native --quiet $$f || break ; done
 
 # Cleaning targets.
@@ -137,7 +145,7 @@ install_vim: editors/vim/indent/pml.vim editors/vim/syntax/pml.vim
 # Install.
 PML_FILES = $(wildcard lib/*.pml)
 PMI_FILES = $(PML_FILES:.pml=.pmi)
-install: main.native $(PML_FILES) $(PMI_FILES)
+install: main.native $(PML_FILES) lib
 	install -d /usr/local/bin
 	install $< /usr/local/bin/pml2
 	install -d /usr/local/lib/pml2
