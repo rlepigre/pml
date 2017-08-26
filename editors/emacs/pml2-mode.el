@@ -141,30 +141,26 @@
       (goto-char pos)
       (indent-line-to plvl))))
 
-(defvar pml2-program-buffer
-  nil)
+(defvar pml2-program-buffer nil)
 
 (defun pml2-select-program-buffer ()
   (if (and pml2-program-buffer (buffer-live-p pml2-program-buffer))
       (set-buffer pml2-program-buffer)
-    (progn
-      (setq pml2-program-buffer (get-buffer-create "*pml-interaction*"))
-      (pop-to-buffer pml2-program-buffer)
-      (comint-mode)
-      (make-local-variable 'comint-output-filter-functions)
-      (make-local-variable 'comint-exec-hook)
-      ;(setq comint-output-filter-functions
-	;    '(comint-postoutput-scroll-to-bottom pml2-filter-comint-output))
-      (setq comint-exec-hook nil))))
+    (setq pml2-program-buffer (get-buffer-create "*pml-interaction*"))
+    (pop-to-buffer pml2-program-buffer)
+    (comint-mode)
+    (make-local-variable 'comint-output-filter-functions)
+    (make-local-variable 'comint-exec-hook)
+    ;(setq comint-output-filter-functions
+    ;  '(comint-postoutput-scroll-to-bottom pml2-filter-comint-output))
+    (setq comint-exec-hook nil))
+  (erase-buffer))
 
-(defvar pml2-program-name
-  "/home/raffalli/Caml/pml2_rodolphe/main.native") ; FIXME
+(defvar pml2-program-name "pml2")
 
-(defvar pml2-program-options
-  nil)
+(defvar pml2-program-options nil)
 
-(defvar pml2-program-buffer
-  nil)
+(defvar pml2-program-buffer nil)
 
 (defun pml2-compile ()
   "compile the current buffer with pml"
@@ -179,8 +175,7 @@
     (cd "/home/raffalli/Caml/pml2_rodolphe") ; FIXME
     (setq pml2-process
 	  (comint-exec pml2-program-buffer "pml-process" pml2-program-name nil switches))
-;    (display-progress-feedback 'pml2-compilation (concat "compiling: " buffer-file-name))
-    (process-send-string pml2-process "\n")))
+    (display-buffer pml2-program-buffer)))
 
 (defvar pml2-mode-map
   (let ((pml2-mode-map (make-keymap)))
