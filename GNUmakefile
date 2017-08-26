@@ -34,7 +34,7 @@ endif
 .PHONY: util util_byte util_doc
 util: _build/util/util.cmxa
 util_byte: _build/util/util.cma
-util_doc: util/util.docdir/index.html
+util_doc: _build/util/util.docdir/index.html
 
 UTILFILES := $(wildcard util/*.ml) $(wildcard util/*.mli)
 
@@ -44,14 +44,14 @@ _build/util/util.cmxa: $(UTILFILES)
 _build/util/util.cma: $(UTILFILES)
 	$(OCAMLBUILD) util/util.cma
 
-util/util.docdir/index.html: $(UTILFILES)
-	$(OCAMLBUILD) $@
+_build/util/util.docdir/index.html: $(UTILFILES)
+	$(OCAMLBUILD) util/util.docdir/index.html
 
 # Compilation of the kernel.
 .PHONY: kernel kernel_byte kernel_doc
 kernel: _build/kernel/kernel.cmxa
 kernel_byte: _build/kernel/kernel.cma
-kernel_doc: kernel/kernel.docdir/index.html
+kernel_doc: _build/kernel/kernel.docdir/index.html
 
 KERNELFILES := $(wildcard kernel/*.ml) $(wildcard kernel/*.mli)
 
@@ -61,8 +61,8 @@ _build/kernel/kernel.cmxa: $(KERNELFILES)
 _build/kernel/kernel.cma: $(KERNELFILES)
 	$(OCAMLBUILD) kernel/kernel.cma
 
-kernel/kernel.docdir/index.html: $(KERNELFILES)
-	$(OCAMLBUILD) $@
+_build/kernel/kernel.docdir/index.html: $(KERNELFILES)
+	$(OCAMLBUILD) kernel/kernel.docdir/index.html
 
 # Compilation of the parser.
 .PHONY: parser parser_byte
