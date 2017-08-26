@@ -143,6 +143,86 @@
 
 (defvar pml2-program-buffer nil)
 
+(defvar pml2-cur-output-pos 0)
+
+(defvar pml2-pos-regexp
+  "\\( [^ ,]+\\), \\([0-9]+\\):\\([0-9]+\\)\\(-\\(\\([0-9]+\\):\\)?\\([0-9]+\\)\\)?")
+
+(make-face 'pml2-link-face)
+
+(set-face-background 'pml2-link-face "LightBlue")
+
+(defun pml2-filter-comint-output (output)
+  (save-excursion
+    (pop-to-buffer pml2-program-buffer)
+    (goto-char pml2-cur-output-pos)
+    (while (search-forward-regexp pml2-pos-regexp nil t)
+      (let
+          ((filename (match-string 1))
+           (line1 (string-to-number (match-string 2)))
+           (col1 (string-to-number (match-string 3)))
+           (line2 (match-string 6))
+           (col2 (match-string 7)))
+        (if (and line2 (not col2))
+            (progn (setq col2 line2) (setq line2 nil)))
+        (if line2 (setq line2 (string-to-number line2)) (setq line2 line1))
+        (if col2 (setq col2 (string-to-number col2)) (setq col2 col1))
+        (let ((overlay (make-overlay (+ 1 (match-beginning 0)) (match-end 0))))
+          (overlay-put overlay 'position t)
+          (overlay-put overlay 'face 'pml2-link-face)
+          (overlay-put overlay 'reactive t)
+          (overlay-put overlay 'type 'link)
+          (overlay-put overlay 'filename filename)
+          (overlay-put overlay 'line1 line1)
+          (overlay-put overlay 'line2 line2)
+          (overlay-put overlay 'col1 col1)
+          (overlay-put overlay 'col2 col2))))))
+
+(defun pml2-find-pos-overlay (overlay-list)
+  (let ((l overlay-list))
+    (while (and l (not (overlay-get (car l) 'position)))
+      (setq l (cdr l)))
+    (car l)))
+
+(defsubst pml2-pos-at-event (event)
+  (pml2-find-pos-overlay (overlays-at (posn-point (event-start event)))))
+
+(defvar pml2-cur-overlay nil)
+
+(defun pml2-delete-cur-overlay ()
+    (if pml2-cur-overlay (delete-overlay pml2-cur-overlay)))
+
+(defun pml2-handle-click (event)
+  (interactive "@e")
+  (let ((span (pml2-pos-at-event event)))
+    (if span
+        (let ((filename (overlay-get span 'filename))
+              (line1 (overlay-get span 'line1))
+              (line2 (overlay-get span 'line2))
+              (col1 (overlay-get span 'col1))
+              (col2 (overlay-get span 'col2))
+              (buffer nil)
+              (beg nil)
+              (end nil)
+              (overlay nil))
+          (print filename)
+          (print line1)
+          (print col1)
+          (print line2)
+          (print col2)
+          (setq buffer (find-file-noselect filename))
+          (switch-to-buffer-other-window buffer)
+          (set-buffer buffer)
+          (goto-line line1)
+          (forward-char (- col1 1))
+          (setq beg (point))
+          (goto-line line2)
+          (forward-char col2)
+          (setq end (point))
+          (setq overlay (make-overlay beg end))
+          (overlay-put overlay 'face 'pml2-link-face)
+          (setq pml2-cur-overlay overlay)))))
+
 (defun pml2-select-program-buffer ()
   (if (and pml2-program-buffer (buffer-live-p pml2-program-buffer))
       (set-buffer pml2-program-buffer)
@@ -151,16 +231,16 @@
     (comint-mode)
     (make-local-variable 'comint-output-filter-functions)
     (make-local-variable 'comint-exec-hook)
-    ;(setq comint-output-filter-functions
-    ;  '(comint-postoutput-scroll-to-bottom pml2-filter-comint-output))
+    (local-set-key [(mouse-1)] 'pml2-handle-click)
+    (setq comint-output-filter-functions
+          (cons 'pml2-filter-comint-output comint-output-filter-functions))
     (setq comint-exec-hook nil))
+  (setq pml2-cur-output-pos 0)
   (erase-buffer))
 
 (defvar pml2-program-name "pml2")
 
 (defvar pml2-program-options nil)
-
-(defvar pml2-program-buffer nil)
 
 (defun pml2-compile ()
   "compile the current buffer with pml"
@@ -209,6 +289,7 @@
   ;(setq-local outline-regexp pml2-outline-regexp)
   ;;; Indentation
   (use-local-map pml2-mode-map)
+  (add-hook 'pre-command-hook pml2-delete-cur-overlay)
   (set (make-local-variable 'indent-line-function) #'pml2-indent-function))
 
 (add-to-list 'auto-mode-alist '("\\.pml\\'" . pml2-mode))
