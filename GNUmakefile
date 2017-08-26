@@ -135,9 +135,12 @@ install_vim: editors/vim/indent/pml.vim editors/vim/syntax/pml.vim
 	@echo -e "\e[36m==== Add the above to '$(HOME)/.vimrc'\e[39m"
 
 # Install.
-install: main.native $(wldcard lib/*.pml)
+PML_FILES = $(wildcard lib/*.pml)
+PMI_FILES = $(PML_FILES:.pml=.pmi)
+install: main.native $(PML_FILES) $(PMI_FILES)
 	install -d /usr/local/bin
 	install $< /usr/local/bin/pml2
 	install -d /usr/local/lib/pml2
 	install -d /usr/local/lib/pml2/lib
 	install lib/*.pml /usr/local/lib/pml2/lib
+	install lib/*.pmi /usr/local/lib/pml2/lib
