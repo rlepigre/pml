@@ -1,4 +1,4 @@
-OCAMLBUILD := ocamlbuild -docflags -hide-warnings -use-ocamlfind -r
+OCAMLBUILD := ocamlbuild -docflags -hide-warnings -use-ocamlfind -r -quiet
 
 all: pml2 check
 
@@ -116,13 +116,13 @@ test: main.native $(TEST_FILES)
 
 # Cleaning targets.
 clean: libclean
-	ocamlbuild -clean
+	@ocamlbuild -clean
 
 libclean:
-	find . -name \*.pmi -exec rm {} \;
+	@find . -name \*.pmi -exec rm {} \;
 
 distclean: clean
-	rm -f *~ pml2/*~ kernel/*~ parser/*~ editor/*~ doc/*~ test/*~ util/*~
+	@find . -name \*~ -exec rm {} \;
 
 # Install for the vim mode.
 install_vim: editors/vim/indent/pml.vim editors/vim/syntax/pml.vim
