@@ -1,9 +1,12 @@
+;;; This is pml2 emacs mode
 (provide 'pml2-mode)
 
+;;; SYNTAX TABLE
+;;; defining the type of characters
 (defvar pml2-mode-syntax-table
   (let ((pml2-mode-syntax-table (make-syntax-table)))
 
-    ; This is added so entity names with underscores can be more easily parsed
+    ;; This is added so entity names with underscores can be more easily parsed
     (modify-syntax-entry ?_ "w" pml2-mode-syntax-table)
     (modify-syntax-entry ?' "w" pml2-mode-syntax-table)
     (modify-syntax-entry ?( "(" pml2-mode-syntax-table)
@@ -12,12 +15,12 @@
     (modify-syntax-entry ?) ")" pml2-mode-syntax-table)
     (modify-syntax-entry ?} ")" pml2-mode-syntax-table)
     (modify-syntax-entry ?] ")" pml2-mode-syntax-table)
-    ; comments definition
-    ; . means punctuation
-    ; // 12 means first and second char of one line comments
-    ; The second space charater is ignored
+    ;; comments definition
+    ;; . means punctuation
+    ;; // 12 means first and second char of one line comments
+    ;; The second space charater is ignored
     (modify-syntax-entry ?/ ". 12" pml2-mode-syntax-table)
-    ; newlines end comments
+    ;; newlines end comments
     (modify-syntax-entry ?\n ">" pml2-mode-syntax-table)
     pml2-mode-syntax-table)
   "Syntax table for pml2-mode")
@@ -30,11 +33,12 @@
                                     "qed" "rec" "restore" "save" "show"
                                     "showing" "sort" "such" "that" "true"
                                     "type" "use" "using" "val"))
-                      "\\>") ;
+                      "\\>")
               'font-lock-keyword-face)
         )
   "Minimal highlighting expressions for pml2 mode.")
 
+;;; QUAIL to be able to input unicode
 (require 'quail)
 (quail-define-package
  "Pml2" "Pml2" "x⃗" t
@@ -65,24 +69,27 @@
  ("\\m" ?μ)     ("\\mu" ?μ)
  ("\\n" ?ν)     ("\\nu" ?ν)
  ("\\8" ?∞)     ("\\infty" ?∞)
-; ("\\v" ?↓)     ("\\downarrow" ?↓)
-; ("\\ni" ?∉)    ("\\notin" ?∉)
-; ("\\<" ?⊂)     ("\\subset" ?⊂)
+;; ("\\v" ?↓)     ("\\downarrow" ?↓)
+;; ("\\ni" ?∉)    ("\\notin" ?∉)
+;; ("\\<" ?⊂)     ("\\subset" ?⊂)
  )
 
-; test for closing char at current pos
-(defun pml2-closing ()
+;; USEFUL FUNCTION FOR INLINING
+;; Relies on syntax tables!
+;; test for closing char at current pos
+(defun pml2-is-closing ()
   (or (equal (char-after) ?\))
       (equal (char-after) ?\])
       (equal (char-after) ?})))
 
-; parenthesis depth, need a fix when at closing
+;; parenthesis depth, need a fix when at closing
 (defun pml2-depth (&optional pos)
   (if pos (goto-char pos))
   (let ((depth (car (syntax-ppss))))
-    (if (pml2-closing)
+    (if (pml2-is-closing)
         (- depth 1) depth)))
 
+;; search of regular expression at the same depth level
 (defun pml2-search-backward-regex-same-lvl (regex &optional depth)
   (save-excursion
     (let
@@ -109,6 +116,7 @@
         (if (and found (> depth2 depth)) (forward-char)))
       (if found (match-beginning 0) nil))))
 
+;; toplevel symbols
 (defun pml2-top (&optional pos)
   (save-excursion
     (if pos (goto-char pos))
@@ -118,13 +126,8 @@
      (looking-at "type")
      (looking-at "val"))))
 
-(defvar pml2-case-regex "\\(\\(→\\)\\|\\(->\\)\\)")
-
-(defun pml2-is-case (&optional depth)
-  (if (pml2-search-forward-regex-same-lvl pml2-case-regex depth) t nil))
-
-; move to the first non blank char at the beginning of a
-; line. Return nil if the line has only blank
+;; move to the first non blank char at the beginning of a
+;; line. Return nil if the line has only blank
 (defun pml2-move-to-first-non-blank ()
        (end-of-line)
        (setq pos2 (point))
@@ -132,67 +135,134 @@
        (if (search-forward-regexp "[^ \t\n\r]" pos2 t)
          (progn (backward-char) t)))
 
+;; test if a line is entirely a comment
+(defun pml2-is-comment-line ()
+  (save-excursion
+    (pml2-move-to-first-non-blank)
+    (looking-at "//")))
+
+;; line forward and backward
 (defun pml2-move-to-previous-non-empty-line ()
-  (interactive)
   (forward-line -1)
-  (while (and (> (line-number-at-pos) 1) (not (pml2-move-to-first-non-blank)))
+  (while (and (> (line-number-at-pos) 1)
+              (not (pml2-move-to-first-non-blank))
+              (pml2-is-comment-line))
     (forward-line -1)))
 
 (defun pml2-move-to-next-non-empty-line ()
-  (interactive)
   (forward-line 1)
   (while (and (> (line-number-at-pos) 1) (not (pml2-move-to-first-non-blank)))
     (forward-line 1)))
 
+;; INLINIG CODE
+;; We distinguish three categories of lines
+;; case line: have an arrow at the same depth as the beginning of the line
+;; init line: the previous line ends with a semi columns
+;; def  line: line with an "=" and ":" and no semi column
+;;            or arrow after at the same depth
+
+(defvar pml2-case-regex "\\(\\(→\\)\\|\\(->\\)\\)")
+(defvar pml2-semi-regex "\\(;[ \t]*$\\)")
+(defvar pml2-def-regex  "[:=]")
+(defvar pml2-case-or-semi-regex (concat pml2-case-regex "\\|" pml2-semi-regex))
+(defvar pml2-any-ref-regex (concat pml2-case-or-semi-regex "\\|" pml2-def-regex))
+
+(defvar pml2-non-blank "[ \t]*[^ \t\n\r]") ; only used with looking-at
+
+;; test if line is a case line
+(defun pml2-is-case (&optional depth)
+  (if (pml2-search-forward-regex-same-lvl pml2-case-regex depth) t nil))
+
+;; test if a line is a semi line
 (defun pml2-after-semi ()
   (save-excursion
     (pml2-move-to-previous-non-empty-line)
     (let ((limit (point)))
       (end-of-line)
-      (search-backward-regexp ";[ \t]*$" limit t))))
+      (search-backward-regexp pml2-semi-regex limit t))))
 
+;; move backward to the delimiter of the current depth
+;; or the first non blank char, on the same line
 (defun pml2-move-to-delim-or-first ()
   (let ((delim (car (cdr (syntax-ppss)))))
     (pml2-move-to-first-non-blank)
     (if (and delim (> delim (point)))
         (progn (goto-char delim)
-               (if (looking-at  "[ \t]*[^ \t\n\r]")
+               (if (looking-at  pml2-non-blank)
                    (forward-char 2)
                  (pml2-move-to-first-non-blank))))))
 
+;; The three next function are the heart of our indenting algo
+;; depending of the nature of the current line (case, semi or other),
+;; we search for a previous line, at the same depth, that matches:
+;; - only case line matches case line
+;; - case and semi line match semi line
+;; - any thee kind of lines matches the other lines (at the same depth still!)
+;; If no line matches, we find the first line at a lower depth
+
+;; we have find a matching lines, the parameter indicates
+;; the nature of the original line. We know the
+;; nature of the matching line using (match-string 0)
+;; this function return a pair (b . n)
+;; - n is the reference position for indenting
+;; - b = t, means indent at the position
+;; - b = nil, means atra indent propotionnally to the depth difference
 (defun pml2-move-if-found (is-case is-semi)
   (goto-char (match-end 0))
-  (if (equal (substring (match-string 0) 0 1) ";")
-      (progn
-        (pml2-move-to-next-non-empty-line)
-        (pml2-move-to-delim-or-first)
-        (if (not is-semi) (forward-char 2)))
-    (if (or (equal (match-string 0) "->")
-            (equal (match-string 0) "→"))
-         (if (and (not is-case) (looking-at "[ \t]*[^ \n\t\r]"))
-             (forward-char)
-           (pml2-move-to-delim-or-first)
-           (if (not is-case) (forward-char 2)))
-      (if (looking-at "[ \t]*[^ \n\t\r]")
-          (forward-char)
-        (pml2-move-to-delim-or-first)
-        (if (equal (match-string 0) ":")
-            (forward-char 6)
-          (forward-char 2)))))
-  (cons t (point)))
+  ;; the matching line is a semi line
+  (cons t
+    (if (equal (substring (match-string 0) 0 1) ";")
+        (progn ;; we are on the previous line !
+          (pml2-move-to-next-non-empty-line)
+          (pml2-move-to-delim-or-first)
+          ;; extra indent if the current line is not a semi line
+          (if (not is-semi) (+ (current-column) 2)
+            (current-column)))
+      ;; the matching line is a case line
+      (if (or (equal (match-string 0) "->")
+              (equal (match-string 0) "→"))
+          ;; position after the arrow if there is something on the line
+          (if (and (not is-case) (looking-at pml2-non-blank))
+              (+ (current-column) 1)
+            (pml2-move-to-delim-or-first)
+            ;; extra indent if the original line is not a case line
+            (if (not is-case) (+ (current-column) 2)
+              (current-column)))
+        ;; for def line, if we found = or :
+        (if (looking-at pml2-non-blank)
+            (+ (current-column) 1) ;; align two char after the symbol
+          ;; if at the end of the line indent from the beginning
+          (pml2-move-to-delim-or-first)
+          ;; extra indent if after typing
+          (if (equal (match-string 0) ":")
+              (+ (current-column) 6)
+            (+ (current-column) 2)))))))
 
+;; no matching lines found, we are on a line of lower depth
+;; it contains the opening delimiter for the depth of
+;; the line being indented
+;; TODO: in the case, we lack an extra indentation for the second line
 (defun pml2-move-if-not-found ()
+  ;; get the position of this delimiter
   (let ((pos (car (cdr (syntax-ppss)))))
     (if pos
         (progn
           (goto-char pos)
-          (pml2-move-to-first-non-blank)
-          (if (pml2-search-forward-regex-same-lvl
-               (concat pml2-case-regex "[ \t]*[^ \t\n\r]"))
-              (goto-char (+ (match-end 0) 1)))
-          (cons nil (point)))
+          (forward-char)
+          ;; if non blank after delim, ident too char after delim
+          ;; recall the the line is not a case, semi of def line
+          (if (looking-at pml2-non-blank)
+              (progn (forward-char)
+                     (print "coucou")
+                     (cons t (current-column)))
+            ;; otherwise ident relative to the beginning of the line
+            (pml2-move-to-first-non-blank)
+            (cons nil (current-column))))
+      ;; fall back for depth 0, usefull ?
       (cons nil 0))))
 
+;; function computing the indentation reference,
+;; mainly calling the two previous
 (defun pml2-search-ref-line ()
   (interactive)
   (pml2-move-to-first-non-blank)
@@ -207,79 +277,83 @@
       (if (pml2-after-semi)
           (progn
             (goto-char (pml2-after-semi))
-            (if (pml2-search-backward-regex-same-lvl
-                 (concat pml2-case-regex "\\|\\(;[ \t]*$\\)"))
+            (if (pml2-search-backward-regex-same-lvl pml2-case-or-semi-regex)
                 (pml2-move-if-found nil t)
               (pml2-move-if-not-found)))
-        (if (pml2-search-backward-regex-same-lvl
-             (concat pml2-case-regex "\\|[:=]\\|\\(;[ \t]*$\\)"))
+        (if (pml2-search-backward-regex-same-lvl pml2-any-ref-regex)
             (pml2-move-if-found nil nil)
           (pml2-move-if-not-found))))))
 
+;; compute the diff of parenthesis level of two positions
 (defun pml2-indent-level-diff (pos1 pos2)
   "return the difference in indent level of the two point
    or nil if the indent level decrease between the points"
   (save-excursion
     (let ((depth1 (pml2-depth pos1))
           (depth2 (pml2-depth pos2)))
-      (print (list "pml2-indent-level-diff" pos1 depth1 pos2 depth2))
       (- depth2 depth1))))
 
-(defun pml2-is-closing ()
-  (or
-   (equal (char-after) ?\))
-   (equal (char-after) ?\])
-   (equal (char-after) ?})))
-
-(defun pml2-is-open-block-keyword (pos)
-  (save-excursion
-    (goto-char pos)
-    (looking-at "\\(fun\\)\\|\\(case\\)\\|\\(if\\)\\|\\(\\(}[ \t]*\\)?else\\)")))
-
-(defun pml2-semicolumn-before (pos)
-  (save-excursion
-    (goto-char pos)
-    (pml2-move-to-previous-non-empty-line)
-    (end-of-line)
-    (print (char-before))
-    (equal (char-before) ?\;)))
-
+;; now the main indent function is easy !
 (defun pml2-indent-function ()
   (save-excursion
-                                        ; ppss = parenthesis level computed
-                                        ; for the line beginning.
+    ;; ppss = parenthesis level computed
+    ;; for the line beginning.
     (pml2-move-to-first-non-blank)
     (let ((pos (point))
           (ref nil)
           (lvl 0))
+      ;; at top symbol, 0 indent
       (if (pml2-top pos)
-          ; at top symbol, 0 indent
           (progn
-            (print (list "use top" 0))
             (setq lvl 0))
+        ;; general case, get column from reference line
         (setq ref (pml2-search-ref-line))
-        (if (car ref)
-            (setq lvl (current-column))
+        (if (car ref) ; did we find a reference line ?
+            (setq lvl (cdr ref))
           (setq diff (pml2-indent-level-diff (point) pos))
-          (setq lvl (+ (current-column) (* 2 diff)))))
+          (setq lvl (+ (cdr ref) (* 2 diff)))))
       (goto-char pos)
+      ;; we indent the current line, but also all comments that are before
       (let ((cont t))
         (while (and (> (line-number-at-pos) 1) cont)
           (indent-line-to lvl)
           (pml2-move-to-previous-non-empty-line)
           (setq cont (looking-at "//")))))))
 
+;; PML program buffer hold the result of the compilation
 (defvar pml2-program-buffer nil)
 
-(defvar pml2-cur-output-pos 0)
+;; Create and/or prepare the buffer for a new compilation
+(defun pml2-select-program-buffer ()
+  (if (and pml2-program-buffer (buffer-live-p pml2-program-buffer))
+      (set-buffer pml2-program-buffer)
+    (setq pml2-program-buffer (get-buffer-create "*pml-interaction*"))
+    (pop-to-buffer pml2-program-buffer)
+    (pml2-mode) ;; for highlighting only
+    (comint-mode)
+    (make-local-variable 'comint-output-filter-functions)
+    (make-local-variable 'comint-exec-hook)
+    (local-set-key [(mouse-1)] 'pml2-handle-click)
+    (setq comint-output-filter-functions
+          (cons 'pml2-filter-comint-output comint-output-filter-functions))
+    (setq comint-exec-hook nil))
+  (setq pml2-cur-output-pos 0)
+  (erase-buffer))
 
+;; OVERLAY managment to display error position in the source file
+
+;; regexp for position
 (defvar pml2-pos-regexp
   "\\( [^ ,]+\\), \\([0-9]+\\):\\([0-9]+\\)\\(-\\(\\([0-9]+\\):\\)?\\([0-9]+\\)\\)?")
 
+;; face of error link
 (make-face 'pml2-link-face)
-
 (set-face-background 'pml2-link-face "LightBlue")
 
+;; Again a dirty global
+(defvar pml2-cur-output-pos 0)
+
+;; function filtering the result of comilation and creating the overlay
 (defun pml2-filter-comint-output (output)
   (save-excursion
     (pop-to-buffer pml2-program-buffer)
@@ -306,20 +380,28 @@
           (overlay-put overlay 'col1 col1)
           (overlay-put overlay 'col2 col2))))))
 
+;; search a position overlay among the overlays
 (defun pml2-find-pos-overlay (overlay-list)
   (let ((l overlay-list))
     (while (and l (not (overlay-get (car l) 'position)))
       (setq l (cdr l)))
     (car l)))
 
+;; returns the overlays at the position of event
 (defsubst pml2-pos-at-event (event)
   (pml2-find-pos-overlay (overlays-at (posn-point (event-start event)))))
 
+;; A global variable because emacs list has dynamic binding
+;; and no real closure
+;; This overlay show the current position in the source code
 (defvar pml2-cur-overlay nil)
 
+;; Delete this overlay (added as a pre-command-hook)
 (defun pml2-delete-cur-overlay ()
     (if pml2-cur-overlay (delete-overlay pml2-cur-overlay)))
 
+;; Handle a click on an error position
+;; All infos are properties of the overlay
 (defun pml2-handle-click (event)
   (interactive "@e")
   (let ((span (pml2-pos-at-event event)))
@@ -346,21 +428,7 @@
           (overlay-put overlay 'face 'pml2-link-face)
           (setq pml2-cur-overlay overlay)))))
 
-(defun pml2-select-program-buffer ()
-  (if (and pml2-program-buffer (buffer-live-p pml2-program-buffer))
-      (set-buffer pml2-program-buffer)
-    (setq pml2-program-buffer (get-buffer-create "*pml-interaction*"))
-    (pop-to-buffer pml2-program-buffer)
-    (comint-mode)
-    (make-local-variable 'comint-output-filter-functions)
-    (make-local-variable 'comint-exec-hook)
-    (local-set-key [(mouse-1)] 'pml2-handle-click)
-    (setq comint-output-filter-functions
-          (cons 'pml2-filter-comint-output comint-output-filter-functions))
-    (setq comint-exec-hook nil))
-  (setq pml2-cur-output-pos 0)
-  (erase-buffer))
-
+;; Compilation itself
 (defvar pml2-program-name "pml2")
 
 (defvar pml2-program-options nil)
@@ -369,52 +437,45 @@
   "compile the current buffer with pml"
   (interactive)
   (save-buffer)
-  ;(setq pml2-last-goal nil)
-  ;(pml2-remove-spans)
+  ;;(setq pml2-last-goal nil)
+  ;;(pml2-remove-spans)
   (let ((switches
 	 (append pml2-program-options (list buffer-file-name))))
-    ;(setq pml2-pending-output "")
+    ;;(setq pml2-pending-output "")
     (pml2-select-program-buffer)
-    (cd "/home/raffalli/Caml/pml2_rodolphe") ; FIXME
     (setq pml2-process
 	  (comint-exec pml2-program-buffer "pml-process" pml2-program-name nil switches))
     (display-buffer pml2-program-buffer)))
 
+;; our (small mode map)
 (defvar pml2-mode-map
   (let ((pml2-mode-map (make-keymap)))
     (progn
       (define-key pml2-mode-map (kbd "C-c C-c") 'pml2-compile)
-;      (define-key pml-mode-map (kbd "C-c g") 'pml-submit-expr-to-goal)
-;      (define-key pml-mode-map (kbd "C-c r") 'pml-submit-region-to-goal)
-;      (define-key pml-mode-map (kbd "C-c e") 'pml-remove-spans)
-;      (define-key pml-mode-map (kbd "C-c k") 'pml-kill-process)
-;      (define-key pml-mode-map (kbd "RET") 'pml-newline-copy-indent)
-;      (define-key pml-mode-map (kbd "TAB") 'pml-forward-indent)
-;      (define-key pml-mode-map (kbd "C-TAB") 'pml-backward-indent)
-;      (define-key pml-mode-map (kbd "C-S-TAB") 'pml-indent-line)
-;      (if is-xemacs
-;	  (define-key pml-mode-map [(meta shift button1)] 'pml-handle-click))
+;;      (define-key pml-mode-map (kbd "C-c g") 'pml-submit-expr-to-goal)
+;;      (define-key pml-mode-map (kbd "C-c r") 'pml-submit-region-to-goal)
+;;      (define-key pml-mode-map (kbd "C-c e") 'pml-remove-spans)
+;;      (define-key pml-mode-map (kbd "C-c k") 'pml-kill-process)
     pml2-mode-map))
   "Keymap for PML major mode")
 
- ;;;###autoload
+;; the main function creating the mode
 (define-derived-mode pml2-mode fundamental-mode "Pml2"
   "A major mode for editing Pml2 files."
   (set-syntax-table pml2-mode-syntax-table)
   (setq-local font-lock-defaults '(pml2-font-lock-keywords))
   (setq-local comment-start "//")
   (setq-default indent-tabs-mode nil)
-  ;(setq-local font-lock-defaults
-  ;            '(pml2-font-lock-keywords))
   (set-input-method "Pml2")
-  ;(setq-local imenu-generic-expression
-  ;pml2-imenu-generic-expression)
-  ;(setq-local outline-regexp pml2-outline-regexp)
+  ;;(setq-local imenu-generic-expression
+  ;;pml2-imenu-generic-expression)
+  ;;(setq-local outline-regexp pml2-outline-regexp)
   (use-local-map pml2-mode-map)
   (add-hook 'pre-command-hook 'pml2-delete-cur-overlay)
-  ;;; Indentation
+  ;; Indentation
   (set (make-local-variable 'indent-line-function) #'pml2-indent-function))
 
+;; register mode the the .pml extension
 (add-to-list 'auto-mode-alist '("\\.pml\\'" . pml2-mode))
 
 ;;; pml2.el ends here
