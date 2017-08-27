@@ -418,10 +418,14 @@ and arg  =
   | id:llid_wc                               -> (id, None  )
   | "(" id:llid_wc ":" a:(expr (`Prp`F)) ")" -> (id, Some a)
 
+and field_nt =
+  | a:arg_t            -> (fst a, a)
+  | l:llid '=' a:arg_t -> (l    , a)
+
 (* Argument of let-binding. *)
 and let_arg =
   | id:llid_wc ao:{':' a:(expr (`Prp`F))}?     -> `LetArgVar(id,ao)
-  | '{' fs:(lsep_ne ";" arg_t) '}'             -> `LetArgRec(fs)
+  | '{' fs:(lsep_ne ";" field_nt) '}'          -> `LetArgRec(fs)
   | '(' f:arg_t ',' fs:(lsep_ne "," arg_t) ')' -> `LetArgTup(f::fs)
 
 (* Record field. *)
@@ -429,7 +433,12 @@ and field = l:llid {"=" t:(expr (`Trm`F))}?
 
 (* Pattern. *)
 and patt =
-  | c:luid arg:{'[' let_arg ']'}? -> (c, arg)
+  | "[" "]"                       -> (in_pos _loc "Nil"  , None)
+  | x:llid "::" y:llid            -> let hd = (Pos.none "hd", (x, None)) in
+                                     let tl = (Pos.none "tl", (y, None)) in
+                                     let arg = Some (`LetArgRec [hd; tl]) in
+                                     (in_pos _loc "Cons" , arg )
+  | c:luid arg:{'[' let_arg ']'}? -> (c                  , arg )
   | _true_                        -> (in_pos _loc "true" , None)
   | _false_                       -> (in_pos _loc "false", None)
 

@@ -1207,7 +1207,8 @@ let let_binding _loc r arg t u =
       in_pos _loc (EAppl(Pos.make u.pos (ELAbs(((id, ao), []), u)), t))
   | `LetArgRec(fs)    ->
       if r then Earley.give_up (); (* "let rec" is meaningless here. *)
-      let u = Pos.make u.pos (ELAbs((List.hd fs, List.tl fs), u)) in
+      let xs = List.map snd fs in
+      let u = Pos.make u.pos (ELAbs((List.hd xs, List.tl xs), u)) in
       let x = Pos.none "$rec$" in
       let fn u (l,_) =
         let pr = Pos.none (EProj(Pos.none (EVari(x, [])), ref `T,  l)) in
@@ -1234,7 +1235,8 @@ let pattern_matching _loc t ps =
       | None                    -> (None        , t)
       | Some(`LetArgVar(id,ao)) -> (Some (id,ao), t)
       | Some(`LetArgRec(fs)   ) ->
-          let t = Pos.make t.pos (ELAbs((List.hd fs, List.tl fs), t)) in
+          let xs = List.map snd fs in
+          let t = Pos.make t.pos (ELAbs((List.hd xs, List.tl xs), t)) in
           let x = Pos.none "$rec$" in
           let fn t (l,_) =
             let pr = Pos.none (EProj(Pos.none (EVari(x, [])), ref `T,  l)) in
