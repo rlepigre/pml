@@ -64,7 +64,7 @@ val rec insert_sorted : ∀a:ο, ∀o∈ord<a>, ∀x∈a, ∀l∈slist<a,o>,
               let lem = o.termi x c2.hd;
               if o.cmp c1.hd c2.hd {
                 let lem = insert_sorted o x c1.tl;
-                o.cmp x c2.hd?{}:{}
+                if o.cmp x c2.hd { {} } else { {} }
               } else { ✂ }
           }
         }

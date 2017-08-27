@@ -86,7 +86,7 @@ val ramsey2 : ∀a, ∀f∈(a ⇒ a ⇒ bool), stream<a>
     let a such that f : a ⇒ a ⇒ bool;
     let color1 : color<a> = fun a1 s {
       let color2 : color<a> = fun a2 s {
-        f a1 a2?inl s:inr s };
+        if f a1 a2 { inl s } else { inr s } };
       infinite_tape2 color2 s // could use infinite_tape here
     };
     infinite_tape2 color1 s

@@ -319,7 +319,7 @@ val rec isorted : ∀a:ο, ∀o∈ord<a>, ∀x∈a, ∀l∈slist<a,o>,
              let lem = o.tot x c2.hd;
              if o.cmp c1.hd c2.hd {
                let lem = isorted o x c1.tl;
-               o.cmp x c2.hd?{}:{}
+               if o.cmp x c2.hd { {} } else { {} }
              } else { ✂ }
          }
        }
@@ -348,7 +348,7 @@ val rec exists : ∀a, (a ⇒ bool) ⇒ list<a> ⇒ bool =
   fun pred l {
     case l {
       Nil     → false
-      Cons[c] → pred c.hd?true:exists pred c.tl
+      Cons[c] → if pred c.hd { true } else { exists pred c.tl }
     }
   }
 
@@ -361,7 +361,7 @@ val rec find : ∀a:ο, ∀pred∈(a ⇒ bool), total<pred,a> ⇒
     case l {
       Nil[_]  → exc {}
       Cons[c] → let lem = pred_tot c.hd;
-                pred c.hd?c.hd:find pred pred_tot c.tl exc
+                if pred c.hd { c.hd } else { find pred pred_tot c.tl exc }
     }
   }
 

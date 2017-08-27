@@ -30,7 +30,7 @@ val rec tail_sorted : ∀a:ο, ∀o∈order<a>, ∀x∈a, ∀l∈list<a>,
       Nil[_]  → {}
       Cons[c] →
         let lem = o.tmp x c.hd;
-        o.cmp x c.hd?{}:✂
+        if o.cmp x c.hd { {} } else { ✂ }
     }
   }
 

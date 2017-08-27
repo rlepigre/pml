@@ -155,8 +155,8 @@ let parser s_args = {_:langle l:s_lst _:rangle}?[[]]
 (* Priorities for parsing propositions (Atom, Memb, Rest, Prod, Full). *)
 type p_prio = [`A | `M | `R | `P | `F]
 
-(* Priorities for parsing terms (Atom, aPpl, pRefix, If (C), Sequ, Full). *)
-type t_prio = [`A | `P | `I | `R | `S | `F ]
+(* Priorities for parsing terms (Atom, aPpl, pRefix, Sequ, Full). *)
+type t_prio = [`A | `P | `R | `S | `F ]
 
 (* Parsing mode for expressions. *)
 type mode = [`Any | `Prp of p_prio | `Trm of t_prio | `Stk | `Ord ]
@@ -229,15 +229,15 @@ let parser expr (m : mode) =
       when m = `Prp`F
       -> in_pos _loc (EFixN(o,x,a))
   (* Proposition (membership) *)
-  | t:(expr (`Trm`I)) "∈" a:(expr (`Prp`M))
+  | t:(expr (`Trm`P)) "∈" a:(expr (`Prp`M))
       when m = `Prp`M
       -> in_pos _loc (EMemb(t,a))
   (* Proposition (restriction) *)
-  | a:(expr (`Prp`M)) "|" t:(expr (`Trm`I)) b:eq u:(expr (`Trm`I))
+  | a:(expr (`Prp`M)) "|" t:(expr (`Trm`P)) b:eq u:(expr (`Trm`P))
       when m = `Prp`R
       -> in_pos _loc (ERest(Some a,EEquiv(t,b,u)))
   (* Proposition (equivalence) *)
-  | t:(expr (`Trm`I)) b:eq u:(expr (`Trm`I))
+  | t:(expr (`Trm`P)) b:eq u:(expr (`Trm`P))
       when m = `Prp`A
       -> in_pos _loc (ERest(None,EEquiv(t,b,u)))
   (* Proposition (parentheses) *)
@@ -258,7 +258,7 @@ let parser expr (m : mode) =
   | _fun_ args:arg+ '{' t:(expr (`Trm`F)) '}'
       when m = `Trm`A
       -> in_pos _loc (ELAbs((List.hd args, List.tl args),t))
-  | lambda args:arg+ '.' t:(expr (`Trm`I))
+  | lambda args:arg+ '.' t:(expr (`Trm`P))
       when m = `Trm`R
       -> single_line _loc;
          in_pos _loc (ELAbs((List.hd args, List.tl args),t))
@@ -299,7 +299,7 @@ let parser expr (m : mode) =
       when m = `Trm`P
       -> in_pos _loc (EAppl(t,u))
   (* Term (let binding) *)
-  | _let_ r:v_rec arg:let_arg '=' t:(expr (`Trm`I)) ';' u:(expr (`Trm`F))
+  | _let_ r:v_rec arg:let_arg '=' t:(expr (`Trm`P)) ';' u:(expr (`Trm`F))
       when m = `Trm`F
       -> let_binding _loc r arg t u
   (* Term (sequencing). *)
@@ -326,9 +326,6 @@ let parser expr (m : mode) =
                     _else_ '{' e:(expr (`Trm`F)) '}'
       when m = `Trm`A
       -> if_then_else _loc c t e
-  | c:(expr (`Trm`P)) '?' t:(expr (`Trm`F)) ':' e:(expr (`Trm`I))
-      when m = `Trm`I
-       -> single_line _loc; if_then_else _loc c t e
   (* Term ("deduce" tactic) *)
   | _deduce_ a:(expr (`Prp`F))$
       when m = `Trm`A
@@ -370,8 +367,7 @@ let parser expr (m : mode) =
       when m = `Trm`A
   (* Term (level coersions) *)
   | (expr (`Trm`A)) when m = `Trm`P
-  | (expr (`Trm`P)) when m = `Trm`I
-  | (expr (`Trm`I)) when m = `Trm`R
+  | (expr (`Trm`P)) when m = `Trm`R
   | (expr (`Trm`R)) when m = `Trm`S
   | (expr (`Trm`S)) when m = `Trm`F
   | (expr (`Trm`F)) when m = `Any
