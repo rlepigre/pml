@@ -151,10 +151,10 @@ let parser s_arg  = id:llid so:{":" s:sort}?
 let parser s_lst  = l:(lsep_ne "," s_arg)
 let parser s_args = {'<' l:s_lst '>'}?[[]]
 
-(* Priorities for parsing expressions. *)
-(* Atom, Memb, Rest, Prod, Full *)
+(* Priorities for parsing propositions (Atom, Memb, Rest, Prod, Full). *)
 type p_prio = [`A | `M | `R | `P | `F]
-(* Atom, aPpl, pRefix, If (C), Sequ, Full *)
+
+(* Priorities for parsing terms (Atom, aPpl, pRefix, If (C), Sequ, Full). *)
 type t_prio = [`A | `P | `I | `R | `S | `F ]
 
 (* Parsing mode for expressions. *)
