@@ -57,9 +57,9 @@ val rec minus : nat ⇒ nat ⇒ nat =
     case n {
       Z    → zero
       S[p] → case m {
-               Z    → n
-               S[q] → minus p q
-             }
+        Z    → n
+        S[q] → minus p q
+      }
     }
   }
 
@@ -70,13 +70,13 @@ val rec compare : nat ⇒ nat ⇒ [Ls ; Eq ; Gr] =
   fun n m {
     case n {
       Z    → case m {
-               Z    → Eq
-               S[_] → Ls
-             }
+        Z    → Eq
+        S[_] → Ls
+      }
       S[n] → case m {
-               Z    → Gr
-               S[m] → compare n m
-             }
+        Z    → Gr
+        S[m] → compare n m
+      }
     }
   }
 
@@ -108,9 +108,9 @@ val rec ack : nat ⇒ nat ⇒ nat =
     case m {
       Z    → succ n
       S[p] → case n {
-               Z    → ack p one
-               S[q] → ack p (ack m q)
-             }
+        Z    → ack p one
+        S[q] → ack p (ack m q)
+      }
     }
   }
 
@@ -120,9 +120,9 @@ val rec fact : nat ⇒ nat =
     case n {
       Z    → zero
       S[k] → case k {
-               Z    → one
-               S[_] → mul n (fact k)
-             }
+        Z    → one
+        S[_] → mul n (fact k)
+      }
     }
   }
 

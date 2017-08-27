@@ -52,7 +52,7 @@ val sum : list<nat> ⇒ nat = fold_left add zero
 val rec app : ∀b, list<b> ⇒ list<b> ⇒ list<b> =
   fun l1 l2 {
     case l1 {
-      | Nil           → nil
-      | Cons[{hd;tl}] → cons hd (app tl l2)
+            | Nil           → nil
+            | Cons[{hd;tl}] → cons hd (app tl l2)
     }
   }

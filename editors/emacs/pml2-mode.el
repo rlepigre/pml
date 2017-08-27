@@ -99,8 +99,7 @@
          (found nil))
       (while (or (not depth2) (> depth2 depth))
         (setq found (search-backward-regexp regex limit t))
-        (setq depth2 (if found (pml2-depth) -1))
-        (if (and found (> depth2 depth)) (backward-char)))
+        (setq depth2 (if found (pml2-depth) -1)))
       (if found (match-beginning 0) nil))))
 
 (defun pml2-search-forward-regex-same-lvl (regex &optional depth)
@@ -112,8 +111,7 @@
          (found nil))
       (while (or (not depth2) (> depth2 depth))
         (setq found (search-forward-regexp regex limit t))
-        (setq depth2 (if found (pml2-depth) -1))
-        (if (and found (> depth2 depth)) (forward-char)))
+        (setq depth2 (if found (pml2-depth) -1)))
       (if found (match-beginning 0) nil))))
 
 ;; toplevel symbols
@@ -128,12 +126,14 @@
 
 ;; move to the first non blank char at the beginning of a
 ;; line. Return nil if the line has only blank
-(defun pml2-move-to-first-non-blank ()
-       (end-of-line)
-       (setq pos2 (point))
-       (beginning-of-line)
-       (if (search-forward-regexp "[^ \t\n\r]" pos2 t)
-         (progn (backward-char) t)))
+(defun pml2-move-to-first-non-blank (&optional ignored)
+  (end-of-line)
+  (let ((pos (point)) (res nil))
+    (beginning-of-line)
+    (while (and (setq res (search-forward-regexp "[^ \t\n\r]" pos t))
+                ignored
+                (memq (char-before) ignored)))
+    (if res (progn (backward-char) t) nil)))
 
 ;; test if a line is entirely a comment
 (defun pml2-is-comment-line ()
@@ -166,6 +166,7 @@
 (defvar pml2-def-regex  "[:=]")
 (defvar pml2-case-or-semi-regex (concat pml2-case-regex "\\|" pml2-semi-regex))
 (defvar pml2-any-ref-regex (concat pml2-case-or-semi-regex "\\|" pml2-def-regex))
+(defvar pml2-start-def-regex "\\(var\\)\\|\\(let\\)\\|\\(type\\)\\|\\(def\\)")
 
 (defvar pml2-non-blank "[ \t]*[^ \t\n\r]") ; only used with looking-at
 
@@ -190,7 +191,13 @@
         (progn (goto-char delim)
                (if (looking-at  pml2-non-blank)
                    (forward-char 2)
-                 (pml2-move-to-first-non-blank))))))
+                 (pml2-move-to-first-non-blank '(?\; ?|)))))))
+
+;; debugging function for incentation
+(defvar pml2-debug-indent t)
+
+(defun pml2-dbg (&rest args)
+  (if pml2-debug-indent (print args)))
 
 ;; The three next function are the heart of our indenting algo
 ;; depending of the nature of the current line (case, semi or other),
@@ -209,10 +216,12 @@
 ;; - b = nil, means atra indent propotionnally to the depth difference
 (defun pml2-move-if-found (is-case is-semi)
   (goto-char (match-end 0))
+  (pml2-dbg "pml2-move-if-found" (point) is-case is-semi)
   ;; the matching line is a semi line
   (cons t
     (if (equal (substring (match-string 0) 0 1) ";")
         (progn ;; we are on the previous line !
+          (pml2-dbg "semi")
           (pml2-move-to-next-non-empty-line)
           (pml2-move-to-delim-or-first)
           ;; extra indent if the current line is not a semi line
@@ -222,18 +231,22 @@
       (if (or (equal (match-string 0) "->")
               (equal (match-string 0) "→"))
           ;; position after the arrow if there is something on the line
-          (if (and (not is-case) (looking-at pml2-non-blank))
-              (+ (current-column) 1)
-            (pml2-move-to-delim-or-first)
-            ;; extra indent if the original line is not a case line
-            (if (not is-case) (+ (current-column) 2)
-              (current-column)))
+          (progn
+            (pml2-dbg "case" )
+            (if (and (not is-case) (looking-at pml2-non-blank))
+                (+ (current-column) 1)
+              (pml2-move-to-delim-or-first)
+              ;; extra indent if the original line is not a case line
+              (if (not is-case) (+ (current-column) 2)
+                (current-column))))
         ;; for def line, if we found = or :
-        (if (looking-at pml2-non-blank)
-            (+ (current-column) 1) ;; align two char after the symbol
-          ;; if at the end of the line indent from the beginning
+        (pml2-dbg "def" (looking-at pml2-non-blank))
+        (if (or (looking-at pml2-non-blank)
+                 (not (pml2-search-backward-regex-same-lvl pml2-start-def-regex)))
+            (+ (current-column) 3) ;; align to the start of the def
+          ;; if nothing after "=" or ":" indent from the beginning of the def
+          (goto-char (match-end 0))
           (pml2-move-to-delim-or-first)
-          ;; extra indent if after typing
           (if (equal (match-string 0) ":")
               (+ (current-column) 6)
             (+ (current-column) 2)))))))
@@ -242,9 +255,13 @@
 ;; it contains the opening delimiter for the depth of
 ;; the line being indented
 ;; TODO: in the case, we lack an extra indentation for the second line
-(defun pml2-move-if-not-found ()
+(defun pml2-move-if-not-found (is-case is-semi is-closing line1)
   ;; get the position of this delimiter
-  (let ((pos (car (cdr (syntax-ppss)))))
+  (pml2-dbg "pml2-move-if-not-found" (point) is-case is-semi is-closing line1)
+  (let ((pos (car (cdr (syntax-ppss))))
+        (line2 nil)
+        (may-extra (and (not is-case) (not is-semi) (not is-closing))))
+    (setq line2 (line-number-at-pos pos))
     (if pos
         (progn
           (goto-char pos)
@@ -253,36 +270,42 @@
           ;; recall the the line is not a case, semi of def line
           (if (looking-at pml2-non-blank)
               (progn (forward-char)
-                     (print "coucou")
-                     (cons t (current-column)))
+                     (pml2-dbg "pml2-move-if-not-found non blank" line2)
+                     (cons t (+ (current-column)
+                                (if (and may-extra
+                                         (> line1 line2)) 2 0))))
             ;; otherwise ident relative to the beginning of the line
+            (pml2-dbg "pml2-move-if-not-found blank" line2)
             (pml2-move-to-first-non-blank)
-            (cons nil (current-column))))
+            (cons nil (+ (current-column)
+                         (if (and may-extra
+                                  (> line1 (+ 1 line2))) 2 0)))))
       ;; fall back for depth 0, usefull ?
       (cons nil 0))))
 
 ;; function computing the indentation reference,
 ;; mainly calling the two previous
 (defun pml2-search-ref-line ()
-  (interactive)
   (pml2-move-to-first-non-blank)
+  (let ((line (line-number-at-pos))
+        (is-closing (pml2-is-closing)))
   (if (or (equal (char-after) ?\;) (equal (char-after) ?|))
       (progn
         (goto-char (car (cdr (syntax-ppss))))
-        (cons t (point)))
+        (cons t (current-column)))
     (if (pml2-is-case)
         (if (pml2-search-backward-regex-same-lvl pml2-case-regex)
             (pml2-move-if-found t nil)
-          (pml2-move-if-not-found))
+          (pml2-move-if-not-found t nil is-closing line))
       (if (pml2-after-semi)
           (progn
             (goto-char (pml2-after-semi))
             (if (pml2-search-backward-regex-same-lvl pml2-case-or-semi-regex)
                 (pml2-move-if-found nil t)
-              (pml2-move-if-not-found)))
+              (pml2-move-if-not-found nil t is-closing line)))
         (if (pml2-search-backward-regex-same-lvl pml2-any-ref-regex)
             (pml2-move-if-found nil nil)
-          (pml2-move-if-not-found))))))
+          (pml2-move-if-not-found nil nil is-closing line)))))))
 
 ;; compute the diff of parenthesis level of two positions
 (defun pml2-indent-level-diff (pos1 pos2)

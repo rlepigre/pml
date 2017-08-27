@@ -5,6 +5,7 @@ include lib.nat
 //// Properties of addition //////////////////////////////////////////////////
 
 // Totality of addition.
+
 val rec add_total : ∀n m∈nat, ∃v:ι, add n m ≡ v =
   fun n m {
     case n {
@@ -87,6 +88,8 @@ val rec add_comm : ∀m n∈nat, add m n ≡ add n m =
 
 //// Properties of multiplication ////////////////////////////////////////////
 
+// coucou
+
 // Totality of multiplication.
 val rec mul_total : ∀n m∈nat, ∃v:ι, mul n m ≡ v =
   fun n m {
@@ -161,7 +164,7 @@ val rec mul_dist_l : ∀m n p∈nat, mul m (add n p) ≡ add (mul m n) (mul m p)
              deduce mul Z (add n p) ≡ add (mul Z n) (mul Z p);
              qed
       S[k] → show mul k (add n p) ≡ add (mul k n) (mul k p)
-               using mul_dist_l k n p;
+             using mul_dist_l k n p;
              deduce add (add n p) (mul k (add n p))
                ≡ add (add n p) (add (mul k n) (mul k p));
              use add_total n p;
@@ -241,13 +244,13 @@ val rec compare_total : ∀x y∈nat, ∃v:ι, compare x y ≡ v =
   fun x y {
     case x {
       Z    → case y {
-               Z    → {}
-               S[_] → {}
-             }
+        Z    → {}
+        S[_] → {}
+      }
       S[x] → case y {
-               Z    → {}
-               S[y] → compare_total x y
-             }
+        Z    → {}
+        S[y] → compare_total x y
+      }
     }
   }
 

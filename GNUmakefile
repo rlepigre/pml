@@ -142,6 +142,9 @@ install_vim: editors/vim/indent/pml.vim editors/vim/syntax/pml.vim
 	@echo "autocmd BufEnter *.pml source $(HOME)/.vim/indent/pml.vim"
 	@echo -e "\e[36m==== Add the above to '$(HOME)/.vimrc'\e[39m"
 
+install_emacs: editors/emacs/pml2-mode.el
+	cp editors/emacs/pml2-mode.el /usr/local/share/emacs/site-lisp/
+
 # Install.
 PML_FILES = $(wildcard lib/*.pml)
 PMI_FILES = $(PML_FILES:.pml=.pmi)

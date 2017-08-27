@@ -30,10 +30,10 @@ include lib.list
 val rec take : ∀a, nat ⇒ stream<a> ⇒ list<a> =
   fun n s {
     case n {
-      | Z    → Nil
-      | S[k] → let c = s {};
-               let tl = take k c.tl;
-               Cons[{hd = c.hd; tl = tl}]
+           | Z    → Nil
+           | S[k] → let c = s {};
+                    let tl = take k c.tl;
+                    Cons[{hd = c.hd; tl = tl}]
     }
   }
 
