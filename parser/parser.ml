@@ -91,6 +91,7 @@ let _val_     = Keyword.create "val"
 
 (* Some useful tokens. *)
 let parser elipsis = "⋯" | "..."
+let parser infty   = "∞" | "<inf>"
 let parser arrow   = "→" | "->"
 let parser impl    = "⇒" | "=>"
 let parser scis    = "✂" | "8<"
@@ -149,7 +150,7 @@ let sort = sort `F
 (* Auxiliary parser for sort arguments. *)
 let parser s_arg  = id:llid so:{":" s:sort}?
 let parser s_lst  = l:(lsep_ne "," s_arg)
-let parser s_args = {'<' l:s_lst '>'}?[[]]
+let parser s_args = {_:langle l:s_lst _:rangle}?[[]]
 
 (* Priorities for parsing propositions (Atom, Memb, Rest, Prod, Full). *)
 type p_prio = [`A | `M | `R | `P | `F]
@@ -168,7 +169,7 @@ let parser expr (m : mode) =
       -> in_pos _loc (EHOFn(x,s,e))
 
   (* Proposition (variable and higher-order application) *)
-  | id:llid args:{_:langle (lsep "," (expr `Any)) _:rangle}?[[]]
+  | id:llid args:ho_args
       when m = `Prp`A
       -> in_pos _loc (EVari(id, args))
   (* Proposition (boolean type) *)
@@ -250,7 +251,7 @@ let parser expr (m : mode) =
   | (expr (`Prp`F)) when m = `Any
 
   (* Term (variable and higher-order application) *)
-  | id:llid args:{_:langle (lsep "," (expr `Any)) _:rangle}?[[]]
+  | id:llid args:ho_args
       when m = `Trm`A
       -> in_pos _loc (EVari(id, args))
   (* Term (lambda abstraction) *)
@@ -368,7 +369,7 @@ let parser expr (m : mode) =
   | (expr (`Trm`F)) when m = `Any
 
   (* Stack (variable and higher-order application) *)
-  | id:llid args:{_:langle (lsep "," (expr `Any)) _:rangle}?[[]]
+  | id:llid args:ho_args
       when m = `Stk
       -> in_pos _loc (EVari(id, args))
   (* Stack (empty) *)
@@ -387,11 +388,11 @@ let parser expr (m : mode) =
   | (expr `Stk) when m = `Any
 
   (* Ordinal (variable and higher-order application) *)
-  | id:llid args:{_:langle (lsep "," (expr `Any)) _:rangle}?[[]]
+  | id:llid args:ho_args
       when m = `Ord
       -> in_pos _loc (EVari(id, args))
   (* Ordinal (infinite) *)
-  | {"∞" | "<inf>"}
+  | infty
       when m = `Ord
       -> in_pos _loc EConv
   (* Ordinal (successor) *)
@@ -405,6 +406,9 @@ let parser expr (m : mode) =
   | s:goal
       when m = `Stk || m = `Trm`A
       -> in_pos _loc (EGoal(s))
+
+(* Higher-order variable arguments. *)
+and ho_args = {_:langle (lsep "," (expr `Any)) _:rangle}?[[]]
 
 (* Variable with optional type. *)
 and arg_t = id:llid ao:{":" a:(expr (`Prp`F))}?
