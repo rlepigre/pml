@@ -274,6 +274,14 @@ let parser expr (m : mode) =
   | _false_
       when m = `Trm`A
       -> v_bool _loc false
+  (* Term (empty list) *)
+  | "[.]"
+      when m = `Trm`A
+      -> v_nil _loc
+  (* Term (list constructor) *)
+  | t:(expr (`Trm`A)) "::" u:(expr (`Trm`P))
+      when m = `Trm`P
+      -> v_cons _loc t u
   (* Term (record) *)
   | "{" fs:(lsep_ne ";" field) "}"
       when m = `Trm`A
@@ -433,7 +441,7 @@ and field = l:llid {"=" t:(expr (`Trm`F))}?
 
 (* Pattern. *)
 and patt =
-  | "[" "]"                       -> (in_pos _loc "Nil"  , None)
+  | '[' ']'                       -> (in_pos _loc "Nil"  , None)
   | x:llid "::" y:llid            -> let hd = (Pos.none "hd", (x, None)) in
                                      let tl = (Pos.none "tl", (y, None)) in
                                      let arg = Some (`LetArgRec [hd; tl]) in

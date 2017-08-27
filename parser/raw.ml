@@ -1264,6 +1264,16 @@ let v_bool _loc b =
   let b = ECons(Pos.none (if b then "true" else "false"), None) in
   Pos.in_pos _loc (ECoer(Pos.in_pos _loc b, p_bool None))
 
+(* Empty list. *)
+let v_nil _loc =
+  Pos.in_pos _loc (ECons(Pos.in_pos _loc "Nil", None))
+
+(* Cons on lists. *)
+let v_cons _loc t u =
+  let args = [ (Pos.none "hd", t, ref `T) ; (Pos.none "tl", u, ref `T) ] in
+  let arg = (Pos.none (EReco(args)), ref `T) in
+  Pos.in_pos _loc (ECons(Pos.none "Cons", Some arg))
+
 (* "deduce a" := "{} : a" *)
 let deduce _loc a =
   Pos.in_pos _loc (ECoer(Pos.none (EReco []), a))
