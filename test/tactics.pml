@@ -141,5 +141,5 @@ val rec mul_comm : ∀n m∈nat, mul n m ≡ mul m n =
 include lib.bool
 
 val t1 : ∀a∈bool, imp a a ≡ true = fun a {
-    if a {from a ≡ true; qed } else { qed }
+    if a {showing a ≡ true; qed } else { qed }
    }

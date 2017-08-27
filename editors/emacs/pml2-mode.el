@@ -25,10 +25,10 @@
 (defconst pml2-font-lock-keywords
   (list (cons (concat "\\<"
 		      (regexp-opt '("bool" "case" "check" "corec" "deduce"
-				    "def" "else" "false" "fix" "from"
-                                    "fun" "if" "include" "let" "of"
-                                    "print" "qed" "rec" "restore" "save"
-                                    "show" "sort" "such" "that" "true"
+				    "def" "else" "false" "fix" "fun"
+                                    "if" "include" "let" "of" "print"
+                                    "qed" "rec" "restore" "save" "show"
+                                    "showing" "sort" "such" "that" "true"
                                     "type" "use" "using" "val"))
                       "\\>") ;
               'font-lock-keyword-face)
@@ -41,28 +41,33 @@
  "A transliteration scheme for Pml2."
  nil t t t t nil t nil nil nil t)
 (quail-define-rules
+ ("..." ?⋯)     ("\\dots" ?⋯)
  ("->" ?→)      ("\\to" ?→)
- ("=>" ?⇒)      ("\\To" ?⇒)
- ("8<" ?✂)
+ ("=>" ?⇒)     ("\\To" ?⇒)
+ ("8<" ?✂)     ("\\scicors" ?✂)
  ("==" ?≡)      ("\\equiv" ?≡)
  ("!=" ?≠)      ("\\notequiv" ?≠)
+                ("\\not" ?¬)
+ ("\\*" ?×)     ("\\times" ?×)
  ("\\l" ?λ)     ("\\lambda" ?λ)
- ("\\L" ?Λ)     ("\\Lambda" ?Λ)
- ("\\m" ?μ)     ("\\mu" ?μ)
- ("\\n" ?ν)     ("\\nu" ?ν)
- ("\\o" ?ο)     ("\\omicron" ?ο)
- ("\\t" ?τ)     ("\\tau" ?τ)
  ("\\i" ?ι)     ("\\iota" ?ι)
- ("\\v" ?↓)     ("\\downarrow" ?↓)
- ("\\s" ?σ)     ("\\sigme" ?σ)
- ("\\e" ?κ)     ("\\kappa" ?κ)
- ("\\8" ?∞)     ("\\infty" ?∞)
+ ("\\t" ?τ)     ("\\tau" ?τ)
+ ("\\s" ?σ)     ("\\sigma" ?σ)
+ ("\\o" ?ο)     ("\\omicron" ?ο)
+ ("\\k" ?κ)     ("\\kappa" ?κ)
+ ("|->" ?↦)    ("\\mapsto" ?↦)
+ ("\\<" ?⟨)     ("\\langle" ?⟨)
+ ("\\<" ?⟩)     ("\\langle" ?⟩)
  ("\\A" ?∀)     ("\\forall" ?∀)
  ("\\E" ?∃)     ("\\exists" ?∃)
- ("\\in" ?∈)
- ("\\ni" ?∉)    ("\\notin" ?∉)
- ("\\*" ?×)     ("\\times" ?×)
- ("\\<" ?⊂)     ("\\subset" ?⊂)
+                ("\\in" ?∈)
+ ("\\e"  ?ε)     ("\\epsilon" ?ε)
+ ("\\m" ?μ)     ("\\mu" ?μ)
+ ("\\n" ?ν)     ("\\nu" ?ν)
+ ("\\8" ?∞)     ("\\infty" ?∞)
+; ("\\v" ?↓)     ("\\downarrow" ?↓)
+; ("\\ni" ?∉)    ("\\notin" ?∉)
+; ("\\<" ?⊂)     ("\\subset" ?⊂)
  )
 
 ; test for closing char at current pos

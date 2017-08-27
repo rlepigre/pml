@@ -216,12 +216,12 @@ val rec mul_assoc : ∀m n p∈nat, mul m (mul n p) ≡ mul (mul m n) p =
   fun m n p {
     case m {
       Z    → use mul_total n p;
-             from mul Z (mul n p) ≡ mul (mul Z n) p;
+             showing mul Z (mul n p) ≡ mul (mul Z n) p;
              deduce mul Z (mul n p) ≡ Z;
-             from Z ≡ mul (mul Z n) p;
+             showing Z ≡ mul (mul Z n) p;
              deduce mul (mul Z n) p ≡ mul Z p;
              deduce mul (mul Z n) p ≡ Z;
-             from Z ≡ Z;
+             showing Z ≡ Z;
              qed
       S[k] → show mul k (mul n p) ≡ mul (mul k n) p using mul_assoc k n p;
              deduce add (mul n p) (mul k (mul n p))

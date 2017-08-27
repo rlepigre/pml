@@ -73,7 +73,6 @@ let _def_     = Keyword.create "def"
 let _else_    = Keyword.create "else"
 let _false_   = Keyword.create "false"
 let _fix_     = Keyword.create "fix"
-let _from_    = Keyword.create "from"
 let _fun_     = Keyword.create "fun"
 let _if_      = Keyword.create "if"
 let _include_ = Keyword.create "include"
@@ -85,6 +84,7 @@ let _rec_     = Keyword.create "rec"
 let _restore_ = Keyword.create "restore"
 let _save_    = Keyword.create "save"
 let _show_    = Keyword.create "show"
+let _showing_ = Keyword.create "showing"
 let _sort_    = Keyword.create "sort"
 let _such_    = Keyword.create "such"
 let _that_    = Keyword.create "that"
@@ -104,6 +104,8 @@ let parser nequiv  = "≠"
 let parser neg_sym = "¬"
 let parser prod    = "×" | "*"
 let parser lambda  = "λ"
+let parser langle  = "<" | "⟨"
+let parser rangle  = ">" | "⟩"
 
 (* Such that. *)
 let parser _st_ = _:_such_ _:_that_
@@ -171,7 +173,7 @@ let parser expr (m : mode) =
       -> in_pos _loc (EHOFn(x,s,e))
 
   (* Proposition (variable and higher-order application) *)
-  | id:llid args:{"<" (lsep "," (expr `Any)) ">"}?[[]]
+  | id:llid args:{_:langle (lsep "," (expr `Any)) _:rangle}?[[]]
       when m = `Prp`A
       -> in_pos _loc (EVari(id, args))
   (* Proposition (boolean type) *)
@@ -253,7 +255,7 @@ let parser expr (m : mode) =
   | (expr (`Prp`F)) when m = `Any
 
   (* Term (variable and higher-order application) *)
-  | id:llid args:{"<" (lsep "," (expr `Any)) ">"}?[[]]
+  | id:llid args:{_:langle (lsep "," (expr `Any)) _:rangle}?[[]]
       when m = `Trm`A
       -> in_pos _loc (EVari(id, args))
   (* Term (lambda abstraction) *)
@@ -335,10 +337,10 @@ let parser expr (m : mode) =
   | _use_ t:(expr (`Trm`R))
       when m = `Trm`R
       -> use _loc t
-  (* Term ("from" tactic) *)
-  | _from_   a:(expr (`Prp`R)) ';' p:(expr (`Trm`S))
+  (* Term ("showing" tactic) *)
+  | _showing_   a:(expr (`Prp`R)) ';' p:(expr (`Trm`S))
       when m = `Trm`S
-      -> from _loc a p
+      -> showing _loc a p
   (* Term ("QED" tactic) *)
   | _qed_
       when m = `Trm`A
@@ -371,7 +373,7 @@ let parser expr (m : mode) =
   | (expr (`Trm`F)) when m = `Any
 
   (* Stack (variable and higher-order application) *)
-  | id:llid args:{"<" (lsep "," (expr `Any)) ">"}?[[]]
+  | id:llid args:{_:langle (lsep "," (expr `Any)) _:rangle}?[[]]
       when m = `Stk
       -> in_pos _loc (EVari(id, args))
   (* Stack (empty) *)
@@ -390,7 +392,7 @@ let parser expr (m : mode) =
   | (expr `Stk) when m = `Any
 
   (* Ordinal (variable and higher-order application) *)
-  | id:llid args:{"<" (lsep "," (expr `Any)) ">"}?[[]]
+  | id:llid args:{_:langle (lsep "," (expr `Any)) _:rangle}?[[]]
       when m = `Ord
       -> in_pos _loc (EVari(id, args))
   (* Ordinal (infinite) *)
