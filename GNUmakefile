@@ -1,3 +1,5 @@
+include Makefile.config
+
 OCAMLBUILD := ocamlbuild -docflags -hide-warnings -use-ocamlfind -r -quiet
 
 all: pml2 lib check
@@ -85,7 +87,12 @@ pml2_byte: _build/pml2/main.byte
 main.byte: _build/pml2/main.byte
 main.native: _build/pml2/main.native
 
-ML_FILES = $(wildcard */*.ml)
+pml2/main.ml.depends: pml2/config.ml
+pml2/config.ml: GNUmakefile
+	echo "let path = [\".\" ; \"$(LIBDIR)\"]" > $@
+
+ML_FILES = $(wildcard */*.ml) pml2/config.ml
+
 _build/pml2/main.native: $(ML_FILES)
 	@rm -f main.native
 	$(OCAMLBUILD) pml2/main.native
@@ -132,6 +139,7 @@ libclean:
 distclean: clean
 	@find . -name \*~ -exec rm {} \;
 
+.PHONY: install_vim
 # Install for the vim mode.
 install_vim: editors/vim/indent/pml.vim editors/vim/syntax/pml.vim
 	cp editors/vim/syntax/pml.vim ~/.vim/syntax/pml.vim
@@ -142,16 +150,21 @@ install_vim: editors/vim/indent/pml.vim editors/vim/syntax/pml.vim
 	@echo "autocmd BufEnter *.pml source $(HOME)/.vim/indent/pml.vim"
 	@echo -e "\e[36m==== Add the above to '$(HOME)/.vimrc'\e[39m"
 
+.PHONY: install_emacs
 install_emacs: editors/emacs/pml2-mode.el
-	cp editors/emacs/pml2-mode.el /usr/local/share/emacs/site-lisp/
+	if [ -d $(EMACSDIR) ]; then \
+	  install -d $(EMACSDIR) ;\
+	  install -m 0644 editors/emacs/pml2-mode.el $(EMACSDIR) ;\
+	  install -m 0755 editors/emacs/pml2-indent.sh $(BINDIR)/pml2-indent ;\
+	fi
 
 # Install.
+.PHONY: install
 PML_FILES = $(wildcard lib/*.pml)
 PMI_FILES = $(PML_FILES:.pml=.pmi)
-install: main.native $(PML_FILES) lib
-	install -d /usr/local/bin
-	install $< /usr/local/bin/pml2
-	install -d /usr/local/lib/pml2
-	install -d /usr/local/lib/pml2/lib
-	install lib/*.pml /usr/local/lib/pml2/lib
-	install lib/*.pmi /usr/local/lib/pml2/lib
+install: main.native $(PML_FILES) lib install_emacs
+	install -d $(BINDIR)
+	install -m 0755 $< $(BINDIR)/pml2
+	install -d $(LIBDIR)
+	install -m 0644 lib/*.pml $(LIBDIR)
+	install -m 0644 lib/*.pmi $(LIBDIR)

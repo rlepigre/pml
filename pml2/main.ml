@@ -9,7 +9,7 @@ open Eval
 
 let _ = Printexc.record_backtrace true
 
-let path = ["." ; "/usr/local/lib/pml2"]
+let path = Config.path
 
 let verbose = ref true
 let timed   = ref false
