@@ -142,11 +142,11 @@
     (looking-at "//")))
 
 ;; line forward and backward
-(defun pml2-move-to-previous-non-empty-line ()
+(defun pml2-move-to-previous-non-empty-line (&optional comments)
   (forward-line -1)
   (while (and (> (line-number-at-pos) 1)
-              (not (pml2-move-to-first-non-blank))
-              (pml2-is-comment-line))
+              (or (not (pml2-move-to-first-non-blank))
+                  (and (not comments) (pml2-is-comment-line))))
     (forward-line -1)))
 
 (defun pml2-move-to-next-non-empty-line ()
@@ -317,7 +317,7 @@
       (let ((cont t))
         (while (and (> (line-number-at-pos) 1) cont)
           (indent-line-to lvl)
-          (pml2-move-to-previous-non-empty-line)
+          (pml2-move-to-previous-non-empty-line t)
           (setq cont (looking-at "//")))))))
 
 ;; PML program buffer hold the result of the compilation
