@@ -22,10 +22,13 @@ The program can be compiled and optionally installed as follows.
 
   make && make install
 
+You can edit Makefile.config to change/see the default installation dirs.
+
 The documentation (very incomplete) can be produced as follows.
 
   make doc
 
+This generates the documentation of the ML modules for developers
 
 My advice to start looking at the code would be to take a look at the three
 different abstract syntax representations.
