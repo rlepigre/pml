@@ -46,7 +46,7 @@ type either<a,b> = [InL of a ; InR of b]
 
 val excl_mid : ∀a, {} ⇒ either<a, neg<a>> =
   fun _ {
-    save k { InR[fun x → restore k InL[x]] }
+    save k { InR[fun x { restore k InL[x] }] }
   }
 type rec nat = [Zero ; Succ of nat]
 
