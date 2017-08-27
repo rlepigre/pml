@@ -17,7 +17,7 @@ val rec fold_left : ∀a b, (a ⇒ b ⇒ a) ⇒ a ⇒ list<b> ⇒ a =
   }
 val exists : ∀a, (a ⇒ bool) ⇒ list<a> ⇒ bool =
   fun pred l {
-    let f = fun acc e { if pred e { true } else { acc } } in
+    let f = fun acc e { if pred e { true } else { acc } };
     fold_left f false l
   }
 include lib.option
@@ -26,7 +26,7 @@ val silly : (∀a, a ⇒ a) ⇒ {} ⇒ option<{}> =
 val exists : ∀a, (a ⇒ bool) ⇒ list<a> ⇒ bool =
   fun pred l {
     save k {
-      let f = fun acc e { if pred e { restore k true } else { acc } } in
+      let f = fun acc e { if pred e { restore k true } else { acc } };
       fold_left f false l
     }
   }
@@ -60,39 +60,39 @@ val rec add_n_z : ∀n∈nat, add n Zero ≡ n =
   fun n {
     case n {
       Zero    → {}
-      Succ[k] → let ih = add_n_z k in {}
+      Succ[k] → let ih = add_n_z k; {}
     }
   }
 // val rec add_n_z_loop : ∀n∈nat, add n Zero ≡ n =
-//   fun n { let ih = add_n_z_loop n in {} }
+//   fun n { let ih = add_n_z_loop n; {} }
 val rec add_n_s : ∀n m∈nat, add n Succ[m] ≡ Succ[add n m] =
   fun n m {
     case n {
       Zero    → {}
-      Succ[k] → let ind_hyp = add_n_s k m in {}
+      Succ[k] → let ind_hyp = add_n_s k m; {}
     }
   }
 val rec add_comm : ∀n m∈nat, add n m ≡ add m n =
   fun n m {
     case n {
-      Zero    → let lem = add_n_z m in {}
-      Succ[k] → let ih  = add_comm k m in
-                 let lem = add_n_s m k in {}
+      Zero    → let lem = add_n_z m; {}
+      Succ[k] → let ih  = add_comm k m;
+                 let lem = add_n_s m k; {}
     }
   }
 val rec add_total : ∀n m∈nat, ∃v:ι, add n m ≡ v =
   fun n m {
     case n {
       Zero    → {}
-      Succ[k] → let ih = add_total k m in {}
+      Succ[k] → let ih = add_total k m; {}
     }
   }
 val rec add_asso : ∀n m p∈nat, add n (add m p) ≡ add (add n m) p =
   fun n m p {
-    let tot_m_p = add_total m p in
+    let tot_m_p = add_total m p;
     case n {
       Zero    → {}
-      Succ[k] → let tot_k_m = add_total k m in
-                 let ih = add_asso k m p in {}
+      Succ[k] → let tot_k_m = add_total k m;
+                 let ih = add_asso k m p; {}
     }
   }
