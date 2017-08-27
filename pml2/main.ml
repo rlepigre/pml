@@ -6,10 +6,9 @@ open Raw
 open Typing
 open Output
 open Eval
+open Config
 
 let _ = Printexc.record_backtrace true
-
-let path = Config.path
 
 let verbose = ref true
 let timed   = ref false

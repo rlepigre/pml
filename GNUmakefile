@@ -89,7 +89,7 @@ main.native: _build/pml2/main.native
 
 pml2/main.ml.depends: pml2/config.ml
 pml2/config.ml: GNUmakefile
-	echo "let path = [\".\" ; \"$(LIBDIR)\"]" > $@
+	echo "let path = [\"$(LIBDIR)\"]" > $@
 
 ML_FILES = $(wildcard */*.ml) pml2/config.ml
 
@@ -138,6 +138,7 @@ libclean:
 
 distclean: clean
 	@find . -name \*~ -exec rm {} \;
+	@rm -f pml2/config.ml
 
 .PHONY: install_vim
 # Install for the vim mode.
@@ -165,6 +166,6 @@ PMI_FILES = $(PML_FILES:.pml=.pmi)
 install: main.native $(PML_FILES) lib install_emacs
 	install -d $(BINDIR)
 	install -m 0755 $< $(BINDIR)/pml2
-	install -d $(LIBDIR)
-	install -m 0644 lib/*.pml $(LIBDIR)
-	install -m 0644 lib/*.pmi $(LIBDIR)
+	install -d $(LIBDIR)/lib
+	install -m 0644 $(PML_FILES) $(LIBDIR)/lib
+	install -m 0644 $(PMI_FILES) $(LIBDIR)/lib

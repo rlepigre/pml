@@ -17,13 +17,13 @@ syntax region Str start=/\v"/ skip=/\v\\./ end=/\v"/
 highlight link Str Character
 
 " Keywords
-syntax keyword Keyword fun save restore case of fix let in rec corec using
-syntax keyword Keyword use type def val sort if else deduce show qed such that
+syntax keyword Keyword fun save restore case of fix let rec corec using use
+syntax keyword Keyword type def val sort if else deduce show qed such that
 syntax match   Keyword "λ"
 syntax match   Keyword "μ"
 syntax match   Keyword "ν"
 syntax match   Keyword "Λ"
-syntax match   Keyword "[][{}()=<>,:.|]"
+syntax match   Keyword "[][{}()=<>,;:.|]"
 syntax match   Keyword "⇒"
 syntax match   Keyword "→"
 syntax match   Keyword "×"
