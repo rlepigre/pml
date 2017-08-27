@@ -9,36 +9,31 @@ open Raw
 (* Definition of the [locate] function used by [Earley]. *)
 #define LOCATE locate
 
-(* check if a location is only one line *)
-let same_line _loc =
+(* Reject if the given locatio is not on a single line. *)
+let single_line _loc =
   if _loc.start_line <> _loc.end_line then give_up ()
 
 (* Parser of a list separated by a given string. *)
 let lsep s elt =
-  parser
-  | EMPTY                    -> []
-  | e:elt es:{_:STR(s) elt}* -> e::es
+  parser {e:elt es:{_:STR(s) elt}* -> e::es}?[[]]
 
 (* Parser of a (non-empty) list separated by a given string. *)
 let lsep_ne s elt =
-  parser
-  | e:elt es:{_:STR(s) elt}* -> e::es
+  parser e:elt es:{_:STR(s) elt}* -> e::es
 
 (* String litteral. *)
 let str_lit =
-  let normal = in_charset
-    (List.fold_left Charset.del Charset.full ['\\'; '"'; '\r'])
-  in
-  let schar = parser
+  let normal = List.fold_left Charset.del Charset.full ['\\'; '"'; '\r'] in
+  let normal = in_charset normal in
+  let str_char = parser
     | "\\\""   -> "\""
     | "\\\\"   -> "\\"
     | "\\n"    -> "\n"
     | "\\t"    -> "\t"
     | c:normal -> String.make 1 c
   in
-  change_layout
-    (parser "\"" cs:schar* "\"" -> String.concat "" cs)
-    no_blank
+  let str = parser "\"" cs:str_char* "\"" -> String.concat "" cs in
+  change_layout str no_blank
 
 (* Parser of a module path. *)
 let parser path_atom = id:''[a-zA-Z0-9_]+''
@@ -115,19 +110,19 @@ let parser neg =
   | EMPTY   -> true
   | neg_sym -> false
 
-(* Optional "rec" annotation of a term. *)
-let parser v_is_rec =
+(* Optional "rec" annotation on a value definition. *)
+let parser v_rec =
   | EMPTY   -> false
   | _rec_   -> true
 
-(* Optional "rec" / "corec" annotation for a type. *)
-let parser t_is_rec =
+(* Optional "rec" / "corec" annotation on a type definition. *)
+let parser t_rec =
   | EMPTY   -> `Non
   | _rec_   -> `Rec
   | _corec_ -> `CoRec
 
 (* Optional elipsis for extensible records. *)
-let parser is_strict =
+let parser strict =
   | EMPTY   -> true
   | elipsis -> false
 
@@ -189,7 +184,7 @@ let parser expr (m : mode) =
       when m = `Prp`P
       -> tuple_type _loc (a::bs)
   (* Proposition (non-empty product) *)
-  | "{" fs:(lsep_ne ";" (parser l:llid ":" a:(expr (`Prp`F)))) s:is_strict "}"
+  | "{" fs:(lsep_ne ";" (parser l:llid ":" a:(expr (`Prp`F)))) s:strict "}"
       when m = `Prp`A
       -> in_pos _loc (EProd(fs,s))
   (* Proposition (extensible empty record) *)
@@ -264,7 +259,7 @@ let parser expr (m : mode) =
       -> in_pos _loc (ELAbs((List.hd args, List.tl args),t))
   | lambda args:arg+ '.' t:(expr (`Trm`I))
       when m = `Trm`R
-      -> same_line _loc;
+      -> single_line _loc;
          in_pos _loc (ELAbs((List.hd args, List.tl args),t))
   (* Term (constructor) *)
   | c:luid t:{"[" t:(expr (`Trm`F)) "]"}?
@@ -295,7 +290,7 @@ let parser expr (m : mode) =
       when m = `Trm`P
       -> in_pos _loc (EAppl(t,u))
   (* Term (let binding) *)
-  | _let_ r:v_is_rec arg:let_arg '=' t:(expr (`Trm`I)) ';' u:(expr (`Trm`F))
+  | _let_ r:v_rec arg:let_arg '=' t:(expr (`Trm`I)) ';' u:(expr (`Trm`F))
       when m = `Trm`F
       -> let_binding _loc r arg t u
   (* Term (sequencing). *)
@@ -324,7 +319,7 @@ let parser expr (m : mode) =
       -> if_then_else _loc c t e
   | c:(expr (`Trm`P)) '?' t:(expr (`Trm`F)) ':' e:(expr (`Trm`I))
       when m = `Trm`I
-       -> same_line _loc; if_then_else _loc c t e
+       -> single_line _loc; if_then_else _loc c t e
   (* Term ("deduce" tactic) *)
   | _deduce_ a:(expr (`Prp`F))$
       when m = `Trm`A
@@ -450,11 +445,11 @@ let parser toplevel =
       -> fun () -> expr_def id args s e
 
   (* Definition of a proposition (special case of expression). *)
-  | _type_ r:t_is_rec id:llid args:s_args '=' e:prop
+  | _type_ r:t_rec id:llid args:s_args '=' e:prop
       -> fun () -> type_def _loc r id args e
 
   (* Definition of a value (to be computed). *)
-  | _val_ r:v_is_rec id:llid ':' a:prop '=' t:term
+  | _val_ r:v_rec id:llid ':' a:prop '=' t:term
       -> fun () -> val_def r id a t
 
   (* Check of a subtyping relation. *)
