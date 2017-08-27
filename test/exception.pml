@@ -7,7 +7,7 @@ val rec exists : ∀a:ο, (a ⇒ bool) ⇒ list<a> ⇒ bool =
   fun f l {
     case l {
       Nil[_]  → false
-      Cons[c] → if f c.hd then true else exists f c.tl
+      Cons[c] → f c.hd?true:exists f c.tl
     }
   }
 
@@ -19,9 +19,9 @@ val rec exists_total : ∀a:ο, ∀f∈(a ⇒ bool), total<f,a> ⇒ ∀l∈list<
     case l {
       Nil[_]  → {}
       Cons[c] →
-        let lem : (∃y:ι, f c.hd ≡ y) = ftot c.hd in
-        if f c.hd then {}
-        else { let lem = exists_total f ftot c.tl in {} }
+        let lem : (∃y:ι, f c.hd ≡ y) = ftot c.hd;
+        if f c.hd { {} }
+        else { let lem = exists_total f ftot c.tl; {} }
     }
   }
 
@@ -31,10 +31,10 @@ val rec find : ∀a:ο, ∀f∈(a ⇒ bool), total<f,a> ⇒
   fun f ftot l exc {
     case l {
       | Nil[_]  → exc {}
-      | Cons[c] → let hd = c.hd in let tl = c.tl in
-                  let lem : (∃v:ι, f hd ≡ v) = ftot hd in
+      | Cons[c] → let hd = c.hd; let tl = c.tl;
+                  let lem : (∃v:ι, f hd ≡ v) = ftot hd;
 //                let exc : neg<exists f tl ≡ false> = exc in //useless !!!
-                  if f hd then hd else find f ftot tl exc
+                  f hd ? hd : find f ftot tl exc
     }
   }
 

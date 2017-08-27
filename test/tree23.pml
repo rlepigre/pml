@@ -30,12 +30,12 @@ val mem_total : ∀a:ο, ∀f∈(a⇒a⇒cmp), cmp_total<f,a> ⇒ ∀x∈a, ∀t
       case t {
         E     → {}
         N2[{l; x; r}] →
-          let _ = ft z x in
+          let _ = ft z x;
           case f z x { Le → mem_total l | Eq → {} | Ge → mem_total r }
         N3[{l; x; m; y; r}] →
-          let _ = ft z x in
+          let _ = ft z x;
           case f z x { Le → mem_total l | Eq → {} | Ge →
-            let _ = ft z y in
+            let _ = ft z y;
             case f z y { Le → mem_total m | Eq → {} | Ge → mem_total r }
         }
       }
@@ -103,38 +103,38 @@ val add_aux_total : ∀a:ο, ∀f∈(a⇒a⇒cmp), cmp_total<f,a> ⇒ ∀x∈a,
       case t {
       | E     → {}
       | N2[c] →
-         let _ = ft x c.x in
+         let _ = ft x c.x;
          case f x c.x {
-         | Le → let lem = add_aux_total c.l in
+         | Le → let lem = add_aux_total c.l;
                 case add_aux f x c.l {
                 | N1[t] → {}
                 | N2[n] → {}
                 }
          | Eq → {}
-         | Ge → let lem = add_aux_total c.r in
+         | Ge → let lem = add_aux_total c.r;
                 case add_aux f x c.r {
                 | N1[t] → {}
                 | N2[n] → {}
                 }}
       | N3[c] →
-         let _ = ft x c.x in
+         let _ = ft x c.x;
          case f x c.x {
-         | Le → let lem = add_aux_total c.l in
+         | Le → let lem = add_aux_total c.l;
                 case add_aux f x c.l {
                 | N1[t] → {}
                 | N2[n] → {}
                 }
          | Eq → {}
          | Ge →
-         let _ = ft x c.y in
+         let _ = ft x c.y;
          case f x c.y {
-         | Le → let lem = add_aux_total c.m in
+         | Le → let lem = add_aux_total c.m;
                 case add_aux f x c.m {
                 | N1[t] → {}
                 | N2[n] → {}
                 }
          | Eq → {}
-         | Ge → let lem = add_aux_total c.r in
+         | Ge → let lem = add_aux_total c.r;
                 case add_aux f x c.r {
                 | N1[t] → {}
                 | N2[n] → {}
@@ -146,7 +146,7 @@ val add_aux_total : ∀a:ο, ∀f∈(a⇒a⇒cmp), cmp_total<f,a> ⇒ ∀x∈a,
 val add_total : ∀a:ο, ∀f∈(a⇒a⇒cmp), cmp_total<f,a> ⇒
                 ∀x∈a, ∀t∈tree23<a>, ∃v:ι, add f x t ≡ v =
   fun f ft x t {
-    let _ = add_aux_total f ft x t in
+    let _ = add_aux_total f ft x t;
     case add_aux f x t {
       N1[u] → {}
       N2[c] → {}
@@ -188,14 +188,14 @@ val rec height_total : ∀a:ο, ∀t∈tree23<a>, ∀n∈nat, ∃v:ι, height t 
     | S[p] →
       case t {
       | E     → {}
-      | N2[c] → let _ = height_total c.l p in
-                let _ = height_total c.r p in
+      | N2[c] → let _ = height_total c.l p;
+                let _ = height_total c.r p;
                 cond<height c.l p,{},{}>
-      | N3[c] → let _ = height_total c.l p in
-                let _ = height_total c.m p in
-                let _ = height_total c.r p in
-                if height c.l p then cond<height c.m p,{},{}>
-                else cond<height c.m p,{},{}>
+      | N3[c] → let _ = height_total c.l p;
+                let _ = height_total c.m p;
+                let _ = height_total c.r p;
+                if height c.l p { cond<height c.m p,{},{}> }
+                else { cond<height c.m p,{},{}> }
       }
     }
   }
@@ -225,66 +225,66 @@ val add_height_aux : ∀a:ο, ∀f∈(a⇒a⇒cmp), cmp_total<f,a> ⇒ ∀x∈a,
       case t {
       | E     → {}
       | N2[c] →
-         let _ = ft x c.x in
+         let _ = ft x c.x;
          case n { Z → ✂ | S[p] →
-         let _ = height_total c.l p in
-         let _ = height_total c.r p in
-         let _ = height_total t n in
-         let _ = and_left (height c.l p) (height c.r p) {} in
+         let _ = height_total c.l p;
+         let _ = height_total c.r p;
+         let _ = height_total t n;
+         let _ = and_left (height c.l p) (height c.r p) {};
          (case f x c.x {
-         | Le → let _ = add_aux_total f ft x c.l in
-                let _ = add_height_aux p c.l in
+         | Le → let _ = add_aux_total f ft x c.l;
+                let _ = add_height_aux p c.l;
                 case add_aux f x c.l {
                 | N1[t] → {}
-                | N2[n] → let _ = height_total n.l p in
-                          let _ = height_total n.r p in
-                          let _ = and_left (height n.l p) (height n.r p) {} in
+                | N2[n] → let _ = height_total n.l p;
+                          let _ = height_total n.r p;
+                          let _ = and_left (height n.l p) (height n.r p) {};
                           {}
                 }
          | Eq → {}
-         | Ge → let _ = add_aux_total f ft x c.r in
-                let _ = add_height_aux p c.r in
+         | Ge → let _ = add_aux_total f ft x c.r;
+                let _ = add_height_aux p c.r;
                 case add_aux f x c.r {
                 | N1[t] → {}
                 | N2[n] → {}
                 }
          })}
       | N3[c] →
-         let _ = ft x c.x in
-         let _ = ft x c.y in
+         let _ = ft x c.x;
+         let _ = ft x c.y;
          case n { Z → ✂ | S[p] →
-         let _ = height_total c.l p in
-         let _ = height_total c.m p in
-         let _ = height_total c.r p in
-         let _ = height_total t n in
-         let _ = and_total (height c.m p) (height c.r p) in
-         let _ = and_left (height c.l p) (and (height c.m p) (height c.r p)) {} in
-         let _ = and_left (height c.m p) (height c.r p) {} in
+         let _ = height_total c.l p;
+         let _ = height_total c.m p;
+         let _ = height_total c.r p;
+         let _ = height_total t n;
+         let _ = and_total (height c.m p) (height c.r p);
+         let _ = and_left (height c.l p) (and (height c.m p) (height c.r p)) {};
+         let _ = and_left (height c.m p) (height c.r p) {};
          case f x c.x {
-         | Le → let _ = add_aux_total f ft x c.l in
-                let _ = add_height_aux p c.l in
+         | Le → let _ = add_aux_total f ft x c.l;
+                let _ = add_height_aux p c.l;
                 case add_aux f x c.l {
                 | N1[t] → {}
-                | N2[n] → let _ = height_total n.l p in
-                          let _ = height_total n.r p in
-                          let _ = and_left (height n.l p) (height n.r p) {} in
+                | N2[n] → let _ = height_total n.l p;
+                          let _ = height_total n.r p;
+                          let _ = and_left (height n.l p) (height n.r p) {};
                           {}
                 }
          | Eq → {}
          | Ge →
          case f x c.y {
-         | Le → let _ = add_aux_total f ft x c.m in
-                let _ = add_height_aux p c.m in
+         | Le → let _ = add_aux_total f ft x c.m;
+                let _ = add_height_aux p c.m;
                 case add_aux f x c.m {
                 | N1[t] → {}
-                | N2[n] → let _ = height_total n.l p in
-                          let _ = height_total n.r p in
-                          let _ = and_left (height n.l p) (height n.r p) {} in
+                | N2[n] → let _ = height_total n.l p;
+                          let _ = height_total n.r p;
+                          let _ = and_left (height n.l p) (height n.r p) {};
                           {}
                 }
          | Eq → {}
-         | Ge → let _ = add_aux_total f ft x c.r in
-                let _ = add_height_aux p c.r in
+         | Ge → let _ = add_aux_total f ft x c.r;
+                let _ = add_height_aux p c.r;
                 case add_aux f x c.r {
                 | N1[t] → {}
                 | N2[n] → {}
@@ -297,11 +297,11 @@ val add_height : ∀a:ο, ∀f∈(a⇒a⇒cmp), cmp_total<f,a> ⇒ ∀x∈a, ∀
                  ∀t∈(tree23<a> | height t n ≡ true),
                  or (height (add f x t) n) (height (add f x t) S[n]) ≡ true =
   fun f ft x n t {
-    let _ = add_height_aux f ft x n t in
-    let _ = add_total f ft x t in
-    let _ = add_aux_total f ft x t in
-    let _ = height_total (add f x t) n in
-    let _ = height_total (add f x t) S[n] in
+    let _ = add_height_aux f ft x n t;
+    let _ = add_total f ft x t;
+    let _ = add_aux_total f ft x t;
+    let _ = height_total (add f x t) n;
+    let _ = height_total (add f x t) S[n];
     case add_aux f x t {
       N1[u] → {}
       N2[c] → cond<height (add f x t) n,{},{}>

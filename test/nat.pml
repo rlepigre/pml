@@ -19,7 +19,7 @@ val rec id_nat_id : ∀n∈nat, id_nat n ≡ n =
   fun m {
     case m {
       | Z    → {}
-      | S[p] → let ind_hyp : id_nat p ≡ p = id_nat_id p in {}
+      | S[p] → let ind_hyp : id_nat p ≡ p = id_nat_id p; {}
     }
   }
 
@@ -37,7 +37,7 @@ val rec strong_add_total : ∀n∈nat, ∀m∈(∃x,x), ∃v:ι, add n m ≡ v =
   fun n m {
     case n {
       Z    → {}
-      S[p] → use { strong_add_total p m }
+      S[p] → use strong_add_total p m
     }
   }
 
@@ -55,20 +55,20 @@ val rec add_total : ∀n m∈nat, ∃v:ι, add n m ≡ v =
   fun n m {
     case n {
       Z    → {}
-      S[p] → let ind_hyp = add_total p m in {}
+      S[p] → let ind_hyp = add_total p m; {}
     }
   }
 
 def addt<x:τ,y:τ> : τ =
-   let lem = add_total x y in add x y
+   let lem = add_total x y; add x y
 
-val add_zero_left : ∀z∈nat, add zero z ≡ z = fun n { {} }
+val add_zero_left : ∀z∈nat, add zero z ≡ z = λn.{}
 
 val rec add_zero1 : ∀z∈nat, add z zero ≡ z =
   fun k {
     case k {
       | Z    → {}
-      | S[p] → let ind_hyp = (add_zero1 p : add p zero ≡ p) in {}
+      | S[p] → let ind_hyp = (add_zero1 p : add p zero ≡ p); {}
     }
   }
 
@@ -76,20 +76,20 @@ val rec add_zero2 : ∀n∈nat, add n zero ≡ n =
   fun n {
     case n {
       Z    → {}
-      S[p] → let ind_hyp : add p zero ≡ p = add_zero2 p in {}
+      S[p] → let ind_hyp : add p zero ≡ p = add_zero2 p; {}
     }
   }
 
 val rec add_asso : ∀n m q∈nat, add n (add m q) ≡ add (add n m) q =
   fun n m q {
-    let tot1 = add_total m q in
+    let tot1 = add_total m q;
     case n {
       Z    → {}
       S[p] →
-        let ded : add n (add m q) ≡ succ (add p (add m q)) = {} in
-        let tot2 = add_total p m in
-        let ded : add (add n m) q ≡ succ (add (add p m) q) = {} in
-        let ind_hyp = add_asso p m q in {}
+        let ded : add n (add m q) ≡ succ (add p (add m q)) = {};
+        let tot2 = add_total p m;
+        let ded : add (add n m) q ≡ succ (add (add p m) q) = {};
+        let ind_hyp = add_asso p m q; {}
     }
   }
 
@@ -105,7 +105,7 @@ val rec add_succ : ∀n m∈nat, add n S[m] ≡ succ(add n m) =
   fun n m {
     case n {
       Z    → {}
-      S[p] → let ind_hyp = add_succ p m in {}
+      S[p] → let ind_hyp = add_succ p m; {}
     }
   }
 
@@ -113,16 +113,16 @@ val rec add_succ2 : ∀n m∈nat, add n S[m] ≡ S[add n m] =
   fun n m {
     case n {
       Z    → {}
-      S[p] → let ind_hyp : add p S[m] ≡ S[add p m] = add_succ p m in {}
+      S[p] → let ind_hyp : add p S[m] ≡ S[add p m] = add_succ p m; {}
     }
   }
 
 val rec add_comm : ∀n m∈nat, add n m ≡ add m n =
   fun n m {
     case n {
-      Z    → let lem = add_zero m in {}
-      S[p] → let ind_hyp = add_comm p m in
-             let lem = add_succ m p in {}
+      Z    → let lem = add_zero m; {}
+      S[p] → let ind_hyp = add_comm p m;
+             let lem = add_succ m p; {}
     }
   }
 
@@ -138,8 +138,8 @@ val rec mul_total : ∀n m∈nat, ∃v:ι, mul n m ≡ v =
   fun n m {
     case n {
       Z    → {}
-      S[p] → let ind_hyp = mul_total p m in
-             let lem = add_total m (mul p m) in {}
+      S[p] → let ind_hyp = mul_total p m;
+             let lem = add_total m (mul p m); {}
     }
   }
 
@@ -147,9 +147,9 @@ val rec mul_zero : ∀n∈nat, mul n zero ≡ zero =
   fun n {
     case n {
       Z    → {}
-      S[p] → let ind_hyp : mul p zero ≡ zero = mul_zero p in
-             let ded : add zero (mul p zero) ≡ mul n zero = {} in
-             let ded : add zero (mul p zero) ≡ zero = {} in {}
+      S[p] → let ind_hyp : mul p zero ≡ zero = mul_zero p;
+             let ded : add zero (mul p zero) ≡ mul n zero = {};
+             let ded : add zero (mul p zero) ≡ zero = {}; {}
     }
   }
 
@@ -166,118 +166,109 @@ val rec mul_succ : ∀n m∈nat, mul n S[m] ≡ add (mul n m) n =
     case n {
       Z    → {}
       S[p] →
-        let ded : add (mul n m) n ≡ add (add m (mul p m)) n = {} in
-        let ind_hyp : mul p S[m] ≡ add (mul p m) p = mul_succ p m in
-        let total = mul_total p m in
-        let total = add_total m (mul p m) in
+        let ded : add (mul n m) n ≡ add (add m (mul p m)) n = {};
+        let ind_hyp : mul p S[m] ≡ add (mul p m) p = mul_succ p m;
+        let total = mul_total p m;
+        let total = add_total m (mul p m);
         let ded : add (add m (mul p m)) n ≡ succ (add (add m (mul p m)) p) =
-          add_succ (add m (mul p m)) p
-        in
+          add_succ (add m (mul p m)) p;
         let ded : add (add m (mul p m)) n ≡ succ (add m (add (mul p m) p)) =
-          add_asso m (mul p m) p
-        in
+          add_asso m (mul p m) p;
         let ded : add (add m (mul p m)) n ≡ succ (add m (mul p S[m])) =
-          {}
-        in
-        let total = mul_total p S[m] in
-        let ded : add (add m (mul p m)) n ≡ add S[m] (mul p S[m]) = {} in
-        let ded : add (add m (mul p m)) n ≡ mul n S[m] = {} in {}
+          {};
+        let total = mul_total p S[m];
+        let ded : add (add m (mul p m)) n ≡ add S[m] (mul p S[m]) = {};
+        let ded : add (add m (mul p m)) n ≡ mul n S[m] = {}; {}
     }
   }
 
 val rec mul_comm : ∀n m∈nat, mul n m ≡ mul m n =
   fun n m {
     case n {
-      Z    → let lem = mul_zero m in {}
-      S[p] → let ind : mul p m ≡ mul m p = mul_comm m p in
-             let lem = mul_succ m p in
-             let tot = mul_total p m in
-             let lem = add_comm (mul p m) m in {}
+      Z    → let lem = mul_zero m; {}
+      S[p] → let ind : mul p m ≡ mul m p = mul_comm m p;
+             let lem = mul_succ m p;
+             let tot = mul_total p m;
+             let lem = add_comm (mul p m) m; {}
     }
   }
 
 def add_all3<a:τ,b:τ,c:τ> =
-  let lem = add_total a b in
-  let lem = add_total a c in
-  let lem = add_total b c in
-  let lem = add_comm a b in
-  let lem = add_comm a c in
-  let lem = add_comm b c in
-  let lem = add_asso a b c in
-  let lem = add_asso a c b in
+  let lem = add_total a b;
+  let lem = add_total a c;
+  let lem = add_total b c;
+  let lem = add_comm a b;
+  let lem = add_comm a c;
+  let lem = add_comm b c;
+  let lem = add_asso a b c;
+  let lem = add_asso a c b;
   {}
 
 def add_all4<a:τ,b:τ,c:τ,d:τ> =
-  let lem = add_all3<a,b,c> in
-  let lem = add_all3<a,b,d> in
-  let lem = add_all3<a,c,d> in
-  let lem = add_all3<b,c,d> in
+  let lem = add_all3<a,b,c>;
+  let lem = add_all3<a,b,d>;
+  let lem = add_all3<a,c,d>;
+  let lem = add_all3<b,c,d>;
   {}
 
 val rec mul_dist_l : ∀p n m∈nat, mul p (add n m) ≡ add (mul p n) (mul p m) =
   fun p n m {
     case p {
-      Z     → let lem = add_total n m in {}
+      Z     → let lem = add_total n m; {}
       S[p'] →
-        let lem = add_total n m in
-        let ded : mul p (add n m) ≡ add (add n m) (mul p' (add n m)) = {} in
+        let lem = add_total n m;
+        let ded : mul p (add n m) ≡ add (add n m) (mul p' (add n m)) = {};
         let ded : add (mul p n) (mul p m) ≡
-                     add (add n (mul p' n)) (add m (mul p' m)) = {} in
+                     add (add n (mul p' n)) (add m (mul p' m)) = {};
         let ind : mul p' (add n m) ≡ add (mul p' n) (mul p' m) =
-           mul_dist_l p' n m
-        in
-        let lem = mul_total p' n in
-        let lem = mul_total p' m in
-        //let lem = add_all4<n, (mul p' n), m, (mul p' m)> in FIXME loops
-        let lem = add_total m (mul p' m) in
+           mul_dist_l p' n m;
+        let lem = mul_total p' n;
+        let lem = mul_total p' m;
+        let lem = add_all4<n, (mul p' n), m, (mul p' m)>;
+        let lem = add_total m (mul p' m);
         let lem : add (add n (mul p' n)) (add m (mul p' m)) ≡
                   add n (add (mul p' n) (add m (mul p' m))) =
-                add_asso n (mul p' n) (add m (mul p' m))
-        in
+                add_asso n (mul p' n) (add m (mul p' m));
         let lem : add (add n (mul p' n)) (add m (mul p' m)) ≡
                   add n (add (add (mul p' n) m) (mul p' m)) =
-                add_asso (mul p' n) m (mul p' m)
-        in
+                add_asso (mul p' n) m (mul p' m);
         let lem : add (add n (mul p' n)) (add m (mul p' m)) ≡
                   add n (add (add m (mul p' n)) (mul p' m)) =
-                add_comm m (mul p' n)
-        in
+                add_comm m (mul p' n);
         let lem : add (add n (mul p' n)) (add m (mul p' m)) ≡
                   add n (add m (add (mul p' n) (mul p' m))) =
-                add_asso m (mul p' n) (mul p' m)
-        in
-        let lem = add_total (mul p' n) (mul p' m) in
+                add_asso m (mul p' n) (mul p' m);
+        let lem = add_total (mul p' n) (mul p' m);
         let lem : add (add n (mul p' n)) (add m (mul p' m)) ≡
                   add (add n m) (add (mul p' n) (mul p' m)) =
-                add_asso n m (add (mul p' n) (mul p' m))
-        in
+                add_asso n m (add (mul p' n) (mul p' m));
         {}
     }
   }
 
 val mul_dist_r : ∀n m p∈nat, mul (add n m) p ≡ add (mul n p) (mul m p) =
   fun n m p {
-    let lem = add_total n m in
-    let lem = mul_comm (add n m) p in
-    let lem = mul_comm n p in
-    let lem = mul_comm m p in
-    let lem = mul_dist_l p n m in
+    let lem = add_total n m;
+    let lem = mul_comm (add n m) p;
+    let lem = mul_comm n p;
+    let lem = mul_comm m p;
+    let lem = mul_dist_l p n m;
     {}
   }
 
 val rec mul_asso : ∀n m p∈nat, mul (mul n m) p ≡ mul n (mul m p) =
   fun n m p {
     case n {
-      Z     → let lem = mul_total m p in {}
+      Z     → let lem = mul_total m p; {}
       S[n'] →
-        let ded : mul (mul n m) p ≡ mul (add m (mul n' m)) p = {} in
-        let lem = mul_total m p in
-        let ded : mul n (mul m p) ≡ add (mul m p) (mul n' (mul m p)) = {} in
-        let lem = mul_total n' m in
+        let ded : mul (mul n m) p ≡ mul (add m (mul n' m)) p = {};
+        let lem = mul_total m p;
+        let ded : mul n (mul m p) ≡ add (mul m p) (mul n' (mul m p)) = {};
+        let lem = mul_total n' m;
         let lem : mul (mul n m) p ≡ add (mul m p) (mul (mul n' m) p) =
-          mul_dist_r m (mul n' m) p in
+          mul_dist_r m (mul n' m) p;
         let lem : mul (mul n m) p ≡ add (mul m p) (mul n' (mul m p)) =
-          mul_asso n' m p in
+          mul_asso n' m p;
         {}
     }
   }

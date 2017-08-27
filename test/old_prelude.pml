@@ -12,8 +12,7 @@ val fls : bool = false
 //val true  : bool = Tru[{}]
 //val false : bool = Fls[{}]
 
-def cond<c:τ,t:τ,e:τ> =
-  if c then t else e
+def cond<c:τ,t:τ,e:τ> =  c ? t : e
 
 def land<a:τ,b:τ> = cond<a,b,fls>
 def lor <a:τ,b:τ> = cond<a,tru,b>

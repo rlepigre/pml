@@ -90,7 +90,7 @@ val id_id : ∀ x:ι, x∈real_bool ⇒ id_bool x ≡ x =
 
 val id_id2 : ∀ x:ι, x∈real_bool ⇒ id_bool x ≡ x =
   fun b {
-    let lem = is_realbool2 in
+    let lem = is_realbool2;
     case b {
       T[u] → {}
       F[u] → {}

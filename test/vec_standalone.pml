@@ -44,9 +44,9 @@ val rec app : ∀a:ο, ∀n1 n2:ι, vec<a,n1> ⇒ vec<a,n2> ⇒ vec<a,add n1 n2>
     case l1 {
       Nil    → l2
       Cns[c] →
-        let lem : (∃v:ι, length c.tl ≡ v) = length_total c.tl in
-        let r = app c.tl l2 in
-        let lem = length_total r in
+        let lem : (∃v:ι, length c.tl ≡ v) = length_total c.tl;
+        let r = app c.tl l2;
+        let lem = length_total r;
         vcns c.hd r
     }
   }
@@ -54,6 +54,6 @@ val rec app : ∀a:ο, ∀n1 n2:ι, vec<a,n1> ⇒ vec<a,n2> ⇒ vec<a,add n1 n2>
 val app3 : ∀a:ο, ∀n1 n2 n3:ι, vec<a,n1> ⇒ vec<a,n2> ⇒ vec<a,n3>
            ⇒ vec<a,add n1 (add n2 n3)> =
     fun l1 l2 l3 {
-       let lem = add_total (length l2) (length l3) in
+       let lem = add_total (length l2) (length l3);
        app l1 (app l2 l3)
     }

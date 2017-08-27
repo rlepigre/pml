@@ -21,7 +21,7 @@ val rec add_assoc : ∀m n p∈nat, add m (add n p) ≡ add (add m n) p =
       Z    → deduce add n p ≡ add (add Z n) p;
              deduce add Z (add n p) ≡ add (add Z n) p;
              qed
-      S[k] → show add k (add n p) ≡ add (add k n) p using add_assoc k n p;
+      S[k] → show add k (add n p) ≡ add (add k n) p using (add_assoc k n p);
              deduce S[add k (add n p)] ≡ S[add (add k n) p];
              deduce add S[k] (add n p) ≡ S[add (add k n) p];
              use add_total k n;

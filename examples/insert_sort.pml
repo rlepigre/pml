@@ -6,11 +6,11 @@ val rec insert : ∀a:ο, ord<a> ⇒ a ⇒ list<a> ⇒ list<a> =
   fun o x l {
     case l {
       Nil     → Cons[{hd = x; tl = Nil}]
-      Cons[c] → let hd = c.hd in let tl = c.tl in
+      Cons[c] → let hd = c.hd; let tl = c.tl;
                 if o.cmp x hd {
                   Cons[{hd = x ; tl = l}]
                 } else {
-                  let tl = insert o x tl in
+                  let tl = insert o x tl;
                   Cons[{hd = hd ; tl = tl}]
                 }
     }
@@ -29,9 +29,9 @@ val rec insert_total : ∀a:ο, ∀o∈ord<a>, ∀x∈a, ∀l∈list<a>,
   fun o x l {
     case l {
       Nil[_]   → {}
-      Cons[c1] → let hd = c1.hd in let tl = c1.tl in
-                 let lem = o.termi x hd in
-                 if o.cmp x hd then {} else insert_total o x tl
+      Cons[c1] → let hd = c1.hd; let tl = c1.tl;
+                 let lem = o.termi x hd;
+                 if o.cmp x hd { {} } else { insert_total o x tl }
     }
   }
 
@@ -40,8 +40,8 @@ val rec isort_total :  ∀a:ο, ∀o∈ord<a>, ∀l∈list<a>,
   fun o l {
     case l {
       | Nil     → {}
-      | Cons[c] → let ih  = isort_total o c.tl in
-                   let lem = insert_total o c.hd (isort o c.tl) in {}
+      | Cons[c] → let ih  = isort_total o c.tl;
+                  let lem = insert_total o c.hd (isort o c.tl); {}
     }
   }
 
@@ -51,21 +51,21 @@ val rec insert_sorted : ∀a:ο, ∀o∈ord<a>, ∀x∈a, ∀l∈slist<a,o>,
     case l {
       Nil      → {}
       Cons[c1] →
-        let lem = o.termi x c1.hd in
-        if o.cmp x c1.hd then  {}
+        let lem = o.termi x c1.hd;
+        if o.cmp x c1.hd { {} }
         else {
-          let lem = o.termi c1.hd x in
-          let lem = o.total x c1.hd in
+          let lem = o.termi c1.hd x;
+          let lem = o.total x c1.hd;
           case c1.tl {
             Nil      → {}
             Cons[c2] →
-              let lem = insert_total o x c2.tl in
-              let lem = o.termi c1.hd c2.hd in
-              let lem = o.termi x c2.hd in
+              let lem = insert_total o x c2.tl;
+              let lem = o.termi c1.hd c2.hd;
+              let lem = o.termi x c2.hd;
               if o.cmp c1.hd c2.hd {
-                let lem = insert_sorted o x c1.tl in
-                if o.cmp x c2.hd then {} else {}
-              } else ✂
+                let lem = insert_sorted o x c1.tl;
+                o.cmp x c2.hd?{}:{}
+              } else { ✂ }
           }
         }
     }
@@ -85,7 +85,7 @@ val rec isort_sorted : ∀a:ο, ∀o∈ord<a>, ∀l∈list<a>,
 
 val isort_full : ∀a:ο, ∀o∈ord<a>, list<a> ⇒ slist<a,o> =
   fun o l {
-    let tot = isort_total o l in
-    let lem = isort_sorted o l in
+    let tot = isort_total o l;
+    let lem = isort_sorted o l;
     isort o l
   }

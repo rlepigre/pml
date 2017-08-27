@@ -9,7 +9,7 @@ def add0 =
   fix fun add n m {
     case n {
       Z    → m
-      S[p] → let _ = add p m in
+      S[p] → let _ = add p m;
              S[add p m] // succ (add p m) fails ?
                         // it should be exactly the same
     }
@@ -22,8 +22,8 @@ def add1 =
   fix fun add n m {
     case n {
       Z    → m
-      S[p] → let _ = add p m in
-             let pm = add p m in
+      S[p] → let _ = add p m;
+             let pm = add p m;
              succ pm
     }
   }
@@ -35,15 +35,15 @@ val test : add ≡ add0 = {} // did not work before 23/3/2017 patch
 
 val rec add_asso : ∀n m q∈nat, add n (add m q) ≡ add (add n m) q =
   fun n m q {
-    let _ = add m q in
+    let _ = add m q;
     case n {
       Z    → {}
       S[p] →
-        let _ = add p (add m q) in
-        let _ = add p m in
-        let _ = add (add p m) q in
+        let _ = add p (add m q);
+        let _ = add p m;
+        let _ = add (add p m) q;
         deduce add n (add m q) ≡ succ (add p (add m q));
         deduce add (add n m) q ≡ succ (add (add p m) q);
-        show add p (add m q) ≡ add (add p m) q using { add_asso p m q }
+        show add p (add m q) ≡ add (add p m) q using add_asso p m q
     }
   }

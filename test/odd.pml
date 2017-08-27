@@ -22,7 +22,7 @@ val rec mul2 : nat ⇒ evens =
   fun n {
     case n {
       Z    → Z
-      S[p] → let r : evens = mul2 p in S[S[r]]
+      S[p] → let r : evens = mul2 p; S[S[r]]
     }
   }
 
@@ -65,9 +65,9 @@ val rec succ_odd  : ∀n∈odds , is_odd S[n] ≡ false =
   }
 
 val succ_even : evens ⇒ odds =
-  fun x { let h = succ_even x in S[x] }
+  fun x { let h = succ_even x; S[x] }
 
 val succ_odd  : odds  ⇒ evens =
-  fun x { let h = succ_odd  x in S[x] }
+  fun x { let h = succ_odd  x; S[x] }
 
 val succ : nat ⇒ nat = fun x { x }

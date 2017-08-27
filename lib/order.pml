@@ -12,12 +12,12 @@ val rec sorted : ∀a, ∀o∈ord<a>, ∀l∈list<a>, bool =
     case l {
       Nil      → true
       Cons[c1] →
-        let hd = c1.hd in
-        let tl = c1.tl in
+        let hd = c1.hd;
+        let tl = c1.tl;
         case tl {
           Nil      → true
           Cons[c2] →
-            let hd2 = c2.hd in
+            let hd2 = c2.hd;
             land<(o.cmp) hd hd2, sorted o tl>
         }
     }

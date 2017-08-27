@@ -3,8 +3,8 @@ type rec list<a> = [Nil ; Cons of {hd : a ; tl : list}]
 val rec exists : ∀a, (a ⇒ bool) ⇒ list<a> ⇒ bool =
   fun pred l {
     case l {
-      Nil     → false
-      Cons[c] → if pred c.hd { true } else { exists pred c.tl }
+      Nil[_]  → false
+      Cons[c] → if pred c.hd then true else exists pred c.tl
     }
   }
 
@@ -26,8 +26,10 @@ val silly : (∀a, a ⇒ a) ⇒ {} ⇒ option<{}> =
 val exists : ∀a, (a ⇒ bool) ⇒ list<a> ⇒ bool =
   fun pred l {
     save k {
-      let f = fun acc e { if pred e { restore k true } else { acc } } in
-      fold_left f false l
+      case l {
+        Nil[_]  → true
+        Cons[c] → if c.hd then conjunction c.tl else restore k false
+      }
     }
   }
 val peirce : ∀a b, ((a ⇒ b) ⇒ a) ⇒ a =
@@ -63,7 +65,7 @@ val rec add_n_z : ∀n∈nat, add n Zero ≡ n =
   fun n {
     case n {
       Zero    → {}
-      Succ[k] → let ih = add_n_z k in {}
+      Succ[k] → let ih = add_n_z k; {}
     }
   }
 // val rec add_n_z_loop : ∀n∈nat, add n Zero ≡ n =
@@ -72,7 +74,7 @@ val rec add_n_s : ∀n m∈nat, add n Succ[m] ≡ Succ[add n m] =
   fun n m {
     case n {
       Zero    → {}
-      Succ[k] → let ind_hyp = add_n_s k m in {}
+      Succ[k] → let ind_hyp = add_n_s k m; {}
     }
   }
 val rec add_comm : ∀n m∈nat, add n m ≡ add m n =
@@ -80,22 +82,22 @@ val rec add_comm : ∀n m∈nat, add n m ≡ add m n =
     case n {
       Zero    → let lem = add_n_z m in {}
       Succ[k] → let ih  = add_comm k m in
-                 let lem = add_n_s m k in {}
+                let lem = add_n_s m k in {}
     }
   }
 val rec add_total : ∀n m∈nat, ∃v:ι, add n m ≡ v =
   fun n m {
     case n {
       Zero    → {}
-      Succ[k] → let ih = add_total k m in {}
+      Succ[k] → let ih = add_total k m; {}
     }
   }
 val rec add_asso : ∀n m p∈nat, add n (add m p) ≡ add (add n m) p =
   fun n m p {
-    let tot_m_p = add_total m p in
+    let tot_m_q = add_total m p in
     case n {
-      Zero    → {}
-      Succ[k] → let tot_k_m = add_total k m in
-                 let ih = add_asso k m p in {}
+      Zero[_] → {}
+      Succ[k] → let tot_p_m = add_total k m in
+                let ih = add_asso k m p in {}
     }
   }

@@ -10,9 +10,8 @@ open Raw
 #define LOCATE locate
 
 (* check if a location is only one line *)
-let same_line _loc1 _loc2 =
-  if _loc1.start_line <> _loc2.end_line
-  then give_up ()
+let same_line _loc =
+  if _loc.start_line <> _loc.end_line then give_up ()
 
 (* Parser of a list separated by a given string. *)
 let lsep s elt =
@@ -81,7 +80,6 @@ let _corec_   = Keyword.create "corec"
 let _let_     = Keyword.create "let"
 let _such_    = Keyword.create "such"
 let _that_    = Keyword.create "that"
-let _in_      = Keyword.create "in"
 let _if_      = Keyword.create "if"
 let _then_    = Keyword.create "then"
 let _else_    = Keyword.create "else"
@@ -106,6 +104,7 @@ let parser equiv   = "≡" | "="
 let parser nequiv  = "≠"
 let parser neg_sym = "¬"
 let parser prod    = "×" | "*"
+let parser lambda  = "λ"
 
 (* Such that. *)
 let parser _st_ = _:_such_ _:_that_
@@ -157,20 +156,16 @@ let parser s_lst  = l:(lsep_ne "," s_arg)
 let parser s_args = {'<' l:s_lst '>'}?[[]]
 
 (* Priorities for parsing expressions. *)
-type p_prio = [`A | `M | `R | `P | `F] (* Atom, Memb, Rest, Prod, Full *)
-type t_prio = [`A | `P | `R | `S | `F | `I] (* Atom, Appl, Prefix, Sequ, Full, If *)
-(* `If is not really a priority level, just a trick the the then bloc *)
+(* Atom, Memb, Rest, Prod, Full *)
+type p_prio = [`A | `M | `R | `P | `F]
+(* Atom, aPpl, pRefix, If (C), Sequ, Full *)
+type t_prio = [`A | `P | `I | `R | `S | `F ]
 
 (* Parsing mode for expressions. *)
 type mode = [`Any | `Prp of p_prio | `Trm of t_prio | `Stk | `Ord ]
 
 (* Parser for expressions. *)
-let parser bloc (m : mode * unit grammar) =
-  | '{' t:(expr (`Trm`F)) '}' when fst m = `Trm`A || fst m = `Trm`I -> t
-  | p:(snd m) t:(expr (`Trm`R)) when fst m = `Trm`R || fst m = `Trm`I ->
-     same_line _loc_p _loc_t; t
-
-and expr (m : mode) =
+let parser expr (m : mode) =
   (* Any (higher-order function) *)
   | "(" x:llid s:{":" s:sort} "↦" e:(expr `Any)
       when m = `Any
@@ -237,15 +232,15 @@ and expr (m : mode) =
       when m = `Prp`F
       -> in_pos _loc (EFixN(o,x,a))
   (* Proposition (membership) *)
-  | t:(expr (`Trm`P)) "∈" a:(expr (`Prp`M))
+  | t:(expr (`Trm`I)) "∈" a:(expr (`Prp`M))
       when m = `Prp`M
       -> in_pos _loc (EMemb(t,a))
   (* Proposition (restriction) *)
-  | a:(expr (`Prp`M)) "|" t:(expr (`Trm`P)) b:eq u:(expr (`Trm`P))
+  | a:(expr (`Prp`M)) "|" t:(expr (`Trm`I)) b:eq u:(expr (`Trm`I))
       when m = `Prp`R
       -> in_pos _loc (ERest(Some a,EEquiv(t,b,u)))
   (* Proposition (equivalence) *)
-  | t:(expr (`Trm`P)) b:eq u:(expr (`Trm`P))
+  | t:(expr (`Trm`I)) b:eq u:(expr (`Trm`I))
       when m = `Prp`A
       -> in_pos _loc (ERest(None,EEquiv(t,b,u)))
   (* Proposition (parentheses) *)
@@ -263,8 +258,13 @@ and expr (m : mode) =
       when m = `Trm`A
       -> in_pos _loc (EVari(id, args))
   (* Term (lambda abstraction) *)
-  | _fun_ args:arg+ t:(bloc (m, arrow))
+  | _fun_ args:arg+ '{' t:(expr (`Trm`F)) '}'
+      when m = `Trm`A
       -> in_pos _loc (ELAbs((List.hd args, List.tl args),t))
+  | lambda args:arg+ '.' t:(expr (`Trm`I))
+      when m = `Trm`R
+      -> same_line _loc;
+         in_pos _loc (ELAbs((List.hd args, List.tl args),t))
   (* Term (constructor) *)
   | c:luid t:{"[" t:(expr (`Trm`F)) "]"}?
       when m = `Trm`A
@@ -294,7 +294,7 @@ and expr (m : mode) =
       when m = `Trm`P
       -> in_pos _loc (EAppl(t,u))
   (* Term (let binding) *)
-  | _let_ r:v_is_rec arg:let_arg '=' t:(expr (`Trm`F)) _in_ u:(expr (`Trm`F))
+  | _let_ r:v_is_rec arg:let_arg '=' t:(expr (`Trm`I)) ';' u:(expr (`Trm`F))
       when m = `Trm`F
       -> let_binding _loc r arg t u
   (* Term (sequencing). *)
@@ -302,7 +302,7 @@ and expr (m : mode) =
       when m = `Trm`S
       -> in_pos _loc (ESequ(t,u))
   (* Term (mu abstraction) *)
-  | _save_ args:llid+ t:(bloc (m,arrow))
+  | _save_ args:llid+ '{' t:(expr (`Trm`F)) '}'
       -> in_pos _loc (EMAbs((List.hd args, List.tl args),t))
   (* Term (name) *)
   | _restore_ s:(expr `Stk) t:(expr (`Trm`A))
@@ -317,21 +317,28 @@ and expr (m : mode) =
       when m = `Trm`A
       -> pattern_matching _loc t ps
   (* Term (conditional) *)
-  | _if_ c:(expr (`Trm`F)) t:(bloc (`Trm`I, _then_))
-                    _else_ e:(bloc (m, empty ()))
+  | _if_ c:(expr (`Trm`F)) '{' t:(expr (`Trm`F)) '}'
+                    _else_ '{' e:(expr (`Trm`F)) '}'
+      when m = `Trm`A
       -> if_then_else _loc c t e
+  | c:(expr (`Trm`P)) '?' t:(expr (`Trm`F)) ':' e:(expr (`Trm`I))
+      when m = `Trm`I
+       -> same_line _loc; if_then_else _loc c t e
   (* Term ("deduce" tactic) *)
   | _deduce_ a:(expr (`Prp`F))$
       when m = `Trm`A
       -> deduce _loc a
   (* Term ("show" tactic) *)
-  | _show_ a:(expr (`Prp`F)) _using_ t:(bloc (m, empty ()))
+  | _show_ a:(expr (`Prp`F)) _using_ t:(expr (`Trm`R))
+      when m = `Trm`R
       -> show_using _loc a t
   (* Term ("use" tactic) *)
-  | _use_ t:(bloc (m, empty ()))
+  | _use_ t:(expr (`Trm`R))
+      when m = `Trm`R
       -> use _loc t
   (* Term ("from" tactic) *)
-  | _from_   a:(expr (`Prp`F)) ';' p:(expr (`Trm`S)) when m = `Trm`S
+  | _from_   a:(expr (`Prp`R)) ';' p:(expr (`Trm`S))
+      when m = `Trm`S
       -> from _loc a p
   (* Term ("QED" tactic) *)
   | _qed_
@@ -350,7 +357,7 @@ and expr (m : mode) =
       when m = `Trm`A
       -> in_pos _loc (ECoer(t,a))
   (* Term (let such that) *)
-  | _let_ vs:s_lst _st_ x:llid_wc ':' a:(expr (`Prp`F)) _in_ u:(expr (`Trm`F))
+  | _let_ vs:s_lst _st_ x:llid_wc ':' a:(expr (`Prp`F)) ';' u:(expr (`Trm`F))
       when m = `Trm`F
       -> esuch _loc vs x a u
   (* Term (parentheses) *)
@@ -358,7 +365,8 @@ and expr (m : mode) =
       when m = `Trm`A
   (* Term (level coersions) *)
   | (expr (`Trm`A)) when m = `Trm`P
-  | (expr (`Trm`P)) when m = `Trm`R
+  | (expr (`Trm`P)) when m = `Trm`I
+  | (expr (`Trm`I)) when m = `Trm`R
   | (expr (`Trm`R)) when m = `Trm`S
   | (expr (`Trm`S)) when m = `Trm`F
   | (expr (`Trm`F)) when m = `Any

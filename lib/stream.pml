@@ -12,14 +12,14 @@ val tail : ∀a, stream<a> ⇒ stream<a> =
 // Identity function.
 val rec id : ∀a, stream<a> ⇒ stream<a> =
   fun s _ {
-    let c = s {} in
+    let c = s {};
     {hd = c.hd ; tl = id c.tl}
   }
 
 // Map function.
 val rec map : ∀a b, (a ⇒ b) ⇒ stream<a> ⇒ stream<b> =
   fun f s _ {
-    let {hd ; tl} = s {} in
+    let {hd ; tl} = s {};
     {hd = f hd ; tl = map f tl}
   }
 
@@ -31,8 +31,8 @@ val rec take : ∀a, nat ⇒ stream<a> ⇒ list<a> =
   fun n s {
     case n {
       | Z    → Nil
-      | S[k] → let c = s {} in
-               let tl = take k c.tl in
+      | S[k] → let c = s {};
+               let tl = take k c.tl;
                Cons[{hd = c.hd; tl = tl}]
     }
   }

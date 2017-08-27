@@ -38,8 +38,8 @@ type csstream<o,a> = {hd : a; tl : sstream<o,a>}
 val rec aux : ∀a b, (csstream<a,even> ⇒ bot) ⇒ (csstream<b,odd> ⇒ bot)
              ⇒ stream<nat> ⇒ bot =
   fun fe fo s {
-    let hd = (s {}).hd in
-    let tl = (s {}).tl in
+    let hd = (s {}).hd;
+    let tl = (s {}).tl;
     use odd_total hd;
     if is_odd hd {
       fo {hd = hd; tl = fun _ { save o {
@@ -63,8 +63,8 @@ include test.stream_nat
 val test : nat ⇒ {} =
   fun n {
     case itl naturals {
-      InL[s] → let l = take n s in print "InL "; print_nat_list l
-      InR[s] → let l = take n s in print "InR "; print_nat_list l
+      InL[s] → let l = take n s; print "InL "; print_nat_list l
+      InR[s] → let l = take n s; print "InR "; print_nat_list l
     }
   }
 

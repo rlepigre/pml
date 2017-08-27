@@ -15,7 +15,7 @@ val vnil : ∀a:ο, vec<a,zero> = nil
 
 val vcns : ∀a:ο,∀s:ι, ∀x∈a, vec<a,s> ⇒ vec<a,S[s]> =
   fun y ls {
-    let test : nat = length ls in
+    let test : nat = length ls;
     Cns[{hd = y; tl = ls}]
   }
 

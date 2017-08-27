@@ -37,7 +37,7 @@ val map_map : ∀ a b c:ο, ∀f∈(a⇒b), ∀g∈(b⇒c), ∀o∈option<a>, to
   fun f1 f2 eo h {
     case eo {
       None[y] → {}
-      Some[e] → let lem = h e in {}
+      Some[e] → let lem = h e; {}
     }
   }
 
