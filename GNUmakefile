@@ -87,9 +87,8 @@ pml2_byte: _build/pml2/main.byte
 main.byte: _build/pml2/main.byte
 main.native: _build/pml2/main.native
 
-pml2/main.ml.depends: pml2/config.ml
 pml2/config.ml: GNUmakefile
-	echo "let path = [\"$(LIBDIR)\"]" > $@
+	@echo "let path = [\"$(LIBDIR)/pml2\"]" > $@
 
 ML_FILES = $(wildcard */*.ml) pml2/config.ml
 
@@ -166,6 +165,6 @@ PMI_FILES = $(PML_FILES:.pml=.pmi)
 install: main.native $(PML_FILES) lib install_emacs
 	install -d $(BINDIR)
 	install -m 0755 $< $(BINDIR)/pml2
-	install -d $(LIBDIR)/lib
-	install -m 0644 $(PML_FILES) $(LIBDIR)/lib
-	install -m 0644 $(PMI_FILES) $(LIBDIR)/lib
+	install -d $(LIBDIR)/pml2/lib
+	install -m 0644 $(PML_FILES) $(LIBDIR)/pml2/lib
+	install -m 0644 $(PMI_FILES) $(LIBDIR)/pml2/lib
