@@ -24,13 +24,13 @@
 
 (defconst pml2-font-lock-keywords
   (list (cons (concat "\\<"
-		      (regexp-opt '("case" "of" "val" "let" "in" "rec" "fun" "eval"
-				    "include" "type" "if" "else" "check" "save"
-                                    "restore" "use" "then" "qed" "from"
-                                    "fix" "unfold" "clear" "quit" "parse" "latex"
-                                    "exit" "set" "html" "such" "that" "abort"
-				    "def" "sort" "show" "deduce" "using"))
-                      "\\>") ; FIXME
+		      (regexp-opt '("bool" "case" "check" "corec" "deduce"
+				    "def" "else" "false" "fix" "from"
+                                    "fun" "if" "include" "let" "of"
+                                    "print" "qed" "rec" "restore" "save"
+                                    "show" "sort" "such" "that" "true"
+                                    "type" "use" "using" "val"))
+                      "\\>") ;
               'font-lock-keyword-face)
         )
   "Minimal highlighting expressions for pml2 mode.")
