@@ -63,33 +63,60 @@
  ("\\ni" ?∉)    ("\\notin" ?∉)
  ("\\*" ?×)     ("\\times" ?×)
  ("\\<" ?⊂)     ("\\subset" ?⊂)
+ )
 
-)
+; test for closing char at current pos
+(defun pml2-closing ()
+  (or (equal (char-after) ?\))
+      (equal (char-after) ?\])
+      (equal (char-after) ?})))
 
-; test if current position must be indented in a fixed
-; from the parenthesis level
-(defun pml2-opening ()
-  (or
-   (equal (char-after) ?\()
-   (equal (char-after) ?\[)
-   (equal (char-after) ?{)))
+; parenthesis depth, need a fix when at closing
+(defun pml2-depth (&optional pos)
+  (if pos (goto-char pos))
+  (let ((depth (car (syntax-ppss))))
+    (if (pml2-closing)
+        (- depth 1) depth)))
 
-(defun pml2-closing (depth)
+(defun pml2-search-backward-regex-same-lvl (regex &optional depth)
   (save-excursion
+    (let
+        ((depth (if depth depth (pml2-depth)))
+         (depth2 nil)
+         (limit (car (cdr (syntax-ppss))))
+         (found nil))
+      (while (or (not depth2) (> depth2 depth))
+        (setq found (search-backward-regexp regex limit t))
+        (setq depth2 (if found (pml2-depth) -1))
+        (if (and found (> depth2 depth)) (backward-char)))
+      (if found (match-beginning 0) nil))))
+
+(defun pml2-search-forward-regex-same-lvl (regex &optional depth)
+  (save-excursion
+    (let
+        ((depth (if depth depth (pml2-depth)))
+         (depth2 nil)
+         (limit (progn (save-excursion (end-of-line) (point))))
+         (found nil))
+      (while (or (not depth2) (> depth2 depth))
+        (setq found (search-forward-regexp regex limit t))
+        (setq depth2 (if found (pml2-depth) -1))
+        (if (and found (> depth2 depth)) (forward-char)))
+      (if found (match-beginning 0) nil))))
+
+(defun pml2-top (&optional pos)
+  (save-excursion
+    (if pos (goto-char pos))
     (or
-     (equal (buffer-substring (point) (+ (point) 3)) "def")
-     (equal (buffer-substring (point) (+ (point) 3)) "val")
-     (equal (buffer-substring (point) (+ (point) 4)) "type")
-     (equal (char-after) ?|)
-     (equal (char-after) ?\;)
-     (equal (char-after) ?\))
-     (equal (char-after) ?\])
-     (equal (char-after) ?})
-     (let ((pos
-            (search-forward-regexp "\\(→\\)\\|\n" nil t)))
-       (and (equal (car (syntax-ppss pos)) depth)
-            (equal (buffer-substring (- pos 1) pos) "→")))
-     )))
+     (looking-at "def")
+     (looking-at "include")
+     (looking-at "type")
+     (looking-at "val"))))
+
+(defvar pml2-case-regex "\\(\\(→\\)\\|\\(->\\)\\)")
+
+(defun pml2-is-case (&optional depth)
+  (if (pml2-search-forward-regex-same-lvl pml2-case-regex depth) t nil))
 
 ; move to the first non blank char at the beginning of a
 ; line. Return nil if the line has only blank
@@ -100,33 +127,117 @@
        (if (search-forward-regexp "[^ \t\n\r]" pos2 t)
          (progn (backward-char) t)))
 
-(defconst let-in
-  "\\(let\\)\\|\\(type\\)\\|\\(val\\)\\|\\(def\\)\\|\\(in\\)\\|=")
+(defun pml2-move-to-previous-non-empty-line ()
+  (interactive)
+  (forward-line -1)
+  (while (and (> (line-number-at-pos) 1) (not (pml2-move-to-first-non-blank)))
+    (forward-line -1)))
 
-(defun pml2-is-delim-case (pos)
+(defun pml2-move-to-next-non-empty-line ()
+  (interactive)
+  (forward-line 1)
+  (while (and (> (line-number-at-pos) 1) (not (pml2-move-to-first-non-blank)))
+    (forward-line 1)))
+
+(defun pml2-after-semi ()
+  (save-excursion
+    (pml2-move-to-previous-non-empty-line)
+    (let ((limit (point)))
+      (end-of-line)
+      (search-backward-regexp ";[ \t]*$" limit t))))
+
+(defun pml2-move-to-delim-or-first ()
+  (let ((delim (car (cdr (syntax-ppss)))))
+    (pml2-move-to-first-non-blank)
+    (if (and delim (> delim (point)))
+        (progn (goto-char delim)
+               (if (looking-at  "[ \t]*[^ \t\n\r]")
+                   (forward-char 2)
+                 (pml2-move-to-first-non-blank))))))
+
+(defun pml2-move-if-found (is-case is-semi)
+  (goto-char (match-end 0))
+  (if (equal (substring (match-string 0) 0 1) ";")
+      (progn
+        (pml2-move-to-next-non-empty-line)
+        (pml2-move-to-delim-or-first)
+        (if (not is-semi) (forward-char 2)))
+    (if (or (equal (match-string 0) "->")
+            (equal (match-string 0) "→"))
+         (if (and (not is-case) (looking-at "[ \t]*[^ \n\t\r]"))
+             (forward-char)
+           (pml2-move-to-delim-or-first)
+           (if (not is-case) (forward-char 2)))
+      (if (looking-at "[ \t]*[^ \n\t\r]")
+          (forward-char)
+        (pml2-move-to-delim-or-first)
+        (if (equal (match-string 0) ":")
+            (forward-char 6)
+          (forward-char 2)))))
+  (cons t (point)))
+
+(defun pml2-move-if-not-found ()
+  (let ((pos (car (cdr (syntax-ppss)))))
+    (if pos
+        (progn
+          (goto-char pos)
+          (pml2-move-to-first-non-blank)
+          (if (pml2-search-forward-regex-same-lvl
+               (concat pml2-case-regex "[ \t]*[^ \t\n\r]"))
+              (goto-char (+ (match-end 0) 1)))
+          (cons nil (point)))
+      (cons nil 0))))
+
+(defun pml2-search-ref-line ()
+  (interactive)
+  (pml2-move-to-first-non-blank)
+  (if (or (equal (char-after) ?\;) (equal (char-after) ?|))
+      (progn
+        (goto-char (car (cdr (syntax-ppss))))
+        (cons t (point)))
+    (if (pml2-is-case)
+        (if (pml2-search-backward-regex-same-lvl pml2-case-regex)
+            (pml2-move-if-found t nil)
+          (pml2-move-if-not-found))
+      (if (pml2-after-semi)
+          (progn
+            (goto-char (pml2-after-semi))
+            (if (pml2-search-backward-regex-same-lvl
+                 (concat pml2-case-regex "\\|\\(;[ \t]*$\\)"))
+                (pml2-move-if-found nil t)
+              (pml2-move-if-not-found)))
+        (if (pml2-search-backward-regex-same-lvl
+             (concat pml2-case-regex "\\|[:=]\\|\\(;[ \t]*$\\)"))
+            (pml2-move-if-found nil nil)
+          (pml2-move-if-not-found))))))
+
+(defun pml2-indent-level-diff (pos1 pos2)
+  "return the difference in indent level of the two point
+   or nil if the indent level decrease between the points"
+  (save-excursion
+    (let ((depth1 (pml2-depth pos1))
+          (depth2 (pml2-depth pos2)))
+      (print (list "pml2-indent-level-diff" pos1 depth1 pos2 depth2))
+      (- depth2 depth1))))
+
+(defun pml2-is-closing ()
+  (or
+   (equal (char-after) ?\))
+   (equal (char-after) ?\])
+   (equal (char-after) ?})))
+
+(defun pml2-is-open-block-keyword (pos)
   (save-excursion
     (goto-char pos)
-    (let ((ppss (syntax-ppss))
-          (curdepth 0)
-          (limit 0)
-          (depth 0))
-      (setq limit (car (cdr ppss)))
-      (setq depth (car ppss))
-      (setq curdepth (+ depth 1))
-      (while (> curdepth depth)
-          (if (search-backward "case" limit t)
-              (setq curdepth (car (syntax-ppss)))
-            (setq curdepth -1)))
-      (eq curdepth depth))))
+    (looking-at "\\(fun\\)\\|\\(case\\)\\|\\(if\\)\\|\\(\\(}[ \t]*\\)?else\\)")))
 
-(defun pml2-depth (ppss)
+(defun pml2-semicolumn-before (pos)
   (save-excursion
-    (if (and ppss (car ppss))
-        (+
-         (if (pml2-is-delim-case (- (car ppss) 1))
-             4 2)
-         (pml2-depth (cdr (syntax-ppss (- (car ppss) 1)))))
-      2)))
+    (goto-char pos)
+    (pml2-move-to-previous-non-empty-line)
+    (end-of-line)
+    (print (char-before))
+    (equal (char-before) ?\;)))
 
 (defun pml2-indent-function ()
   (save-excursion
@@ -134,12 +245,24 @@
                                         ; for the line beginning.
     (pml2-move-to-first-non-blank)
     (let ((pos (point))
-          (ppss (syntax-ppss)))
-      (setq plvl (pml2-depth (cdr ppss)))
-      (if (pml2-opening) (setq plvl (+ plvl 2)))
-      (if (pml2-closing (car ppss)) (setq plvl (- plvl 2)))
+          (ref nil)
+          (lvl 0))
+      (if (pml2-top pos)
+          ; at top symbol, 0 indent
+          (progn
+            (print (list "use top" 0))
+            (setq lvl 0))
+        (setq ref (pml2-search-ref-line))
+        (if (car ref)
+            (setq lvl (current-column))
+          (setq diff (pml2-indent-level-diff (point) pos))
+          (setq lvl (+ (current-column) (* 2 diff)))))
       (goto-char pos)
-      (indent-line-to plvl))))
+      (let ((cont t))
+        (while (and (> (line-number-at-pos) 1) cont)
+          (indent-line-to lvl)
+          (pml2-move-to-previous-non-empty-line)
+          (setq cont (looking-at "//")))))))
 
 (defvar pml2-program-buffer nil)
 
@@ -205,11 +328,6 @@
               (beg nil)
               (end nil)
               (overlay nil))
-          (print filename)
-          (print line1)
-          (print col1)
-          (print line2)
-          (print col2)
           (setq buffer (find-file-noselect filename))
           (switch-to-buffer-other-window buffer)
           (set-buffer buffer)
@@ -287,9 +405,9 @@
   ;(setq-local imenu-generic-expression
   ;pml2-imenu-generic-expression)
   ;(setq-local outline-regexp pml2-outline-regexp)
-  ;;; Indentation
   (use-local-map pml2-mode-map)
-  (add-hook 'pre-command-hook pml2-delete-cur-overlay)
+  (add-hook 'pre-command-hook 'pml2-delete-cur-overlay)
+  ;;; Indentation
   (set (make-local-variable 'indent-line-function) #'pml2-indent-function))
 
 (add-to-list 'auto-mode-alist '("\\.pml\\'" . pml2-mode))
