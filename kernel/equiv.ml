@@ -94,6 +94,7 @@ type v_node =
   | VN_HApp of v ho_appl
   | VN_UVar of v uvar
   | VN_ITag of int
+  | VN_Goal of v ex loc
 type v_map = (PtrSet.t * v_node) VPtrMap.t
 type b_map = VPtrSet.t
 
@@ -112,6 +113,7 @@ type t_node =
   | TN_HApp of t ho_appl
   | TN_UVar of t uvar
   | TN_ITag of int
+  | TN_Goal of t ex loc
 type t_map = (PtrSet.t * t_node) TPtrMap.t
 
 (** Printing function for value nodes. *)
@@ -134,7 +136,7 @@ let print_v_node : out_channel -> v_node -> unit = fun ch n ->
                       prnt ch "VN_HApp(%a)" pex (Pos.none (HApp(s,f,a)))
   | VN_UVar(v)     -> prnt ch "VN_UVar(%a)" pex (Pos.none (UVar(V,v)))
   | VN_ITag(n)     -> prnt ch "VN_ITag(%d)" n
-
+  | VN_Goal(v)     -> prnt ch "VN_Goal(%a)" pex v
 (** Printing function for term nodes. *)
 let print_t_node : out_channel -> t_node -> unit = fun ch n ->
   let prnt = Printf.fprintf in
@@ -162,6 +164,7 @@ let print_t_node : out_channel -> t_node -> unit = fun ch n ->
                       prnt ch "TN_HApp(%a)" Print.ex e
   | TN_UVar(v)     -> prnt ch "TN_UVar(%a)" pex (Pos.none (UVar(T,v)))
   | TN_ITag(n)     -> prnt ch "TN_ITag(%d)" n
+  | TN_Goal(t)     -> prnt ch "TN_Goal(%a)" pex t
 
 (** Type of a pool. *)
 type pool =
@@ -230,6 +233,7 @@ let children_v_node : v_node -> Ptr.t list = fun n ->
   | VN_ITag _
   | VN_UVar _ (* TODO #50 check *)
   | VN_HApp _ (* TODO #50 check *)
+  | VN_Goal _
   | VN_EWit _     -> []
   | VN_Cons(_,pv) -> [Ptr.V_ptr pv]
   | VN_Reco(m)    -> A.fold (fun _ p s -> Ptr.V_ptr p :: s) m []
@@ -246,6 +250,7 @@ let children_t_node : t_node -> Ptr.t list = fun n ->
   | TN_MAbs _
   | TN_UWit _
   | TN_EWit _
+  | TN_Goal _
   | TN_HApp _  (* TODO #50 check *)
   | TN_UVar _  (* TODO #50 check *)
   | TN_ITag _    -> []
@@ -340,6 +345,7 @@ let eq_v_nodes : pool -> v_node -> v_node -> bool =
                                           eq_expr t1 t2 && eq_bndr V b1 b2
     | (VN_ITag(n1)   , VN_ITag(n2)   ) -> n1 = n2
     | (VN_HApp(e1)   , VN_HApp(e2)   ) -> eq_ho_appl e1 e2
+    | (VN_Goal(v1)   , VN_Goal(v2)   ) -> eq_expr v1 v2
     | (_             , _             ) -> false
 
 let eq_t_nodes : pool -> t_node -> t_node -> bool =
@@ -370,6 +376,7 @@ let eq_t_nodes : pool -> t_node -> t_node -> bool =
                                               eq_expr t1 t2 && eq_bndr T b1 b2
     | (TN_ITag(n1)     , TN_ITag(n2)     ) -> n1 = n2
     | (TN_HApp(e1)     , TN_HApp(e2)     ) -> eq_ho_appl e1 e2
+    | (TN_Goal(t1)     , TN_Goal(t2)     ) -> eq_expr t1 t2
     | (_               , _               ) -> false
 
 
@@ -383,6 +390,7 @@ let immediate_nobox : v_node -> bool = function
   | VN_EWit _
   | VN_HApp _
   | VN_UVar _
+  | VN_Goal _
   | VN_ITag _ -> false
 
 (** Insertion function for nodes. *)
@@ -444,7 +452,8 @@ let insert_t_node : t_node -> pool -> TPtr.t * pool = fun nn po ->
 
 (** Insertion of actual terms and values to the pool. *)
 let rec add_term : pool -> term -> TPtr.t * pool = fun po t ->
-  match (Norm.whnf t).elt with
+  let t = Norm.whnf t in
+  match t.elt with
   | Valu(v)     -> let (pv, po) = add_valu po v in
                    insert_t_node (TN_Valu(pv)) po
   | Appl(t,u)   -> let (pt, po) = add_term po t in
@@ -468,12 +477,13 @@ let rec add_term : pool -> term -> TPtr.t * pool = fun po t ->
   | HDef(_,d)   -> add_term po d.expr_def
   | UVar(_,v)   -> insert_t_node (TN_UVar(v)) po
   | ITag(_,n)   -> insert_t_node (TN_ITag(n)) po
-  | Goal(_)     -> failwith "goal in the pool (term)"
+  | Goal(_)     -> insert_t_node (TN_Goal(t)) po
   | Vari(_)     -> invalid_arg "free variable in the pool"
   | Dumm        -> invalid_arg "dummy terms forbidden in the pool"
 
 and     add_valu : pool -> valu -> VPtr.t * pool = fun po v ->
-  match (Norm.whnf v).elt with
+  let v = Norm.whnf v in
+  match v.elt with
   | LAbs(_,b)   -> insert_v_node (VN_LAbs(b)) po
   | Cons(c,v)   -> let (pv, po) = add_valu po v in
                    insert_v_node (VN_Cons(c,pv)) po
@@ -494,8 +504,7 @@ and     add_valu : pool -> valu -> VPtr.t * pool = fun po v ->
   | HDef(_,d)   -> add_valu po d.expr_def
   | UVar(_,v)   -> insert_v_node (VN_UVar(v)) po
   | ITag(_,n)   -> insert_v_node (VN_ITag(n)) po
-
-  | Goal(_)     -> failwith "goal in the pool (term)"
+  | Goal(_)     -> insert_v_node (VN_Goal(v)) po
   | Vari(_)     -> invalid_arg "free variable in the pool"
   | Dumm        -> invalid_arg "dummy terms forbidden in the pool"
 
@@ -564,7 +573,8 @@ let rec canonical_term : TPtr.t -> pool -> term * pool = fun p po ->
                                   let (p, po) = add_term po t in
                                   canonical_term p po
                             end
-        | TN_ITag(n)      -> (Pos.none (ITag(T,n)), po)
+        | TN_ITag(n)     -> (Pos.none (ITag(T,n)), po)
+        | TN_Goal(t)     -> (t, po)
       end
   | Ptr.V_ptr(p) ->
       let (v, po) = canonical_valu p po in
@@ -599,7 +609,9 @@ and     canonical_valu : VPtr.t -> pool -> valu * pool = fun p po ->
                                   let (p, po) = add_valu po w in
                                   canonical_valu p po
                             end
-        | VN_ITag(n)      -> (Pos.none (ITag(V,n)), po)
+        | VN_ITag(n)     -> (Pos.none (ITag(V,n)), po)
+        | VN_Goal(v)     -> (v, po)
+
       end
 
 let canonical : Ptr.t -> pool -> term * pool = fun p po ->
@@ -710,6 +722,7 @@ let rec normalise : TPtr.t -> pool -> Ptr.t * pool =
        | TN_UWit(_)     -> (Ptr.T_ptr p, po)
        | TN_EWit(_)     -> (Ptr.T_ptr p, po)
        | TN_HApp(_)     -> (Ptr.T_ptr p, po)
+       | TN_Goal(_)     -> (Ptr.T_ptr p, po)
        | TN_UVar(v)     ->
           begin
             match !(v.uvar_val) with
@@ -975,7 +988,8 @@ let find_proj : pool -> valu -> string -> valu * pool = fun po v l ->
        in
        let po = if (VPtrSet.mem vp po.bs) then add_vptr_nobox wp po else po in
        (w, po)
-  with e -> bug_msg "unexpected exception in find_proj: %s" (Printexc.to_string e);
+  with e -> bug_msg "unexpected exception in find_proj: %s"
+                    (Printexc.to_string e);
             assert false
 
 

@@ -569,9 +569,9 @@ and check_sub : ctxt -> prop -> prop -> check_sub = fun ctx a b ->
             if not (eq_expr a a0 && eq_expr b b0) then raise Exit;
             (* Check positivity of ordinals. *)
             let ok =
-              List.for_all (fun (o, _) -> Ordinal.is_pos ctx.positives o)
+              List.for_all (fun (o,_) -> Ordinal.is_pos ctx.positives o)
                            spe.sspe_relat &&
-              List.for_all (fun (o, o') -> Ordinal.less_ordi ctx.positives o' o)
+              List.for_all (fun (o,o') -> Ordinal.less_ordi ctx.positives o' o)
                            spe.sspe_relat
             in
             if not ok then raise Exit;
