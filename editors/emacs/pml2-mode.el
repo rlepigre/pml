@@ -61,7 +61,7 @@
  ("\\k" ?κ)     ("\\kappa" ?κ)
  ("|->" ?↦)    ("\\mapsto" ?↦)
  ("\\<" ?⟨)     ("\\langle" ?⟨)
- ("\\<" ?⟩)     ("\\langle" ?⟩)
+ ("\\>" ?⟩)     ("\\rangle" ?⟩)
  ("\\A" ?∀)     ("\\forall" ?∀)
  ("\\E" ?∃)     ("\\exists" ?∃)
                 ("\\in" ?∈)
@@ -115,14 +115,12 @@
       (if found (match-beginning 0) nil))))
 
 ;; toplevel symbols
+(defvar pml2-top-regex
+  "\\(def\\)\\|\\(include\\)\\|\\(type\\)\\|\\(val\\)\\|\\(check\\)\\|\\(sort\\)")
 (defun pml2-top (&optional pos)
   (save-excursion
     (if pos (goto-char pos))
-    (or
-     (looking-at "def")
-     (looking-at "include")
-     (looking-at "type")
-     (looking-at "val"))))
+    (looking-at pml2-top-regex)))
 
 ;; move to the first non blank char at the beginning of a
 ;; line. Return nil if the line has only blank
@@ -194,7 +192,7 @@
                  (pml2-move-to-first-non-blank '(?\; ?|)))))))
 
 ;; debugging function for incentation
-(defvar pml2-debug-indent t)
+(defvar pml2-debug-indent nil)
 
 (defun pml2-dbg (&rest args)
   (if pml2-debug-indent (print args)))
@@ -454,8 +452,6 @@
 ;; Compilation itself
 (defvar pml2-program-name "pml2")
 
-(defvar pml2-program-options nil)
-
 (defun pml2-compile ()
   "compile the current buffer with pml"
   (interactive)
@@ -463,11 +459,12 @@
   ;;(setq pml2-last-goal nil)
   ;;(pml2-remove-spans)
   (let ((switches
-	 (append pml2-program-options (list buffer-file-name))))
+	 (append (pml2-program-options) (list buffer-file-name))))
     ;;(setq pml2-pending-output "")
     (pml2-select-program-buffer)
     (setq pml2-process
-	  (comint-exec pml2-program-buffer "pml-process" pml2-program-name nil switches))
+	  (comint-exec pml2-program-buffer "pml-process"
+                       pml2-program-name nil switches))
     (display-buffer pml2-program-buffer)))
 
 ;; our (small mode map)
@@ -482,6 +479,100 @@
     pml2-mode-map))
   "Keymap for PML major mode")
 
+;; Menu
+(defvar pml2-compile-timed t
+  "If t, displays a timing report after the execution")
+
+(defvar pml2-compile-quiet nil
+  "If t, disables the printing definition data")
+
+(defvar pml2-compile-log-subtyping nil
+  "If t, log subtyping informations")
+
+(defvar pml2-compile-log-compare nil
+  "If t, log term comparison")
+
+(defvar pml2-compile-log-ordinal nil
+  "If t, log ordinal comparison")
+
+(defvar pml2-compile-log-equivalence nil
+  "If t, log equivalence decision")
+
+(defvar pml2-compile-log-full-equivalence nil
+  "If t, log details of equivalence decision")
+
+(defvar pml2-compile-log-typing nil
+  "If t, log typing informations")
+
+(defvar pml2-compile-log-scp nil
+  "If t, log size change principle")
+
+(defvar pml2-compile-log-parsing nil
+  "If t, log parsing")
+
+(defvar pml2-compile-log-unif nil
+  "If t, log unifications")
+
+(defun pml2-program-options ()
+  (let ((switches nil) (logs ""))
+    (if pml2-compile-log-subtyping (setq logs (concat "s" logs)))
+    (if pml2-compile-log-typing (setq logs (concat "t" logs)))
+    (if pml2-compile-log-scp (setq logs (concat "y" logs)))
+    (if pml2-compile-log-unif (setq logs (concat "u" logs)))
+    (if pml2-compile-log-parsing (setq logs (concat "p" logs)))
+    (if pml2-compile-log-compare (setq logs (concat "c" logs)))
+    (if pml2-compile-log-equivalence (setq logs (concat "e" logs)))
+    (if pml2-compile-log-ordinal (setq logs (concat "o" logs)))
+    (if pml2-compile-log-full-equivalence (setq logs (concat "f" logs)))
+    (if (not (equal logs "")) (setq switches (cons "--log" (cons logs switches))))
+    (if pml2-compile-timed (setq switches (cons "--timed" switches)))
+    (if pml2-compile-quiet (setq switches (cons "--quiet" switches)))
+    switches))
+
+
+(defvar pml2-options-list
+  '(("Timed" . 'pml2-compile-timed)
+    ("Quiet" . 'pml2-compile-quiet)
+    ("Log typing" . 'pml2-compile-log-typing)
+    ("Log subtyping" . 'pml2-compile-log-subtyping)
+    ("Log unifications" . 'pml2-compile-log-unif)
+    ("Log size change principle" . 'pml2-compile-log-scp)
+    ("Log equivalence decision" . 'pml2-compile-log-equivalence)
+    ("Log details of equivalence decision" . 'pml2-compile-log-full-equivalence)
+    ("Log term comparison" . 'pml2-compile-log-compare)
+    ("Log ordinal comparison" . 'pml2-compile-log-ordinal)
+    ("Log parsing" . 'pml2-compile-log-parsing))
+  "List of supported toggle options")
+
+(defun pml2-toggle-option (opt)
+  (set opt (not (symbol-value opt)))
+  (pml2-update-option-menu))
+
+(defun pml2-update-option-menu ()
+  (easy-menu-change
+   '("PML") "Compiler options"
+   (mapcar (lambda (option)
+;;	     (message "toggle %S %S" (cdr option) (eval (cdr option)))
+	     (vector (car option)
+		     (list 'pml2-toggle-option (cdr option))
+		     ':style 'toggle
+		     ':selected (nth 1 (cdr option))
+		     ':active t))
+	   pml2-options-list)))
+
+
+(defun pml2-build-menu ()
+  (easy-menu-define
+   pml2-mode-menu (list pml2-mode-map)
+   "PML Mode Menu."
+   '("PML"
+     ["Compile..." pml2-compile t]
+     ("Compiler options" ["Dummy" nil t])
+     ["Indent" indent-region t]))
+  (easy-menu-add pml2-mode-menu)
+  (pml2-update-option-menu))
+
+
 ;; the main function creating the mode
 (define-derived-mode pml2-mode fundamental-mode "Pml2"
   "A major mode for editing Pml2 files."
@@ -490,6 +581,7 @@
   (setq-local comment-start "//")
   (setq-default indent-tabs-mode nil)
   (set-input-method "Pml2")
+  (pml2-build-menu)
   ;;(setq-local imenu-generic-expression
   ;;pml2-imenu-generic-expression)
   ;;(setq-local outline-regexp pml2-outline-regexp)
