@@ -12,6 +12,7 @@ libs_byte: depchecks kernel_byte util_byte parser_byte
 # Check for ocamlfind and ocamlbuild on the system.
 HAS_OCAMLFIND  := $(shell which ocamlfind 2> /dev/null)
 HAS_OCAMLBUILD := $(shell which ocamlbuild 2> /dev/null)
+HAS_PA_OCAML   := $(shell which pa_ocaml 2> /dev/null)
 
 # Check for the bindlib and earley library.
 HAS_BINDLIB    := $(shell ocamlfind query -format %p bindlib 2> /dev/null)
@@ -24,6 +25,9 @@ ifndef HAS_OCAMLBUILD
 endif
 ifndef HAS_OCAMLFIND
 	$(error "The ocamlfind program is required...")
+endif
+ifndef HAS_PA_OCAML
+	$(error "The pa_ocaml (earley-ocaml) is required...")
 endif
 ifndef HAS_BINDLIB
 	$(error "The bindlib library is required...")
@@ -100,6 +104,7 @@ _build/pml2/main.byte: $(ML_FILES)
 	@rm -f main.byte
 	$(OCAMLBUILD) pml2/main.byte
 
+# Checks on the source code.
 check:
 	@f=`grep FIXME */*.ml */*.mli | wc -l`;\
 	 ft=`grep FIXME */*.ml */*.mli | grep -P -v '#[0-9]+' | wc -l`;\
@@ -114,9 +119,7 @@ check:
 	@echo Lines too long:
 	@wc -L */*.ml */*.mli | grep -e "\([89][0-9]\)\|\([1-9][0-9][0-9]\)"; true
 
-
-# Lib target
-# NOTE: PML is doing the dependencies analysis himself
+# Lib target (PML handles the dependencies).
 .PHONY: lib
 LIB_FILES = $(wildcard lib/*.pml)
 lib: main.native $(LIB_FILES)
@@ -139,8 +142,8 @@ distclean: clean
 	@find . -name \*~ -exec rm {} \;
 	@rm -f pml2/config.ml
 
-.PHONY: install_vim
 # Install for the vim mode (in the user's directory).
+.PHONY: install_vim
 install_vim: editors/vim/indent/pml.vim editors/vim/syntax/pml.vim
 ifeq ($(wildcard $(VIMDIR)/.),)
 	@echo -e "\e[36mWill not install vim mode.\e[39m"
@@ -154,6 +157,7 @@ else
 	@echo -e "\e[36mVim mode installed.\e[39m"
 endif
 
+# Install for the emacs mode (system-wide).
 .PHONY: install_emacs
 install_emacs: editors/emacs/pml2-mode.el
 ifeq ($(wildcard $(EMACSDIR)/.),)
