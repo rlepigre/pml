@@ -140,23 +140,30 @@ distclean: clean
 	@rm -f pml2/config.ml
 
 .PHONY: install_vim
-# Install for the vim mode.
+# Install for the vim mode (in the user's directory).
 install_vim: editors/vim/indent/pml.vim editors/vim/syntax/pml.vim
-	cp editors/vim/syntax/pml.vim ~/.vim/syntax/pml.vim
-	cp editors/vim/indent/pml.vim ~/.vim/indent/pml.vim
-	@echo -e "\e[36m==== Add the following to '$(HOME)/.vimrc'\e[39m"
-	@echo "au BufRead,BufNewFile *.pml set filetype=pml"
-	@echo "au! Syntax pml source $(HOME)/.vim/syntax/pml.vim"
-	@echo "autocmd BufEnter *.pml source $(HOME)/.vim/indent/pml.vim"
-	@echo -e "\e[36m==== Add the above to '$(HOME)/.vimrc'\e[39m"
+ifeq ($(wildcard $(VIMDIR)/.),)
+	@echo -e "\e[36mWill not install vim mode.\e[39m"
+else
+	install -d $(VIMDIR)/syntax
+	install -d $(VIMDIR)/indent
+	install -d $(VIMDIR)/ftdetect
+	install -m 644 editors/vim/syntax/pml.vim $(VIMDIR)/syntax
+	install -m 644 editors/vim/indent/pml.vim $(VIMDIR)/indent
+	install -m 644 editors/vim/ftdetect/pml.vim $(VIMDIR)/ftdetect
+	@echo -e "\e[36mVim mode installed.\e[39m"
+endif
 
 .PHONY: install_emacs
 install_emacs: editors/emacs/pml2-mode.el
-	if [ -d $(EMACSDIR) ]; then \
-	  install -d $(EMACSDIR) ;\
-	  install -m 0644 editors/emacs/pml2-mode.el $(EMACSDIR) ;\
-	  install -m 0755 editors/emacs/pml2-indent.sh $(BINDIR)/pml2-indent ;\
-	fi
+ifeq ($(wildcard $(EMACSDIR)/.),)
+	@echo -e "\e[36mWill not install emacs mode.\e[39m"
+else
+	install -d $(EMACSDIR)
+	install -m 644 editors/emacs/pml2-mode.el $(EMACSDIR)
+	install -m 755 editors/emacs/pml2-indent.sh $(BINDIR)/pml2-indent
+	@echo -e "\e[36mEmacs mode installed.\e[39m"
+endif
 
 # Install.
 .PHONY: install
@@ -164,7 +171,7 @@ PML_FILES = $(wildcard lib/*.pml)
 PMI_FILES = $(PML_FILES:.pml=.pmi)
 install: main.native $(PML_FILES) lib install_emacs
 	install -d $(BINDIR)
-	install -m 0755 $< $(BINDIR)/pml2
+	install -m 755 $< $(BINDIR)/pml2
 	install -d $(LIBDIR)/pml2/lib
-	install -m 0644 $(PML_FILES) $(LIBDIR)/pml2/lib
-	install -m 0644 $(PMI_FILES) $(LIBDIR)/pml2/lib
+	install -m 644 $(PML_FILES) $(LIBDIR)/pml2/lib
+	install -m 644 $(PMI_FILES) $(LIBDIR)/pml2/lib
