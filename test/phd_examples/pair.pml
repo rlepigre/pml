@@ -1,4 +1,4 @@
-type pair<a,b> = ∃ x y:ι, {fst = x ; snd = y} ∈ {fst : a ; snd : b ⋯}
+type pair<a,b> = ∃ x y:ι, {fst = x ; snd = y} ∈ {fst : a ; snd : b ; ⋯}
 // type pair<a,b> = {fst : a ; snd : b}
 
 val couple : ∀ a b, a ⇒ b ⇒ pair<a,b> =

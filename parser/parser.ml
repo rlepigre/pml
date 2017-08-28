@@ -124,8 +124,8 @@ let parser t_rec =
 
 (* Optional elipsis for extensible records. *)
 let parser strict =
-  | EMPTY   -> true
-  | elipsis -> false
+  | EMPTY       -> true
+  | ';' elipsis -> false
 
 (* Equivalence / inequivalence symbol. *)
 let parser eq =
