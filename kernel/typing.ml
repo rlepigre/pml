@@ -798,16 +798,25 @@ and build_matrix : Scp.t -> (ordi * ordi) list ->
   let w = Scp.arity (fst callee) calls in
   let h = Scp.arity (fst caller) calls in
   let tab = Array.init h (fun _ -> Array.make w Infi) in
+  let square = fst callee = fst caller in
+
+  let fn j oj i oi =
+    assert(j < h); assert(i < w);
+    let r =
+      if Ordinal.less_ordi pos oi oj then Min1
+      else if Ordinal.leq_ordi pos oi oj then Zero
+      else Infi
+    in
+    tab.(j).(i) <- r
+  in
+  (** Heuristic: diagonal first, for better guess when unification
+      variable remain.  Check: we can put a -1 in this case ?  *)
+  if square then
+    Array.iteri (fun j oj ->
+        fn j oj j (snd callee).(j)) (snd caller);
   Array.iteri (fun j oj ->
-    Array.iteri (fun i oi ->
-      assert(j < h); assert(i < w);
-      let r =
-        if Ordinal.less_ordi pos oi oj then Min1
-        else if Ordinal.leq_ordi pos oi oj then Zero
-        else Infi
-      in
-      tab.(j).(i) <- r
-    ) (snd callee)) (snd caller);
+      Array.iteri (fun i oi -> if not square || i != j then fn j oj i oi)
+                  (snd callee)) (snd caller);
   { w ; h ; tab }
 
 and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->

@@ -164,7 +164,7 @@ type mode = [`Any | `Prp of p_prio | `Trm of t_prio | `Stk | `Ord ]
 (* Parser for expressions. *)
 let parser expr (m : mode) =
   (* Any (higher-order function) *)
-  | "(" x:llid s:{":" s:sort} "↦" e:(expr `Any)
+  | "(" x:llid s:{":" s:sort} ")" "↦" e:(expr `Any)
       when m = `Any
       -> in_pos _loc (EHOFn(x,s,e))
 
