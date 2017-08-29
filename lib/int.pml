@@ -24,11 +24,11 @@ val pre : int ⇒ int = fun n {
 }
 
 // FIXME? should work or stupid mistake ?
-// def icase⟨p:ι→ι,q:ι→ι,n:ι⟩ = case n { Z → {} | S[n] → p⟨n⟩ | P[n] → q⟨n⟩ }
-// def ncase⟨p:ι→ι,n:ι⟩ = case n { Z → {} | S[n] → p⟨n⟩ }
-// def pcase⟨p:ι→ι,n:ι⟩ = case n { Z → {} | P[n] → p⟨n⟩ }
+def icase⟨p:ι→τ,q:ι→τ,n:ι⟩ = case n { Z → {} | S[n] → p⟨n⟩ | P[n] → q⟨n⟩ }
+def ncase⟨p:ι→τ,n:ι⟩ = case n { Z → {} | S[n] → p⟨n⟩ }
+def pcase⟨p:ι→τ,n:ι⟩ = case n { Z → {} | P[n] → p⟨n⟩ }
 
-// val suc_pre : ∀n∈int, suc (pre n) ≡ n = fun n { icase⟨ncase⟨(x:ι)↦{}⟩,(x:ι)↦{},n⟩ }
+val suc_pre : ∀n∈int, suc (pre n) ≡ n = fun n { icase⟨ncase⟨(x:ι)↦{}⟩,(x:ι)↦{},n⟩ }
 
 def icase⟨n⟩ = case n { Z → {} | S[_] → {} | P[_] → {} }
 def ncase⟨n⟩ = case n { Z → {} | S[_] → {} }
