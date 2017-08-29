@@ -34,6 +34,8 @@ let loops : term -> 'a =
 
 exception Reachable
 
+exception No_typing_IH of strloc
+
 exception Unexpected_error of string
 let unexpected : string -> 'a =
   fun msg -> raise (Unexpected_error(msg))
@@ -639,7 +641,7 @@ and check_fix : ctxt -> valu -> (v, t) bndr -> prop -> typ_proof =
     | []      ->
        (* No matching induction hypothesis. *)
        log_typ "no suitable induction hypothesis";
-       type_error (E(V,v)) c Not_found
+       type_error (E(V,v)) c (No_typing_IH(bndr_name b))
   in
   if ihs = [] then
     begin
@@ -840,7 +842,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
          (* Fixpoint *)
          | FixY(b,{elt = Vari(V,y)}) ->
             assert(eq_vars x y); (* x must not be free in b *)
-            let w = Pos.none (Valu(v)) in
+            let w = Pos.make v.pos (Valu(v)) in
             (* NOTE UWit is almost always use with value *)
             let rec break_univ c =
               match (Norm.whnf c).elt with

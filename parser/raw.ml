@@ -1103,7 +1103,7 @@ let type_def : Pos.pos -> [`Non | `Rec | `CoRec] -> strloc
 
 let val_def : bool -> strloc -> raw_ex -> raw_ex -> toplevel = fun r id a t ->
   let t =
-    if r then Pos.make t.pos (EFixY(Pos.none (ELAbs(((id, None),[]), t))))
+    if r then Pos.make t.pos (EFixY(Pos.make t.pos (ELAbs(((id, None),[]), t))))
     else t
   in
   Valu_def(id, a, t)

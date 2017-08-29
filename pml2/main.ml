@@ -260,6 +260,13 @@ let _ =
         | (_      , _      ) -> ()
       end;
       err_msg "  %s%a ⊂ %a%s" l Print.ex a Print.ex b r
+  | No_typing_IH(id)             ->
+      begin
+        err_msg "No typing induction hypothesis applies for %S." id.elt;
+        match id.pos with
+        | None   -> ()
+        | Some p -> Quote.quote_file stderr p
+      end
   | e ->
       err_msg "Unexpected exception [%s]." (Printexc.to_string e);
       err_msg "%t" Printexc.print_backtrace;
