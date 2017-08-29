@@ -4,8 +4,7 @@ val rec id : ∀a, list<a> ⇒ list<a> =
   fun l {
     case l {
       Nil     → nil
-      Cons[c] → cons c.hd (id c.tl)
-      //Cons[c] → Cons[{hd = c.hd; tl = id c.tl}] // FIXME should work
+      Cons[c] → Cons[{hd = c.hd; tl = id c.tl}]
     }
   }
 
@@ -37,7 +36,6 @@ val rec id : ∀a, list<a> ⇒ list<a> =
   fun l {
     case l {
       []    → [.]
-      x::xs → x::xs
-      //x::xs → x::id xs // FIXME should work
+      x::xs → x::(id xs) // FIXME should work without parenthesis
     }
   }

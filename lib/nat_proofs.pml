@@ -63,7 +63,8 @@ val rec add_n_succ : ∀m n∈nat, add m S[n] ≡ S[add m n] =
     case m {
       Z    → deduce add Z S[n] ≡ S[add Z n];
              qed
-      S[k] → show add k S[n] ≡ S[add k n] using add_n_succ k n;
+      S[k] → use add_total k n; // FIXME: if this line is removed, strange error with no position
+             show add k S[n] ≡ S[add k n] using add_n_succ k n;
              deduce S[add k S[n]] ≡ S[S[add k n]];
              deduce add S[k] S[n] ≡ S[S[add k n]];
              deduce add S[k] S[n] ≡ S[add S[k] n];

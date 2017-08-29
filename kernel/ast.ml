@@ -286,6 +286,11 @@ let labs : popt -> pbox option -> strloc -> (vvar -> tbox) -> vbox =
     let b = vbind (mk_free V) x.elt f in
     box_apply2 (fun ao b -> Pos.make p (LAbs(ao, (x.pos, b)))) (box_opt ao) b
 
+let lvabs : popt -> pbox option -> vvar -> tbox -> vbox =
+  fun p ao v t -> (* FIXME: None position below *)
+    box_apply2 (fun ao b -> Pos.make p (LAbs(ao, (None, b))))
+               (box_opt ao) (bind_var v t)
+
 let cons : popt -> strloc -> vbox -> vbox =
   fun p c -> box_apply (fun v -> Pos.make p (Cons(c,v)))
 

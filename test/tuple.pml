@@ -22,9 +22,6 @@ val rec map : ∀a b, (a ⇒ b) ⇒ list<a> ⇒ list<b> =
   fun f l {
     case l {
       Nil          → Nil
-      Cons[(x, l)] → let hd = f x;
-                     let tl = map f l;
-                     Cons[(hd,tl)]
-      // Cons[(x, l)] → Cons[(f x, map f l)] // FIXME should work
+      Cons[(x, l)] → Cons[(f x, map f l)]
     }
   }
