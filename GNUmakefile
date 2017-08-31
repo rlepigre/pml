@@ -185,3 +185,10 @@ install: main.native $(PML_FILES) lib install_emacs
 	install -d $(LIBDIR)/pml2/lib
 	install -m 644 $(PML_FILES) $(LIBDIR)/pml2/lib
 	install -m 644 $(PMI_FILES) $(LIBDIR)/pml2/lib
+
+# Release.
+.PHONY: release
+release: distclean
+	git push origin
+	git tag -a pml_$(VERSION)
+	git push origin pml_$(VERSION)
