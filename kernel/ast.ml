@@ -287,7 +287,7 @@ let labs : popt -> pbox option -> strloc -> (vvar -> tbox) -> vbox =
     box_apply2 (fun ao b -> Pos.make p (LAbs(ao, (x.pos, b)))) (box_opt ao) b
 
 let lvabs : popt -> pbox option -> vvar -> tbox -> vbox =
-  fun p ao v t -> (* FIXME: None position below *)
+  fun p ao v t ->
     box_apply2 (fun ao b -> Pos.make p (LAbs(ao, (None, b))))
                (box_opt ao) (bind_var v t)
 
@@ -468,36 +468,12 @@ let t_proj : popt -> tbox -> strloc -> tbox =
     let u = valu p (labs p None (Pos.none "x") f) in
     appl p u t
 
-(** Syntactic sugar for the case analysis on a term. *)
-let t_case : popt -> tbox -> (popt * strloc * (vvar -> tbox)) A.t -> tbox =
-  fun p t m ->
-    let f x = case p (vari None x) m in
-    let u = valu p (labs p None (Pos.none "x") f) in
-    appl p u t
-
-(** Syntactic sugar for a constructor applied to a term. *)
-let t_cons : popt -> strloc -> tbox -> tbox =
-  fun p c t ->
-    let f x = valu p (cons p c (vari None x)) in
-    let u = valu p (labs p None (Pos.none "x") f) in
-    appl p u t
-
-(** Syntactic sugar for records containing terms. *)
-let t_reco : popt -> (string * (popt*tbox)) list -> (popt*vbox) A.t -> tbox =
-  fun p tfs m ->
-    let fn env =
-      let add m (l,_) = A.add l (None, List.assoc l env) m in
-      valu p (reco p (List.fold_left add m tfs))
-    in
-    let rec build env xs =
-      match xs with
-      | []    -> fn env
-      | x::xs -> let fn y = build ((x, vari None y) :: env) xs in
-                 valu None (labs None None (Pos.none x) fn)
-    in
-    let f = build [] (List.map fst tfs) in
-    let ts = List.map (fun (_,(_,t)) -> t) tfs in
-    List.fold_left (appl None) f ts
+(** Syntactic sugar to build redexes *)
+let rec redexes : pos option -> (vvar * tbox) list -> tbox -> tbox =
+  fun pos l t -> match l with
+  | [] -> t
+  | (v,t0)::l ->
+     redexes pos l (appl pos (valu None (lvabs None None v t)) t0)
 
 (** Syntactic sugar for strict product type. *)
 let strict_prod : popt -> (popt * pbox) A.t -> pbox =

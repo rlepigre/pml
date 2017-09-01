@@ -15,7 +15,10 @@ let log_par = Log.(log_par.p)
 
 type raw_sort = raw_sort' loc
 and raw_sort' =
-  | SV | ST | SS | SP | SO
+  | ST | SS | SP | SO
+  (* The argument to SV is used to store terms for the syntactic
+     sugar allowing terms in place where value are expected *)
+  | SV of (vvar * tbox) list ref option
   | SFun of raw_sort * raw_sort
   | SVar of string
   | SUni of suvar
@@ -25,7 +28,7 @@ let print_raw_sort : out_channel -> raw_sort -> unit = fun ch s ->
   let open Printf in
   let rec print ch s =
     match s.elt with
-    | SV          -> output_string ch "SV"
+    | SV _        -> output_string ch "SV"
     | ST          -> output_string ch "ST"
     | SS          -> output_string ch "SS"
     | SP          -> output_string ch "SP"
@@ -55,7 +58,7 @@ let pretty_print_raw_sort : out_channel -> raw_sort -> unit = fun ch s ->
   let rec print ch s =
     let open Printf in
     match s.elt with
-    | SV          -> output_string ch "ι"
+    | SV _        -> output_string ch "ι"
     | ST          -> output_string ch "τ"
     | SS          -> output_string ch "σ"
     | SP          -> output_string ch "ο"
@@ -71,18 +74,20 @@ let pretty_print_raw_sort : out_channel -> raw_sort -> unit = fun ch s ->
         end
   in print ch s
 
-let _sv = Pos.none SV
+let  sv = SV None
+let _sv = Pos.none sv
+let _sv_store l = Pos.none (SV (Some l))
 let _st = Pos.none ST
 let _ss = Pos.none SS
 let _sp = Pos.none SP
 let _so = Pos.none SO
 
 let rec sort_from_ast : type a. a sort -> raw_sort = function
-  | V      -> Pos.none SV
-  | T      -> Pos.none ST
-  | S      -> Pos.none SS
-  | P      -> Pos.none SP
-  | O      -> Pos.none SO
+  | V      -> _sv
+  | T      -> _st
+  | S      -> _ss
+  | P      -> _sp
+  | O      -> _so
   | F(s,k) -> Pos.none (SFun(sort_from_ast s, sort_from_ast k))
 
 let new_sort_uvar : strloc option -> raw_sort =
@@ -121,7 +126,7 @@ let unbound_sort : string -> Pos.pos option -> 'a =
 
 let rec unsugar_sort : env -> raw_sort -> any_sort = fun env s ->
   match (sort_repr env s).elt with
-  | SV          -> Sort V
+  | SV _        -> Sort V
   | ST          -> Sort T
   | SS          -> Sort S
   | SP          -> Sort P
@@ -292,7 +297,7 @@ let rec eq_sort : env -> raw_sort -> raw_sort -> bool = fun env s1 s2 ->
   log_par "eq_sort %a %a" print_raw_sort s1 print_raw_sort s2;
   let res =
   match ((sort_repr env s1).elt, (sort_repr env s2).elt) with
-  | (SV         , SV         ) -> true
+  | (SV _       , SV _       ) -> true
   | (ST         , ST         ) -> true
   | (SS         , SS         ) -> true
   | (SP         , SP         ) -> true
@@ -356,7 +361,7 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
     | (EFunc(_,_)   , SUni(r)  ) -> sort_uvar_set r _sp; infer env vars e s
     | (EFunc(_,_)   , _        ) -> sort_clash e s
     | (EUnit        , SP       )
-    | (EUnit        , SV       )
+    | (EUnit        , SV _     )
     | (EUnit        , ST       ) -> ()
     | (EUnit        , SUni(r)  ) -> sort_uvar_set r _sp; (* arbitrary *)
                                     infer env vars e s
@@ -434,7 +439,7 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
     | (EImpl(_,_)   , SUni(r)  ) -> sort_uvar_set r _sp; infer env vars e s
     | (EImpl(_,_)   , _        ) -> sort_clash e s
     (* Terms / Values. *)
-    | (ELAbs(args,t), SV       )
+    | (ELAbs(args,t), SV _     )
     | (ELAbs(args,t), ST       ) ->
         begin
           let fn vs (x, ao) =
@@ -450,7 +455,7 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
         end
     | (ELAbs(_,_)   , SUni(r)  ) -> sort_uvar_set r _sv; infer env vars e s
     | (ELAbs(_,_)   , _        ) -> sort_clash e s
-    | (ECons(_,vo)  , SV       ) ->
+    | (ECons(_,vo)  , SV _     ) ->
         begin
           match vo with
           | None       -> ()
@@ -482,7 +487,7 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
               end
         end
     | (ECons(_,_)   , _        ) -> sort_clash e s
-    | (EReco(l)     , SV       ) ->
+    | (EReco(l)     , SV _     ) ->
         let fn (_,v,r) = infer env vars v _sv; r := `V in
         List.iter fn l
     | (EReco(l)     , ST       ) ->
@@ -506,11 +511,11 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
         List.iter fn l;
         sort_uvar_set r (if !all_val then _sv else _st)
     | (EReco(_)     , _        ) -> sort_clash e s
-    | (EScis        , SV       )
+    | (EScis        , SV _     )
     | (EScis        , ST       ) -> ()
     | (EScis        , SUni(r)  ) -> sort_uvar_set r _sv; infer env vars e s
     | (EScis        , _        ) -> sort_clash e s
-    | (EGoal(str)   , SV       )
+    | (EGoal(str)   , SV _     )
     | (EGoal(str)   , ST       )
     | (EGoal(str)   , SS       ) -> ()
     | (EGoal(str)   , SUni(r)  ) -> sort_uvar_set r _sv; infer env vars e s
@@ -546,7 +551,7 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
         begin
           let fn ((_, argo), t) =
             let (x, ao) = Option.default (Pos.none "_", None) argo in
-            infer env (M.add x.elt (x.pos, Pos.none SV) vars) t _st;
+            infer env (M.add x.elt (x.pos, _sv) vars) t _st;
             match ao with
             | None   -> ()
             | Some a -> infer env vars a _sp
@@ -561,16 +566,16 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
     | (ECase(_,_,_) , SUni(r)  ) -> sort_uvar_set r _st; infer env vars e s
     | (ECase(_,_,_) , _        ) -> sort_clash e s
     | (EFixY(v)     , ST       )
-    | (EFixY(v)     , SV       ) -> infer env vars v _st
+    | (EFixY(v)     , SV _     ) -> infer env vars v _st
     | (EFixY(_)     , SUni(r)  ) -> sort_uvar_set r _sv; infer env vars e s
     | (EFixY(_)     , _        ) -> sort_clash e s
     | (EPrnt(_)     , ST       ) -> ()
     | (EPrnt(_)     , _        ) -> sort_clash e s
-    | (ECoer(t,a)   , SV       )
+    | (ECoer(t,a)   , SV _     )
     | (ECoer(t,a)   , ST       )
     | (ECoer(t,a)   , SUni(_)  ) -> infer env vars t s; infer env vars a _sp
     | (ECoer(t,_)   , _        ) -> sort_clash e s
-    | (ESuch(vs,j,v), SV       )
+    | (ESuch(vs,j,v), SV _     )
     | (ESuch(vs,j,v), ST       )
     | (ESuch(vs,j,v), SUni(_)  ) ->
         begin
@@ -579,7 +584,7 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
             try
               let s = sort_repr env (snd (M.find x.elt vars)) in
               match s.elt with
-              | SV | SS | SUni(_) -> ()
+              | SV _ | SS | SUni(_) -> ()
               | _                 ->
                   sort_clash (Pos.make x.pos (EVari(x,[]))) s
             with Not_found -> unbound_var x.elt x.pos
@@ -654,11 +659,10 @@ let add_store : (vvar * tbox) list ref option -> vvar -> tbox -> unit =
 
 let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
   infer_sorts env e s;
-  let rec unsugar env vars store e s =
+  let rec unsugar env vars e s =
     log_par "unsug %a : %a" print_raw_expr e print_raw_sort s;
-    assert(store=None || s.elt = SV);
     match (e.elt, (sort_repr env s).elt) with
-    | (EVari(x,args), _        ) ->
+    | (EVari(x,args), s0       ) ->
         begin
           try
             let box =
@@ -672,7 +676,7 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
               match (se, args) with
               | (F(sa,sb), a::args) ->
                   let sa' = sort_from_ast sa in
-                  let a = sort_filter sa (unsugar env vars store a sa') in
+                  let a = sort_filter sa (unsugar env vars a sa') in
                   build_app (Box(sb, happ e.pos sa ex a)) args
               | (_       , []     ) -> Box(se,ex)
               | (_       , _      ) -> assert false
@@ -683,9 +687,13 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
             | Eq.Eq  -> Box(s, sort_filter s (Box(se,ex)))
             | Eq.NEq ->
                 begin
-                  match (s, se) with
-                  | (T, V) -> Box(T, valu e.pos ex)
-                  | (_, _) -> assert false
+                  match (s, s0, se) with
+                  | (T, _       , V) -> Box(T, valu e.pos ex)
+                  | (V, SV store, T) ->
+                     let v = Bindlib.new_var (mk_free V) "x" in
+                     add_store store v ex;
+                     Box(V,vari e.pos v)
+                  | (_, _       , _) -> assert false
                 end
           with Not_found ->
             let d = find_value x.elt env in
@@ -698,19 +706,19 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
         let fn xk =
           let xk = (x.pos, Box(sa, vari x.pos xk)) in
           let vars = M.add x.elt xk vars in
-          sort_filter sb (unsugar env vars store f b)
+          sort_filter sb (unsugar env vars f b)
         in
         Box(F(sa,sb), hfun e.pos sa sb x fn)
     (* Propositions. *)
     | (EFunc(a,b)   , SP       ) ->
-        let a = unsugar env vars store a s in
-        let b = unsugar env vars store b s in
+        let a = unsugar env vars a s in
+        let b = unsugar env vars b s in
         Box(P, func e.pos (to_prop a) (to_prop b))
     | (EUnit        , SP       ) -> Box(P, strict_prod e.pos A.empty)
-    | (EUnit        , SV       ) -> Box(V, reco e.pos A.empty)
+    | (EUnit        , SV _     ) -> Box(V, reco e.pos A.empty)
     | (EUnit        , ST       ) -> Box(T, valu e.pos (reco e.pos A.empty))
     | (EProd(l,str) , SP       ) ->
-        let fn (p, a) = (p.elt, (p.pos, to_prop (unsugar env vars store a s))) in
+        let fn (p, a) = (p.elt, (p.pos, to_prop (unsugar env vars a s))) in
         let gn m (k,v) =
           if A.mem k m then assert false;
           A.add k v m
@@ -721,7 +729,7 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
         let fn (p, a) =
           match a with
           | None   -> (p.elt, (p.pos, strict_prod p.pos A.empty))
-          | Some a -> (p.elt, (p.pos, to_prop (unsugar env vars store a s)))
+          | Some a -> (p.elt, (p.pos, to_prop (unsugar env vars a s)))
         in
         let gn m (k,v) =
           if A.mem k m then assert false;
@@ -734,7 +742,7 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
         let xs = ne_list_to_list xs in
         let rec build vars xs ex =
           match xs with
-          | []    -> to_prop (unsugar env vars store ex _sp)
+          | []    -> to_prop (unsugar env vars ex _sp)
           | x::xs -> let fn xk : p box =
                        let xk = (x.pos, Box(k, vari x.pos xk)) in
                        let vars = M.add x.elt xk vars in
@@ -748,7 +756,7 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
         let xs = ne_list_to_list xs in
         let rec build vars xs ex =
           match xs with
-          | []    -> to_prop (unsugar env vars store ex _sp)
+          | []    -> to_prop (unsugar env vars ex _sp)
           | x::xs -> let fn xk : p box =
                        let xk = (x.pos, Box(k, vari x.pos xk)) in
                        let vars = M.add x.elt xk vars in
@@ -758,41 +766,41 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
         in
         Box(P, build vars xs e)
     | (EFixM(o,x,e) , SP       ) ->
-        let o = to_ordi (unsugar env vars store o _so) in
+        let o = to_ordi (unsugar env vars o _so) in
         let fn xo : pbox =
           let xo = (x.pos, Box(P, vari x.pos xo)) in
           let vars = M.add x.elt xo vars in
-          to_prop (unsugar env vars store e _sp)
+          to_prop (unsugar env vars e _sp)
         in
         Box(P, fixm e.pos o x fn)
     | (EFixN(o,x,e) , SP       ) ->
-        let o = to_ordi (unsugar env vars store o _so) in
+        let o = to_ordi (unsugar env vars o _so) in
         let fn xo : pbox =
           let xo = (x.pos, Box(P, vari x.pos xo)) in
           let vars = M.add x.elt xo vars in
-          to_prop (unsugar env vars store e _sp)
+          to_prop (unsugar env vars e _sp)
         in
         Box(P, fixn e.pos o x fn)
     | (EMemb(t,a)   , SP       ) ->
-        let t = to_term (unsugar env vars store t _st) in
-        let a = to_prop (unsugar env vars store a _sp) in
+        let t = to_term (unsugar env vars t _st) in
+        let a = to_prop (unsugar env vars a _sp) in
         Box(P, memb e.pos t a)
     | (ERest(a,eq)  , SP       ) ->
         let a =
           match a with
           | None   -> strict_prod e.pos A.empty
-          | Some a -> to_prop (unsugar env vars store a _sp)
+          | Some a -> to_prop (unsugar env vars a _sp)
         in
         let c =
           match eq with
           | EEquiv(t,b,u) ->
-             let t = to_term (unsugar env vars store t _st) in
-             let u = to_term (unsugar env vars store u _st) in
+             let t = to_term (unsugar env vars t _st) in
+             let u = to_term (unsugar env vars u _st) in
              equiv t b u
           | EPosit _ ->
              assert false (* TODO #32 *)
           | ENoBox(v) ->
-             let v = to_valu (unsugar env vars store v _sv) in
+             let v = to_valu (unsugar env vars v _sv) in
              nobox v
         in
         Box(P, rest e.pos a c)
@@ -800,84 +808,76 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
         let a =
           match a with
           | None   -> strict_prod e.pos A.empty
-          | Some a -> to_prop (unsugar env vars store a _sp)
+          | Some a -> to_prop (unsugar env vars a _sp)
         in
         let c =
           match eq with
           | EEquiv(t,b,u) ->
-             let t = to_term (unsugar env vars store t _st) in
-             let u = to_term (unsugar env vars store u _st) in
+             let t = to_term (unsugar env vars t _st) in
+             let u = to_term (unsugar env vars u _st) in
              equiv t b u
           | EPosit _ ->
              assert false (* TODO #32 *)
           | ENoBox(v) ->
-             let v = to_valu (unsugar env vars store v _sv) in
+             let v = to_valu (unsugar env vars v _sv) in
              nobox v
         in
         Box(P, impl e.pos c a)
     (* Values. *)
-    | (ELAbs(args,t), SV       ) ->
+    | (ELAbs(args,t), SV _     ) ->
         begin
           match args with
           | ((x,ao), []   ) ->
-              let fn a = to_prop (unsugar env vars store a _sp) in
+              let fn a = to_prop (unsugar env vars a _sp) in
               let ao = Option.map fn ao in
               let fn xx =
                 let xx = (x.pos, Box(V, vari x.pos xx)) in
                 let vars = M.add x.elt xx vars in
-                to_term (unsugar env vars None t _st)
+                to_term (unsugar env vars t _st)
               in
               Box(V, labs e.pos ao x fn)
           | (x     , y::xs) ->
               let t = Pos.make e.pos (ELAbs((y,xs),t)) in
               let t = Pos.make e.pos (ELAbs((x,[]),t)) in
-              unsugar env vars store t _sv
+              unsugar env vars t _sv
         end
-    | (ECons(c,vo)  , SV       ) ->
+    | (ECons(c,vo)  , SV _     ) ->
         let v =
           match vo with
           | None       -> reco None A.empty
-          | Some (v,_) -> to_valu (unsugar env vars store v _sv)
+          | Some (v,_) -> to_valu (unsugar env vars v s)
         in
         Box(V, cons e.pos c v)
-    | (EReco(l)     , SV       ) ->
-        let fn (p,v,_) = (p.elt, (p.pos, to_valu (unsugar env vars store v _sv))) in
+    | (EReco(l)     , SV _     ) ->
+        let fn (p,v,_) = (p.elt, (p.pos, to_valu (unsugar env vars v s))) in
         let gn m (k,v) =
           if A.mem k m then assert false;
           A.add k v m
         in
         let m = List.fold_left gn A.empty (List.map fn l) in
         Box(V, reco e.pos m)
-    | (EScis        , SV       ) -> Box(V, scis e.pos)
+    | (EScis        , SV _     ) -> Box(V, scis e.pos)
     (* Values as terms. *)
     | (ECons(_)     , ST       )
     | (EReco(_)     , ST       ) ->
-        assert (store = None);
         let l = ref [] in
-        let v = to_valu (unsugar env vars (Some l) e _sv) in
-        let t = valu e.pos v in
-        let rec redexes l t = match l with
-          | [] -> t
-          | (v,t0)::l ->
-             (* FIXME: e.pos below is good ? *)
-             redexes l (appl e.pos (valu e.pos (lvabs e.pos None v t)) t0)
-        in
-        Box(T, redexes !l t)
+        let v = to_valu (unsugar env vars e (_sv_store l)) in
+        Box(T, redexes e.pos !l (valu e.pos v))
     | (ELAbs(_,_)   , ST       )
     | (EScis        , ST       ) ->
         begin
-          match unsugar env vars store e _sv with
+          match unsugar env vars e _sv with
           | Box(V,v) -> Box(T, valu e.pos v)
           | _        -> assert false
         end
     (* Terms. *)
     | (EAppl(t,u)   , ST       ) ->
-        let t = to_term (unsugar env vars store t _st) in
-        let u = to_term (unsugar env vars store u _st) in
+        let t = to_term (unsugar env vars t _st) in
+        let u = to_term (unsugar env vars u _st) in
         Box(T, appl e.pos t u)
     | (ESequ(t,u)   , ST       ) ->
-        let t = to_term (unsugar env vars store t _st) in
-        let u = to_term (unsugar env vars store u _st) in
+        let t = to_term (unsugar env vars t _st) in
+        let u = to_term (unsugar env vars u _st) in
         Box(T, sequ e.pos t u)
     | (EMAbs(args,t), ST       ) ->
         begin
@@ -886,24 +886,24 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
               let fn xx =
                 let xx = (x.pos, Box(S, vari x.pos xx)) in
                 let vars = M.add x.elt xx vars in
-                to_term (unsugar env vars store t _st)
+                to_term (unsugar env vars t _st)
               in
               Box(T, mabs e.pos x fn)
           | (x     , y::xs) ->
               let t = Pos.make e.pos (EMAbs((y,xs),t)) in
               let t = Pos.make e.pos (EMAbs((x,[]),t)) in
-              unsugar env vars store t _st
+              unsugar env vars t _st
         end
     | (EName(s,t)   , ST       ) ->
-        let s = to_stac (unsugar env vars store s _ss) in
-        let t = to_term (unsugar env vars store t _st) in
+        let s = to_stac (unsugar env vars s _ss) in
+        let t = to_term (unsugar env vars t _st) in
         Box(T, name e.pos s t)
     | (EProj(v,r,l) , ST       ) ->
         begin
           match !r with
-          | `V -> let v = to_valu (unsugar env vars store v _sv) in
+          | `V -> let v = to_valu (unsugar env vars v _sv) in
                   Box(T, proj e.pos v l)
-          | `T -> let t = to_term (unsugar env vars store v _st) in
+          | `T -> let t = to_term (unsugar env vars v _st) in
                   Box(T, t_proj e.pos t l)
         end
     | (ECase(v,r,l) , ST       ) ->
@@ -913,7 +913,7 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
             let f xx =
               let xx = (x.pos, Box(V, vari x.pos xx)) in
               let vars = M.add x.elt xx vars in
-              to_term (unsugar env vars store t _st)
+              to_term (unsugar env vars t _st)
             in
             (c.elt, (c.pos, x, f))
           in
@@ -924,13 +924,13 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
           in
           let m = List.fold_left gn A.empty (List.map fn l) in
           match !r with
-          | `V -> let v = to_valu (unsugar env vars store v _sv) in
+          | `V -> let v = to_valu (unsugar env vars v _sv) in
                   Box(T, case e.pos v m)
-          (* FIXME: do like for Cons and Record *)
-          | `T -> let t = to_term (unsugar env vars store v _st) in
-                  Box(T, t_case e.pos t m)
+          | `T -> let l = ref [] in
+                  let v = to_valu (unsugar env vars v (_sv_store l)) in
+                  Box(T, redexes e.pos !l (case e.pos v m))
         end
-    | (EFixY(v)     , SV       ) ->
+    | (EFixY(v)     , SV _     ) ->
         begin
           match v.elt with
           | ELAbs(((x,ao), l), t) ->
@@ -942,7 +942,7 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
               let fn xx =
                 let xx = (x.pos, Box(V, vari x.pos xx)) in
                 let vars = M.add x.elt xx vars in
-                to_term (unsugar env vars store t _st)
+                to_term (unsugar env vars t _st)
               in
               let fn xx = fixy e.pos x fn (vari None xx) in
               let fix = labs e.pos None (Pos.none "x") fn in
@@ -950,7 +950,7 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
                 match ao with
                 | None -> fix
                 | Some k ->
-                   let k = to_prop (unsugar env vars store k _sp) in
+                   let k = to_prop (unsugar env vars k _sp) in
                    coer v.pos VoT_V fix k
               in
               Box(V,fix)
@@ -958,7 +958,7 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
              (* perform eta expansion to force
                 abs under fixpoint *)
              let x = Pos.none "x" in
-             let fn xx = appl v.pos (to_term (unsugar env vars store v _st))
+             let fn xx = appl v.pos (to_term (unsugar env vars v _st))
                               (valu None (vari None xx))
              in
              let fn xx = fixy e.pos x fn (vari None xx) in
@@ -966,20 +966,20 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
              Box(V,fix)
         end
     | (EFixY(_)     , ST       ) ->
-        let v = to_valu (unsugar env vars store e _sv) in
+        let v = to_valu (unsugar env vars e _sv) in
         Box(T, valu e.pos v)
     | (EPrnt(s)     , ST       ) ->
         Box(T, prnt e.pos s)
     (* Type annotations. *)
-    | (ECoer(v,a)   , SV       ) ->
-        let v = to_valu (unsugar env vars store v _sv) in
-        let a = to_prop (unsugar env vars store a _sp) in
+    | (ECoer(v,a)   , SV _     ) ->
+        let v = to_valu (unsugar env vars v s) in
+        let a = to_prop (unsugar env vars a _sp) in
         Box(V, coer e.pos VoT_V v a)
     | (ECoer(t,a)   , ST       ) ->
-        let t = to_term (unsugar env vars store t _st) in
-        let a = to_prop (unsugar env vars store a _sp) in
+        let t = to_term (unsugar env vars t _st) in
+        let a = to_prop (unsugar env vars a _sp) in
         Box(T, coer e.pos VoT_T t a)
-    | (ESuch(vs,j,r), s        ) when s = SV || s = ST ->
+    | (ESuch(vs,j,r), (SV _|ST as s0)) ->
         let xs = map_ne_list (fun (x,s) -> (x, unsugar_sort env s)) vs in
         let (var, a) = j in
         let rec build_desc (x,xs) =
@@ -998,8 +998,8 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
                 let fn xx =
                   let xx = (x.pos, Box(sx, vari x.pos xx)) in
                   let vars = M.add x.elt xx vars in
-                  let a = to_prop (unsugar env vars store a _sp) in
-                  let e = to_v_or_t vot (unsugar env vars store r (Pos.none s)) in
+                  let a = to_prop (unsugar env vars a _sp) in
+                  let e = to_v_or_t vot (unsugar env vars r s) in
                   Bindlib.box_pair a e
                 in
                 FLast(sx, x, fn)
@@ -1023,37 +1023,37 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
               end
         in
         begin
-          match s with
-          | SV -> Box(V, such e.pos VoT_V d sv (build_seq VoT_V vars d))
-          | ST -> Box(T, such e.pos VoT_T d sv (build_seq VoT_T vars d))
-          | _  -> assert false (* should not happen *)
+          match s0 with
+          | SV _ -> Box(V, such e.pos VoT_V d sv (build_seq VoT_V vars d))
+          | ST   -> Box(T, such e.pos VoT_T d sv (build_seq VoT_T vars d))
+          | _    -> assert false (* should not happen *)
         end
     (* Stacks. *)
     | (EEpsi        , SS       ) -> Box(S, epsi e.pos)
     | (EPush(v,pi)  , SS       ) ->
-        let v  = to_valu (unsugar env vars store v  _sv) in
-        let pi = to_stac (unsugar env vars store pi _ss) in
+        let v  = to_valu (unsugar env vars v  _sv) in
+        let pi = to_stac (unsugar env vars pi _ss) in
         Box(S, push e.pos v pi)
     | (EFram(t,pi)  , SS       ) ->
-        let t  = to_term (unsugar env vars store t  _st) in
-        let pi = to_stac (unsugar env vars store pi _ss) in
+        let t  = to_term (unsugar env vars t  _st) in
+        let pi = to_stac (unsugar env vars pi _ss) in
         Box(S, fram e.pos t pi)
     (* Ordinals. *)
     | (EConv        , SO       ) -> Box(O, conv e.pos)
     | (ESucc(o)     , SO       ) ->
-        let o = to_ordi (unsugar env vars store o _so) in
+        let o = to_ordi (unsugar env vars o _so) in
         Box(O, succ e.pos o)
-    | (EGoal(str)   , SV       ) -> Box(V, goal e.pos V str)
+    | (EGoal(str)   , SV _      ) -> Box(V, goal e.pos V str)
     | (EGoal(str)   , ST       ) -> Box(T, to_term (Box(V, goal e.pos V str)))
     | (EGoal(str)   , SS       ) -> Box(S, goal e.pos S str)
-    | (_, SV) when store <> None ->
+    | (_, SV store) when store <> None ->
        let v = Bindlib.new_var (mk_free V) "x" in
-       let t = to_term (unsugar env vars None e (Pos.make s.pos ST)) in
+       let t = to_term (unsugar env vars e (Pos.make s.pos ST)) in
        add_store store v t;
        Box(V,vari e.pos v)
     | (_            , _        ) -> assert false
   in
-  unsugar env M.empty None e s
+  unsugar env M.empty e s
 
 type toplevel =
   | Sort_def of strloc * raw_sort
@@ -1127,12 +1127,12 @@ let eimpl a l =
 
 let euniv _loc x xs s a =
   let s = match s with Some s -> s | None -> new_sort_uvar (Some x) in
-  let a = if s.elt = SV then eimpl a (x::xs) else a in
+  let a = match s.elt with SV _ -> eimpl a (x::xs) | _ -> a in
   in_pos _loc (EUniv((x,xs), s, a))
 
 let eexis _loc x xs s a =
   let s = match s with Some s -> s | None -> new_sort_uvar (Some x) in
-  let a = if s.elt = SV then erest a (x::xs) else a in
+  let a = match s.elt with SV _ -> erest a (x::xs) | _ -> a in
   in_pos _loc (EExis((x,xs), s, a))
 
 let euniv_in _loc x xs a b =
@@ -1140,7 +1140,7 @@ let euniv_in _loc x xs a b =
   let c = List.fold_right (fun x c ->
     p (EFunc(p (EMemb(p (EVari(x,[])), a)), c))) (x::xs) b
   in
-  p (EUniv((x,xs),p SV,c))
+  p (EUniv((x,xs),p sv,c))
 
 let eexis_in _loc x xs a b =
   let p x = Pos.in_pos _loc x in
@@ -1151,7 +1151,7 @@ let eexis_in _loc x xs a b =
     tuple_type _loc [p (EMemb(p (EVari(x,[])), a)); c]) (x::xs) b
   in
   *)
-  p (EExis((x,xs),p SV,c))
+  p (EExis((x,xs),p sv,c))
 
 let esett _loc x a =
   let a = Pos.none (EMemb(Pos.make x.pos (EVari(x,[])), a)) in

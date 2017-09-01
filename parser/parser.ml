@@ -134,7 +134,7 @@ let parser eq =
 
 (* Parser for sorts. *)
 let parser sort (p : [`A | `F]) =
-  | {"ι" | "<iota>"    | "<value>"  } when p = `A -> in_pos _loc SV
+  | {"ι" | "<iota>"    | "<value>"  } when p = `A -> in_pos _loc sv
   | {"τ" | "<tau>"     | "<term>"   } when p = `A -> in_pos _loc ST
   | {"σ" | "<sigma>"   | "<stack>"  } when p = `A -> in_pos _loc SS
   | {"ο" | "<omicron>" | "<prop>"   } when p = `A -> in_pos _loc SP
