@@ -68,10 +68,8 @@ let locate buf1 pos1 buf2 pos2 =
   let end_line = Input.line_num buf2 in
   let start_col = 1 + Input.utf8_col_num buf1 pos1 in
   let end_col = Input.utf8_col_num buf2 pos2 in
-  let end_col =
-    if end_line = start_line then max end_col start_col
-    else end_col
-  in
+  assert(start_line <= end_line);
+  assert(start_line < end_line || start_col <= end_col);
   { fname ; start_line ; start_col ; end_line ; end_col }
 
 (** [pos_to_string pos] transforms the position [pos] into a readable
