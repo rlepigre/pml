@@ -159,7 +159,7 @@ type p_prio = [`A | `M | `R | `P | `F]
 type t_prio = [`A | `P | `R | `S | `F ]
 
 (* Parsing mode for expressions. *)
-type mode = [`Any | `Prp of p_prio | `Trm of t_prio | `Stk | `Ord ]
+type mode = [`Any | `Prp of p_prio | `Trm of t_prio | `Stk | `Ord | `HO ]
 
 (* Parser for expressions. *)
 let parser expr (m : mode) =
@@ -167,11 +167,11 @@ let parser expr (m : mode) =
   | "(" x:llid s:{":" s:sort} ")" "↦" e:(expr `Any)
       when m = `Any
       -> in_pos _loc (EHOFn(x,s,e))
-
-  (* Proposition (variable and higher-order application) *)
+  (* Variable and higher-order application *)
   | id:llid args:ho_args
-      when m = `Prp`A
+      when m = `HO
       -> in_pos _loc (EVari(id, args))
+
   (* Proposition (boolean type) *)
   | _bool_
       when m = `Prp`A
@@ -243,17 +243,14 @@ let parser expr (m : mode) =
   (* Proposition (parentheses) *)
   | "(" (expr (`Prp`F)) ")"
       when m = `Prp`A
-  (* Proposition (coersion) *)
+  (* Proposition (level coersions) *)
+  | (expr (`HO   )) when m = `Prp`A
   | (expr (`Prp`A)) when m = `Prp`M
   | (expr (`Prp`M)) when m = `Prp`R
   | (expr (`Prp`R)) when m = `Prp`P
   | (expr (`Prp`P)) when m = `Prp`F
   | (expr (`Prp`F)) when m = `Any
 
-  (* Term (variable and higher-order application) *)
-  | id:llid args:ho_args
-      when m = `Trm`A
-      -> in_pos _loc (EVari(id, args))
   (* Term (lambda abstraction) *)
   | _fun_ args:arg+ '{' t:(expr (`Trm`F)) '}'
       when m = `Trm`A
@@ -366,16 +363,13 @@ let parser expr (m : mode) =
   | "(" t:(expr (`Trm`F)) ")"
       when m = `Trm`A
   (* Term (level coersions) *)
+  | (expr (`HO   )) when m = `Trm`A
   | (expr (`Trm`A)) when m = `Trm`P
   | (expr (`Trm`P)) when m = `Trm`R
   | (expr (`Trm`R)) when m = `Trm`S
   | (expr (`Trm`S)) when m = `Trm`F
   | (expr (`Trm`F)) when m = `Any
 
-  (* Stack (variable and higher-order application) *)
-  | id:llid args:ho_args
-      when m = `Stk
-      -> in_pos _loc (EVari(id, args))
   (* Stack (empty) *)
   | "ε"
       when m = `Stk
@@ -388,13 +382,10 @@ let parser expr (m : mode) =
   | "[" t:(expr (`Trm`F)) "]" s:(expr `Stk)
       when m = `Stk
       -> in_pos _loc (EFram(t,s))
-  (* Stack (from anything) *)
+  (* Stack (level coercions) *)
+  | (expr `HO ) when m = `Stk
   | (expr `Stk) when m = `Any
 
-  (* Ordinal (variable and higher-order application) *)
-  | id:llid args:ho_args
-      when m = `Ord
-      -> in_pos _loc (EVari(id, args))
   (* Ordinal (infinite) *)
   | infty
       when m = `Ord
@@ -403,7 +394,8 @@ let parser expr (m : mode) =
   | o:(expr `Ord) "+1"
       when m = `Ord
       -> in_pos _loc (ESucc(o))
-  (* Ordinal (from anything) *)
+  (* Ordinal (level coercions) *)
+  | (expr `HO ) when m = `Ord
   | (expr `Ord) when m = `Any
 
   (* Goal (term or stack) *)
