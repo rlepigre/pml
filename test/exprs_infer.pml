@@ -27,9 +27,8 @@ def lamb_v = fun x { x }
 def lamb_t = fun x { x }
 
 def muI = save a { restore a (fun x { x }) }
-def mua = save a b { fun x { x } }
-def mub = save a b { restore a (fun x { x }) }
-def muc = save a b { fun x { restore b x } }
-def mud = save a b { restore a (fun x { restore b x }) }
+def mua = save a { fun x { x } }
+def mub = save a { restore a (fun x { x }) }
+def mud = save a { save b { restore a (fun x { restore b x }) } }
 
 def app3<a, b, c> = a b c

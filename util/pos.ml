@@ -66,7 +66,7 @@ let locate buf1 pos1 buf2 pos2 =
   in
   let start_line = Input.line_num buf1 in
   let end_line = Input.line_num buf2 in
-  let start_col = 1 + Input.utf8_col_num buf1 pos1 in
+  let start_col = Input.utf8_col_num buf1 pos1 in
   let end_col = Input.utf8_col_num buf2 pos2 in
   assert(start_line <= end_line);
   assert(start_line < end_line || start_col <= end_col);
