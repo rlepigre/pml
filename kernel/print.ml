@@ -147,14 +147,14 @@ and rel ch cnd =
 let print_fix_sch ch sch =
   let (x,t) = unbind (mk_free V) (snd (fst sch.fsch_judge)) in
   let (vars,k) = unmbind (mk_free O) (snd sch.fsch_judge) in
-  let vars = Array.map (fun x -> Pos.none (free_of x)) vars in
+  let vars = Array.map (fun x -> Pos.none (mk_free O x)) vars in
   let print_vars = print_list ex "," in
   fprintf ch "%a (⊢ λx.Y(λ%s.%a,x) : %a)" print_vars (Array.to_list vars)
     (name_of x) ex t ex k
 
 let print_sub_sch ch sch =
   let (vars,(k1,k2)) = unmbind (mk_free O) sch.ssch_judge in
-  let vars = Array.map (fun x -> Pos.none (free_of x)) vars in
+  let vars = Array.map (fun x -> Pos.none (mk_free O x)) vars in
   let print_vars = print_list ex "," in
   let rel = List.map (fun (i,j) -> (vars.(i), vars.(j))) sch.ssch_relat in
   let print_cmp ch (i,j) = fprintf ch "%a<%a" ex i ex j in
@@ -169,6 +169,6 @@ let print_sch ch sch =
 
 let omb ch b =
   let (vars,k) = unmbind (mk_free O) b in
-  let vars = Array.map (fun x -> Pos.none (free_of x)) vars in
+  let vars = Array.map (fun x -> Pos.none (mk_free O x)) vars in
   let print_vars = print_list ex "," in
   fprintf ch "%a.%a" print_vars (Array.to_list vars) ex k

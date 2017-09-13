@@ -19,7 +19,7 @@ let rec valu_erasure : valu -> e_vbox = fun v ->
   | HDef(_,d)   -> valu_erasure d.expr_def
   | LAbs(_,b)   -> let f x =
                      let x = copy_var x (name_of x) (mk_free V) in
-                     term_erasure (bndr_subst b (free_of x))
+                     term_erasure (bndr_subst b (mk_free V x))
                    in vlabs (binder_name (snd b)) f
   | Cons(c,v)   -> vcons c.elt (valu_erasure v)
   | Reco(m)     -> vreco (A.map (fun (_,v) -> valu_erasure v) m)
@@ -45,19 +45,19 @@ and     term_erasure : term -> e_tbox = fun t ->
   | Appl(t,u)   -> tappl (term_erasure t) (term_erasure u)
   | MAbs(b)     -> let f x =
                      let x = copy_var x (name_of x) (mk_free S) in
-                     term_erasure (bndr_subst b (free_of x))
+                     term_erasure (bndr_subst b (mk_free S x))
                    in tmabs (binder_name (snd b)) f
   | Name(s,t)   -> tname (stac_erasure s) (term_erasure t)
   | Proj(v,l)   -> tproj (valu_erasure v) l.elt
   | Case(v,m)   -> let f (_,b) =
                      let f x =
                        let x = copy_var x (name_of x) (mk_free V) in
-                       term_erasure (bndr_subst b (free_of x))
+                       term_erasure (bndr_subst b (mk_free V x))
                      in (binder_name (snd b), f)
                    in tcase (valu_erasure v) (A.map f m)
   | FixY(b,v)   -> let f x =
                      let x = copy_var x (name_of x) (mk_free V) in
-                     term_erasure (bndr_subst b (free_of x))
+                     term_erasure (bndr_subst b (mk_free V x))
                    in tfixy (binder_name (snd b)) f (valu_erasure v)
   | Prnt(s)     -> tprnt s
   | Coer(_,t,_) -> term_erasure t
@@ -106,7 +106,7 @@ let rec to_valu : e_valu -> vbox = fun v ->
   | VVari(x)   -> vari None (copy_var x (name_of x) (mk_free V))
   | VLAbs(b)   -> let f x =
                     let x = copy_var x (name_of x) mk_vvari in
-                    to_term (subst b (free_of x))
+                    to_term (subst b (mk_vvari x))
                   in labs None None (Pos.none (binder_name b)) f
   | VCons(c,v) -> cons None (Pos.none c) (to_valu v)
   | VReco(m)   -> reco None (A.map (fun v -> (None, to_valu v)) m)
@@ -119,19 +119,19 @@ and to_term : e_term -> tbox = fun t ->
   | TAppl(t,u) -> appl None (to_term t) (to_term u)
   | TMAbs(b)   -> let f x =
                     let x = copy_var x (name_of x) mk_svari in
-                    to_term (subst b (free_of x))
+                    to_term (subst b (mk_svari x))
                   in mabs None (Pos.none (binder_name b)) f
   | TName(s,t) -> name None (to_stac s) (to_term t)
   | TProj(v,l) -> proj None (to_valu v) (Pos.none l)
   | TCase(v,m) -> let f b =
                     let f x =
                       let x = copy_var x (name_of x) mk_vvari in
-                      to_term (subst b (free_of x))
+                      to_term (subst b (mk_vvari x))
                     in (None, Pos.none (binder_name b), f)
                   in case None (to_valu v) (A.map f m)
   | TFixY(b,v) -> let f x =
                     let x = copy_var x (name_of x) mk_vvari in
-                    to_term (subst b (free_of x))
+                    to_term (subst b (mk_vvari x))
                   in
                   fixy None (Pos.none (binder_name b)) f (to_valu v)
   | TPrnt(s)   -> prnt None s
