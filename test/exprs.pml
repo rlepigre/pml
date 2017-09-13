@@ -27,10 +27,9 @@ def lamb_v : ι = fun x { x }
 def lamb_t : τ = fun x { x }
 
 def muI : τ = save a { restore a (fun x { x }) }
-def mua : τ = save a b { fun x { x } }
-def mub : τ = save a b { restore a (fun x { x }) }
-def muc : τ = save a b { fun x { restore b x } }
-def mud : τ = save a b { save a { fun x { restore b x } } }
+def mua : τ = save a { fun x { x } }
+def mub : τ = save a { restore a (fun x { x }) }
+def mud : τ = save a { save b { fun x { restore b x } } }
 
 def app3<a:τ, b:τ, c:τ> = a b c
 

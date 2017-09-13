@@ -178,7 +178,7 @@ and raw_ex' =
   | EScis
   | EAppl of raw_ex * raw_ex
   | ESequ of raw_ex * raw_ex
-  | EMAbs of strloc ne_list * raw_ex
+  | EMAbs of strloc * raw_ex
   | EName of raw_ex * raw_ex
   | EProj of raw_ex * flag * strloc
   | ECase of raw_ex * flag * patt_ex list
@@ -234,9 +234,7 @@ let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
     | EScis         -> Printf.fprintf ch "EScis"
     | EAppl(t,u)    -> Printf.fprintf ch "EAppl(%a,%a)" print t print u
     | ESequ(t,u)    -> Printf.fprintf ch "ESequ(%a,%a)" print t print u
-    | EMAbs(args,t) -> Printf.fprintf ch "EMAbs([%a],%a)"
-                         (print_list aux_var "; ")
-                         (ne_list_to_list args) print t
+    | EMAbs(arg,t)  -> Printf.fprintf ch "EMAbs(%a,%a)" aux_var arg print t
     | EName(s,t)    -> Printf.fprintf ch "EName(%a,%a)" print s print t
     | EProj(v,_,l)  -> Printf.fprintf ch "EProj(%a,%S)" print v l.elt
     | ECase(v,_,l)  -> Printf.fprintf ch "ECase(%a,[%a])" print v
@@ -526,14 +524,9 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
     | (ESequ(t,u)   , ST       ) -> infer env vars t s; infer env vars u s
     | (ESequ(_,_)   , SUni(r)  ) -> sort_uvar_set r _st; infer env vars e s
     | (ESequ(_,_)   , _        ) -> sort_clash e s
-    | (EMAbs(args,t), ST       ) ->
-        begin
-          let fn vs x =
-            M.add x.elt (x.pos, Pos.none SS) vs
-          in
-          let vars = List.fold_left fn vars (ne_list_to_list args) in
-          infer env vars t _st
-        end
+    | (EMAbs(arg,t) , ST       ) ->
+        let vars = M.add arg.elt (arg.pos, Pos.none SS) vars in
+        infer env vars t _st
     | (EMAbs(_,_)   , SUni(r)  ) -> sort_uvar_set r _st; infer env vars e s
     | (EMAbs(_,_)   , _        ) -> sort_clash e s
     | (EName(s,t)   , ST       ) -> infer env vars s _ss; infer env vars t _st
@@ -879,21 +872,13 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
         let t = to_term (unsugar env vars t _st) in
         let u = to_term (unsugar env vars u _st) in
         Box(T, sequ e.pos t u)
-    | (EMAbs(args,t), ST       ) ->
-        begin
-          match args with
-          | (x, []   ) ->
-              let fn xx =
-                let xx = (x.pos, Box(S, vari x.pos xx)) in
-                let vars = M.add x.elt xx vars in
-                to_term (unsugar env vars t _st)
-              in
-              Box(T, mabs e.pos x fn)
-          | (x     , y::xs) ->
-              let t = Pos.make e.pos (EMAbs((y,xs),t)) in
-              let t = Pos.make e.pos (EMAbs((x,[]),t)) in
-              unsugar env vars t _st
-        end
+    | (EMAbs(arg,t) , ST       ) ->
+        let fn x =
+          let x = (arg.pos, Box(S, vari arg.pos x)) in
+          let vars = M.add arg.elt x vars in
+          to_term (unsugar env vars t _st)
+        in
+        Box(T, mabs e.pos arg fn)
     | (EName(s,t)   , ST       ) ->
         let s = to_stac (unsugar env vars s _ss) in
         let t = to_term (unsugar env vars t _st) in
