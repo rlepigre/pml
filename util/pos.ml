@@ -20,8 +20,7 @@ type popt = pos option
     tree) with a source code position. *)
 type 'a loc =
   { elt : 'a   (** The element that is being localised.        *)
-  ; pos : popt (** Position of the element in the source code. *)
-  }
+  ; pos : popt (** Position of the element in the source code. *) }
 
 (** Localised string type (widely used). *)
 type strloc = string loc
