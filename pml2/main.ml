@@ -81,15 +81,9 @@ and handle_file env fn =
     let env = List.fold_left interpret env ast in
     Env.save_file env fn; env
   with
-  | No_parse(p, None)       ->
+  | No_parse(p)             ->
       begin
         err_msg "No parse %a." Pos.print_short_pos p;
-        Quote.quote_file stderr p;
-        exit 1
-      end
-  | No_parse(p, Some msg)   ->
-      begin
-        err_msg "No parse %a (%s)." Pos.print_short_pos p msg;
         Quote.quote_file stderr p;
         exit 1
       end

@@ -477,13 +477,12 @@ let parser toplevel =
 let parser entry = toplevel*
 
 (** Exception raised in case of parse error. *)
-exception No_parse of pos * string option
+exception No_parse of pos
 
 (** Main parsing function taking as input a file name. *)
 let parse_file : string -> toplevel list = fun fn ->
   let parse = parse_file entry Blank.blank in
   try List.map (fun act -> act ()) (parse fn)
-  with Parse_error(buf, pos, msgs) ->
+  with Parse_error(buf, pos) ->
     let pos = Pos.locate buf pos buf pos in
-    let msg = match msgs with [] -> None | x::_ -> Some x in
-    raise (No_parse(pos, msg))
+    raise (No_parse pos)
