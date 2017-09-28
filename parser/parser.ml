@@ -132,20 +132,22 @@ let parser eq =
   | equiv   -> true
   | nequiv  -> false
 
+type ps = Fs | As
+
 (* Parser for sorts. *)
-let parser sort (p : [`A | `F]) =
-  | {"ι" | "<iota>"    | "<value>"  } when p = `A -> in_pos _loc sv
-  | {"τ" | "<tau>"     | "<term>"   } when p = `A -> in_pos _loc ST
-  | {"σ" | "<sigma>"   | "<stack>"  } when p = `A -> in_pos _loc SS
-  | {"ο" | "<omicron>" | "<prop>"   } when p = `A -> in_pos _loc SP
-  | {"κ" | "<kappa>"   | "<ordinal>"} when p = `A -> in_pos _loc SO
-  | id:lid                            when p = `A -> in_pos _loc (SVar(id))
-  | "(" s:(sort `F) ")"               when p = `A -> s
-  | s1:(sort `A) arrow s2:(sort `F)   when p = `F -> in_pos _loc (SFun(s1,s2))
-  | s:(sort `A)                       when p = `F -> s
+let parser sort @ (p : ps) =
+  | {"ι" | "<iota>"    | "<value>"  } when p <= As -> in_pos _loc sv
+  | {"τ" | "<tau>"     | "<term>"   } when p <= As -> in_pos _loc ST
+  | {"σ" | "<sigma>"   | "<stack>"  } when p <= As -> in_pos _loc SS
+  | {"ο" | "<omicron>" | "<prop>"   } when p <= As -> in_pos _loc SP
+  | {"κ" | "<kappa>"   | "<ordinal>"} when p <= As -> in_pos _loc SO
+  | id:lid                            when p <= As -> in_pos _loc (SVar(id))
+  | "(" s:(sort Fs) ")"               when p <= As -> s
+  | s1:(sort As) arrow s2:(sort Fs)   when p <= Fs -> in_pos _loc (SFun(s1,s2))
+  | s:(sort As)                       when p <= Fs -> s
 
 (* Entry point for sorts. *)
-let sort = sort `F
+let sort = sort Fs
 
 (* Auxiliary parser for sort arguments. *)
 let parser s_arg  = id:llid so:{":" s:sort}?
@@ -153,282 +155,273 @@ let parser s_lst  = l:(lsep_ne "," s_arg)
 let parser s_args = {_:langle l:s_lst _:rangle}?[[]]
 
 (* Priorities for parsing propositions (Atom, Memb, Rest, Prod, Full). *)
-type p_prio = [`A | `M | `R | `P | `F]
+type p_prio = F | P | R | M | A
 
 (* Priorities for parsing terms (Atom, aPpl, pRefix, Sequ, Full). *)
-type t_prio = [`A | `P | `R | `S | `F ]
+type t_prio = F | S | R | P | A
+
 
 (* Parsing mode for expressions. *)
-type mode = [`Any | `Prp of p_prio | `Trm of t_prio | `Stk | `Ord | `HO ]
+type mode = Any | Prp of p_prio | Trm of t_prio | Stk | Ord | HO
+
+let (<<=) = fun p1 p2 ->
+  match p1, p2 with
+  | _     , HO     -> true
+  | Any   ,_       -> true
+  | Prp p1, Prp p2 -> p1 <= p2
+  | Trm p1, Trm p2 -> p1 <= p2
+  | Stk   , Stk    -> true
+  | Ord   , Ord    -> true
+  | _     , _      -> false
 
 (* Parser for expressions. *)
-let parser expr (m : mode) =
+let parser expr @(m : mode) =
   (* Any (higher-order function) *)
   | "(" x:llid ":" s:sort "↦" e:any ")"
-      when m = `Any
+      when m <<= Any
       -> in_pos _loc (EHOFn(x,s,e))
   (* Variable and higher-order application *)
   | id:llid args:ho_args
-      when m = `HO
+      when m <<= HO
       -> in_pos _loc (EVari(id, args))
 
   (* Proposition (boolean type) *)
   | _bool_
-      when m = `Prp`A
+      when m <<= Prp A
       -> p_bool (Some _loc)
   (* Proposition (implication) *)
-  | a:(expr (`Prp`P)) impl b:prop
-      when m = `Prp`F
+  | a:(expr (Prp P)) impl b:prop
+      when m <<= Prp F
       -> in_pos _loc (EFunc(a,b))
   (* Proposition (tuple type) *)
-  | a:(expr (`Prp`R)) bs:{_:prod b:(expr (`Prp`R))}+
-      when m = `Prp`P
+  | a:(expr (Prp R)) bs:{_:prod b:(expr (Prp R))}+
+      when m <<= Prp P
       -> tuple_type _loc (a::bs)
   (* Proposition (non-empty product) *)
   | "{" fs:(lsep_ne ";" (parser l:llid ":" a:prop)) s:strict "}"
-      when m = `Prp`A
+      when m <<= Prp A
       -> in_pos _loc (EProd(fs,s))
   (* Proposition (extensible empty record) *)
   | "{" elipsis "}"
-      when m = `Prp`A
+      when m <<= Prp A
       -> in_pos _loc (EProd([],false))
   (* Proposition / Term (empty product / empty record) *)
   | "{" "}"
-      when m = `HO (* HO level to avoid ambiguity *)
+      when m <<= HO (* HO level to avoid ambiguity *)
       -> in_pos _loc EUnit
   (* Proposition (disjoint sum) *)
   | "[" fs:(lsep ";" (parser l:luid a:{_:_of_ a:prop}?)) "]"
-      when m = `Prp`A
+      when m <<= Prp A
       -> in_pos _loc (EDSum(fs))
   (* Proposition (universal quantification) *)
   | "∀" x:llid xs:llid* s:{':' s:sort}? ',' a:prop
-      when m = `Prp`F
+      when m <<= Prp F
       -> euniv _loc x xs s a
   (* Proposition (dependent function type) *)
   | "∀" x:llid xs:llid* "∈" a:prop ',' b:prop
-      when m = `Prp`F
+      when m <<= Prp F
       -> euniv_in _loc x xs a b
   (* Proposition (existential quantification) *)
   | "∃" x:llid xs:llid* s:{':' s:sort}? ',' a:prop
-      when m = `Prp`F
+      when m <<= Prp F
       -> eexis _loc x xs s a
   (* Proposition (dependent pair) *)
   | "∃" x:llid xs:llid* "∈" a:prop ',' b:prop
-      when m = `Prp`F
+      when m <<= Prp F
       -> eexis_in _loc x xs a b
   (* Proposition (set type) *)
   | "{" x:llid "∈" a:prop "}"
-      when m = `Prp`A
+      when m <<= Prp A
       -> esett _loc x a
   (* Proposition (least fixpoint) *)
   | "μ" o:ordinal?[none EConv] x:llid a:prop
-      when m = `Prp`F
+      when m <<= Prp F
       -> in_pos _loc (EFixM(o,x,a))
   (* Proposition (greatest fixpoint) *)
   | "ν" o:ordinal?[none EConv] x:llid a:prop
-      when m = `Prp`F
+      when m <<= Prp F
       -> in_pos _loc (EFixN(o,x,a))
   (* Proposition (membership) *)
-  | t:(expr (`Trm`P)) "∈" a:(expr (`Prp`M))
-      when m = `Prp`M
+  | t:(expr (Trm P)) "∈" a:(expr (Prp M))
+      when m <<= Prp M
       -> in_pos _loc (EMemb(t,a))
   (* Proposition (restriction) *)
-  | a:(expr (`Prp`M)) "|" t:(expr (`Trm`P)) b:eq u:(expr (`Trm`P))
-      when m = `Prp`R
+  | a:(expr (Prp M)) "|" t:(expr (Trm P)) b:eq u:(expr (Trm P))
+      when m <<= Prp R
       -> in_pos _loc (ERest(Some a,EEquiv(t,b,u)))
   (* Proposition (equivalence) *)
-  | t:(expr (`Trm`P)) b:eq u:(expr (`Trm`P))
-      when m = `Prp`A
+  | t:(expr (Trm P)) b:eq u:(expr (Trm P))
+      when m <<= Prp A
       -> in_pos _loc (ERest(None,EEquiv(t,b,u)))
   (* Proposition (parentheses) *)
   | "(" prop ")"
-      when m = `Prp`A
-  (* Proposition (level coersions) *)
-  | (expr (`HO   )) when m = `Prp`A
-  | (expr (`Prp`A)) when m = `Prp`M
-  | (expr (`Prp`M)) when m = `Prp`R
-  | (expr (`Prp`R)) when m = `Prp`P
-  | (expr (`Prp`P)) when m = `Prp`F
-  | prop when m = `Any
+      when m <<= Prp A
 
   (* Term (lambda abstraction) *)
   | _fun_ args:arg+ '{' t:term '}'
-      when m = `Trm`A
+      when m <<= Trm A
       -> in_pos _loc (ELAbs((List.hd args, List.tl args),t))
-  | lambda args:arg+ '.' t:(expr (`Trm`P))
-      when m = `Trm`R
+  | lambda args:arg+ '.' t:(expr (Trm P))
+      when m <<= Trm R
       -> single_line _loc;
          in_pos _loc (ELAbs((List.hd args, List.tl args),t))
   (* Term (constructor) *)
   | c:luid t:{"[" t:term "]"}?
-      when m = `Trm`A
+      when m <<= Trm A
       -> in_pos _loc (ECons(c, Option.map (fun t -> (t, ref `T)) t))
   (* Term (true boolean) *)
   | _true_
-      when m = `Trm`A
+      when m <<= Trm A
       -> v_bool _loc true
   (* Term (true boolean) *)
   | _false_
-      when m = `Trm`A
+      when m <<= Trm A
       -> v_bool _loc false
   (* Term (empty list) *)
   | "[.]"
-      when m = `Trm`A
+      when m <<= Trm A
       -> v_nil _loc
   (* Term (list constructor) *)
-  | t:(expr (`Trm`A)) "::" u:(expr (`Trm`P))
-      when m = `Trm`P
+  | t:(expr (Trm A)) "::" u:(expr (Trm P))
+      when m <<= Trm P
       -> v_cons _loc t u
   (* Term (record) *)
   | "{" fs:(lsep_ne ";" field) "}"
-      when m = `Trm`A
+      when m <<= Trm A
       -> record _loc fs
   (* Term (tuple) *)
   | "(" t:term "," ts:(lsep_ne "," term) ")"
-      when m = `Trm`A
+      when m <<= Trm A
       -> tuple_term _loc (t::ts)
   (* Term (scisors) *)
   | scis
-      when m = `Trm`A
+      when m <<= Trm A
       -> in_pos _loc EScis
   (* Term (application) *)
-  | t:(expr (`Trm`P)) u:(expr (`Trm`A))
-      when m = `Trm`P
+  | t:(expr (Trm P)) u:(expr (Trm A))
+      when m <<= Trm P
       -> in_pos _loc (EAppl(t,u))
   (* Term (let binding) *)
-  | _let_ r:v_rec arg:let_arg '=' t:(expr (`Trm`P)) ';' u:term
-      when m = `Trm`F
+  | _let_ r:v_rec arg:let_arg '=' t:(expr (Trm P)) ';' u:term
+      when m <<= Trm F
       -> let_binding _loc r arg t u
   (* Term (sequencing). *)
-  | t:(expr (`Trm`R)) ';' u:(expr (`Trm`S))
-      when m = `Trm`S
+  | t:(expr (Trm R)) ';' u:(expr (Trm S))
+      when m <<= Trm S
       -> in_pos _loc (ESequ(t,u))
   (* Term (mu abstraction) *)
   | _save_ arg:llid '{' t:term '}'
-       when m = `Trm`A
+       when m <<= Trm A
       -> in_pos _loc (EMAbs(arg,t))
   (* Term (name) *)
-  | _restore_ s:stack t:(expr (`Trm`A))
-      when m = `Trm`P
+  | _restore_ s:stack t:(expr (Trm A))
+      when m <<= Trm P
       -> in_pos _loc (EName(s,t))
   (* Term (projection) *)
-  | t:(expr (`Trm`A)) "." l:{llid | lnum}
-      when m = `Trm`A
+  | t:(expr (Trm A)) "." l:{llid | lnum}
+      when m <<= Trm A
       -> in_pos _loc (EProj(t, ref `T, l))
   (* Term (case analysis) *)
   | _case_ t:term '{' ps:{_:'|'? patt _:arrow term}* '}'
-      when m = `Trm`A
+      when m <<= Trm A
       -> pattern_matching _loc t ps
   (* Term (conditional) *)
   | _if_ c:term '{' t:term '}' _else_ '{' e:term '}'
-      when m = `Trm`A
+      when m <<= Trm A
       -> if_then_else _loc c t e
   (* Term ("deduce" tactic) *)
   | _deduce_ a:prop$
-      when m = `Trm`A
+      when m <<= Trm A
       -> deduce _loc a
   (* Term ("show" tactic) *)
-  | _show_ a:prop _using_ t:(expr (`Trm`R))
-      when m = `Trm`R
+  | _show_ a:prop _using_ t:(expr (Trm R))
+      when m <<= Trm R
       -> show_using _loc a t
   (* Term ("use" tactic) *)
-  | _use_ t:(expr (`Trm`R))
-      when m = `Trm`R
+  | _use_ t:(expr (Trm R))
+      when m <<= Trm R
       -> use _loc t
   (* Term ("showing" tactic) *)
-  | _showing_   a:(expr (`Prp`R)) ';' p:(expr (`Trm`S))
-      when m = `Trm`S
+  | _showing_   a:(expr (Prp R)) ';' p:(expr (Trm S))
+      when m <<= Trm S
       -> showing _loc a p
   (* Term ("QED" tactic) *)
   | _qed_
-      when m = `Trm`A
+      when m <<= Trm A
       -> qed _loc
   (* Term (fixpoint) *)
   | _fix_ t:term
-      when m = `Trm`F
+      when m <<= Trm F
       -> in_pos _loc (EFixY(t))
   (* Term (printing) *)
   | _print_ s:str_lit
-      when m = `Trm`A
+      when m <<= Trm A
       -> in_pos _loc (EPrnt(s))
   (* Term (type coersion) *)
   | "(" t:term ":" a:prop ")"
-      when m = `Trm`A
+      when m <<= Trm A
       -> in_pos _loc (ECoer(t,a))
   (* Term (let such that) *)
   | _let_ vs:s_lst _st_ x:llid_wc ':' a:prop ';' u:term
-      when m = `Trm`F
+      when m <<= Trm F
       -> esuch _loc vs x a u
   (* Term (parentheses) *)
   | "(" t:term ")"
-      when m = `Trm`A
-  (* Term (level coersions) *)
-  | (expr (`HO   )) when m = `Trm`A
-  | (expr (`Trm`A)) when m = `Trm`P
-  | (expr (`Trm`P)) when m = `Trm`R
-  | (expr (`Trm`R)) when m = `Trm`S
-  | (expr (`Trm`S)) when m = `Trm`F
-  | term when m = `Any
+      when m <<= Trm A
 
   (* Stack (empty) *)
   | "ε"
-      when m = `Stk
+      when m <<= Stk
       -> in_pos _loc EEpsi
   (* Stack (push) *)
-  | v:(expr (`Trm`A)) "·" s:stack
-      when m = `Stk
+  | v:(expr (Trm A)) "·" s:stack
+      when m <<= Stk
       -> in_pos _loc (EPush(v,s))
   (* Stack (frame) *)
   | "[" t:term "]" s:stack
-      when m = `Stk
+      when m <<= Stk
       -> in_pos _loc (EFram(t,s))
-  (* Stack (level coercions) *)
-  | (expr `HO ) when m = `Stk
-  | stack when m = `Any
 
   (* Ordinal (infinite) *)
   | infty
-      when m = `Ord
+      when m <<= Ord
       -> in_pos _loc EConv
   (* Ordinal (successor) *)
   | o:ordinal "+1"
-      when m = `Ord
+      when m <<= Ord
       -> in_pos _loc (ESucc(o))
-  (* Ordinal (level coercions) *)
-  | (expr `HO ) when m = `Ord
-  | ordinal when m = `Any
 
   (* Goal (term or stack) *)
   | s:goal
-      when m = `Stk || m = `Trm`A
+      when m <<= Stk || m <<= Trm A
       -> in_pos _loc (EGoal(s))
 
 (* Higher-order variable arguments. *)
-and ho_args = {_:langle (lsep "," any) _:rangle}?[[]]
+and parser ho_args = {_:langle (lsep "," any) _:rangle}?[[]]
 
 (* Variable with optional type. *)
-and arg_t = id:llid ao:{":" a:prop}?
+and parser  arg_t = id:llid ao:{":" a:prop}?
 
 (* Function argument. *)
-and arg  =
+and parser  arg  =
   | id:llid_wc                    -> (id, None  )
   | "(" id:llid_wc ":" a:prop ")" -> (id, Some a)
 
-and field_nt =
+and parser  field_nt =
   | a:arg_t            -> (fst a, a)
   | l:llid '=' a:arg_t -> (l    , a)
 
 (* Argument of let-binding. *)
-and let_arg =
+and parser  let_arg =
   | id:llid_wc ao:{':' a:prop}?                -> `LetArgVar(id,ao)
   | '{' fs:(lsep_ne ";" field_nt) '}'          -> `LetArgRec(fs)
   | '(' f:arg_t ',' fs:(lsep_ne "," arg_t) ')' -> `LetArgTup(f::fs)
 
 (* Record field. *)
-and field = l:llid {"=" t:term}?
+and parser  field = l:llid {"=" t:term}?
 
 (* Pattern. *)
-and patt =
+and parser  patt =
   | '[' ']'                       -> (in_pos _loc "Nil"  , None)
   | x:llid "::" y:llid            -> let hd = (Pos.none "hd", (x, None)) in
                                      let tl = (Pos.none "tl", (y, None)) in
@@ -439,11 +432,11 @@ and patt =
   | _false_                       -> (in_pos _loc "false", None)
 
 (* Common entry points. *)
-and term    = (expr (`Trm`F))
-and prop    = (expr (`Prp`F))
-and stack   = (expr `Stk)
-and ordinal = (expr `Ord)
-and any     = (expr `Any) (* NOTE: essential to use this one above for earley
+and parser  term    = (expr (Trm F))
+and parser  prop    = (expr (Prp F))
+and parser  stack   = (expr Stk)
+and parser  ordinal = (expr Ord)
+and parser  any     = (expr Any) (* NOTE: essential to use this one above for earley
                              not to report a merge *)
 
 
