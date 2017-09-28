@@ -400,28 +400,28 @@ let parser expr @(m : mode) =
 and parser ho_args = {_:langle (lsep "," any) _:rangle}?[[]]
 
 (* Variable with optional type. *)
-and parser  arg_t = id:llid ao:{":" a:prop}?
+and parser arg_t = id:llid ao:{":" a:prop}?
 
 (* Function argument. *)
-and parser  arg  =
+and parser arg =
   | id:llid_wc                    -> (id, None  )
   | "(" id:llid_wc ":" a:prop ")" -> (id, Some a)
 
-and parser  field_nt =
+and parser field_nt =
   | a:arg_t            -> (fst a, a)
   | l:llid '=' a:arg_t -> (l    , a)
 
 (* Argument of let-binding. *)
-and parser  let_arg =
+and parser let_arg =
   | id:llid_wc ao:{':' a:prop}?                -> `LetArgVar(id,ao)
   | '{' fs:(lsep_ne ";" field_nt) '}'          -> `LetArgRec(fs)
   | '(' f:arg_t ',' fs:(lsep_ne "," arg_t) ')' -> `LetArgTup(f::fs)
 
 (* Record field. *)
-and parser  field = l:llid {"=" t:term}?
+and parser field = l:llid {"=" t:term}?
 
 (* Pattern. *)
-and parser  patt =
+and parser patt =
   | '[' ']'                       -> (in_pos _loc "Nil"  , None)
   | x:llid "::" y:llid            -> let hd = (Pos.none "hd", (x, None)) in
                                      let tl = (Pos.none "tl", (y, None)) in
@@ -432,13 +432,11 @@ and parser  patt =
   | _false_                       -> (in_pos _loc "false", None)
 
 (* Common entry points. *)
-and parser  term    = (expr (Trm F))
-and parser  prop    = (expr (Prp F))
-and parser  stack   = (expr Stk)
-and parser  ordinal = (expr Ord)
-and parser  any     = (expr Any) (* NOTE: essential to use this one above for earley
-                             not to report a merge *)
-
+and parser term    = (expr (Trm F))
+and parser prop    = (expr (Prp F))
+and parser stack   = (expr Stk)
+and parser ordinal = (expr Ord)
+and parser any     = (expr Any)
 
 (* Toplevel item. *)
 let parser toplevel =
