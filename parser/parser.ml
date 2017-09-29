@@ -417,7 +417,7 @@ and parser let_arg =
   | '(' f:arg_t ',' fs:(lsep_ne "," arg_t) ')' -> `LetArgTup(f::fs)
 
 (* Record field. *)
-and parser field = l:llid {"=" t:term}?
+and parser field = l:llid {"=" t:(expr (Trm R))}?
 
 (* Pattern. *)
 and parser patt =
@@ -431,11 +431,11 @@ and parser patt =
   | _false_                       -> (in_pos _loc "false", None)
 
 (* Common entry points. *)
-and parser term    = (expr (Trm F))
-and parser prop    = (expr (Prp F))
-and parser stack   = (expr Stk)
-and parser ordinal = (expr Ord)
-and parser any     = (expr Any)
+and term    = expr (Trm F)
+and prop    = expr (Prp F)
+and stack   = expr Stk
+and ordinal = expr Ord
+and any     = expr Any
 
 (* Toplevel item. *)
 let parser toplevel =
