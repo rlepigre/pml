@@ -144,7 +144,6 @@ let parser sort @ (p : ps) =
   | id:lid                            when p <= As -> in_pos _loc (SVar(id))
   | "(" s:(sort Fs) ")"               when p <= As -> s
   | s1:(sort As) arrow s2:(sort Fs)   when p <= Fs -> in_pos _loc (SFun(s1,s2))
-  | s:(sort As)                       when p <= Fs -> s
 
 (* Entry point for sorts. *)
 let sort = sort Fs
