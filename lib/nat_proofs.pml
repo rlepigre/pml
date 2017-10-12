@@ -87,9 +87,20 @@ val rec add_comm : ∀m n∈nat, add m n ≡ add n m =
     }
   }
 
-//// Properties of multiplication ////////////////////////////////////////////
+//// Properties of difference ////////////////////////////////////////////////
+val rec minus_total : ∀n m∈nat, ∃v:ι, minus n m ≡ v =
+  fun n m {
+    case n {
+      Z    → {}
+      S[p] →
+        case m {
+          Z    → {}
+          S[q] → minus_total p q
+        }
+    }
+  }
 
-// coucou
+//// Properties of multiplication ////////////////////////////////////////////
 
 // Totality of multiplication.
 val rec mul_total : ∀n m∈nat, ∃v:ι, mul n m ≡ v =
@@ -267,3 +278,50 @@ val leq_total : ∀x y∈nat, ∃v:ι, leq x y ≡ v = compare_total_common
 val  lt_total : ∀x y∈nat, ∃v:ι,  lt x y ≡ v = compare_total_common
 val geq_total : ∀x y∈nat, ∃v:ι, geq x y ≡ v = compare_total_common
 val  gt_total : ∀x y∈nat, ∃v:ι,  gt x y ≡ v = compare_total_common
+
+val rec succ_gr : ∀n m∈nat, compare n m ≡ Gr ⇒ compare S[n] m ≡ Gr =
+  fun n m h {
+    case n {
+      Z    →
+        case m {
+          Z    → ✂
+          S[l] → ✂
+        }
+      S[k] →
+        case m {
+          Z    → qed
+          S[l] → deduce compare k l ≡ Gr;
+                 use succ_gr k l {}; qed
+        }
+    }
+  }
+
+val rec succ_ls : ∀n m∈nat, compare n m ≡ Ls ⇒ compare n S[m] ≡ Ls =
+  fun n m h {
+    case n {
+      Z    → {}
+      S[k] →
+        case m {
+          Z    → ✂
+          S[l] → deduce compare k l ≡ Ls;
+                 use succ_ls k l {}; qed
+        }
+    }
+  }
+
+val rec succ_eq_r : ∀n m∈nat, compare n m ≡ Eq ⇒ compare n S[m] ≡ Ls =
+  fun n m h {
+    case n {
+      Z    →
+        case m {
+          Z    → {}
+          S[l] → ✂
+        }
+      S[k] →
+        case m {
+          Z    → ✂
+          S[l] → deduce compare k l ≡ Eq;
+                 use succ_eq_r k l {}; qed
+        }
+    }
+  }
