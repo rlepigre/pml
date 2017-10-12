@@ -26,9 +26,11 @@ let assq : type a. a ex -> alist -> a box = fun e l ->
 exception NotClosed (* raised for ITag *)
 
 (* a mapper may raise the exception Default *)
-type recall = { r : 'a. 'a ex loc -> 'a box }
-type map = { m : 'a. recall -> 'a ex loc -> 'a box }
-let defmap = { m = (fun r x -> r.r x) }
+type recall = { recall : 'a. 'a ex loc -> 'a box }
+type map = { map : 'a. recall -> 'a ex loc -> 'a box }
+let defmap = { map = (fun { recall } x ->
+                 let res = recall x in
+                 if is_closed res then box x else res ) }
 
 let (lift, lift_cond) =
   let rec lift_cond ?adone c =
@@ -136,9 +138,8 @@ let (lift, lift_cond) =
             | Vari(_,x)   -> vari e.pos x
             | Dumm        -> box e
         in
-        let recall = { r = recall } in
-        let res = map.m recall e in
-        let res = if is_closed res && map == defmap then box e else res in
+        let recall = { recall } in
+        let res = map.map recall e in
         adone := Cons(e.elt,res,!adone);
         res
       in lift e
