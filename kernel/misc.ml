@@ -25,6 +25,11 @@ let assq : type a. a ex -> alist -> a box = fun e l ->
 
 exception NotClosed (* raised for ITag *)
 
+(* a mapper may raise the exception Default *)
+type recall = { r : 'a. 'a ex loc -> 'a box }
+type map = { m : 'a. recall -> 'a ex loc -> 'a box }
+let defmap = { m = (fun r x -> r.r x) }
+
 let (lift, lift_cond) =
   let rec lift_cond ?adone c =
     let adone = match adone with None -> ref Nil | Some a -> a in
@@ -36,13 +41,14 @@ let (lift, lift_cond) =
     in
     if is_closed res then box c else res
 
-  and lift : type a. ?adone:alist ref -> a ex loc -> a box = fun ?adone e ->
+  and lift : type a. ?map:map -> ?adone:alist ref -> a ex loc -> a box
+  = fun ?(map=defmap) ?adone e ->
     let adone = match adone with None -> ref Nil | Some a -> a in
     let rec lift : type a. a ex loc -> a box = fun e ->
       let e = Norm.whnf e in
       try assq e.elt !adone with Not_found ->
-        let res =
-            match e.elt with
+        let recall : type a. a ex loc -> a box = fun e ->
+          match e.elt with
             | HDef(_,_)   -> box e (* Assumed closed *)
             | HApp(s,f,a) -> happ e.pos s (lift f) (lift a)
             | HFun(a,b,f) -> hfun e.pos a b (bndr_name f)
@@ -130,7 +136,9 @@ let (lift, lift_cond) =
             | Vari(_,x)   -> vari e.pos x
             | Dumm        -> box e
         in
-        let res = if is_closed res then box e else res in
+        let recall = { r = recall } in
+        let res = map.m recall e in
+        let res = if is_closed res && map == defmap then box e else res in
         adone := Cons(e.elt,res,!adone);
         res
       in lift e
