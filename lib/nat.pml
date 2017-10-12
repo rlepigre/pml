@@ -14,7 +14,7 @@ val two : nat = succ one
 //// Usual operations ////////////////////////////////////////////////////////
 
 // Predecessor function for non-zero numbers.
-val pred : [S of nat] ⇒ nat = fun n { case n { S[n] → n } }
+val pred : [S of nat] ⇒ nat = fun n { case n { S[p] → p } }
 
 // Predecessor function with value zero in zero.
 val full_pred : nat ⇒ nat =
@@ -33,7 +33,7 @@ val rec add : nat ⇒ nat ⇒ nat =
     }
   }
 
-// Multiplication funtion.
+// Multiplication function.
 val rec mul : nat ⇒ nat ⇒ nat =
   fun n m {
     case n {
