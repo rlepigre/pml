@@ -31,18 +31,18 @@ val lemma91 : ∀n∈nat, leq n u101 ≡ true ⇒ mccarthy91 n ≡ u91 =
     {-1-}
   }
 
-val rec maccarty91_total : ∀n∈nat, ∃v:ι, mccarthy91 n ≡ v =
+val mccarthy91_total : ∀n∈nat, ∃v:ι, v∈nat | mccarthy91 n ≡ v =
   fun n {
     use leq_total n u101;
     if leq n u101 { // n ≤ 101
       use lemma91 n {};
-      qed
+      u91
     } else { // n > 101
       use gt_total n u100;
       if gt n u100 { // n > 101 && n > 100
         deduce mccarthy91 n ≡ minus n u10;
         use minus_total n u10;
-        qed
+        minus n u10
       } else { // n > 101 && n ≤ 100
         deduce leq n u101 ≡ false;
         use compare_total n u101;
@@ -54,19 +54,22 @@ val rec maccarty91_total : ∀n∈nat, ∃v:ι, mccarthy91 n ≡ v =
           | Ls → deduce compare n u100 ≡ Ls;
                  deduce compare n S[u100] ≡ Gr;
                  show compare n S[u100] ≡ Ls using succ_ls n u100 {};
-                 qed
+                 ✂ // FIXME unreachability not detected automatically
           | Eq → deduce compare n u100 ≡ Eq;
                  deduce compare n S[u100] ≡ Gr;
                  show compare n S[u100] ≡ Ls using succ_eq_r n u100 {};
-                 qed
+                 ✂ // FIXME unreachability not detected automatically
           | Gr → ✂
         }
       }
     }
   }
 
+val mccarthy91_fun : nat ⇒ nat = mccarthy91_total
+
+// FIXME do we want to be able to call the original function?
 //val mccarthy91_fun : nat ⇒ nat =
 //  fun n {
-//    use maccarty91_total n;
+//    use mccarthy91_total n;
 //    mccarthy91 n // This is equivalent to a value...
 //  }
