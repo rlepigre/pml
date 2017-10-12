@@ -87,9 +87,20 @@ val rec add_comm : ∀m n∈nat, add m n ≡ add n m =
     }
   }
 
-//// Properties of multiplication ////////////////////////////////////////////
+//// Properties of difference ////////////////////////////////////////////////
+val rec minus_total : ∀n m∈nat, ∃v:ι, minus n m ≡ v =
+  fun n m {
+    case n {
+      Z    → {}
+      S[p] →
+        case m {
+          Z    → {}
+          S[q] → minus_total p q
+        }
+    }
+  }
 
-// coucou
+//// Properties of multiplication ////////////////////////////////////////////
 
 // Totality of multiplication.
 val rec mul_total : ∀n m∈nat, ∃v:ι, mul n m ≡ v =
