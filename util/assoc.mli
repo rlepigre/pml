@@ -26,6 +26,8 @@ val iter : (string -> 'a -> unit) -> 'a t -> unit
 
 val equal : ('a -> 'a -> bool) -> 'a t -> 'a t -> bool
 
+val compare : ('a -> 'a -> int) -> 'a t -> 'a t -> int
+
 val for_all : (string -> 'a -> bool) -> 'a t -> bool
 
 val exists : (string -> 'a -> bool) -> 'a t -> bool
