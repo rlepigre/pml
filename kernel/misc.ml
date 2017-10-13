@@ -13,6 +13,9 @@ type alist =
   | Nil  : alist
   | Cons : 'a ex * 'a box * alist -> alist
 
+type apair =
+  | P : 'a sort * 'a ex loc -> apair
+
 let assq_chrono = Chrono.create "assq"
 
 let assq : type a. a ex -> alist -> a box = fun e l ->
@@ -313,7 +316,8 @@ let bind_spos_ordinals
       v
   in
   let rec bind_all : type p. occ -> p ex loc -> p box = fun o e ->
-    let mapper : type p. recall -> p ex loc -> p box = fun { recall; default } e ->
+    let mapper : type p. recall -> p ex loc -> p box =
+    fun { recall; default } e ->
       match e.elt with
       | HDef(_,e)   -> recall e.expr_def
       | Func(a,b)   -> func e.pos (bind_all (neg o) a) (recall b)
@@ -338,3 +342,43 @@ let bind_spos_ordinals
   let b = bind_mvar vars e in
   let os = Array.make (Array.length vars) (Pos.none Conv) in
   (unbox b, os)
+
+type 'a closure =
+  (v ex, (t ex, (v, 'a) bndr) mbinder) mbinder
+  * v ex loc array
+  * t ex loc array
+
+let make_closure
+    : type a. (v, a) bndr -> a closure
+  = fun b0 ->
+    let vl : v ex loc list ref = ref [] in
+    let tl : t ex loc list ref = ref [] in
+    let vv = ref [] in
+    let tv = ref [] in
+    let b = vbind (mk_free V) (bndr_name b0).elt (fun x ->
+      let x = mk_free V x in
+      let b = bndr_subst b0 x in
+      let mapper : type a. recall -> a ex loc -> a box = fun {default} e ->
+        let s, e = sort e in
+        let res = default e in
+        match is_closed res, s with
+        | true, V ->
+           let v = new_var (mk_free V) "v" in
+           vl := e :: !vl;
+           vv := v :: !vv;
+           box_apply Pos.none (box_of_var v)
+        | true, T ->
+           let v = new_var (mk_free T) "v" in
+           tl := e :: !tl;
+           tv := v :: !tv;
+           box_apply Pos.none (box_of_var v)
+        | _ -> res
+      in
+      map ~mapper:{mapper} b)
+    in
+    let tl = Array.of_list !tl in
+    let vl = Array.of_list !vl in
+    let tv = Array.of_list !tv in
+    let vv = Array.of_list !vv in
+    let b = box_pair (box (fst b0)) b in
+    (unbox (bind_mvar vv (bind_mvar tv b)), vl, tl)
