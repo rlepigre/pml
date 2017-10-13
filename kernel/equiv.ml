@@ -67,6 +67,27 @@ module PtrMap = Map.Make(Ptr)
 module PtrSet = Set.Make(Ptr)
 module TPtrSet = Set.Make(TPtr)
 
+type funptr = (v ex, (t ex, (v, t) bndr) mbinder) mbinder
+module Fun =
+  struct
+    type t = funptr
+
+    let compare b1 b2 =
+      match compare (mbinder_arity b1) (mbinder_arity b2) with
+      | 0 ->
+         begin
+           let (vs, b1) = unmbind (mk_free V) b1 in
+           let b2 = msubst b2 vs in
+           match compare (mbinder_arity b1) (mbinder_arity b2) with
+           | 0 ->
+              let (vs, b1) = unmbind (mk_free T) b1 in
+              let b2 = msubst b2 vs in
+              compare_bndr V b1 b2
+           | c -> c
+         end
+      | c -> c
+  end
+
 (** Type of a pointer map, used to keep track of equivalences. *)
 type eq_map = Ptr.t PtrMap.t
 

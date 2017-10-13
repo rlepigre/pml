@@ -34,6 +34,26 @@ module ListMap =
       if List.map fst k1 <> List.map fst k2 then false else
       List.for_all2 vcmp k1 k2
 
+    let compare cmp l1 l2 =
+      let kcmp (k1,_) (k2,_) = String.compare k1 k2 in
+      let k1 = List.sort_uniq kcmp l1 in
+      let k2 = List.sort_uniq kcmp l2 in
+      let rec fn l1 l2 = match l1, l2 with
+        | ([], []) ->  0
+        | ([], _ ) -> -1
+        | (_ , []) ->  1
+        | ((k1,v1)::l1, (k2,v2)::l2) ->
+           match String.compare k1 k2 with
+           | 0 ->
+              begin
+                match cmp v1 v2 with
+                | 0 -> fn l1 l2
+                | c -> c
+              end
+           | c -> c
+      in
+      fn k1 k2
+
     let for_all f l = List.for_all (fun (k,v) -> f k v) l
 
     let exists f l = List.exists (fun (k,v) -> f k v) l
