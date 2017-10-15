@@ -64,13 +64,8 @@ val map_map : ∀a b c, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c), total<f,a> ⇒ total
       }
     }
 
-val comp : ∀a b c, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c), a ⇒ c = fun f g x { g (f x) }
-
-// FIXME : replacing comp by its definition fails, pb for equality under
-//         lambda
-
 val rec map_map : ∀a b c, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c), total<f,a> ⇒ total<g,b> ⇒
-  ∀l∈list<a>, map g (map f l) ≡ map (comp f g) l =
+  ∀l∈list<a>, map g (map f l) ≡ map cmp<f,g> l =
     fun fn gn tf tg ls {
       case ls {
               | Nil     → {}

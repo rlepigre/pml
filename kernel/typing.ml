@@ -257,13 +257,6 @@ let term_is_value : term -> ctxt -> bool * ctxt = fun t ctx ->
   let (is_val, equations) = is_value t ctx.equations in
   (is_val, {ctx with equations})
 
-let oracle ctx = {
-    eq_val = (fun v1 v2 ->
-      Chrono.add_time equiv_chrono (eq_val ctx.equations v1) v2);
-    eq_trm = (fun v1 v2 ->
-      Chrono.add_time equiv_chrono (eq_trm ctx.equations v1) v2)
-  }
-
 let print_pos : out_channel -> (ordi * ordi) list -> unit =
   fun ch os ->
     match os with
@@ -296,8 +289,8 @@ let rec subtype =
     let b = Norm.whnf b in
     let (t_is_val, ctx) = term_is_value t ctx in
     try let r =
-      (* Same types.  *)
-      if eq_expr ~oracle:(oracle ctx) a b then
+      (* Same types.  *) (** FIXME: keep the pool *)
+      if eq_expr ~oracle:(oracle (ref ctx.equations.pool)) a b then
         begin
           log_sub "reflexivity applies";
           Sub_Equal
@@ -950,6 +943,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
         Typ_Goal(str)
 
     (* Constructors that cannot appear in user-defined terms. *)
+    | VPtr(_)     -> unexpected "VPtr during typing..."
     | UWit(_,_,_) -> unexpected "∀-witness during typing..."
     | EWit(_,_,_) -> unexpected "∃-witness during typing..."
     | UVar(_)     -> unexpected "unification variable during typing..."
@@ -1107,6 +1101,7 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
         let p = gen_subtype ctx a c in
         Typ_Prnt((t, a, c, p))
     (* Constructors that cannot appear in user-defined terms. *)
+    | TPtr(_)     -> unexpected "TPtr during typing..."
     | FixY(_,_)   -> unexpected "Fixpoint at the toplevel..."
     | UWit(_,_,_) -> unexpected "∀-witness during typing..."
     | EWit(_,_,_) -> unexpected "∃-witness during typing..."

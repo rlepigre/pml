@@ -22,6 +22,10 @@ val sort : ('a -> 'a -> int) -> 'a t -> 'a t
 
 val fold : (string -> 'a -> 'b -> 'b) -> 'a t -> 'b -> 'b
 
+val fold2 : ('b -> 'a -> 'a -> 'b) -> 'b -> 'a t -> 'a t -> 'b
+
+val fold_map : (string -> 'a -> 'b -> 'c * 'b) -> 'a t -> 'b -> 'c t * 'b
+
 val iter : (string -> 'a -> unit) -> 'a t -> unit
 
 val equal : ('a -> 'a -> bool) -> 'a t -> 'a t -> bool

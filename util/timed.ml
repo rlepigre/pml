@@ -33,6 +33,13 @@ let pure_apply : ('a -> 'b) -> 'a -> 'b = fun f v ->
   with e ->
     Time.rollback t; raise e
 
+let apply : ('a -> 'b) -> 'a -> 'b = fun f v ->
+  let t = Time.save () in
+  try
+    f v
+  with e ->
+    Time.rollback t; raise e
+
 let pure_test : ('a -> bool) -> 'a -> bool = fun f v ->
   let t = Time.save () in
   try

@@ -136,6 +136,9 @@ let map : type a. ?mapper:mapper -> ?adone:alist ref -> a ex loc -> a box
             | OSch(_,_)   -> box e
             | Vari(_,x)   -> vari e.pos x
             | Dumm        -> box e
+
+            | VPtr _      -> box e (* FIXME: CHECK *)
+            | TPtr _      -> box e (* FIXME: CHECK *)
         in
         let res = mapper.mapper { recall = map; default } e in
         adone := Cons(e.elt,res,!adone);
@@ -228,6 +231,8 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
 
     | Vari _      -> assert false
     | Dumm        -> acc
+    | VPtr _      -> acc
+    | TPtr _      -> acc
   in
   (* The ordinals to be bound. *)
   let owits = owits [] e in
@@ -343,25 +348,30 @@ let bind_spos_ordinals
   let os = Array.make (Array.length vars) (Pos.none Conv) in
   (unbox b, os)
 
-type 'a closure =
-  (v ex, (t ex, (v, 'a) bndr) mbinder) mbinder
+type ('a, 'b) closure =
+  (v ex, (t ex, ('a, 'b) bndr) mbinder) mbinder
   * v ex loc array
   * t ex loc array
 
 let make_closure
-    : type a. (v, a) bndr -> a closure
-  = fun b0 ->
+    : type a b. a sort -> (a, b) bndr -> (a, b) closure
+  = fun s b0 ->
+    if binder_closed (snd b0) then
+      let b0 = unbox (bind_mvar [||] (bind_mvar [||] (box b0))) in
+      (b0, [||], [||])
+    else
     let vl : v ex loc list ref = ref [] in
     let tl : t ex loc list ref = ref [] in
     let vv = ref [] in
     let tv = ref [] in
-    let b = vbind (mk_free V) (bndr_name b0).elt (fun x ->
-      let x = mk_free V x in
+    let b = vbind (mk_free s) (bndr_name b0).elt (fun x ->
+      let x = mk_free s x in
       let b = bndr_subst b0 x in
       let mapper : type a. recall -> a ex loc -> a box = fun {default} e ->
         let s, e = sort e in
-        let res = default e in
-        match is_closed res, s with
+        (* FIXME: this is quadratic !!! *)
+        let e' = lift e in
+        match is_closed e', s with
         | true, V ->
            let v = new_var (mk_free V) "v" in
            vl := e :: !vl;
@@ -372,7 +382,7 @@ let make_closure
            tl := e :: !tl;
            tv := v :: !tv;
            box_apply Pos.none (box_of_var v)
-        | _ -> res
+        | _ -> default e
       in
       map ~mapper:{mapper} b)
     in
