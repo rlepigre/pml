@@ -7,6 +7,7 @@ open Pos
 open Ast
 open Equiv
 open Output
+open Uvars
 open Compare
 
 type sorted = E : 'a sort * 'a ex loc -> sorted
@@ -290,12 +291,13 @@ let rec subtype =
     let (t_is_val, ctx) = term_is_value t ctx in
     try let r =
       (* Same types.  *) (** FIXME: keep the pool *)
-      if eq_expr ~oracle:(oracle (ref ctx.equations.pool)) a b then
+      if eq_expr ~oracle:(oracle (ref ctx.equations.pool)) ~strict:false a b then
         begin
           log_sub "reflexivity applies";
           Sub_Equal
         end
-      else
+      else (
+      log_sub "reflexivity does not applies";
       match (a.elt, b.elt) with
       (* Unfolding of definitions. *)
       | (HDef(_,d)  , _          ) ->
@@ -529,7 +531,7 @@ let rec subtype =
          gen_subtype ctx a b
       (* No rule apply. *)
       | _                          ->
-         subtype_msg None "No rule applies"
+         subtype_msg None "No rule applies")
     in
     (t, a, b, r)
     with

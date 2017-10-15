@@ -6,6 +6,7 @@ open Pos
 open Ast
 open Output
 open Printf
+open Uvars
 
 let print_map : (string * 'a) printer -> string -> 'a A.t printer =
   fun pelem sep ch m -> print_list pelem sep ch (A.bindings m)
@@ -20,6 +21,14 @@ let rec sort : type a. a sort printer = fun ch s ->
   | F(a,b) -> let (l,r) = match a with F(_,_) -> ("(",")") | _ -> ("","") in
               fprintf ch "%s%a%s → %a" l sort a r sort b
 
+let print_vars ch e =
+  let vars = uvars e in
+  match vars with
+  | [] -> ()
+  | U (_,x)::l -> fprintf ch "(?%d%t)" x.uvar_key
+                    (fun ch -> List.iter (function U (_,x) ->
+                                   fprintf ch ",?%d" x.uvar_key) l)
+
 let rec ex : type a. a ex loc printer = fun ch e ->
   let rec is_arrow : type a. a ex loc -> bool = fun e ->
     match (Norm.repr e).elt with
@@ -30,7 +39,8 @@ let rec ex : type a. a ex loc printer = fun ch e ->
     | FixN(_,_) -> true
     | _         -> false
   in
-  match (Norm.repr e).elt with
+  let e = Norm.repr e in
+  match e.elt with
   | Vari(_,x)   -> output_string ch (name_of x)
   | HFun(s,_,b) -> let (x,t) = unbind (mk_free s) (snd b) in
                    fprintf ch "(%s ↦ %a)" (name_of x) ex t
@@ -127,13 +137,13 @@ let rec ex : type a. a ex loc printer = fun ch e ->
       in aux r.binder
   | ITag(_,i)   -> fprintf ch "#%i" i
   | Dumm        -> output_string ch "∅"
-  | VWit(i,_)   -> fprintf ch "ει%i" i
-  | SWit(i,_)   -> fprintf ch "εσ%i" i
-  | UWit(i,s,_) -> fprintf ch "ε∀%a%i" sort s i
-  | EWit(i,s,_) -> fprintf ch "ε∃%a%i" sort s i
-  | OWMu(i,_)   -> fprintf ch "εκμ%i" i
-  | OWNu(i,_)   -> fprintf ch "εκν%i" i
-  | OSch(i,_)   -> fprintf ch "εκ%i" i
+  | VWit(i,_)   -> fprintf ch "ει%i%a" i print_vars e
+  | SWit(i,_)   -> fprintf ch "εσ%i%a" i print_vars e
+  | UWit(i,s,_) -> fprintf ch "ε∀%a%i%a" sort s i print_vars e
+  | EWit(i,s,_) -> fprintf ch "ε∃%a%i%a" sort s i print_vars e
+  | OWMu(i,_)   -> fprintf ch "εκμ%i%a" i print_vars e
+  | OWNu(i,_)   -> fprintf ch "εκν%i%a" i print_vars e
+  | OSch(i,_)   -> fprintf ch "εκ%i%a" i print_vars e
   | UVar(_,u)   -> fprintf ch "?%i" u.uvar_key
   | Goal(_,s)   -> fprintf ch "{- %s -}" s
   | VPtr(p)     -> fprintf ch "VPtr(%a)" VPtr.print p
