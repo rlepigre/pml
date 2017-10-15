@@ -10,6 +10,26 @@ open Pos
 module M = Map.Make(String)
 module A = Assoc
 
+(** Poll inside terms *)
+(** Module for pointers on a value node of the graph. *)
+module VPtr =
+  struct
+    type t = V of int
+    let compare (V i) (V j) = i - j
+    let print ch (V i) = Printf.fprintf ch "%i" i
+  end
+module VPtrMap = Map.Make(VPtr)
+module VPtrSet = Set.Make(VPtr)
+
+(** Module for pointers on a term node of the graph. *)
+module TPtr =
+  struct
+    type t = T of int
+    let compare (T i) (T j) = i - j
+    let print ch (T i) = Printf.fprintf ch "%i" i
+  end
+module TPtrMap = Map.Make(TPtr)
+
 (** {6 Main abstract syntax tree type} *)
 
 (** Type of (well-sorted) expressions, which is the core PML abstract syntax
@@ -65,6 +85,8 @@ type _ ex =
   (** PML scisors. *)
   | VDef : value                                     -> v  ex
   (** Definition of a value. *)
+  | VPtr : VPtr.t                                    -> v  ex
+  (** Pointer in the pool. *)
 
   (* Term constructors. *)
 
@@ -84,6 +106,8 @@ type _ ex =
   (** Fixpoint combinator Y(λx.t, v). *)
   | Prnt : string                                    -> t  ex
   (** Printing instruction. *)
+  | TPtr : TPtr.t                                    -> t  ex
+  (** Pointer in the pool. *)
 
   (* Stack constructors. *)
 
@@ -538,6 +562,7 @@ let rec sort : type a b. a ex loc ->  a sort * a ex loc= fun e ->
   | VDef _          -> (V,e)
   | Coer(VoT_V,_,_) -> (V,e)
   | Such(VoT_V,_,_) -> (V,e)
+  | VPtr _          -> (V,e)
 
   | Valu _          -> (T,e)
   | Appl _          -> (T,e)
@@ -549,6 +574,7 @@ let rec sort : type a b. a ex loc ->  a sort * a ex loc= fun e ->
   | Prnt _          -> (T,e)
   | Coer(VoT_T,_,_) -> (T,e)
   | Such(VoT_T,_,_) -> (T,e)
+  | TPtr _          -> (T,e)
 
   | Epsi            -> (S,e)
   | Push _          -> (S,e)

@@ -92,6 +92,8 @@ let uvar_iter : type a. bool -> bool -> uvar_fun -> a ex loc -> unit =
     | ITag(_)     -> ()
     | Dumm        -> ()
     | Goal(_)     -> ()
+    | VPtr(_)     -> () (* FIXME: check *)
+    | TPtr(_)     -> () (* FIXME: check *)
     | VWit(_,w)   -> let (f,a,b) = w in
                      if todo e then (buvar_iter f; uvar_iter a; uvar_iter b)
     | SWit(_,w)   -> let (b,a) = w in
@@ -316,31 +318,38 @@ let {eq_expr; eq_bndr; eq_ombinder} =
     | (ITag(_,i1)    , ITag(_,i2)    ) -> i1 = i2
     (* NOTE should not be compare dummy expressions. *)
     | (Dumm          , Dumm          ) -> false
-    | (VWit(_,w1)    , VWit(_,w2)    ) -> let (f1,a1,b1) = w1 in
-                                          let (f2,a2,b2) = w2 in
-                                          eq_bndr V f1 f2 && eq_expr a1 a2
-                                          && eq_expr b1 b2
-    | (SWit(_,w1)    , SWit(_,w2)    ) -> let (f1,a1) = w1 in
-                                          let (f2,a2) = w2 in
-                                          eq_bndr S f1 f2 && eq_expr a1 a2
-    | (UWit(_,s1,w1) , UWit(_,_,w2)  ) -> let (t1,b1) = w1 in
-                                          let (t2,b2) = w2 in
-                                          eq_bndr s1 b1 b2 && eq_expr t1 t2
-    | (EWit(_,s1,w1) , EWit(_,_,w2)  ) -> let (t1,b1) = w1 in
-                                          let (t2,b2) = w2 in
-                                          eq_bndr s1 b1 b2 && eq_expr t1 t2
-    | (OWMu(_,w1)    , OWMu(_,w2)    ) -> let (o1,t1,b1) = w1 in
-                                          let (o2,t2,b2) = w2 in
-                                          eq_expr o1 o2 && eq_expr t1 t2
-                                          && eq_bndr O b1 b2
-    | (OWNu(_,w1)    , OWNu(_,w2)    ) -> let (o1,t1,b1) = w1 in
-                                          let (o2,t2,b2) = w2 in
-                                          eq_expr o1 o2 && eq_expr t1 t2
-                                          && eq_bndr O b1 b2
-    | (OSch(_,w1)    , OSch(_,w2)    ) -> let (o1,i1,s1) = w1 in
-                                          let (o2,i2,s2) = w2 in
-                                          i1 = i2 && eq_opt_expr o1 o2
-                                          && eq_schema s1 s2
+    | (VWit(_,w1)    , VWit(_,w2)    ) -> w1 == w2 ||
+                                            (let (f1,a1,b1) = w1 in
+                                             let (f2,a2,b2) = w2 in
+                                             eq_bndr V f1 f2 && eq_expr a1 a2
+                                             && eq_expr b1 b2)
+    | (SWit(_,w1)    , SWit(_,w2)    ) -> w1 == w2 ||
+                                            (let (f1,a1) = w1 in
+                                             let (f2,a2) = w2 in
+                                             eq_bndr S f1 f2 && eq_expr a1 a2)
+    | (UWit(_,s1,w1) , UWit(_,_,w2)  ) -> w1 == w2 ||
+                                            (let (t1,b1) = w1 in
+                                             let (t2,b2) = w2 in
+                                             eq_bndr s1 b1 b2 && eq_expr t1 t2)
+    | (EWit(_,s1,w1) , EWit(_,_,w2)  ) -> w1 == w2 ||
+                                            (let (t1,b1) = w1 in
+                                             let (t2,b2) = w2 in
+                                             eq_bndr s1 b1 b2 && eq_expr t1 t2)
+    | (OWMu(_,w1)    , OWMu(_,w2)    ) -> w1 == w2 ||
+                                            (let (o1,t1,b1) = w1 in
+                                             let (o2,t2,b2) = w2 in
+                                             eq_expr o1 o2 && eq_expr t1 t2
+                                             && eq_bndr O b1 b2)
+    | (OWNu(_,w1)    , OWNu(_,w2)    ) -> w1 == w2 ||
+                                            (let (o1,t1,b1) = w1 in
+                                             let (o2,t2,b2) = w2 in
+                                             eq_expr o1 o2 && eq_expr t1 t2
+                                             && eq_bndr O b1 b2)
+    | (OSch(_,w1)    , OSch(_,w2)    ) -> w1 == w2 ||
+                                            (let (o1,i1,s1) = w1 in
+                                             let (o2,i2,s2) = w2 in
+                                             i1 = i2 && eq_opt_expr o1 o2
+                                             && eq_schema s1 s2)
     | (UVar(_,u1)    , UVar(_,u2)    ) ->
        if strict then u1.uvar_key = u2.uvar_key else
          begin
@@ -375,6 +384,9 @@ let {eq_expr; eq_bndr; eq_ombinder} =
        in
        let e1 = remove_occur_check e1 in
        if uvar_occurs u2 e1 then false else (uvar_set u2 e1; true)
+    (* two next cases are automatically stronger with oracle *)
+    | (VPtr v1       , VPtr v2       ) -> v1 = v2
+    | (TPtr t1       , TPtr t2       ) -> t1 = t2
     | _                                -> false)
 
   and eq_bndr : type a b. oracle -> bool -> a sort ->
@@ -661,7 +673,7 @@ let {compare_expr; compare_bndr; compare_ombinder} =
     (* NOTE type annotation ignored. *)
     | (MAbs(b1)      , MAbs(b2)      ) -> compare_bndr S b1 b2
     | (MAbs _        , _             ) -> -1
-    | (_             , MAbs _        ) -> 1
+    | (_             , MAbs _        ) ->  1
     | (Name(s1,t1)   , Name(s2,t2)   ) ->
        begin
          match compare_expr s1 s2 with
@@ -731,7 +743,7 @@ let {compare_expr; compare_bndr; compare_ombinder} =
     | (Goal _        , Goal _        ) ->  0 (* FIXME: warning ? *)
     | (Goal _        , _             ) -> -1
     | (_             , Goal _        ) ->  1
-    | (VWit(_,w1)    , VWit(_,w2)    ) ->
+    | (VWit(_,w1)    , VWit(_,w2)    ) -> if w1 == w2 then 0 else
        begin
          let (f1,a1,b1) = w1 in
          let (f2,a2,b2) = w2 in
@@ -746,7 +758,7 @@ let {compare_expr; compare_bndr; compare_ombinder} =
        end
     | (VWit _        , _             ) -> -1
     | (_             , VWit _        ) ->  1
-    | (SWit(_,w1)    , SWit(_,w2)    ) ->
+    | (SWit(_,w1)    , SWit(_,w2)    ) -> if w1 == w2 then 0 else
        begin
          let (f1,a1) = w1 in
          let (f2,a2) = w2 in
@@ -756,7 +768,7 @@ let {compare_expr; compare_bndr; compare_ombinder} =
        end
     | (SWit _        , _             ) -> -1
     | (_             , SWit _        ) ->  1
-    | (UWit(_,s1,w1) , UWit(_,_,w2)  ) ->
+    | (UWit(_,s1,w1) , UWit(_,_,w2)  ) -> if w1 == w2 then 0 else
        begin
          let (t1,b1) = w1 in
          let (t2,b2) = w2 in
@@ -766,7 +778,7 @@ let {compare_expr; compare_bndr; compare_ombinder} =
        end
     | (UWit _        , _             ) -> -1
     | (_             , UWit _        ) ->  1
-    | (EWit(_,s1,w1) , EWit(_,_,w2)  ) ->
+    | (EWit(_,s1,w1) , EWit(_,_,w2)  ) -> if w1 == w2 then 0 else
        begin
          let (t1,b1) = w1 in
          let (t2,b2) = w2 in
@@ -776,7 +788,7 @@ let {compare_expr; compare_bndr; compare_ombinder} =
        end
     | (EWit _        , _             ) -> -1
     | (_             , EWit _        ) ->  1
-    | (OWMu(_,w1)    , OWMu(_,w2)    ) ->
+    | (OWMu(_,w1)    , OWMu(_,w2)    ) -> if w1 == w2 then 0 else
        begin
          let (o1,t1,b1) = w1 in
          let (o2,t2,b2) = w2 in
@@ -791,7 +803,7 @@ let {compare_expr; compare_bndr; compare_ombinder} =
        end
     | (OWMu _        , _             ) -> -1
     | (_             , OWMu _        ) ->  1
-    | (OWNu(_,w1)    , OWNu(_,w2)    ) ->
+    | (OWNu(_,w1)    , OWNu(_,w2)    ) -> if w1 == w2 then 0 else
        begin
          let (o1,t1,b1) = w1 in
          let (o2,t2,b2) = w2 in
@@ -806,7 +818,7 @@ let {compare_expr; compare_bndr; compare_ombinder} =
        end
     | (OWNu _        , _             ) -> -1
     | (_             , OWNu _        ) ->  1
-    | (OSch(_,w1)    , OSch(_,w2)    ) ->
+    | (OSch(_,w1)    , OSch(_,w2)    ) -> if w1 == w2 then 0 else
        begin
          let (o1,i1,s1) = w1 in
          let (o2,i2,s2) = w2 in
@@ -821,6 +833,12 @@ let {compare_expr; compare_bndr; compare_ombinder} =
        end
     | (OSch _        , _             ) -> -1
     | (_             , OSch _        ) ->  1
+    | (VPtr v1       , VPtr v2       ) -> compare v1 v2
+    | (VPtr _        , _             ) -> -1
+    | (_             , VPtr _        ) ->  1
+    | (TPtr t1       , TPtr t2       ) -> compare t1 t2
+    | (TPtr _        , _             ) -> -1
+    | (_             , TPtr _        ) ->  1
     | (UVar(_,u1)    , UVar(_,u2)    ) ->
        compare u1.uvar_key u2.uvar_key)
 

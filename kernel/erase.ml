@@ -28,6 +28,7 @@ let rec valu_erasure : valu -> e_vbox = fun v ->
   | VDef(d)     -> box d.value_eval
   | Coer(_,v,_) -> valu_erasure v
   | Such(_,_,r) -> valu_erasure (bseq_dummy r.binder)
+  | VPtr(_)     -> erasure_error "a pointer in the pool cannot be erased (value)"
   | ITag(_)     -> erasure_error "a tag cannot be erased (value)"
   | Dumm        -> erasure_error "a dummy value cannot be erased (value)"
   | VWit(_)     -> erasure_error "a witness cannot be erased (value)"
@@ -62,6 +63,7 @@ and     term_erasure : term -> e_tbox = fun t ->
   | Prnt(s)     -> tprnt s
   | Coer(_,t,_) -> term_erasure t
   | Such(_,_,r) -> term_erasure (bseq_dummy r.binder)
+  | TPtr(_)     -> erasure_error "a pointer in the pool cannot be erased (term)"
   | ITag(_)     -> erasure_error "a tag cannot be erased (term)"
   | Dumm        -> erasure_error "a dummy value cannot be erased (term)"
   | UWit(_)     -> erasure_error "a witness cannot be erased (term)"
