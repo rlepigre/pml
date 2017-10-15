@@ -152,12 +152,16 @@ let pcl : type a b. a sort -> out_channel -> (a, b) closure -> unit =
     let vvars = if vs = [||] then [||] else vvars in
     let tvars = if ts = [||] then [||] else tvars in
     let fn ch =
-      Array.iter2 (fun v t ->
-          prnt ch "%s<-%a" (name_of v) VPtr.print t) vvars vs
+      Array.iteri (fun i v ->
+          let t = vs.(i) in
+          let sep = if i = 0 then "" else ", " in
+          prnt ch "%s%s<-%a" sep (name_of v) VPtr.print t) vvars
     in
     let gn ch =
-      Array.iter2 (fun v t ->
-          prnt ch "%s<-%a" (name_of v) TPtr.print t) tvars ts
+      Array.iteri (fun i v ->
+          let t = ts.(i) in
+          let sep = if i = 0 then "" else ", " in
+          prnt ch "%s%s<-%a" sep (name_of v) TPtr.print t) tvars
     in
     prnt ch "%s.%a[%t][%t]" (name_of var) pex t fn gn
 
