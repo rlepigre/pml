@@ -68,6 +68,7 @@ val rec add_n_succ : ∀m n∈nat, add m S[n] ≡ S[add m n] =
              deduce S[add k S[n]] ≡ S[S[add k n]];
              deduce add S[k] S[n] ≡ S[S[add k n]];
              deduce add S[k] S[n] ≡ S[add S[k] n];
+             deduce add S[k] S[n] ≡ S[S[add k n]];
              qed
     }
   }
