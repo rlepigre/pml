@@ -9,6 +9,7 @@ open Sorts
 open Pos
 open Ast
 open Output
+open Uvars
 open Compare
 
 let equiv_chrono = Chrono.create "equiv"
@@ -164,18 +165,16 @@ let pcl : type a b. a sort -> out_channel -> (a, b) closure -> unit =
 let print_v_node : out_channel -> v_node -> unit = fun ch n ->
   let prnt = Printf.fprintf in
   let pex = Print.ex in
+  let pva = Print.print_vars in
   match n with
   | VN_LAbs(b)     -> prnt ch "VN_LAbs(%a)" (pcl V) b
   | VN_Cons(c,pv)  -> prnt ch "VN_Cons(%s,%a)" c.elt VPtr.print pv
   | VN_Reco(m)     -> let pelt ch (k, p) = prnt ch "%S=%a" k VPtr.print p in
                       prnt ch "VN_Reco(%a)" (Print.print_map pelt ":") m
   | VN_Scis        -> prnt ch "VN_Scis"
-  | VN_VWit(_,w)   -> let (b,_,_) = w in
-                      prnt ch "VN_VWit(ει%s)" (bndr_name b).elt
-  | VN_UWit(_,w)   -> let (_,b) = w in
-                      prnt ch "VN_UWit(ε∀%s)" (bndr_name b).elt
-  | VN_EWit(_,w)   -> let (_,b) = w in
-                      prnt ch "VN_EWit(ε∃%s)" (bndr_name b).elt
+  | VN_VWit(i,w)   -> prnt ch "VN_VWit(ει%i%a)" i pva (Pos.none (VWit(i,w)))
+  | VN_UWit(i,w)   -> prnt ch "VN_UWit(ε∀%i%a)" i pva (Pos.none (UWit(i,V,w)))
+  | VN_EWit(i,w)   -> prnt ch "VN_EWit(ε∃%i%a)" i pva (Pos.none (EWit(i,V,w)))
   | VN_HApp(e)     -> let HO_Appl(s,f,a) = e in
                       prnt ch "VN_HApp(%a)" pex (Pos.none (HApp(s,f,a)))
   | VN_UVar(v)     -> prnt ch "VN_UVar(%a)" pex (Pos.none (UVar(V,v)))
@@ -185,6 +184,7 @@ let print_v_node : out_channel -> v_node -> unit = fun ch n ->
 let print_t_node : out_channel -> t_node -> unit = fun ch n ->
   let prnt = Printf.fprintf in
   let pex = Print.ex in
+  let pva = Print.print_vars in
   match n with
   | TN_Valu(pv)    -> prnt ch "TN_Valu(%a)" VPtr.print pv
   | TN_Appl(pt,pu) -> prnt ch "TN_Appl(%a,%a)" TPtr.print pt TPtr.print pu
@@ -199,10 +199,8 @@ let print_t_node : out_channel -> t_node -> unit = fun ch n ->
   | TN_FixY(b,pv)  -> prnt ch "TN_FixY(%a,%a)" (pcl V) b
                         VPtr.print pv
   | TN_Prnt(s)     -> prnt ch "TN_Prnt(%S)" s
-  | TN_UWit(_,w)   -> let (_,b) = w in
-                      prnt ch "TN_UWit(ε∀%s)" (bndr_name b).elt
-  | TN_EWit(_,w)   -> let (_,b) = w in
-                      prnt ch "TN_EWit(ε∃%s)" (bndr_name b).elt
+  | TN_UWit(i,w)   -> prnt ch "TN_UWit(ε∀%i%a)" i pva (Pos.none (UWit(i,T,w)))
+  | TN_EWit(i,w)   -> prnt ch "TN_EWit(ε∃%i%a)" i pva (Pos.none (EWit(i,T,w)))
   | TN_HApp(e)     -> let HO_Appl(s,f,a) = e in
                       let e = Pos.none (HApp(s,f,a)) in
                       prnt ch "TN_HApp(%a)" Print.ex e
