@@ -1126,6 +1126,9 @@ and eq_val : pool ref -> valu -> valu -> bool = fun pool v1 v2 ->
            Print.ex v2 (print_pool "        ") po;
       let (p1, po) = add_valu po v1 in
       let (p2, po) = add_valu po v2 in
+      (* force normalisation of parents *)
+      let po = reinsert (Ptr.V_ptr p1) po in
+      let po = reinsert (Ptr.V_ptr p2) po in
       log2 "eq_val: insertion at %a and %a" VPtr.print p1 VPtr.print p2;
       log2 "eq_val: obtained context:\n%a" (print_pool "        ") po;
       try pool := (Timed.apply (unif_vptr po p1) p2); true
@@ -1140,9 +1143,11 @@ and eq_trm : pool ref -> term -> term -> bool = fun pool t1 t2 ->
           Print.ex t2 (print_pool "        ") po;
       let (p1, po) = add_term po t1 in
       let (p2, po) = add_term po t2 in
-      log2 "eq_trm: insertion at %a and %a" TPtr.print p1 TPtr.print p2;
+      let (p1, po) = normalise p1 po in
+      let (p2, po) = normalise p2 po in
+      log2 "eq_trm: insertion at %a and %a" Ptr.print p1 Ptr.print p2;
       log2 "eq_trm: obtained context:\n%a" (print_pool "        ") po;
-      try pool := (Timed.apply (unif_tptr po p1) p2); true
+      try pool := (Timed.apply (unif_ptr po p1) p2); true
       with NoUnif -> false
     end
 
