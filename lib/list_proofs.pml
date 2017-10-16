@@ -72,16 +72,15 @@ val rec map_map : ∀a b c, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c), total<f,a> ⇒ t
               | Cons[c] →
                 let hd = c.hd;
                 let tl = c.tl;
-                let gof = fun x { gn (fn x) };
                 let tgf = compose_total fn gn tf tg;
-                let lem : (∃v:ι, map gof tl ≡ v) = map_total gof tgf tl;
+                let lem : (∃v:ι, map cmp<fn,gn> tl ≡ v) = map_total cmp<fn,gn> tgf tl;
                 let lem = tf hd;
                 let lem = tg (fn hd);
                 let lem = tgf hd;
                 let lem = map_total fn tf tl;
                 let lem = map_total gn tg (map fn tl);
-                let lem = map_total gof tgf tl;
-                let ind : map gn (map fn tl) ≡ map gof tl = map_map fn gn tf tg tl;
+                let lem = map_total cmp<fn,gn> tgf tl;
+                let ind : map gn (map fn tl) ≡ map cmp<fn,gn> tl = map_map fn gn tf tg tl;
                 {}
       }
     }
