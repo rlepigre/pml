@@ -385,6 +385,7 @@ let eq_cl po s (f1,vs1,ts1 as cl1) (f2,vs2,ts2 as cl2) =
       true
     with Exit -> false
   in
+  log2 "eq_cl: %a === %a" (pcl s) cl1 (pcl s) cl2;
   if f1 == f2 then
     for_all2 eq_vptr vs1 vs2 &&
     for_all2 eq_tptr ts1 ts2
@@ -478,14 +479,20 @@ let insert_v_node : v_node -> pool -> VPtr.t * pool = fun nn po ->
        let fn p (_,n) = if eq_v_nodes po n nn then raise (FoundV p) in
        VPtrMap.iter fn po.vs; raise Not_found
     | n::_ ->
-       let fn n = match n with
-         | Ptr.T_ptr _ -> ()
+       let rec fn up n = match n with
          | Ptr.V_ptr n ->
             log2 "insert_v_node comparing %a %a" print_v_node nn VPtr.print n;
             if eq_v_nodes po (snd (find_v_node n po)) nn then raise (FoundV n)
+        | Ptr.T_ptr n ->
+            let (pps, node) = find_t_node n po in
+            match node with
+            | TN_Valu _ when up ->
+               PtrSet.iter (fn false) pps
+            | _ -> ()
        in
        let (n, _) = find n po in (* FIXME: loose path shortening ? *)
-       PtrSet.iter fn (parents n po); raise Not_found
+       PtrSet.iter (fn true) (parents n po);
+       raise Not_found
   with
   | FoundV(p) -> (p, po)
   | Not_found ->
@@ -1064,7 +1071,24 @@ and unif_v_nodes : pool -> VPtr.t -> v_node -> VPtr.t -> v_node -> pool =
     log2 "unif_v_nodes %a = %a" print_v_node n1 print_v_node n2;
     (* FIXME #40, use oracle for VN_LAbs *)
     (* FIXME #50 (note), share VN_VWit and alike *)
-    let spo = po in
+    match (n1, n2) with
+    | (VN_UVar({uvar_val = {contents = Some v}})   , _             )
+       ->                                 let po = reinsert (Ptr.V_ptr p1) po in
+                                          unif_vptr po p1 p2
+
+    | (_, VN_UVar({uvar_val = {contents = Some v}}))
+       ->                                 let po = reinsert (Ptr.V_ptr p2) po in
+                                          unif_vptr po p1 p2
+    | (VN_UVar(v1)   , VN_UVar(v2)   ) when v1.uvar_key = v2.uvar_key -> assert false
+    | (VN_UVar(v1)   , _             ) -> let (p, po) = canonical_valu p2 po in
+                                          if uvar_occurs v1 p then raise NoUnif;
+                                          uvar_set v1 p;
+                                          join (Ptr.V_ptr p1) (Ptr.V_ptr p2) po
+    | (_             , VN_UVar(v2)   ) -> let (p, po) = canonical_valu p1 po in
+                                          if uvar_occurs v2 p then raise NoUnif;
+                                          uvar_set v2 p;
+                                          join (Ptr.V_ptr p2) (Ptr.V_ptr p1) po
+    | _ ->
     let po = union (Ptr.V_ptr p1) (Ptr.V_ptr p2) po in
     match (n1, n2) with
     | (VN_LAbs(b1)   , VN_LAbs(b2)   ) -> unif_cl po V b1 b2
@@ -1091,24 +1115,6 @@ and unif_v_nodes : pool -> VPtr.t -> v_node -> VPtr.t -> v_node -> pool =
     | (VN_ITag(n1)   , VN_ITag(n2)   ) -> if n1 = n2 then po else raise NoUnif
     | (VN_HApp(e1)   , VN_HApp(e2)   ) -> if eq_ho_appl e1 e2 then po else raise NoUnif
     | (VN_Goal(v1)   , VN_Goal(v2)   ) -> eq_expr po v1 v2
-    | (VN_UVar({uvar_val = {contents = Some v}})   , _             )
-       ->                                 let po = reinsert (Ptr.V_ptr p1) po in
-                                          unif_vptr po p1 p2
-
-    | (_, VN_UVar({uvar_val = {contents = Some v}}))
-       ->                                 let po = reinsert (Ptr.V_ptr p2) po in
-                                          unif_vptr po p1 p2
-    | (VN_UVar(v1)   , VN_UVar(v2)   ) when v1.uvar_key = v2.uvar_key -> assert false
-    | (VN_UVar(v1)   , _             ) -> let (p, po) = canonical_valu p2 spo in
-                                          if uvar_occurs v1 p then raise NoUnif;
-                                          uvar_set v1 p;
-                                          let po = reinsert (Ptr.V_ptr p1) po in
-                                          union (Ptr.V_ptr p1) (Ptr.V_ptr p2) po
-    | (_             , VN_UVar(v2)   ) -> let (p, po) = canonical_valu p1 spo in
-                                          if uvar_occurs v2 p then raise NoUnif;
-                                          uvar_set v2 p;
-                                          let po = reinsert (Ptr.V_ptr p2) po in
-                                          union (Ptr.V_ptr p1) (Ptr.V_ptr p2) po
     | (_             , _             ) -> raise NoUnif
 
 and unif_t_nodes : pool -> TPtr.t -> t_node -> TPtr.t -> t_node -> pool =
@@ -1123,10 +1129,26 @@ and unif_t_nodes : pool -> TPtr.t -> t_node -> TPtr.t -> t_node -> pool =
       if eq_bndr ~oracle:(oracle po) ~strict:false s e1 e2 then !po
       else raise NoUnif
     in
-    let spo = po in
-    let po = union (Ptr.T_ptr p1) (Ptr.T_ptr p2) po in
     (* FIXME #40, use oracle for TN_MAbs and alike *)
     (* FIXME #50 (note), share VN_VWit and alike *)
+    match (n1, n2) with
+    | (TN_UVar({uvar_val = {contents = Some v}})   , _             )
+       ->                                 let po = reinsert (Ptr.T_ptr p1) po in
+                                          unif_tptr po p1 p2
+    | (_, TN_UVar({uvar_val = {contents = Some v}}))
+       ->                                 let po = reinsert (Ptr.T_ptr p2) po in
+                                          unif_tptr po p1 p2
+    | (TN_UVar(v1)   , TN_UVar(v2)   ) when v1.uvar_key = v2.uvar_key -> assert false
+    | (TN_UVar(v1)     , _               ) -> let (p, po) = canonical_term p2 po in
+                                              if uvar_occurs v1 p then raise NoUnif;
+                                              uvar_set v1 p;
+                                              join (Ptr.T_ptr p1) (Ptr.T_ptr p2) po
+    | (_               , TN_UVar(v2)     ) -> let (p, po) = canonical_term p1 po in
+                                              if uvar_occurs v2 p then raise NoUnif;
+                                              uvar_set v2 p;
+                                              join (Ptr.T_ptr p2) (Ptr.T_ptr p1) po
+    | _ ->
+    let po = union (Ptr.T_ptr p1) (Ptr.T_ptr p2) po in
     match (n1, n2) with
     | (TN_Valu(p1)     , TN_Valu(p2)     ) -> unif_vptr po p1 p2
     | (TN_Appl(p11,p12), TN_Appl(p21,p22)) -> let po = unif_tptr po p11 p21 in
@@ -1154,23 +1176,6 @@ and unif_t_nodes : pool -> TPtr.t -> t_node -> TPtr.t -> t_node -> pool =
     | (TN_ITag(n1)     , TN_ITag(n2)     ) -> if n1 <> n2 then raise NoUnif; po
     | (TN_HApp(e1)     , TN_HApp(e2)     ) -> if not (eq_ho_appl e1 e2) then raise NoUnif; po
     | (TN_Goal(t1)     , TN_Goal(t2)     ) -> eq_expr po t1 t2
-    | (TN_UVar({uvar_val = {contents = Some v}})   , _             )
-       ->                                 let po = reinsert (Ptr.T_ptr p1) po in
-                                          unif_tptr po p1 p2
-    | (_, TN_UVar({uvar_val = {contents = Some v}}))
-       ->                                 let po = reinsert (Ptr.T_ptr p2) po in
-                                          unif_tptr po p1 p2
-    | (TN_UVar(v1)   , TN_UVar(v2)   ) when v1.uvar_key = v2.uvar_key -> assert false
-    | (TN_UVar(v1)     , _               ) -> let (p, po) = canonical_term p2 spo in
-                                              if uvar_occurs v1 p then raise NoUnif;
-                                              uvar_set v1 p;
-                                              let po = reinsert (Ptr.T_ptr p1) po in
-                                              union (Ptr.T_ptr p1) (Ptr.T_ptr p2) po
-    | (_               , TN_UVar(v2)     ) -> let (p, po) = canonical_term p1 spo in
-                                              if uvar_occurs v2 p then raise NoUnif;
-                                              uvar_set v2 p;
-                                              let po = reinsert (Ptr.T_ptr p2) po in
-                                              union (Ptr.T_ptr p1) (Ptr.T_ptr p2) po
     | (_               , _               ) -> raise NoUnif
 
 and eq_val : pool ref -> valu -> valu -> bool = fun pool v1 v2 ->
