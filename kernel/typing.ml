@@ -494,16 +494,20 @@ let rec subtype =
       (* Restriction on the right. *)
       | (_          , Rest(c,e)  ) ->
          begin
-            let prf = subtype ctx t a c in
-            let _ = prove ctx.equations e in
-            Sub_Rest_r(prf)
+           (* we learn the equation that we will prove below *)
+           let equations = learn ctx.equations e in
+           let prf = subtype {ctx with equations} t a c in
+           let _ = prove ctx.equations e in
+           Sub_Rest_r(prf)
           end
       (* Implication on the left. *)
       | (Impl(e,c)   , _        ) ->
          begin
-            let prf = subtype ctx t c b in
-            let _ = prove ctx.equations e in
-            Sub_Rest_r(prf)
+           (* we learn the equation that we will prove below *)
+           let equations = learn ctx.equations e in
+           let prf = subtype {ctx with equations} t c b in
+           let _ = prove ctx.equations e in
+           Sub_Rest_r(prf)
           end
       (* Mu right and Nu Left, infinite case. *)
       | (_          , FixM(o,f) ) when is_conv o ->
