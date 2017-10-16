@@ -385,7 +385,6 @@ let eq_cl po s (f1,vs1,ts1 as cl1) (f2,vs2,ts2 as cl2) =
       true
     with Exit -> false
   in
-  log2 "eq_cl: %a === %a" (pcl s) cl1 (pcl s) cl2;
   if f1 == f2 then
     for_all2 eq_vptr vs1 vs2 &&
     for_all2 eq_tptr ts1 ts2
@@ -421,6 +420,7 @@ let eq_v_nodes : pool -> v_node -> v_node -> bool =
     | (VN_ITag(n1)   , VN_ITag(n2)   ) -> n1 = n2
     | (VN_HApp(e1)   , VN_HApp(e2)   ) -> eq_ho_appl e1 e2
     | (VN_Goal(v1)   , VN_Goal(v2)   ) -> eq_expr v1 v2
+    | (VN_UVar(v1)   , VN_UVar(v2)   ) -> v1.uvar_key = v2.uvar_key
     | (_             , _             ) -> false
 
 let eq_t_nodes : pool -> t_node -> t_node -> bool =
@@ -453,6 +453,7 @@ let eq_t_nodes : pool -> t_node -> t_node -> bool =
     | (TN_ITag(n1)     , TN_ITag(n2)     ) -> n1 = n2
     | (TN_HApp(e1)     , TN_HApp(e2)     ) -> eq_ho_appl e1 e2
     | (TN_Goal(t1)     , TN_Goal(t2)     ) -> eq_expr t1 t2
+    | (TN_UVar(v1)     , TN_UVar(v2)     ) -> v1.uvar_key = v2.uvar_key
     | (_               , _               ) -> false
 
 
@@ -481,7 +482,6 @@ let insert_v_node : v_node -> pool -> VPtr.t * pool = fun nn po ->
     | n::_ ->
        let rec fn up n = match n with
          | Ptr.V_ptr n ->
-            log2 "insert_v_node comparing %a %a" print_v_node nn VPtr.print n;
             if eq_v_nodes po (snd (find_v_node n po)) nn then raise (FoundV n)
         | Ptr.T_ptr n ->
             let (pps, node) = find_t_node n po in
@@ -1017,8 +1017,10 @@ and unif_tptr : pool -> TPtr.t -> TPtr.t -> pool = fun po p1 p2 ->
   unif_ptr po (Ptr.T_ptr p1) (Ptr.T_ptr p2)
 
 and unif_ptr : pool -> Ptr.t -> Ptr.t -> pool = fun po p1 p2 ->
+  log2 "unif_ptr (1) %a = %a" Ptr.print p1 Ptr.print p2;
   let (p1, po) = find p1 po in
   let (p2, po) = find p2 po in
+  log2 "unif_ptr (2) %a = %a" Ptr.print p1 Ptr.print p2;
   if p1 == p2 then po else
   match p1, p2 with
   | (Ptr.V_ptr vp1, Ptr.V_ptr vp2) ->
@@ -1131,6 +1133,7 @@ and unif_t_nodes : pool -> TPtr.t -> t_node -> TPtr.t -> t_node -> pool =
     in
     (* FIXME #40, use oracle for TN_MAbs and alike *)
     (* FIXME #50 (note), share VN_VWit and alike *)
+    log2 "unif_t_nodes %a = %a" print_t_node n1 print_t_node n2;
     match (n1, n2) with
     | (TN_UVar({uvar_val = {contents = Some v}})   , _             )
        ->                                 let po = reinsert (Ptr.T_ptr p1) po in
