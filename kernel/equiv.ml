@@ -735,7 +735,9 @@ let rec normalise : TPtr.t -> pool -> Ptr.t * pool =
             log2 "normalisation in TN_FixY: %a" VPtr.print pv;
             let f = subst_closure f in
             let b = bndr_from_fun "x" (fun x -> FixY(f, Pos.none x)) in
-            let t = bndr_subst f (LAbs(None, b)) in
+            let f' = Pos.none (LAbs(None, b)) in
+            let (pf, po) = add_valu po f' in
+            let t = bndr_subst f (VPtr pf) in
             let (pt, po) = add_term po t in
             let (pu, po) = insert_t_node (TN_Valu(pv)) po in
             let (pap, po) = insert_t_node (TN_Appl(pt, pu)) po in
@@ -833,7 +835,8 @@ and join : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
 and age_join : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
   if p2 < p1 then join p1 p2 po else join p2 p1 po
 
-and union : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
+and union : ?no_rec:bool -> Ptr.t -> Ptr.t -> pool -> pool =
+  fun ?(no_rec=false) p1 p2 po ->
   let (p1, po) = find p1 po in
   let (p2, po) = find p2 po in
   if p1 = p2 then po else
@@ -857,14 +860,14 @@ and union : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
          | (VN_Cons(c1,vp1), VN_Cons(c2,vp2)) ->
             if c1.elt <> c2.elt then bottom ();
             let po = age_join p1 p2 po in
-            union (Ptr.V_ptr vp1) (Ptr.V_ptr vp2) po
+            if no_rec then po else union (Ptr.V_ptr vp1) (Ptr.V_ptr vp2) po
          (* Records. *)
          | (VN_Reco(m1)    , VN_Reco(m2)    ) ->
             let po = ref (age_join p1 p2 po) in
             let test vp1 vp2 =
               po := union (Ptr.V_ptr vp1) (Ptr.V_ptr vp2) !po; true
             in
-            if not (A.equal test m1 m2) then bottom ();
+            if not no_rec && not (A.equal test m1 m2) then bottom ();
             !po
          (* Prefer real values as equivalence class representatives. *)
          | (VN_LAbs(_)     , _              )
@@ -879,30 +882,34 @@ and union : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
        end
 
 (** Obtain the canonical term / value pointed by a pointer. *)
-let rec canonical_term : TPtr.t -> pool -> term * pool = fun p po ->
-  let (p, po) = find (Ptr.T_ptr p) po in
+let rec canonical_term : bool -> TPtr.t -> pool -> term * pool = fun clos p po ->
+  let (p, po) = if clos then (Ptr.T_ptr p,po) else find (Ptr.T_ptr p) po in
+  let ct = canonical_term clos in
+  let cv = canonical_valu clos in
   match p with
   | Ptr.T_ptr(p) ->
-      begin
-        match snd (TPtrMap.find p po.ts) with
-        | TN_Valu(pv)    -> let (v, po) = canonical_valu pv po in
+     begin
+        let t = snd (TPtrMap.find p po.ts) in
+        (*log2 "canonical_term %a = %a" TPtr.print p print_t_node t;*)
+        match t with
+        | TN_Valu(pv)    -> let (v, po) = cv pv po in
                             (Pos.none (Valu(v)), po)
-        | TN_Appl(pt,pu) -> let (t, po) = canonical_term pt po in
-                            let (u, po) = canonical_term pu po in
+        | TN_Appl(pt,pu) -> let (t, po) = ct pt po in
+                            let (u, po) = ct pu po in
                             (Pos.none (Appl(t,u)), po)
         | TN_MAbs(b)     -> let (b, po) = canonical_closure b po in
                             (Pos.none (MAbs(b)), po)
-        | TN_Name(s,pt)  -> let (t, po) = canonical_term pt po in
+        | TN_Name(s,pt)  -> let (t, po) = ct pt po in
                             (Pos.none (Name(s,t)), po)
-        | TN_Proj(pv,l)  -> let (v, po) = canonical_valu pv po in
+        | TN_Proj(pv,l)  -> let (v, po) = cv pv po in
                             (Pos.none (Proj(v,l)), po)
-        | TN_Case(pv,m)  -> let (v, po) = canonical_valu pv po in
+        | TN_Case(pv,m)  -> let (v, po) = cv pv po in
                             let (m, po) = A.fold_map (fun _ b po ->
                                               let (p, po) = canonical_closure b po in
                                               ((None, p), po)) m po
                             in
                             (Pos.none (Case(v, m)), po)
-        | TN_FixY(b,pv)  -> let (v, po) = canonical_valu pv po in
+        | TN_FixY(b,pv)  -> let (v, po) = cv pv po in
                             let (b, po) = canonical_closure b po in
                             (Pos.none (FixY(b,v)), po)
         | TN_Prnt(s)     -> (Pos.none (Prnt(s)), po)
@@ -915,28 +922,31 @@ let rec canonical_term : TPtr.t -> pool -> term * pool = fun p po ->
                               | None   -> (Pos.none (UVar(T,v)), po)
                               | Some t ->
                                   let (p, po) = add_term po t in
-                                  canonical_term p po
+                                  ct p po
                             end
         | TN_ITag(n)     -> (Pos.none (ITag(T,n)), po)
         | TN_Goal(t)     -> (t, po)
       end
   | Ptr.V_ptr(p) ->
-      let (v, po) = canonical_valu p po in
+      let (v, po) = cv p po in
       (Pos.none (Valu(v)), po)
 
-and     canonical_valu : VPtr.t -> pool -> valu * pool = fun p po ->
-  let (p, po) = find (Ptr.V_ptr p) po in
+and     canonical_valu : bool -> VPtr.t -> pool -> valu * pool = fun clos p po ->
+  let (p, po) = if clos then (Ptr.V_ptr p, po) else find (Ptr.V_ptr p) po in
+  let cv = canonical_valu clos in
   match p with
   | Ptr.T_ptr(p) -> assert false (* Should never happen. *)
   | Ptr.V_ptr(p) ->
       begin
-        match snd (VPtrMap.find p po.vs) with
+        let v = snd (VPtrMap.find p po.vs) in
+        (*log2 "canonical_term %a = %a" VPtr.print p print_v_node v;*)
+        match v with
         | VN_LAbs(b)     -> let (b, po) = canonical_closure b po in
                             (Pos.none (LAbs(None, b)), po)
-        | VN_Cons(c,pv)  -> let (v, po) = canonical_valu pv po in
+        | VN_Cons(c,pv)  -> let (v, po) = cv pv po in
                             (Pos.none (Cons(c,v)), po)
         | VN_Reco(m)     -> let fn l pv (m, po) =
-                              let (v, po) = canonical_valu pv po in
+                              let (v, po) = cv pv po in
                               (A.add l (None,v) m, po)
                             in
                             let (m, po) = A.fold fn m (A.empty, po) in
@@ -952,7 +962,7 @@ and     canonical_valu : VPtr.t -> pool -> valu * pool = fun p po ->
                               | None   -> (Pos.none (UVar(V,v)), po)
                               | Some w ->
                                   let (p, po) = add_valu po w in
-                                  canonical_valu p po
+                                  cv p po
                             end
         | VN_ITag(n)     -> (Pos.none (ITag(V,n)), po)
         | VN_Goal(v)     -> (v, po)
@@ -962,7 +972,7 @@ and     canonical_valu : VPtr.t -> pool -> valu * pool = fun p po ->
 and canonical_closure : type a b.(a,b) closure -> pool -> (a,b) bndr * pool =
   fun (funptr,vs,ts) po ->
     let po = ref po in
-    let vs = Array.map (fun p -> let (p, po') = canonical_valu p !po in
+    let vs = Array.map (fun p -> let (p, po') = canonical_valu true p !po in
                                  let open Misc in
                                  let mapper : type a. recall -> a ex loc -> a box
                                    = fun {recall;default} e ->
@@ -974,7 +984,7 @@ and canonical_closure : type a b.(a,b) closure -> pool -> (a,b) bndr * pool =
                                  let _ = map ~mapper:{mapper} p in
                                  po := po'; p.elt) vs
     in
-    let ts = Array.map (fun p -> let (p, po') = canonical_term p !po in
+    let ts = Array.map (fun p -> let (p, po') = canonical_term true p !po in
                                  let open Misc in
                                  let mapper : type a. recall -> a ex loc -> a box
                                    = fun {recall;default} e ->
@@ -987,6 +997,9 @@ and canonical_closure : type a b.(a,b) closure -> pool -> (a,b) bndr * pool =
                                  po := po'; p.elt) ts
     in
     (msubst (msubst funptr vs) ts, !po)
+
+let canonical_valu = canonical_valu false
+let canonical_term = canonical_term false
 
 let canonical : Ptr.t -> pool -> term * pool = fun p po ->
   match p with
@@ -1040,7 +1053,7 @@ and unif_ptr : pool -> Ptr.t -> Ptr.t -> pool = fun po p1 p2 ->
           if uvar_occurs v p then raise NoUnif;
           uvar_set v (Pos.none (Valu p));
           let po = reinsert (Ptr.T_ptr p1) po in
-          union (Ptr.T_ptr p1) (Ptr.V_ptr p2) po
+          join (Ptr.T_ptr p1) (Ptr.V_ptr p2) po
        | _ -> raise NoUnif
      end
   | (Ptr.V_ptr p1, Ptr.T_ptr p2) ->
@@ -1052,7 +1065,7 @@ and unif_ptr : pool -> Ptr.t -> Ptr.t -> pool = fun po p1 p2 ->
           if uvar_occurs v p then raise NoUnif;
           uvar_set v (Pos.none (Valu p));
           let po = reinsert (Ptr.T_ptr p2) po in
-          union (Ptr.V_ptr p1) (Ptr.T_ptr p2) po
+          join (Ptr.T_ptr p2) (Ptr.V_ptr p1) po
        | _ -> raise NoUnif
      end
 
@@ -1086,12 +1099,15 @@ and unif_v_nodes : pool -> VPtr.t -> v_node -> VPtr.t -> v_node -> pool =
                                           if uvar_occurs v1 p then raise NoUnif;
                                           uvar_set v1 p;
                                           join (Ptr.V_ptr p1) (Ptr.V_ptr p2) po
-    | (_             , VN_UVar(v2)   ) -> let (p, po) = canonical_valu p1 po in
+    | (_             , VN_UVar(v2)   ) -> log2 "coucou";
+                                          let (p, po) = canonical_valu p1 po in
+                                          log2 "coucou2";
                                           if uvar_occurs v2 p then raise NoUnif;
                                           uvar_set v2 p;
+                                          log2 "coucou3";
                                           join (Ptr.V_ptr p2) (Ptr.V_ptr p1) po
     | _ ->
-    let po = union (Ptr.V_ptr p1) (Ptr.V_ptr p2) po in
+    let po = union ~no_rec:true (Ptr.V_ptr p1) (Ptr.V_ptr p2) po in
     match (n1, n2) with
     | (VN_LAbs(b1)   , VN_LAbs(b2)   ) -> unif_cl po V b1 b2
     | (VN_Cons(c1,p1), VN_Cons(c2,p2)) -> if c1.elt <> c2.elt then raise NoUnif;
@@ -1151,7 +1167,7 @@ and unif_t_nodes : pool -> TPtr.t -> t_node -> TPtr.t -> t_node -> pool =
                                               uvar_set v2 p;
                                               join (Ptr.T_ptr p2) (Ptr.T_ptr p1) po
     | _ ->
-    let po = union (Ptr.T_ptr p1) (Ptr.T_ptr p2) po in
+    let po = union ~no_rec:true (Ptr.T_ptr p1) (Ptr.T_ptr p2) po in
     match (n1, n2) with
     | (TN_Valu(p1)     , TN_Valu(p2)     ) -> unif_vptr po p1 p2
     | (TN_Appl(p11,p12), TN_Appl(p21,p22)) -> let po = unif_tptr po p11 p21 in
