@@ -43,6 +43,14 @@ val rec app_total : ∀a:ο, ∀l1 l2 ∈list<a>, ∃v:ι, app l1 l2 ≡ v =
     }
   }
 
+val rec app2_total : ∀a:ο, ∀l1 l2 ∈list<a>, ∃v:ι, app2 l1 l2 ≡ v =
+  fun l1 l2 {
+    case l1 {
+      Nil[_] → {}
+      Cns[c] → let ind = app2_total c.tl l2; {}
+    }
+  }
+
 val rec app_asso : ∀a:ο, ∀x1 x2 x3∈list<a>, app x1 (app x2 x3) ≡ app (app x1 x2) x3 =
   fun l1 l2 l3 {
     case l1 {
@@ -53,10 +61,29 @@ val rec app_asso : ∀a:ο, ∀x1 x2 x3∈list<a>, app x1 (app x2 x3) ≡ app (a
        let tl = c.tl;
        let total = app_total tl l2;
        let total = app_total l2 l3;
+       let total = app_total tl (app l2 l3); // FIXME: worked without why ?
+       let total = app_total (app tl l2) l3; // FIXME: worked without why ?
        let ded : app l1 (app l2 l3) ≡ cns hd (app tl (app l2 l3)) = {};
        let ded : app (app l1 l2) l3 ≡ cns hd (app (app tl l2) l3) = {};
        let ind : app tl (app l2 l3) ≡ app (app tl l2) l3 =
          app_asso tl l2 l3; {}
+    }
+  }
+
+val rec app2_asso : ∀a:ο, ∀x1 x2 x3∈list<a>, app2 x1 (app2 x2 x3) ≡ app2 (app2 x1 x2) x3 =
+  fun l1 l2 l3 {
+    case l1 {
+      Nil    →
+       let total = app2_total l2 l3; {}
+      Cns[c] →
+       let hd = c.hd;
+       let tl = c.tl;
+       let total = app2_total tl l2;
+       let total = app2_total l2 l3;
+       let ded : app2 l1 (app2 l2 l3) ≡ cns hd (app2 tl (app2 l2 l3)) = {};
+       let ded : app2 (app2 l1 l2) l3 ≡ cns hd (app2 (app2 tl l2) l3) = {};
+       let ind : app2 tl (app2 l2 l3) ≡ app2 (app2 tl l2) l3 =
+         app2_asso tl l2 l3; {}
     }
   }
 
@@ -108,13 +135,8 @@ val map_map : ∀a b c:ο, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c), total<f,a> ⇒ to
     }
   }
 
-val comp : ∀a b c:ο, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c), a ⇒ c = fun f g x { g (f x) }
-
-// FIXME : replacing comp by its definition fails, pb for equality under
-//         lambda
-
 val rec map_map : ∀a b c:ο, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c), total<f,a> ⇒ total<g,b> ⇒
-    ∀l∈list<a>, map g (map f l) ≡ map (comp f g) l =
+    ∀l∈list<a>, map g (map f l) ≡ map (fun x { g (f x) }) l =
   fun fn gn tf tg ls {
     case ls {
       Nil    → {}
