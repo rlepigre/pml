@@ -156,8 +156,8 @@ let parser s_args = {_:langle l:s_lst _:rangle}?[[]]
 (* Priorities for parsing propositions (Atom, Memb, Rest, Prod, Full). *)
 type p_prio = F | P | R | M | A
 
-(* Priorities for parsing terms (Atom, aPpl, pRefix, Sequ, Full). *)
-type t_prio = F | S | R | P | A
+(* Priorities for parsing terms (Atom, aPpl, Infix, pRefix, Sequ, Full). *)
+type t_prio = F | S | R | I | P | A
 
 (* Parsing mode for expressions. *)
 type mode = Any | Prp of p_prio | Trm of t_prio | Stk | Ord | HO
@@ -240,15 +240,15 @@ let parser expr @(m : mode) =
       when m <<= Prp F
       -> in_pos _loc (EFixN(o,x,a))
   (* Proposition (membership) *)
-  | t:(expr (Trm P)) "∈" a:(expr (Prp M))
+  | t:(expr (Trm I)) "∈" a:(expr (Prp M))
       when m <<= Prp M
       -> in_pos _loc (EMemb(t,a))
   (* Proposition (restriction) *)
-  | a:(expr (Prp M)) "|" t:(expr (Trm P)) b:eq u:(expr (Trm P))
+  | a:(expr (Prp M)) "|" t:(expr (Trm I)) b:eq u:(expr (Trm I))
       when m <<= Prp R
       -> in_pos _loc (ERest(Some a,EEquiv(t,b,u)))
   (* Proposition (equivalence) *)
-  | t:(expr (Trm P)) b:eq u:(expr (Trm P))
+  | t:(expr (Trm I)) b:eq u:(expr (Trm I))
       when m <<= Prp A
       -> in_pos _loc (ERest(None,EEquiv(t,b,u)))
   (* Proposition (parentheses) *)
@@ -259,7 +259,7 @@ let parser expr @(m : mode) =
   | _fun_ args:arg+ '{' t:term '}'
       when m <<= Trm A
       -> in_pos _loc (ELAbs((List.hd args, List.tl args),t))
-  | lambda args:arg+ '.' t:(expr (Trm P))
+  | lambda args:arg+ '.' t:(expr (Trm I))
       when m <<= Trm R
       -> single_line _loc;
          in_pos _loc (ELAbs((List.hd args, List.tl args),t))
@@ -280,8 +280,8 @@ let parser expr @(m : mode) =
       when m <<= Trm A
       -> v_nil _loc
   (* Term (list constructor) *)
-  | t:(expr (Trm P)) "::" u:(expr (Trm P))
-      when m <<= Trm P
+  | t:(expr (Trm P)) "::" u:(expr (Trm I))
+      when m <<= Trm I
       -> v_cons _loc t u
   (* Term (record) *)
   | "{" fs:(lsep_ne ";" field) "}"
@@ -313,7 +313,7 @@ let parser expr @(m : mode) =
       -> in_pos _loc (EMAbs(arg,t))
   (* Term (name) *)
   | _restore_ s:stack t:(expr (Trm A))
-      when m <<= Trm P
+      when m <<= Trm I
       -> in_pos _loc (EName(s,t))
   (* Term (projection) *)
   | t:(expr (Trm A)) "." l:{llid | lnum}
