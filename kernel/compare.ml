@@ -601,7 +601,12 @@ let {compare_expr; compare_bndr; compare_ombinder} =
     | (_             , ITag _        ) ->  1
     | (Dumm          , _             ) -> assert false
     | (_             , Dumm          ) -> assert false
-    | (Goal _        , Goal _        ) ->  0 (* FIXME: warning ? *)
+    | (Goal(s1,str1) , Goal(s2,str2) ) ->
+       begin
+         match compare_sort s1 s2 with
+         | Eq -> String.compare str1 str2
+         | Lt -> -1 | Gt -> 1
+       end
     | (Goal _        , _             ) -> -1
     | (_             , Goal _        ) ->  1
     | (VWit(_,w1)    , VWit(_,w2)    ) -> if w1 == w2 then 0 else

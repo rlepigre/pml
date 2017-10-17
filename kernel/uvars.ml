@@ -80,8 +80,8 @@ let uvar_iter : type a. bool -> bool -> uvar_fun -> a ex loc -> unit =
     | ITag(_)     -> ()
     | Dumm        -> ()
     | Goal(_)     -> ()
-    | VPtr(_)     -> () (* FIXME: check *)
-    | TPtr(_)     -> () (* FIXME: check *)
+    | VPtr(_)     -> assert false
+    | TPtr(_)     -> assert false
     | VWit(_,w)   -> let (f,a,b) = w in
                      if todo e then (buvar_iter f; uvar_iter a; uvar_iter b)
     | SWit(_,w)   -> let (b,a) = w in

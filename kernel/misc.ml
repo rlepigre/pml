@@ -137,8 +137,8 @@ let map : type a. ?mapper:mapper -> ?adone:alist ref -> a ex loc -> a box
             | Vari(_,x)   -> vari e.pos x
             | Dumm        -> box e
 
-            | VPtr _      -> box e (* FIXME: CHECK *)
-            | TPtr _      -> box e (* FIXME: CHECK *)
+            | VPtr _      -> box e
+            | TPtr _      -> box e
         in
         let res = mapper.mapper { recall = map; default } e in
         adone := Cons(e.elt,res,!adone);
