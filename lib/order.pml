@@ -18,7 +18,7 @@ val rec sorted : ∀a, ∀o∈ord<a>, ∀l∈list<a>, bool =
           Nil      → true
           Cons[c2] →
             let hd2 = c2.hd;
-            land<(o.cmp) hd hd2, sorted o tl>
+            land<o.cmp hd hd2, sorted o tl>
         }
     }
   }
