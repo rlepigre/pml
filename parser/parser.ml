@@ -280,7 +280,7 @@ let parser expr @(m : mode) =
       when m <<= Trm A
       -> v_nil _loc
   (* Term (list constructor) *)
-  | t:(expr (Trm A)) "::" u:(expr (Trm P))
+  | t:(expr (Trm P)) "::" u:(expr (Trm P))
       when m <<= Trm P
       -> v_cons _loc t u
   (* Term (record) *)
