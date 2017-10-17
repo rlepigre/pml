@@ -1159,6 +1159,7 @@ let p_bool _loc =
 
 (* "if c then t else e" := "case t:bool of { Tru[_] -> t | Fls[_] -> e }" *)
 let if_then_else _loc c t e =
+  let e = match e with Some e -> e | None -> Pos.none EUnit in
   let no_arg c t = ((Pos.none c, None), t) in
   let pats = [ no_arg "true" t ; no_arg "false" e ] in
   Pos.in_pos _loc (ECase(Pos.none (ECoer(c, p_bool None)), ref `T, pats))

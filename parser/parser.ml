@@ -324,7 +324,7 @@ let parser expr @(m : mode) =
       when m <<= Trm A
       -> pattern_matching _loc t ps
   (* Term (conditional) *)
-  | _if_ c:term '{' t:term '}' _else_ '{' e:term '}'
+  | _if_ c:term '{' t:term '}' e:{_:_else_ '{' term '}'}?
       when m <<= Trm A
       -> if_then_else _loc c t e
   (* Term ("deduce" tactic) *)
