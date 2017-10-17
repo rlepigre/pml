@@ -348,47 +348,57 @@ let bind_spos_ordinals
   let os = Array.make (Array.length vars) (Pos.none Conv) in
   (unbox b, os)
 
-type ('a, 'b) closure =
-  (v ex, (t ex, ('a, 'b) bndr) mbinder) mbinder
-  * v ex loc array
-  * t ex loc array
+let box_closure: type a. a ex loc -> a box * t var array * v var array
+                                     * t ex loc array * v ex loc array
+  = fun e ->
+    let vl : v ex loc list ref = ref [] in
+    let tl : t ex loc list ref = ref [] in
+    let vv = ref [] in
+    let tv = ref [] in
+    let mapper : type a. recall -> a ex loc -> a box = fun {default} e ->
+      let s, e = sort e in
+      (* FIXME: this is quadratic !!! *)
+      let e' = lift e in
+      match is_closed e', s with
+      | true, V ->
+         let v = new_var (mk_free V) "v" in
+         vl := e :: !vl;
+         vv := v :: !vv;
+         box_apply Pos.none (box_of_var v)
+      | true, T ->
+         let v = new_var (mk_free T) "v" in
+         tl := e :: !tl;
+         tv := v :: !tv;
+         box_apply Pos.none (box_of_var v)
+      | _ -> default e
+    in
+    let e = map ~mapper:{mapper} e in
+    let tl = Array.of_list !tl in
+    let vl = Array.of_list !vl in
+    let tv = Array.of_list !tv in
+    let vv = Array.of_list !vv in
+    (e,tv,vv,tl,vl)
+
+type 'a closure =
+  (v ex, (t ex, 'a) mbinder) mbinder * v ex loc array * t ex loc array
+
 
 let make_closure
-    : type a b. a sort -> (a, b) bndr -> (a, b) closure
+    : type a b. a ex loc -> a ex loc closure
+  = fun e ->
+    let (e,tv,vv,tl,vl) = box_closure e in
+    (unbox (bind_mvar vv (bind_mvar tv e)), vl, tl)
+
+let make_bndr_closure
+    : type a b. a sort -> (a, b) bndr -> (a, b) bndr closure
   = fun s b0 ->
     if binder_closed (snd b0) then
       let b0 = unbox (bind_mvar [||] (bind_mvar [||] (box b0))) in
       (b0, [||], [||])
     else
-    let vl : v ex loc list ref = ref [] in
-    let tl : t ex loc list ref = ref [] in
-    let vv = ref [] in
-    let tv = ref [] in
-    let b = vbind (mk_free s) (bndr_name b0).elt (fun x ->
-      let x = mk_free s x in
-      let b = bndr_subst b0 x in
-      let mapper : type a. recall -> a ex loc -> a box = fun {default} e ->
-        let s, e = sort e in
-        (* FIXME: this is quadratic !!! *)
-        let e' = lift e in
-        match is_closed e', s with
-        | true, V ->
-           let v = new_var (mk_free V) "v" in
-           vl := e :: !vl;
-           vv := v :: !vv;
-           box_apply Pos.none (box_of_var v)
-        | true, T ->
-           let v = new_var (mk_free T) "v" in
-           tl := e :: !tl;
-           tv := v :: !tv;
-           box_apply Pos.none (box_of_var v)
-        | _ -> default e
-      in
-      map ~mapper:{mapper} b)
-    in
-    let tl = Array.of_list !tl in
-    let vl = Array.of_list !vl in
-    let tv = Array.of_list !tv in
-    let vv = Array.of_list !vv in
+    let (x,e) = unbind (mk_free s) (snd b0) in
+    let (e,tv,vv,tl,vl) = box_closure e in
+    let b = bind_var x e in
+
     let b = box_pair (box (fst b0)) b in
     (unbox (bind_mvar vv (bind_mvar tv b)), vl, tl)
