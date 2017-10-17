@@ -300,8 +300,8 @@ let parser expr @(m : mode) =
       when m <<= Trm P
       -> in_pos _loc (EAppl(t,u))
   (* Term (let binding) *)
-  | _let_ r:v_rec arg:let_arg '=' t:(expr (Trm P)) ';' u:term
-      when m <<= Trm F
+  | _let_ r:v_rec arg:let_arg '=' t:(expr (Trm R)) ';' u:(expr (Trm S))
+      when m <<= Trm S
       -> let_binding _loc r arg t u
   (* Term (sequencing). *)
   | t:(expr (Trm R)) ';' u:(expr (Trm S))
