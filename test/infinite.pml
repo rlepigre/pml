@@ -32,7 +32,7 @@ val abort : ∀y, bot ⇒ y = fun x { x }
 type odd  = {v∈nat | is_odd v ≡ true }
 type even = {v∈nat | is_odd v ≡ false}
 
-type sstream<o,a> = νo stream {} ⇒ {hd : a; tl : stream}
+type sstream<o,a> = ν_o stream, {} ⇒ {hd : a; tl : stream}
 type csstream<o,a> = {hd : a; tl : sstream<o,a>}
 
 val rec aux : ∀a b, (csstream<a,even> ⇒ bot) ⇒ (csstream<b,odd> ⇒ bot)

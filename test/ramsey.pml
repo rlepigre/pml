@@ -7,7 +7,7 @@ type pro<a,b> = { fst : a; snd : b }
 type col_t<f,a> = ∃v, v∈a | f v ≡ true
 type col_f<f,a> = ∃v, v∈a | f v ≡ false
 
-type sstream<o,a> = νo stream {} ⇒ {hd : a; tl : stream}
+type sstream<o,a> = ν_o stream, {} ⇒ {hd : a; tl : stream}
 
 type stream_t<o,f,a> = sstream<o,col_t<f,a>>
 type stream_f<o,f,a> = sstream<o,col_f<f,a>>
@@ -48,7 +48,7 @@ val infinite_tape : ∀a, ∀f∈(a ⇒ bool), total<f,a> ⇒ stream<a>
     }
   }
 
-type bstream<o,a> = νo stream {} ⇒ either<{hd:a; tl:stream}, {hd:a; tl:stream}>
+type bstream<o,a> = ν_o stream, {} ⇒ either<{hd:a; tl:stream}, {hd:a; tl:stream}>
 type cbstream<o,a> = either<{hd:a; tl:bstream<o,a>}, {hd:a; tl:bstream<o,a>}>
 
 type color<a> = a ⇒ stream<a> ⇒ either<stream<a>,stream<a>>

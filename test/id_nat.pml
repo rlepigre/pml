@@ -1,5 +1,5 @@
 type rec nat = [ Z ; S of nat ]
-def snat<o:κ> = μo x [ Z ; S of x ]
+def snat<o:κ> = μ_o x, [ Z ; S of x ]
 
 val rec id_nat : nat ⇒ nat =
   fun n {
