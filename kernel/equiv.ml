@@ -214,14 +214,33 @@ let print_t_node : out_channel -> t_node -> unit = fun ch n ->
 
 (** Type of a pool. *)
 type pool =
-  { vs       : v_map
-  ; ts       : t_map
-  ; bs       : b_map
-  ; next     : int
-  ; eq_map   : eq_map
-  ; vwit_map : ((v, t) bndr * p ex loc * p ex loc * v_node) list
-  ; in_norm  : TPtrSet.t
+  { vs       : v_map  (** Associates VPtr.t to their v_node *)
+  ; ts       : t_map  (** Associates TPtr.t to their t_node *)
+  ; bs       : b_map  (** Set of VPtr.t which are nobox *)
+  ; next     : int    (** counter to generate new nodes *)
+  ; eq_map   : eq_map (** union find map *)
+  ; in_norm  : TPtrSet.t (** The nodes that are currently being normalised.
+                             important not to loop in normalisation *)
   }
+
+(**
+   Here are some invariants of the pool:
+
+   1°) every Ptr.t is present in the map vs if it is a VPtr.t
+       and ts if it is a TPtr.t
+
+   2°) Parents of a node are only significative and searched for
+       nodes that have no link in the union-find map (i.e.,
+       parents are unused if the node is present in the eq_map).
+
+       TODO: this invariant is not enforced by the data structure.
+
+   3°) Term in the pool are kept in normal form. Any update that
+       could trigger other normalisation has to be propagated.
+       This is the role of the parent node.
+
+       TODO: manage update of unification variables
+ *)
 
 let funptrs : anyfunptr FunMap.t ref = ref FunMap.empty
 
@@ -260,7 +279,6 @@ let empty_pool : pool =
   ; bs     = VPtrSet.empty
   ; next   = 0
   ; eq_map = PtrMap.empty
-  ; vwit_map = []
   ; in_norm = TPtrSet.empty
   }
 
