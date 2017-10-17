@@ -40,9 +40,9 @@ val tl_sorted : ∀a, ∀o∈ord<a>, ∀l∈slist<a,o>, sorted o (tl l) ≡ true
         let _ : tl l ≡ Nil = {};
         {}
       Cons[c1] →
-        let hd1 = c1.hd;
         let tl1 = c1.tl;
-        let _ : tl l ≡ tl1 = {};
+        deduce tl l ≡ tl1;
+        let hd1 = c1.hd;
         case tl1 {
           Nil → {}
           Cons[c2] →
