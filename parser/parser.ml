@@ -232,11 +232,11 @@ let parser expr @(m : mode) =
       when m <<= Prp A
       -> esett _loc x a
   (* Proposition (least fixpoint) *)
-  | "μ" o:ordinal?[none EConv] x:llid a:prop
+  | "μ" o:{_:'_' ordinal}?[none EConv] x:llid ',' a:prop
       when m <<= Prp F
       -> in_pos _loc (EFixM(o,x,a))
   (* Proposition (greatest fixpoint) *)
-  | "ν" o:ordinal?[none EConv] x:llid a:prop
+  | "ν" o:{_:'_' ordinal}?[none EConv] x:llid ',' a:prop
       when m <<= Prp F
       -> in_pos _loc (EFixN(o,x,a))
   (* Proposition (membership) *)

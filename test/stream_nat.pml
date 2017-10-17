@@ -23,7 +23,7 @@ val naturals : stream<nat> =
     fun i _ { {hd = i; tl = aux S[i]} };
   aux Z
 
-type sstream<o,a> = νo stream {} ⇒ {hd : a; tl : stream}
+type sstream<o,a> = ν_o stream, {} ⇒ {hd : a; tl : stream}
 
 // Map function.
 val rec map : ∀o, ∀a b, (a ⇒ b) ⇒ sstream<o,a> ⇒ sstream<o,b> =

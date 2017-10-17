@@ -8,7 +8,7 @@ def total<f,a:ο> = ∀x∈a, ∃w:ι, f x ≡ w
 
 type bot = ∀x:ο,x
 
-type snat<o> = μo nat [ Z ; S of nat ]
+type snat<o> = μ_o nat, [ Z ; S of nat ]
 
 val rec leq_size : ∀o, ∀m∈snat<o+1>, ∀n∈nat, either<leq m n ≡ true, n∈snat<o>> =
   fun m n {

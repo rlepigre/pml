@@ -3,13 +3,13 @@ def rapp<t:τ, u:τ> : τ = u t
 def omega : τ          = rapp<delta, delta>
 def empty : ο          = ∀x:ο, x
 def neg<a:ο> : ο       = a ⇒ empty
-type boolean = [True; False] 
+type boolean = [True; False]
 def boolean : ο = [True; False]
 type rec list<a:ο> = [Nil; Cons of {hd : a; tl : list}]
 type corec stream<a:ο> = {} ⇒ {hd : a; tl : stream}
 
-def list<a:ο> : ο = μ list [Nil; Cons of {hd : a; tl : list}]
-def stream<a:ο> : ο = ν stream {} ⇒ {hd : a; tl : stream}
+def list<a:ο> : ο = μ list, [Nil; Cons of {hd : a; tl : list}]
+def stream<a:ο> : ο = ν stream, {} ⇒ {hd : a; tl : stream}
 val is_empty : ∀a, list<a> ⇒ bool =
   fun l {
     case l {
