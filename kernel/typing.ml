@@ -141,7 +141,9 @@ and  sub_rule =
   | Sub_Univ_r of sub_proof
   | Sub_Exis_l of sub_proof
   | Sub_Rest_l of sub_proof option (* None means contradictory context. *)
-  | Sub_Rest_r of sub_proof
+  | Sub_Rest_r of sub_proof option
+  | Sub_Impl_l of sub_proof option (* None means contradictory context. *)
+  | Sub_Impl_r of sub_proof option
   | Sub_Memb_l of sub_proof option (* None means contradictory context. *)
   | Sub_Memb_r of sub_proof
   | Sub_Gene   of sub_proof
@@ -342,7 +344,7 @@ let rec subtype =
            begin
              try
                let equations = learn ctx.equations e in
-               Sub_Rest_l(Some(subtype {ctx with equations} t a c))
+               Sub_Impl_r(Some(subtype {ctx with equations} t a c))
              with Contradiction -> Sub_Rest_l(None)
            end
           (* NOTE may need a backtrack because a right rule could work *)
@@ -495,8 +497,13 @@ let rec subtype =
       | (_          , Rest(c,e)  ) ->
          begin
            (* we learn the equation that we will prove below *)
-           let equations = learn ctx.equations e in
-           let prf = subtype {ctx with equations} t a c in
+           let prf =
+             try
+               let equations = learn ctx.equations e in
+               Some(subtype {ctx with equations} t a c)
+             with
+               Contradiction -> None
+           in
            let _ = prove ctx.equations e in
            Sub_Rest_r(prf)
           end
@@ -504,10 +511,15 @@ let rec subtype =
       | (Impl(e,c)   , _        ) ->
          begin
            (* we learn the equation that we will prove below *)
-           let equations = learn ctx.equations e in
-           let prf = subtype {ctx with equations} t c b in
+           let prf =
+             try
+               let equations = learn ctx.equations e in
+               Some(subtype {ctx with equations} t c b)
+             with
+               Contradiction -> None
+           in
            let _ = prove ctx.equations e in
-           Sub_Rest_r(prf)
+           Sub_Impl_l(prf)
           end
       (* Mu right and Nu Left, infinite case. *)
       | (_          , FixM(o,f) ) when is_conv o ->
