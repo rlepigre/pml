@@ -289,6 +289,7 @@ type pool =
   { vs       : v_map  (** Associates VPtr.t to their v_node *)
   ; ts       : t_map  (** Associates TPtr.t to their t_node *)
   ; bs       : b_map  (** Set of VPtr.t which are nobox *)
+  ; ns       : TPtrSet.t (** Normalised node *)
   ; next     : int    (** counter to generate new nodes *)
   ; eq_map   : eq_map (** union find map *)
   ; in_norm  : TPtrSet.t (** The nodes that are currently being normalised.
@@ -353,6 +354,7 @@ let empty_pool : pool =
   ; next   = 0
   ; eq_map = PtrMap.empty
   ; in_norm = TPtrSet.empty
+  ; ns     = TPtrSet.empty
   }
 
 (** Node search. *)
@@ -787,11 +789,10 @@ let as_term : Ptr.t -> pool -> TPtr.t * pool = fun p po ->
   | Ptr.V_ptr pv -> insert_t_node (TN_Valu(pv)) po
 
 (** Insertion of an application node with arbitrary pointer kind. *)
-let insert_appl : Ptr.t -> Ptr.t -> pool -> Ptr.t * pool = fun pt pu po ->
+let insert_appl : Ptr.t -> Ptr.t -> pool -> TPtr.t * pool = fun pt pu po ->
   let (pt, po) = as_term pt po in
   let (pu, po) = as_term pu po in
-  let (p,  po) = insert_t_node (TN_Appl(pt,pu)) po in
-  find (Ptr.T_ptr p) po
+  insert_t_node (TN_Appl(pt,pu)) po
 
 let subst_closure (funptr,vs,ts) =
   let vs = Array.map (fun v -> VPtr v) vs in
@@ -814,16 +815,17 @@ let rec normalise : TPtr.t -> pool -> Ptr.t * pool =
             let (pu, po) = normalise pu po in
              (* argument must be really normalised, even if update is true *)
             let (tp, po) = insert_appl pt pu po in
-            let po = union (Ptr.T_ptr p)  tp po in
+            let po = union (Ptr.T_ptr p)  (Ptr.T_ptr tp) po in
             log2 "normalised in %a = TN_Appl: %a %a => %a"
-                     TPtr.print p Ptr.print pt Ptr.print pu  Ptr.print tp;
+                     TPtr.print p Ptr.print pt Ptr.print pu TPtr.print tp;
             match (pt, pu) with
-            | (Ptr.V_ptr pf, Ptr.V_ptr pv) ->
+            | (Ptr.V_ptr pf, Ptr.V_ptr pv) when not (TPtrSet.mem tp po.ns) ->
                begin
                  match snd (VPtrMap.find pf po.vs), VPtrSet.mem pv po.bs with
                  | VN_LAbs(b), true ->
                     begin
                       log2 "normalised in TN_Appl Lambda";
+                      let po = { po with ns = TPtrSet.add tp po.ns } in
                       let b = subst_closure b in
                       let t = bndr_subst b (VPtr pv) in
                       let (tp, po) = add_term po t in
@@ -834,12 +836,12 @@ let rec normalise : TPtr.t -> pool -> Ptr.t * pool =
                       (t,po)
                     end
                  | _          ->
-                    log2 "normalised insert(1) TN_Appl: %a" Ptr.print tp;
-                    (tp, po)
+                    log2 "normalised insert(1) TN_Appl: %a" TPtr.print tp;
+                    (Ptr.T_ptr tp, po)
                end
             | (_           , _           ) ->
-               log2 "normalised insert(2) TN_Appl: %a" Ptr.print tp;
-                (tp, po)
+               log2 "normalised insert(2) TN_Appl: %a" TPtr.print tp;
+                (Ptr.T_ptr tp, po)
           end
        | TN_MAbs(b)     -> (Ptr.T_ptr p, po) (* FIXME #45 can do better. *)
        | TN_Name(s,pt)  -> (Ptr.T_ptr p, po) (* FIXME #45 can do better. *)
@@ -847,25 +849,27 @@ let rec normalise : TPtr.t -> pool -> Ptr.t * pool =
           begin
             let (pv, po) = find_valu pv po in
             match snd (VPtrMap.find pv po.vs) with
-            | VN_Reco(m) ->
+            | VN_Reco(m) when not (TPtrSet.mem p po.ns) ->
                begin
                  try
                    let (tp, po) = find (Ptr.V_ptr (A.find l.elt m)) po in
+                   let po = { po with ns = TPtrSet.add p po.ns } in
                    let po = union (Ptr.T_ptr p) tp po in
                    (tp, po)
                  with Not_found -> (Ptr.T_ptr p, po)
                end
             | _          -> (Ptr.T_ptr p, po)
           end
-       | TN_Case(pv0,m)  ->
+       | TN_Case(pv0,m) ->
           begin
             let (pv, po) = find_valu pv0 po in
             log2 "normalisation in %a = TN_Case %a" TPtr.print p VPtr.print pv;
             match snd (VPtrMap.find pv po.vs) with
-            | VN_Cons(c,pv) ->
+            | VN_Cons(c,pv) when not (TPtrSet.mem p po.ns) ->
                begin
                  try
                    let b = subst_closure (A.find c.elt m) in
+                   let po = { po with ns = TPtrSet.add p po.ns } in
                    let t = bndr_subst b (VPtr pv) in
                    let (tp, po) = add_term po t in
                    let po = union (Ptr.T_ptr p) (Ptr.T_ptr tp) po in
@@ -878,7 +882,7 @@ let rec normalise : TPtr.t -> pool -> Ptr.t * pool =
                end
             | _            -> (Ptr.T_ptr p, po)
           end
-       | TN_FixY(f,pv)  ->
+       | TN_FixY(f,pv) ->
           begin
             log2 "normalisation in TN_FixY: %a" VPtr.print pv;
             let f = subst_closure f in

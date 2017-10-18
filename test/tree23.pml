@@ -293,19 +293,25 @@ val add_height_aux : ∀a:ο, ∀f∈(a⇒a⇒cmp), cmp_total<f,a> ⇒ ∀x∈a,
     }
   }
 
-val add_height : ∀a:ο, ∀f∈(a⇒a⇒cmp), cmp_total<f,a> ⇒ ∀x∈a, ∀n∈nat,
-                 ∀t∈(tree23<a> | height t n ≡ true),
-                 or (height (add f x t) n) (height (add f x t) S[n]) ≡ true =
-  fun f ft x n t {
-    let _ = add_height_aux f ft x n t;
-    let _ = add_total f ft x t;
-    let _ = add_aux_total f ft x t;
-    let _ = height_total (add f x t) n;
-    let _ = height_total (add f x t) S[n];
-    case add_aux f x t {
-      N1[u] → {}
-      N2[c] → cond<height (add f x t) n,{},{}>
-    }
-  }
+// val add_height : ∀a:ο, ∀f∈(a⇒a⇒cmp), cmp_total<f,a> ⇒ ∀x∈a, ∀n∈nat,
+//                  ∀t∈(tree23<a> | height t n ≡ true),
+//                  or (height (add f x t) n) (height (add f x t) S[n]) ≡ true =
+//   fun f ft x n t {
+//     deduce height t n ≡ true;
+//     let _ = add_height_aux f ft x n t;
+//     let _ = add_total f ft x t;
+//     let _ = add_aux_total f ft x t;
+//     let _ = height_total (add f x t) n;
+//     let _ = height_total (add f x t) S[n];
+//     case add_aux f x t {
+//       N1[u] → deduce (add f x t ≡ u);
+//               deduce (add_aux f x t ≡ N1[u]);
+//               deduce (height_aux (add_aux f x t) n ≡ true);
+//               deduce (height (add f x t) n ≡ height u n);
+//               deduce (height_aux N1[u] n ≡ height u n);
+//               {}
+//       N2[c] → cond<height (add f x t) n,{},{}>
+//     }
+//   }
 
 type bal23<a:ο> = ∃t n:ι, t ∈ tree23<a> | height t n ≡ true
