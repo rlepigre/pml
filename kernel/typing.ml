@@ -9,6 +9,7 @@ open Equiv
 open Output
 open Uvars
 open Compare
+open Epsilon
 
 type sorted = E : 'a sort * 'a ex loc -> sorted
 
@@ -75,7 +76,7 @@ let new_uvar : type a. ctxt -> a sort -> a ex loc = fun ctx s ->
   let c = ctx.uvarcount in
   let i = !c in incr c;
   log_uni "?%i : %a" i Print.sort s;
-  Pos.none (UVar(s, {uvar_key = i; uvar_val = ref None}))
+  Pos.none (UVar(s, {uvar_key = i; uvar_val = ref (Unset [])}))
 
 let add_positive : ctxt -> ordi -> ordi -> ctxt = fun ctx o oo ->
   let o = Norm.whnf o in
@@ -95,8 +96,8 @@ let rec instantiate : type a b. ctxt -> (a, b) bseq -> b =
 
 let extract_vwit_type : valu -> prop = fun v ->
   match (Norm.whnf v).elt with
-  | VWit(_,(_,a,_)) -> a
-  | _               -> assert false (* should not happen *)
+  | VWit{valu=(_,a,_)} -> a
+  | _                  -> assert false (* should not happen *)
 
 let extract_swit_type : stac -> prop = fun s ->
   match (Norm.whnf s).elt with
@@ -939,8 +940,8 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
           with _ -> cannot_unify b a
        in Typ_TSuch(type_valu ctx v c)
     (* Witness. *)
-    | VWit(_,w)   ->
-        let (_,a,_) = w in
+    | VWit(w)     ->
+        let (_,a,_) = w.valu in
         let (b, equations) = check_nobox v ctx.equations in
         assert b;
         let p = subtype {ctx with equations} t a c in
@@ -977,7 +978,7 @@ and is_typed : type a. a v_or_t -> a ex loc -> bool = fun t e ->
   let e = Norm.whnf e in
   match (t,e.elt) with
   | _, Coer(_,_,a)     -> uvars a = []
-  | _, VWit(_,(_,a,_)) -> uvars a = []
+  | _, VWit(w)         -> !(w.vars) = []
   | _, Appl(t,_)       -> is_typed VoT_T t
   | _, Valu(v)         -> is_typed VoT_V v
   | _, Proj(v,_)       -> is_typed VoT_V v

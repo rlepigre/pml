@@ -36,10 +36,9 @@ let defmapper = { mapper = (fun { default } x ->
                     let res = default x in
                     if is_closed res then box x else res ) }
 
-let map : type a. ?mapper:mapper -> ?adone:alist ref -> a ex loc -> a box
-  = fun ?(mapper=defmapper) ?adone e ->
-    let adone = match adone with None -> ref Nil | Some a -> a in
-    let rec map_cond ?adone c =
+let map : type a. ?mapper:mapper -> a ex loc -> a box
+  = fun ?(mapper=defmapper) e ->
+    let rec map_cond c =
       match c with
       | Equiv(t,b,u) -> equiv (map t) b (map u)
       | Posit(o)     -> posit (map o)
@@ -47,8 +46,7 @@ let map : type a. ?mapper:mapper -> ?adone:alist ref -> a ex loc -> a box
 
     and map : type a. a ex loc -> a box = fun e ->
       let e = Norm.whnf e in
-      try assq e.elt !adone with Not_found ->
-        let default : type a. a ex loc -> a box = fun e ->
+      let default : type a. a ex loc -> a box = fun e ->
           match e.elt with
             | HDef(_,_)   -> box e (* Assumed closed *)
             | HApp(s,f,a) -> happ e.pos s (map f) (map a)
@@ -72,10 +70,10 @@ let map : type a. ?mapper:mapper -> ?adone:alist ref -> a ex loc -> a box
             | FixN(o,f)   -> fixn e.pos (map o) (bndr_name f)
                                   (fun x -> map (bndr_subst f (mk_free P x)))
             | Memb(t,a)   -> memb e.pos (map t) (map a)
-            | Rest(a,c)   -> rest e.pos (map a) (map_cond ~adone c)
-            | Impl(c,a)   -> impl e.pos (map_cond ~adone c) (map a)
+            | Rest(a,c)   -> rest e.pos (map a) (map_cond c)
+            | Impl(c,a)   -> impl e.pos (map_cond c) (map a)
 
-            | VWit(_,_)   -> box e
+            | VWit(_)     -> box e
             | LAbs(a,f)   -> labs e.pos (Option.map map a) (bndr_name f)
                                   (fun x -> map (bndr_subst f (mk_free V x)))
             | Cons(c,v)   -> cons e.pos c (map v)
@@ -140,9 +138,7 @@ let map : type a. ?mapper:mapper -> ?adone:alist ref -> a ex loc -> a box
             | VPtr _      -> box e
             | TPtr _      -> box e
         in
-        let res = mapper.mapper { recall = map; default } e in
-        adone := Cons(e.elt,res,!adone);
-        res
+        mapper.mapper { recall = map; default } e
       in map e
 
 let lift : type a. a ex loc -> a box = fun e -> map e
@@ -198,7 +194,7 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
     | Rest(a,c)   -> owits (from_cond acc c) a
     | Impl(c,a)   -> owits (from_cond acc c) a
 
-    | VWit(_,_)   -> acc
+    | VWit(_)     -> acc
     | LAbs(_,f)   -> owits acc (bndr_subst f Dumm)
     | Cons(_,v)   -> owits acc v
     | Reco(m)     -> A.fold (fun _ (_,v) acc -> owits acc v) m acc
@@ -402,3 +398,10 @@ let make_bndr_closure
 
     let b = box_pair (box (fst b0)) b in
     (unbox (bind_mvar vv (bind_mvar tv b)), vl, tl)
+
+let closure_chrono = Chrono.create "closure"
+
+let make_closure e =
+  Chrono.add_time closure_chrono make_closure e
+let make_bndr_closure s e =
+  Chrono.add_time closure_chrono (make_bndr_closure s) e

@@ -13,6 +13,10 @@ let log_uni = Log.(log_uni.p)
 let uvar_eq : type a. a uvar -> a uvar -> bool =
   fun u v -> u.uvar_key == v.uvar_key
 
+let exists_set l =
+  List.exists (fun (U(_,v)) ->
+      match !(v.uvar_val) with Set _ -> true | _ -> false) l
+
 type uvar_fun = { f : 'a. 'a sort -> 'a uvar -> unit }
 
 type b = A : 'a ex -> b
@@ -35,6 +39,10 @@ let uvar_iter : type a. bool -> bool -> uvar_fun -> a ex loc -> unit =
       | Equiv(t,_,u) -> uvar_iter t; uvar_iter u
       | NoBox(v)     -> uvar_iter v;
       | Posit(o)     -> uvar_iter o
+    in
+    let luvar_iter : 'a eps -> unit =
+      fun w -> w.refr ();
+               List.iter (fun (U(s,v)) -> f.f s v) !(w.vars)
     in
     let buvar_iter b = if not_closed b then uvar_iter (bndr_subst b Dumm) in
     let e = Norm.whnf e in
@@ -80,10 +88,9 @@ let uvar_iter : type a. bool -> bool -> uvar_fun -> a ex loc -> unit =
     | ITag(_)     -> ()
     | Dumm        -> ()
     | Goal(_)     -> ()
-    | VPtr(_)     -> assert false
-    | TPtr(_)     -> assert false
-    | VWit(_,w)   -> let (f,a,b) = w in
-                     if todo e then (buvar_iter f; uvar_iter a; uvar_iter b)
+    | VPtr(_)     -> ()
+    | TPtr(_)     -> ()
+    | VWit(w)     -> if todo e then luvar_iter w
     | SWit(_,w)   -> let (b,a) = w in
                      if todo e then (buvar_iter b; uvar_iter a)
     | UWit(_,_,w) -> let (t,b) = w in
@@ -112,8 +119,6 @@ let uvar_iter : type a. bool -> bool -> uvar_fun -> a ex loc -> unit =
     | UVar(s,u)   -> f.f s u
   in uvar_iter e
 
-type s_elt = U : 'a sort * 'a uvar -> s_elt
-
 let uvars : type a. ?ignore_epsilon:bool -> ?ignore_fixpoint:bool
                  -> a ex loc -> s_elt list =
   fun ?(ignore_epsilon=false) ?(ignore_fixpoint=false) e ->
@@ -123,6 +128,11 @@ let uvars : type a. ?ignore_epsilon:bool -> ?ignore_fixpoint:bool
     if not (List.exists p !uvars) then uvars := (U(s,u)) :: !uvars
   in
   uvar_iter ignore_epsilon ignore_fixpoint {f} e; !uvars
+
+let bndr_uvars : type a b. ?ignore_epsilon:bool -> ?ignore_fixpoint:bool
+                      -> (a, b) bndr -> s_elt list =
+  fun ?(ignore_epsilon=false) ?(ignore_fixpoint=false) b ->
+  uvars ~ignore_epsilon ~ignore_fixpoint (bndr_subst b Dumm)
 
 let occur_chrono = Chrono.create "occur"
 

@@ -11,6 +11,7 @@ open Ast
 open Output
 open Uvars
 open Compare
+open Epsilon
 
 let equiv_chrono = Chrono.create "equiv"
 
@@ -52,80 +53,102 @@ module TPtrSet = Set.Make(TPtr)
 
 type ('a, 'b) funptr = (v ex, (t ex, ('a, 'b) bndr) mbinder) mbinder
 
-let compare_funptr : type a b.a sort -> (a, b) funptr -> (a, b) funptr -> int =
+let hash_funptr : type a b.a sort -> (a, b) funptr -> int =
+  fun s b ->
+    let c = ref 0 in
+    let new_itag : type a. a sort -> a ex = fun s -> decr c; ITag(s,!c) in
+    let a = mbinder_arity b in
+    let vs = Array.init a (fun _ -> new_itag V) in
+    let b = msubst b vs in
+    let a = mbinder_arity b in
+    let ts = Array.init a (fun _ -> new_itag T) in
+    let b = msubst b ts in
+    hash_bndr s b
+
+let eq_funptr : type a b.a sort -> (a, b) funptr -> (a, b) funptr -> bool =
   fun s b1 b2 ->
     let c = ref 0 in
     let new_itag : type a. a sort -> a ex = fun s -> decr c; ITag(s,!c) in
     let a1 = mbinder_arity b1 in
-    match compare a1 (mbinder_arity b2) with
-    | 0 ->
-       begin
-         let vs = Array.init a1 (fun _ -> new_itag V) in
-         let b1 = msubst b1 vs in
-         let b2 = msubst b2 vs in
-         let a1 = mbinder_arity b1 in
-         match compare a1 (mbinder_arity b2) with
-         | 0 ->
-            let vs = Array.init a1 (fun _ -> new_itag T) in
-            let b1 = msubst b1 vs in
-            let b2 = msubst b2 vs in
-            compare_bndr s b1 b2
-         | c -> c
-       end
-    | c -> c
+    let a2 = mbinder_arity b2 in
+    a1 = a2 && (
+      let vs = Array.init a1 (fun _ -> new_itag V) in
+      let b1 = msubst b1 vs in
+      let b2 = msubst b2 vs in
+      let a1 = mbinder_arity b1 in
+      let a2 = mbinder_arity b2 in
+      a1 = a2 && (
+        let ts = Array.init a1 (fun _ -> new_itag T) in
+        let b1 = msubst b1 ts in
+        let b2 = msubst b2 ts in
+        eq_bndr ~strict:true s b1 b2))
 
 type anyfunptr = T : 'a sort * 'b sort * ('a, 'b) funptr -> anyfunptr
 module Fun =
   struct
     type t = anyfunptr
-    let compare (T (sa1,sr1,f1)) (T (sa2,sr2,f2)) =
-      match compare_sort sa1 sa2 with
-      | Eq ->
+
+    let equal (T (sa1,sr1,f1)) (T (sa2,sr2,f2)) =
+      match eq_sort sa1 sa2 with
+      | Eq.Eq ->
          begin
-           match compare_sort sr1 sr2 with
-           | Eq -> compare_funptr sa1 f1 f2
-           | Lt -> -1 | Gt -> 1
+           match eq_sort sr1 sr2 with
+           | Eq.Eq -> eq_funptr sa1 f1 f2
+           | _ -> false
          end
-      | Lt -> -1 | Gt -> 1
+      | _ -> false
+
+    let hash (T (sa,sr,f)) =
+      Hashtbl.hash (hash_sort sa, hash_sort sr, hash_funptr sa f)
   end
-module FunMap = Map.Make(Fun)
+module FunHash = Hashtbl.Make(Fun)
 
 type ('a,'b) bndr_closure = ('a, 'b) funptr * VPtr.t array * TPtr.t array
 
 type 'a clsptr = (v ex, (t ex, 'a ex loc) mbinder) mbinder
 
-let compare_clsptr : type a. a clsptr -> a clsptr -> int =
+let hash_clsptr : type a. a clsptr -> int =
+  fun b ->
+    let c = ref 0 in
+    let new_itag : type a. a sort -> a ex = fun s -> decr c; ITag(s,!c) in
+    let a = mbinder_arity b in
+    let vs = Array.init a (fun _ -> new_itag V) in
+    let b = msubst b vs in
+    let a = mbinder_arity b in
+    let vs = Array.init a (fun _ -> new_itag T) in
+    let b = msubst b vs in
+    hash_expr b
+
+let eq_clsptr : type a. a clsptr -> a clsptr -> bool =
   fun b1 b2 ->
     let c = ref 0 in
     let new_itag : type a. a sort -> a ex = fun s -> decr c; ITag(s,!c) in
     let a1 = mbinder_arity b1 in
-    match compare a1 (mbinder_arity b2) with
-    | 0 ->
-       begin
-         let vs = Array.init a1 (fun _ -> new_itag V) in
-         let b1 = msubst b1 vs in
-         let b2 = msubst b2 vs in
-         let a1 = mbinder_arity b1 in
-         match compare a1 (mbinder_arity b2) with
-         | 0 ->
-            let vs = Array.init a1 (fun _ -> new_itag T) in
-            let b1 = msubst b1 vs in
-            let b2 = msubst b2 vs in
-            compare_expr b1 b2
-         | c -> c
-       end
-    | c -> c
+    a1 = (mbinder_arity b2) && (
+      let vs = Array.init a1 (fun _ -> new_itag V) in
+      let b1 = msubst b1 vs in
+      let b2 = msubst b2 vs in
+      let a1 = mbinder_arity b1 in
+      a1 = (mbinder_arity b2) && (
+        let vs = Array.init a1 (fun _ -> new_itag T) in
+        let b1 = msubst b1 vs in
+        let b2 = msubst b2 vs in
+        eq_expr b1 b2))
 
 type anyclsptr = C : 'a sort * 'a clsptr -> anyclsptr
 module Cls =
   struct
     type t = anyclsptr
-    let compare (C (sa1,f1)) (C (sa2,f2)) =
-      match compare_sort sa1 sa2 with
-      | Eq -> compare_clsptr f1 f2
-      | Lt -> -1 | Gt -> 1
+
+    let equal (C (sa1,f1)) (C (sa2,f2)) =
+      match eq_sort sa1 sa2 with
+      | Eq.Eq -> eq_clsptr f1 f2
+      | _ -> false
+
+    let hash (C (sa,f)) =
+      Hashtbl.hash (hash_sort sa, hash_clsptr f)
   end
-module ClsMap = Map.Make(Cls)
+module ClsHash = Hashtbl.Make(Cls)
 
 type 'a closure = 'a clsptr * VPtr.t array * TPtr.t array
 
@@ -142,7 +165,7 @@ type v_node =
   | VN_Cons of A.key loc * VPtr.t
   | VN_Reco of VPtr.t A.t
   | VN_Scis
-  | VN_VWit of int * ((v,t) bndr * p ex loc * p ex loc)
+  | VN_VWit of vwit eps
   | VN_UWit of int * (t ex loc * (v,p) bndr)
   | VN_EWit of int * (t ex loc * (v,p) bndr)
   | VN_HApp of v ho_appl
@@ -228,7 +251,7 @@ let print_v_node : out_channel -> v_node -> unit = fun ch n ->
   | VN_Reco(m)     -> let pelt ch (k, p) = prnt ch "%S=%a" k VPtr.print p in
                       prnt ch "VN_Reco(%a)" (Print.print_map pelt ":") m
   | VN_Scis        -> prnt ch "VN_Scis"
-  | VN_VWit(i,w)   -> prnt ch "VN_VWit(ει%i%a)" i pva (Pos.none (VWit(i,w)))
+  | VN_VWit(w)     -> prnt ch "%a" pex (Pos.none (VWit(w)))
   | VN_UWit(i,w)   -> prnt ch "VN_UWit(ε∀ι%i%a)" i pva (Pos.none (UWit(i,V,w)))
   | VN_EWit(i,w)   -> prnt ch "VN_EWit(ε∃ι%i%a)" i pva (Pos.none (EWit(i,V,w)))
   | VN_HApp(e)     -> let HO_Appl(s,f,a) = e in
@@ -293,8 +316,8 @@ type pool =
        TODO: manage update of unification variables
  *)
 
-let funptrs : anyfunptr FunMap.t ref = ref FunMap.empty
-let clsptrs : anyclsptr ClsMap.t ref = ref ClsMap.empty
+let funptrs : anyfunptr FunHash.t = FunHash.create 256
+let clsptrs : anyclsptr ClsHash.t = ClsHash.create 256
 
 let is_empty : pool -> bool =
   fun {vs; ts} -> VPtrMap.is_empty vs && TPtrMap.is_empty ts
@@ -474,13 +497,16 @@ let eq_ho_appl : type a. pool -> a ho_appl -> a ho_appl -> bool =
                for_all2 (eq_tptr po) te1 te2
     | NEq -> false
 
-let eq_cl po s (f1,vs1,ts1 as cl1) (f2,vs2,ts2 as cl2) =
+let eq_cl po s (f1,vs1,ts1 as _cl1) (f2,vs2,ts2 as _cl2) =
   if f1 == f2 then
     for_all2 (eq_vptr po) vs1 vs2 &&
     for_all2 (eq_tptr po) ts1 ts2
   else
-    (assert (compare_funptr s f1 f2 <> 0 ||
-             (Printf.eprintf "%a\n%a\n%!" (pbcl s) cl1 (pbcl s) cl2; false));
+    ((*assert (not (eq_funptr s f1 f2) ||
+               (Printf.eprintf "%a (%d)\n%a (%d)\n%!"
+                               (pbcl s) _cl1 (hash_funptr s f1)
+                               (pbcl s) _cl2 (hash_funptr s f2);
+                false);*)
      false)
 
 (** Equality functions on nodes. *)
@@ -494,12 +520,8 @@ let eq_v_nodes : pool -> v_node -> v_node -> bool =
     | (VN_Cons(c1,p1), VN_Cons(c2,p2)) -> c1.elt = c2.elt && eq_vptr po p1 p2
     | (VN_Reco(m1)   , VN_Reco(m2)   ) -> A.equal (eq_vptr po) m1 m2
     | (VN_Scis       , VN_Scis       ) -> true
-    | (VN_VWit(_,w1) , VN_VWit(_,w2) ) -> w1 == w2 ||
-                                            (let (f1,a1,b1) = w1 in
-                                             let (f2,a2,b2) = w2 in
-                                             eq_bndr V f1 f2 && eq_expr a1 a2
-                                             && eq_expr b1 b2)
-    | (VN_UWit(_,w1) , VN_UWit(_,w2) ) -> w1 == w2 ||
+    | (VN_VWit(w1)   , VN_VWit(w2)   ) -> w1 == w2
+    | (VN_UWit(i1,w1), VN_UWit(i2,w2)) -> i1 = i2 ||
                                             (let (t1,b1) = w1 in
                                              let (t2,b2) = w2 in
                                              eq_expr t1 t2 && eq_bndr V b1 b2)
@@ -532,7 +554,7 @@ let eq_t_nodes : pool -> t_node -> t_node -> bool =
     | (TN_FixY(b1,p1)  , TN_FixY(b2,p2)  ) -> eq_cl po V b1 b2
                                               && eq_vptr po p1 p2
     | (TN_Prnt(s1)     , TN_Prnt(s2)     ) -> s1 = s2
-    | (TN_UWit(_,w1)   , TN_UWit(_,w2)   ) -> w1 == w2 ||
+    | (TN_UWit(i1,w1)  , TN_UWit(i2,w2)  ) -> i1 = i2 ||
                                                 (let (t1,b1) = w1 in
                                                  let (t2,b2) = w2 in
                                                  eq_expr t1 t2 && eq_bndr T b1 b2)
@@ -688,7 +710,7 @@ and     add_valu : pool -> valu -> VPtr.t * pool = fun po v ->
   | VDef(d)     -> add_valu po (Erase.to_valu d.value_eval)
   | Coer(_,v,_) -> add_valu po v
   | Such(_,_,r) -> add_valu po (bseq_dummy r.binder)
-  | VWit(i,w)   -> insert_v_node (VN_VWit(i,w)) po
+  | VWit(w)     -> insert_v_node (VN_VWit(w)) po
   | UWit(i,_,w) -> insert_v_node (VN_UWit(i,w)) po
   | EWit(i,_,w) -> insert_v_node (VN_EWit(i,w)) po
   | HApp(s,f,a) -> let (hoa, po) = add_ho_appl po s f a in
@@ -717,12 +739,12 @@ and add_bndr_closure : type a b. pool -> a sort -> b sort ->
     (*print_pool "TEST" stderr po;*)
     let funptr =
       try
-        let T(sa',sr',funptr') = FunMap.find key !funptrs in
+        let T(sa',sr',funptr') = FunHash.find funptrs key in
         match eq_sort sa sa', eq_sort sr sr' with
         | Eq.Eq, Eq.Eq -> Obj.magic funptr'
         | _ -> assert false
       with Not_found ->
-        funptrs := FunMap.add key key !funptrs;
+        FunHash.add  funptrs key key;
         funptr
     in
     ((funptr,vs,ts), po)
@@ -750,23 +772,23 @@ and add_ho_appl
     let key = C(sf, f) in
     let f =
       try
-        let C(sf',f') = ClsMap.find key !clsptrs in
+        let C(sf',f') = ClsHash.find clsptrs key in
         match eq_sort sf sf' with
         | Eq.Eq -> Obj.magic f'
         | _ -> assert false
       with Not_found ->
-        clsptrs := ClsMap.add key key !clsptrs;
+        ClsHash.add clsptrs key key;
         f
     in
     let key = C(se,e) in
     let e =
       try
-        let C(se',e') = ClsMap.find key !clsptrs in
+        let C(se',e') = ClsHash.find clsptrs key in
         match eq_sort se se' with
         | Eq.Eq -> Obj.magic e'
         | _ -> assert false
       with Not_found ->
-        clsptrs := ClsMap.add key key !clsptrs;
+        ClsHash.add clsptrs key key;
         e
     in
     (HO_Appl(se,(f,vf,tf),(e,ve,te)), po)
@@ -894,10 +916,10 @@ let rec normalise : TPtr.t -> pool -> Ptr.t * pool =
        | TN_UVar(v)     ->
           begin
             match !(v.uvar_val) with
-            | None   -> (Ptr.T_ptr p, po)
-            | Some t -> let (tp, po) = add_term po t in
-                        let po = union (Ptr.T_ptr p) (Ptr.T_ptr tp) po in
-                        normalise tp po
+            | Unset _ -> (Ptr.T_ptr p, po)
+            | Set t   -> let (tp, po) = add_term po t in
+                         let po = union (Ptr.T_ptr p) (Ptr.T_ptr tp) po in
+                         normalise tp po
           end
        | TN_ITag(n)      -> (Ptr.T_ptr p, po)
     in
@@ -932,7 +954,7 @@ and reinsert : Ptr.t -> pool -> pool = fun p po ->
        match n1 with
        | TN_Valu(_) ->
           PtrSet.fold reinsert pp1 po
-       | TN_UVar({uvar_val = {contents = Some t}}) ->
+       | TN_UVar({uvar_val = {contents = Set t}}) ->
           let (tp,po) = add_term po t in
           join p (Ptr.T_ptr tp) po
        | _ ->
@@ -945,7 +967,7 @@ and reinsert : Ptr.t -> pool -> pool = fun p po ->
      let (pp1, n1) = find_v_node vp po in
      begin
        match n1 with
-       | VN_UVar({uvar_val = {contents = Some v}}) ->
+       | VN_UVar({uvar_val = {contents = Set v}}) ->
           let (vp,po) = add_valu po v in
           join p (Ptr.V_ptr vp) po
        | _ -> po
@@ -1065,8 +1087,8 @@ let rec canonical_term : bool -> TPtr.t -> pool -> term * pool = fun clos p po -
                             (Pos.none (HApp(s,f,a)), po)
         | TN_UVar(v)     -> begin
                               match !(v.uvar_val) with
-                              | None   -> (Pos.none (UVar(T,v)), po)
-                              | Some t ->
+                              | Unset _ -> (Pos.none (UVar(T,v)), po)
+                              | Set t   ->
                                   let (p, po) = add_term po t in
                                   ct p po
                             end
@@ -1100,7 +1122,7 @@ and     canonical_valu : bool -> VPtr.t -> pool -> valu * pool = fun clos p po -
                             let (m, po) = A.fold fn m (A.empty, po) in
                             (Pos.none (Reco(m)), po)
         | VN_Scis        -> (Pos.none Scis, po)
-        | VN_VWit(i,w)   -> (Pos.none (VWit(i,w)), po)
+        | VN_VWit(w)     -> (Pos.none (VWit(w)), po)
         | VN_UWit(i,w)   -> (Pos.none (UWit(i,V,w)), po)
         | VN_EWit(i,w)   -> (Pos.none (EWit(i,V,w)), po)
         | VN_HApp(e)     -> let HO_Appl(s,f,a) = e in
@@ -1109,8 +1131,8 @@ and     canonical_valu : bool -> VPtr.t -> pool -> valu * pool = fun clos p po -
                             (Pos.none (HApp(s,f,a)), po)
         | VN_UVar(v)     -> begin
                               match !(v.uvar_val) with
-                              | None   -> (Pos.none (UVar(V,v)), po)
-                              | Some w ->
+                              | Unset _ -> (Pos.none (UVar(V,v)), po)
+                              | Set w   ->
                                   let (p, po) = add_valu po w in
                                   cv p po
                             end
@@ -1227,11 +1249,11 @@ and unif_v_nodes : pool -> VPtr.t -> v_node -> VPtr.t -> v_node -> pool =
     (* FIXME #40, use oracle for VN_LAbs *)
     (* FIXME #50 (note), share VN_VWit and alike *)
     match (n1, n2) with
-    | (VN_UVar({uvar_val = {contents = Some v}})   , _             )
+    | (VN_UVar({uvar_val = {contents = Set v}})   , _             )
        ->                                 let po = reinsert (Ptr.V_ptr p1) po in
                                           unif_vptr po p1 p2
 
-    | (_, VN_UVar({uvar_val = {contents = Some v}}))
+    | (_, VN_UVar({uvar_val = {contents = Set v}}))
        ->                                 let po = reinsert (Ptr.V_ptr p2) po in
                                           unif_vptr po p1 p2
     | (VN_UVar(v1)   , VN_UVar(v2)   ) when v1.uvar_key = v2.uvar_key -> assert false
@@ -1254,13 +1276,16 @@ and unif_v_nodes : pool -> VPtr.t -> v_node -> VPtr.t -> v_node -> pool =
                                           unif_vptr po p1 p2
     | (VN_Reco(m1)   , VN_Reco(m2)   ) -> A.fold2 unif_vptr po m1 m2
     | (VN_Scis       , VN_Scis       ) -> po
-    | (VN_VWit(_,w1) , VN_VWit(_,w2) ) -> if w1 == w2 then po else
-                                            (let (f1,a1,b1) = w1 in
-                                             let (f2,a2,b2) = w2 in
+    | (VN_VWit(w1)   , VN_VWit(w2)   ) -> if w1 == w2 then po
+                                          else if !(w1.vars) = [] && !(w2.vars) = []
+                                          then raise NoUnif
+                                          else
+                                            (let (f1,a1,b1) = w1.valu in
+                                             let (f2,a2,b2) = w2.valu in
                                              let po = eq_bndr po V f1 f2 in
                                              let po = eq_expr po a1 a2 in
                                              eq_expr po b1 b2)
-    | (VN_UWit(_,w1) , VN_UWit(_,w2) ) -> if w1 == w2 then po else
+    | (VN_UWit(i1,w1), VN_UWit(i2,w2)) -> if i1 = i2 then po else
                                             (let (t1,b1) = w1 in
                                              let (t2,b2) = w2 in
                                              let po = eq_expr po t1 t2 in
@@ -1291,10 +1316,10 @@ and unif_t_nodes : pool -> TPtr.t -> t_node -> TPtr.t -> t_node -> pool =
     (* FIXME #50 (note), share VN_VWit and alike *)
     log2 "unif_t_nodes %a = %a" print_t_node n1 print_t_node n2;
     match (n1, n2) with
-    | (TN_UVar({uvar_val = {contents = Some v}})   , _             )
+    | (TN_UVar({uvar_val = {contents = Set v}})   , _             )
        ->                                 let po = reinsert (Ptr.T_ptr p1) po in
                                           unif_tptr po p1 p2
-    | (_, TN_UVar({uvar_val = {contents = Some v}}))
+    | (_, TN_UVar({uvar_val = {contents = Set v}}))
        ->                                 let po = reinsert (Ptr.T_ptr p2) po in
                                           unif_tptr po p1 p2
     | (TN_UVar(v1)   , TN_UVar(v2)   ) when v1.uvar_key = v2.uvar_key -> assert false

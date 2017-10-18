@@ -137,7 +137,7 @@ let rec ex : type a. a ex loc printer = fun ch e ->
       in aux r.binder
   | ITag(_,i)   -> fprintf ch "#%i" i
   | Dumm        -> output_string ch "∅"
-  | VWit(i,_)   -> fprintf ch "ει%i%a" i print_vars e
+  | VWit(w)     -> fprintf ch "ει%i%a" !(w.hash) print_vars e
   | SWit(i,_)   -> fprintf ch "εσ%i%a" i print_vars e
   | UWit(i,s,_) -> fprintf ch "ε∀%a%i%a" sort s i print_vars e
   | EWit(i,s,_) -> fprintf ch "ε∃%a%i%a" sort s i print_vars e

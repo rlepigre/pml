@@ -23,6 +23,9 @@ module ListMap =
     let fold2 f acc l = List.fold_left2
             (fun acc (_, v) (_, v') -> f acc v v') acc l
 
+    let hash f l =
+      List.fold_left (fun acc (k, v) -> Hashtbl.hash (k, f v, acc)) 17 l
+
     let fold_map f l acc =
       let acc = ref acc in
       let l = List.map (fun (s,x) -> let (x,a) = f s x !acc in

@@ -144,7 +144,7 @@ type _ ex =
   (** Integer tag (usuful for comparision). *)
   | Dumm :                                              'a ex
   (** Dummy constructor.*)
-  | VWit : int * ((v, t) bndr * p ex loc * p ex loc) -> v  ex
+  | VWit : vwit eps                                  -> v  ex
   (** Value witness. *)
   | SWit : int * ((s, t) bndr * p ex loc)            -> s  ex
   (** Stack witness. *)
@@ -155,6 +155,15 @@ type _ ex =
   | UVar : 'a sort * 'a uvar                         -> 'a ex
   (** Unification variable. *)
   | Goal : 'a sort * string                          -> 'a ex
+
+and 'a eps = { hash   : int ref
+             ; vars   : s_elt list ref
+             ; refr   : unit -> unit
+             ; valu   : 'a }
+
+and vwit = (v, t) bndr * p ex loc * p ex loc
+
+and s_elt = U : 'a sort * 'a uvar -> s_elt
 
 and rel =
   | Equiv of (t ex loc * bool * t ex loc)
@@ -217,7 +226,11 @@ and sub_specialised =
 (** Type of unification variables. *)
 and 'a uvar =
   { uvar_key : int
-  ; uvar_val : 'a ex loc option ref }
+  ; uvar_val : 'a uvar_val ref }
+
+and 'a uvar_val =
+  | Unset of (unit -> unit) list
+  | Set of 'a ex loc
 
 (** {6 Types and functions related to binders and variables.} *)
 
@@ -607,37 +620,6 @@ let vdot : valu -> string -> term = fun v c ->
   let id = (None, Pos.none "x", f) in
   unbox (case None (box v) (A.singleton c id))
 
-
-let owmu_counter = ref (-1)
-let ownu_counter = ref (-1)
-let osch_counter = ref (-1)
-let vwit_counter = ref (-1)
-let swit_counter = ref (-1)
-let uwit_counter = ref (-1)
-let ewit_counter = ref (-1)
-
-let reset_counters : unit -> unit = fun () ->
-  owmu_counter := (-1); ownu_counter := (-1); osch_counter := (-1);
-  vwit_counter := (-1); swit_counter := (-1); uwit_counter := (-1);
-  ewit_counter := (-1)
-
-let owmu : ordi -> term -> (o, p) bndr -> ordi =
-  fun o t b -> incr owmu_counter; Pos.none (OWMu(!owmu_counter, (o,t,b)))
-
-let ownu : ordi -> term -> (o, p) bndr -> ordi =
-  fun o t b -> incr ownu_counter; Pos.none (OWNu(!ownu_counter, (o,t,b)))
-
-let osch : ordi option -> int -> schema -> ordi =
-  fun o i s -> incr osch_counter; Pos.none (OSch(!osch_counter, (o,i,s)))
-
-let vwit : (v,t) bndr -> prop -> prop -> valu =
-  fun f a b -> incr vwit_counter; Pos.none (VWit(!vwit_counter, (f,a,b)))
-
-let swit : (s,t) bndr -> prop -> stac =
-  fun f a -> incr swit_counter; Pos.none (SWit(!swit_counter, (f,a)))
-
-let uwit : type a. a sort -> term -> (a,p) bndr -> a ex loc =
-  fun s t f -> incr uwit_counter; Pos.none (UWit(!uwit_counter, s, (t,f)))
-
-let ewit : type a. a sort -> term -> (a,p) bndr -> a ex loc =
-  fun s t f -> incr ewit_counter; Pos.none (EWit(!ewit_counter, s, (t,f)))
+let exists_set l =
+  List.exists (fun (U(_,v)) ->
+      match !(v.uvar_val) with Set _ -> true | _ -> false) l

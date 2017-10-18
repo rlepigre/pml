@@ -34,33 +34,7 @@ let rec eq_sort : type a b. a sort -> b sort -> (a,b) Eq.t = fun s1 s2 ->
   | (F(a1,b1), F(a2,b2)) -> eq_sort a1 a2 &&& eq_sort b1 b2
   | (_       , _       ) -> NEq
 
-(** Comparison function over sorts. *)
-type ('a,'b) cmp = Eq : ('a, 'a) cmp
-                 | Lt : ('a, 'b) cmp
-                 | Gt : ('a, 'b) cmp
-
-let rec compare_sort : type a b. a sort -> b sort -> (a,b) cmp = fun s1 s2 ->
-  match (s1, s2) with
-  | (V       , V       ) -> Eq
-  | (V       , _       ) -> Lt
-  | (_       , V       ) -> Gt
-  | (T       , T       ) -> Eq
-  | (T       , _       ) -> Lt
-  | (_       , T       ) -> Gt
-  | (S       , S       ) -> Eq
-  | (S       , _       ) -> Lt
-  | (_       , S       ) -> Gt
-  | (P       , P       ) -> Eq
-  | (P       , _       ) -> Lt
-  | (_       , P       ) -> Gt
-  | (O       , O       ) -> Eq
-  | (O       , _       ) -> Lt
-  | (_       , O       ) -> Gt
-  | (F(a1,b1), F(a2,b2)) ->
-     match compare_sort a1 a2, compare_sort b1 b2 with
-     | Eq, Eq -> Eq
-     | Eq, (Gt|Lt as c) -> c
-     | (Gt|Lt as c),  _ -> c
+let rec hash_sort : type a. a sort -> int = Hashtbl.hash
 
 (** Filter type for the sorts of terms and values. *)
 type _ v_or_t =
