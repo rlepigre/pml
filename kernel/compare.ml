@@ -193,14 +193,8 @@ let {eq_expr; eq_bndr; eq_ombinder} =
                                             (let (f1,a1) = w1 in
                                              let (f2,a2) = w2 in
                                              eq_bndr S f1 f2 && eq_expr a1 a2)
-    | (UWit(i1,s1,w1), UWit(i2,_,w2) ) -> i1 = i2 ||
-                                            (let (t1,b1) = w1 in
-                                             let (t2,b2) = w2 in
-                                             eq_bndr s1 b1 b2 && eq_expr t1 t2)
-    | (EWit(_,s1,w1) , EWit(_,_,w2)  ) -> w1 == w2 ||
-                                            (let (t1,b1) = w1 in
-                                             let (t2,b2) = w2 in
-                                             eq_bndr s1 b1 b2 && eq_expr t1 t2)
+    | (UWit(w1)      , UWit(w2)      ) -> w1.valu == w2.valu
+    | (EWit(w1)      , EWit(w2)      ) -> w1.valu == w2.valu
     | (OWMu(_,w1)    , OWMu(_,w2)    ) -> w1 == w2 ||
                                             (let (o1,t1,b1) = w1 in
                                              let (o2,t2,b2) = w2 in
@@ -327,10 +321,11 @@ type hash =
   ; hash_bndr     : 'a 'b. 'a sort -> ('a,'b) bndr -> int
   ; hash_ombinder : 'a. (o ex, 'a ex loc) mbinder -> int
   ; hash_vwit     : vwit -> int
+  ; hash_qwit     : 'a. 'a qwit -> int
   }
 
 (* hash function with unification variable instantiation. *)
-let {hash_expr; hash_bndr; hash_ombinder; hash_vwit} =
+let {hash_expr; hash_bndr; hash_ombinder; hash_vwit; hash_qwit} =
   let c = ref (-1) in
   let new_itag : type a. a sort -> a ex = fun s -> incr c; ITag(s,!c) in
   let hash : type a. a -> int = Hashtbl.hash in
@@ -386,8 +381,8 @@ let {hash_expr; hash_bndr; hash_ombinder; hash_vwit} =
     | Dumm        -> hash (`Dumm)
     | VWit(w)     -> w.refr (); hash (`VWit !(w.hash))
     | SWit(i,w)   -> hash (`SWit(i))
-    | UWit(i,s,w) -> hash (`UWit(i))
-    | EWit(i,s,w) -> hash (`EWit(i))
+    | UWit(w)     -> w.refr (); hash (`UWit !(w.hash))
+    | EWit(w)     -> w.refr (); hash (`EWit !(w.hash))
     | OWMu(i,w)   -> hash (`OWMu(i))
     | OWNu(i,w)   -> hash (`OWNu(i))
     | OSch(i,w)   -> hash (`OSch(i))
@@ -410,6 +405,9 @@ let {hash_expr; hash_bndr; hash_ombinder; hash_vwit} =
 
   and hash_vwit : vwit -> int =
     fun (f,a,b) -> hash (hash_bndr V f, hash_expr a, hash_expr b)
+
+  and hash_qwit : type a. a qwit -> int =
+    fun (s,t,b) -> hash (hash_sort s, hash_expr t, hash_bndr s b)
   in
 
   let hash_chrono = Chrono.create "hash" in
@@ -436,14 +434,32 @@ let {hash_expr; hash_bndr; hash_ombinder; hash_vwit} =
       c := -1; (* Reset. *)
       Chrono.add_time hash_chrono hash_vwit w
   in
-  {hash_expr; hash_bndr; hash_ombinder; hash_vwit}
+
+  let hash_qwit = fun w ->
+      c := -1; (* Reset. *)
+      Chrono.add_time hash_chrono hash_qwit w
+  in
+  {hash_expr; hash_bndr; hash_ombinder; hash_vwit; hash_qwit}
 
 module VWit = struct
-  type t = (v,Sorts.t) bndr * prop * prop
+  type t = vwit
   let hash = hash_vwit
   let equal (f1,a1,b1) (f2,a2,b2) =
-    eq_bndr V f1 f2 && eq_expr a1 a2 && eq_expr b1 b2
+    eq_bndr ~strict:true V f1 f2
+    && eq_expr ~strict:true a1 a2
+    && eq_expr ~strict:true b1 b2
   let vars (f, a, b) = bndr_uvars f @ uvars a @ uvars b
+end
+
+module QWit = struct
+  type t = Q:'a qwit -> t
+  let hash (Q w) = hash_qwit w
+  let equal (Q (s1,t1,b1)) (Q(s2,t2,b2)) =
+    match eq_sort s1 s2 with
+    | Eq.Eq -> eq_expr ~strict:true t1 t2
+               && eq_bndr ~strict:true s1 b1 b2
+    | _ -> false
+  let vars (Q(_, t, b)) = bndr_uvars b @ uvars t
 end
 
 let is_in : type a. a ex loc -> a ex loc list -> bool = fun e1 es ->

@@ -166,8 +166,8 @@ type v_node =
   | VN_Reco of VPtr.t A.t
   | VN_Scis
   | VN_VWit of vwit eps
-  | VN_UWit of int * (t ex loc * (v,p) bndr)
-  | VN_EWit of int * (t ex loc * (v,p) bndr)
+  | VN_UWit of v qwit eps
+  | VN_EWit of v qwit eps
   | VN_HApp of v ho_appl
   | VN_UVar of v uvar
   | VN_ITag of int
@@ -185,8 +185,8 @@ type t_node =
   | TN_Case of VPtr.t * (v,t) bndr_closure A.t
   | TN_FixY of (v,t) bndr_closure * VPtr.t
   | TN_Prnt of string
-  | TN_UWit of int * (t ex loc * (t,p) bndr)
-  | TN_EWit of int * (t ex loc * (t,p) bndr)
+  | TN_UWit of t qwit eps
+  | TN_EWit of t qwit eps
   | TN_HApp of t ho_appl
   | TN_UVar of t uvar
   | TN_ITag of int
@@ -244,7 +244,6 @@ let pbcl : type a b. a sort -> out_channel -> (a, b) bndr_closure -> unit =
 let print_v_node : out_channel -> v_node -> unit = fun ch n ->
   let prnt = Printf.fprintf in
   let pex = Print.ex in
-  let pva = Print.print_vars in
   match n with
   | VN_LAbs(b)     -> prnt ch "VN_LAbs(%a)" (pbcl V) b
   | VN_Cons(c,pv)  -> prnt ch "VN_Cons(%s,%a)" c.elt VPtr.print pv
@@ -252,8 +251,8 @@ let print_v_node : out_channel -> v_node -> unit = fun ch n ->
                       prnt ch "VN_Reco(%a)" (Print.print_map pelt ":") m
   | VN_Scis        -> prnt ch "VN_Scis"
   | VN_VWit(w)     -> prnt ch "%a" pex (Pos.none (VWit(w)))
-  | VN_UWit(i,w)   -> prnt ch "VN_UWit(ε∀ι%i%a)" i pva (Pos.none (UWit(i,V,w)))
-  | VN_EWit(i,w)   -> prnt ch "VN_EWit(ε∃ι%i%a)" i pva (Pos.none (EWit(i,V,w)))
+  | VN_UWit(w)     -> prnt ch "%a" pex (Pos.none (UWit(w)))
+  | VN_EWit(w)     -> prnt ch "%a" pex (Pos.none (EWit(w)))
   | VN_HApp(e)     -> let HO_Appl(s,f,a) = e in
                       prnt ch "VN_HApp(%a,%a)" pcl f pcl a
   | VN_UVar(v)     -> prnt ch "VN_UVar(%a)" pex (Pos.none (UVar(V,v)))
@@ -263,7 +262,6 @@ let print_v_node : out_channel -> v_node -> unit = fun ch n ->
 let print_t_node : out_channel -> t_node -> unit = fun ch n ->
   let prnt = Printf.fprintf in
   let pex = Print.ex in
-  let pva = Print.print_vars in
   match n with
   | TN_Valu(pv)    -> prnt ch "TN_Valu(%a)" VPtr.print pv
   | TN_Appl(pt,pu) -> prnt ch "TN_Appl(%a,%a)" TPtr.print pt TPtr.print pu
@@ -278,8 +276,8 @@ let print_t_node : out_channel -> t_node -> unit = fun ch n ->
   | TN_FixY(b,pv)  -> prnt ch "TN_FixY(%a,%a)" (pbcl V) b
                         VPtr.print pv
   | TN_Prnt(s)     -> prnt ch "TN_Prnt(%S)" s
-  | TN_UWit(i,w)   -> prnt ch "TN_UWit(ε∀τ%i%a)" i pva (Pos.none (UWit(i,T,w)))
-  | TN_EWit(i,w)   -> prnt ch "TN_EWit(ε∃τ%i%a)" i pva (Pos.none (EWit(i,T,w)))
+  | TN_UWit(w)     -> prnt ch "%a" pex (Pos.none (UWit(w)))
+  | TN_EWit(w)     -> prnt ch "%a" pex (Pos.none (EWit(w)))
   | TN_HApp(e)     -> let HO_Appl(s,f,a) = e in
                       prnt ch "TN_HApp(%a,%a)" pcl f pcl a
   | TN_UVar(v)     -> prnt ch "TN_UVar(%a)" pex (Pos.none (UVar(T,v)))
@@ -521,14 +519,8 @@ let eq_v_nodes : pool -> v_node -> v_node -> bool =
     | (VN_Reco(m1)   , VN_Reco(m2)   ) -> A.equal (eq_vptr po) m1 m2
     | (VN_Scis       , VN_Scis       ) -> true
     | (VN_VWit(w1)   , VN_VWit(w2)   ) -> w1 == w2
-    | (VN_UWit(i1,w1), VN_UWit(i2,w2)) -> i1 = i2 ||
-                                            (let (t1,b1) = w1 in
-                                             let (t2,b2) = w2 in
-                                             eq_expr t1 t2 && eq_bndr V b1 b2)
-    | (VN_EWit(_,w1) , VN_EWit(_,w2) ) -> w1 == w2 ||
-                                            (let (t1,b1) = w1 in
-                                             let (t2,b2) = w2 in
-                                             eq_expr t1 t2 && eq_bndr V b1 b2)
+    | (VN_UWit(w1)   , VN_UWit(w2)   ) -> w1 == w2
+    | (VN_EWit(w1)   , VN_EWit(w2)   ) -> w1 == w2
     | (VN_ITag(n1)   , VN_ITag(n2)   ) -> n1 = n2
     | (VN_HApp(e1)   , VN_HApp(e2)   ) -> eq_ho_appl po e1 e2
     | (VN_Goal(v1)   , VN_Goal(v2)   ) -> eq_expr v1 v2
@@ -554,14 +546,8 @@ let eq_t_nodes : pool -> t_node -> t_node -> bool =
     | (TN_FixY(b1,p1)  , TN_FixY(b2,p2)  ) -> eq_cl po V b1 b2
                                               && eq_vptr po p1 p2
     | (TN_Prnt(s1)     , TN_Prnt(s2)     ) -> s1 = s2
-    | (TN_UWit(i1,w1)  , TN_UWit(i2,w2)  ) -> i1 = i2 ||
-                                                (let (t1,b1) = w1 in
-                                                 let (t2,b2) = w2 in
-                                                 eq_expr t1 t2 && eq_bndr T b1 b2)
-    | (TN_EWit(_,w1)   , TN_EWit(_,w2)   ) -> w1 == w2 ||
-                                                (let (t1,b1) = w1 in
-                                                 let (t2,b2) = w2 in
-                                                 eq_expr t1 t2 && eq_bndr T b1 b2)
+    | (TN_UWit(w1)     , TN_UWit(w2)     ) -> w1 == w2
+    | (TN_EWit(w1)     , TN_EWit(w2)     ) -> w1 == w2
     | (TN_ITag(n1)     , TN_ITag(n2)     ) -> n1 = n2
     | (TN_HApp(e1)     , TN_HApp(e2)     ) -> eq_ho_appl po e1 e2
     | (TN_Goal(t1)     , TN_Goal(t2)     ) -> eq_expr t1 t2
@@ -681,8 +667,8 @@ let rec add_term : pool -> term -> TPtr.t * pool = fun po t ->
   | Prnt(s)     -> insert_t_node (TN_Prnt(s)) po
   | Coer(_,t,_) -> add_term po t
   | Such(_,_,r) -> add_term po (bseq_dummy r.binder)
-  | UWit(i,_,w) -> insert_t_node (TN_UWit(i,w)) po
-  | EWit(i,_,w) -> insert_t_node (TN_EWit(i,w)) po
+  | UWit(w)     -> insert_t_node (TN_UWit(w)) po
+  | EWit(w)     -> insert_t_node (TN_EWit(w)) po
   | HApp(s,f,a) -> let (hoa, po) = add_ho_appl po s f a in
                    insert_t_node (TN_HApp(hoa)) po
   | HDef(_,d)   -> add_term po d.expr_def
@@ -711,8 +697,8 @@ and     add_valu : pool -> valu -> VPtr.t * pool = fun po v ->
   | Coer(_,v,_) -> add_valu po v
   | Such(_,_,r) -> add_valu po (bseq_dummy r.binder)
   | VWit(w)     -> insert_v_node (VN_VWit(w)) po
-  | UWit(i,_,w) -> insert_v_node (VN_UWit(i,w)) po
-  | EWit(i,_,w) -> insert_v_node (VN_EWit(i,w)) po
+  | UWit(w)     -> insert_v_node (VN_UWit(w)) po
+  | EWit(w)     -> insert_v_node (VN_EWit(w)) po
   | HApp(s,f,a) -> let (hoa, po) = add_ho_appl po s f a in
                    insert_v_node (VN_HApp(hoa)) po
   | HDef(_,d)   -> add_valu po d.expr_def
@@ -1079,8 +1065,8 @@ let rec canonical_term : bool -> TPtr.t -> pool -> term * pool = fun clos p po -
                             let (b, po) = canonical_bndr_closure b po in
                             (Pos.none (FixY(b,v)), po)
         | TN_Prnt(s)     -> (Pos.none (Prnt(s)), po)
-        | TN_UWit(i,w)   -> (Pos.none (UWit(i,T,w)), po)
-        | TN_EWit(i,w)   -> (Pos.none (EWit(i,T,w)), po)
+        | TN_UWit(w)     -> (Pos.none (UWit(w)), po)
+        | TN_EWit(w)     -> (Pos.none (EWit(w)), po)
         | TN_HApp(e)     -> let HO_Appl(s,f,a) = e in
                             let (f, po) = canonical_closure f po in
                             let (a, po) = canonical_closure a po in
@@ -1123,8 +1109,8 @@ and     canonical_valu : bool -> VPtr.t -> pool -> valu * pool = fun clos p po -
                             (Pos.none (Reco(m)), po)
         | VN_Scis        -> (Pos.none Scis, po)
         | VN_VWit(w)     -> (Pos.none (VWit(w)), po)
-        | VN_UWit(i,w)   -> (Pos.none (UWit(i,V,w)), po)
-        | VN_EWit(i,w)   -> (Pos.none (EWit(i,V,w)), po)
+        | VN_UWit(w)     -> (Pos.none (UWit(w)), po)
+        | VN_EWit(w)     -> (Pos.none (EWit(w)), po)
         | VN_HApp(e)     -> let HO_Appl(s,f,a) = e in
                             let (f, po) = canonical_closure f po in
                             let (a, po) = canonical_closure a po in
@@ -1285,14 +1271,20 @@ and unif_v_nodes : pool -> VPtr.t -> v_node -> VPtr.t -> v_node -> pool =
                                              let po = eq_bndr po V f1 f2 in
                                              let po = eq_expr po a1 a2 in
                                              eq_expr po b1 b2)
-    | (VN_UWit(i1,w1), VN_UWit(i2,w2)) -> if i1 = i2 then po else
-                                            (let (t1,b1) = w1 in
-                                             let (t2,b2) = w2 in
+    | (VN_UWit(w1)   , VN_UWit(w2)   ) -> if w1 == w2 then po
+                                          else if !(w1.vars) = [] && !(w2.vars) = []
+                                          then raise NoUnif
+                                          else
+                                            (let (_,t1,b1) = w1.valu in
+                                             let (_,t2,b2) = w2.valu in
                                              let po = eq_expr po t1 t2 in
                                              eq_bndr po V b1 b2)
-    | (VN_EWit(_,w1) , VN_EWit(_,w2) ) -> if w1 == w2 then po else
-                                            (let (t1,b1) = w1 in
-                                             let (t2,b2) = w2 in
+    | (VN_EWit(w1)   , VN_EWit(w2)   ) -> if w1 == w2 then po
+                                          else if !(w1.vars) = [] && !(w2.vars) = []
+                                          then raise NoUnif
+                                          else
+                                            (let (_,t1,b1) = w1.valu in
+                                             let (_,t2,b2) = w2.valu in
                                              let po = eq_expr po t1 t2 in
                                              eq_bndr po V b1 b2)
     | (VN_ITag(n1)   , VN_ITag(n2)   ) -> if n1 = n2 then po else raise NoUnif
@@ -1347,14 +1339,20 @@ and unif_t_nodes : pool -> TPtr.t -> t_node -> TPtr.t -> t_node -> pool =
     | (TN_FixY(b1,p1)  , TN_FixY(b2,p2)  ) -> let po = unif_cl po V b1 b2 in
                                               unif_vptr po p1 p2
     | (TN_Prnt(s1)     , TN_Prnt(s2)     ) -> if s1 <> s2 then raise NoUnif; po
-    | (TN_UWit(_,w1)   , TN_UWit(_,w2)   ) -> if w1 == w2 then po else
-                                                (let (t1,b1) = w1 in
-                                                 let (t2,b2) = w2 in
+    | (TN_UWit(w1)     , TN_UWit(w2)     ) -> if w1 == w2 then po
+                                              else if !(w1.vars) = [] && !(w2.vars) = []
+                                              then raise NoUnif
+                                              else
+                                                (let (_,t1,b1) = w1.valu in
+                                                 let (_,t2,b2) = w2.valu in
                                                  let po = eq_expr po t1 t2 in
                                                  eq_bndr po T b1 b2)
-    | (TN_EWit(_,w1)   , TN_EWit(_,w2)   ) -> if w1 == w2 then po else
-                                                (let (t1,b1) = w1 in
-                                                 let (t2,b2) = w2 in
+    | (TN_EWit(w1)     , TN_EWit(w2)     ) -> if w1 == w2 then po
+                                              else if !(w1.vars) = [] && !(w2.vars) = []
+                                              then raise NoUnif
+                                              else
+                                                (let (_,t1,b1) = w1.valu in
+                                                 let (_,t2,b2) = w2.valu in
                                                  let po = eq_expr po t1 t2 in
                                                  eq_bndr po T b1 b2)
     | (TN_ITag(n1)     , TN_ITag(n2)     ) -> if n1 <> n2 then raise NoUnif; po

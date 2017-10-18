@@ -963,8 +963,8 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
 
     (* Constructors that cannot appear in user-defined terms. *)
     | VPtr(_)     -> unexpected "VPtr during typing..."
-    | UWit(_,_,_) -> unexpected "∀-witness during typing..."
-    | EWit(_,_,_) -> unexpected "∃-witness during typing..."
+    | UWit(_)     -> unexpected "∀-witness during typing..."
+    | EWit(_)     -> unexpected "∃-witness during typing..."
     | UVar(_)     -> unexpected "unification variable during typing..."
     | Vari(_)     -> unexpected "Free variable during typing..."
     | Dumm        -> unexpected "Dummy value during typing..."
@@ -1030,8 +1030,11 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
         let a = new_uvar ctx P in
         (* type stack before seems better, generate subtyping
            constraints in the correct direction *)
+        log_typ "kiki 1";
         let p1 = type_stac ctx pi a in
+        log_typ "kiki 2";
         let p2 = type_term ctx t a in
+        log_typ "kiki 3";
         Typ_Name(p2,p1)
     (* Projection. *)
     | Proj(v,l)   ->
@@ -1122,8 +1125,8 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
     (* Constructors that cannot appear in user-defined terms. *)
     | TPtr(_)     -> unexpected "TPtr during typing..."
     | FixY(_,_)   -> unexpected "Fixpoint at the toplevel..."
-    | UWit(_,_,_) -> unexpected "∀-witness during typing..."
-    | EWit(_,_,_) -> unexpected "∃-witness during typing..."
+    | UWit(_)     -> unexpected "∀-witness during typing..."
+    | EWit(_)     -> unexpected "∃-witness during typing..."
     | UVar(_)     -> unexpected "unification variable during typing..."
     | Vari(_)     -> unexpected "Free variable during typing..."
     | Dumm        -> unexpected "Dummy value during typing..."
@@ -1159,6 +1162,7 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
         Stk_Fram(p1,p2)
     | SWit(_,w)   ->
         let (_,a) = w in
+        log_typ "coucou";
         Stk_SWit(gen_subtype ctx c a)
     (* Definition. *)
     | HDef(_,d)   ->
@@ -1174,8 +1178,8 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
     | Coer(_,_,_) -> .
     | Such(_,_,_) -> .
     | Epsi        -> unexpected "Empty stack during typing..."
-    | UWit(_,_,_) -> unexpected "∀-witness during typing..."
-    | EWit(_,_,_) -> unexpected "∃-witness during typing..."
+    | UWit(_)     -> unexpected "∀-witness during typing..."
+    | EWit(_)     -> unexpected "∃-witness during typing..."
     | UVar(_)     -> unexpected "unification variable during typing..."
     | Vari(_)     -> unexpected "Free variable during typing..."
     | Dumm        -> unexpected "Dummy value during typing..."

@@ -139,8 +139,10 @@ let rec ex : type a. a ex loc printer = fun ch e ->
   | Dumm        -> output_string ch "∅"
   | VWit(w)     -> fprintf ch "ει%i%a" !(w.hash) print_vars e
   | SWit(i,_)   -> fprintf ch "εσ%i%a" i print_vars e
-  | UWit(i,s,_) -> fprintf ch "ε∀%a%i%a" sort s i print_vars e
-  | EWit(i,s,_) -> fprintf ch "ε∃%a%i%a" sort s i print_vars e
+  | UWit(w)     -> let (s,_,_) = w.valu in
+                   fprintf ch "ε∀%a%i%a" sort s !(w.hash) print_vars e
+  | EWit(w)     -> let (s,_,_) = w.valu in
+                   fprintf ch "ε∃%a%i%a" sort s !(w.hash) print_vars e
   | OWMu(i,_)   -> fprintf ch "εκμ%i%a" i print_vars e
   | OWNu(i,_)   -> fprintf ch "εκν%i%a" i print_vars e
   | OSch(i,_)   -> fprintf ch "εκ%i%a" i print_vars e

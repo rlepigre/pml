@@ -148,9 +148,9 @@ type _ ex =
   (** Value witness. *)
   | SWit : int * ((s, t) bndr * p ex loc)            -> s  ex
   (** Stack witness. *)
-  | UWit : int * 'a sort * (t ex loc * ('a, p) bndr) -> 'a ex
+  | UWit : 'a qwit eps                               -> 'a ex
   (** Universal quantifier witness. *)
-  | EWit : int * 'a sort * (t ex loc * ('a, p) bndr) -> 'a ex
+  | EWit : 'a qwit eps                               -> 'a ex
   (** Existential quantifier witness. *)
   | UVar : 'a sort * 'a uvar                         -> 'a ex
   (** Unification variable. *)
@@ -162,6 +162,7 @@ and 'a eps = { hash   : int ref
              ; valu   : 'a }
 
 and vwit = (v, t) bndr * p ex loc * p ex loc
+and 'a qwit = 'a sort * t ex loc * ('a, p) bndr
 
 and s_elt = U : 'a sort * 'a uvar -> s_elt
 
@@ -550,8 +551,8 @@ let rec sort : type a b. a ex loc ->  a sort * a ex loc= fun e ->
   | HDef(s,_)       -> (s, e)
   | HApp(d,u,v)     -> let (F(_,s),_) = sort u in (s,e)
   | HFun(d,c,r)     -> (F(d, c), e)
-  | UWit(_,s,_)     -> (s,e)
-  | EWit(_,s,_)     -> (s,e)
+  | UWit(w)         -> let (s,_,_) = w.valu in (s, e)
+  | EWit(w)         -> let (s,_,_) = w.valu in (s, e)
   | UVar(s,_)       -> (s,e)
   | ITag(s,_)       -> (s,e)
   | Goal(s,_)       -> (s,e)

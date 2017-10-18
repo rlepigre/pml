@@ -40,7 +40,7 @@ let uvar_iter : type a. bool -> bool -> uvar_fun -> a ex loc -> unit =
       | NoBox(v)     -> uvar_iter v;
       | Posit(o)     -> uvar_iter o
     in
-    let luvar_iter : 'a eps -> unit =
+    let luvar_iter : type a.a eps -> unit =
       fun w -> w.refr ();
                List.iter (fun (U(s,v)) -> f.f s v) !(w.vars)
     in
@@ -93,10 +93,8 @@ let uvar_iter : type a. bool -> bool -> uvar_fun -> a ex loc -> unit =
     | VWit(w)     -> if todo e then luvar_iter w
     | SWit(_,w)   -> let (b,a) = w in
                      if todo e then (buvar_iter b; uvar_iter a)
-    | UWit(_,_,w) -> let (t,b) = w in
-                     if todo e then (uvar_iter t; buvar_iter b)
-    | EWit(_,_,w) -> let (t,b) = w in
-                     if todo e then (uvar_iter t; buvar_iter b)
+    | UWit(w)     -> if todo e then luvar_iter w
+    | EWit(w)     -> if todo e then luvar_iter w
     | OWMu(_,w)   -> let (o,t,b) = w in
                      if todo e then (uvar_iter o; uvar_iter t; buvar_iter b)
     | OWNu(_,w)   -> let (o,t,b) = w in

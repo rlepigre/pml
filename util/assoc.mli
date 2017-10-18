@@ -39,3 +39,5 @@ val exists : (string -> 'a -> bool) -> 'a t -> bool
 val lift_box : 'a Bindlib.bindbox t -> 'a t Bindlib.bindbox
 
 val map_box : ('b -> 'a Bindlib.bindbox) -> 'b t -> 'a t Bindlib.bindbox
+
+val hash : ('a -> int) -> 'a t -> int

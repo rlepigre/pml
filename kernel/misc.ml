@@ -9,22 +9,8 @@ open Ast
 open Compare
 open Output
 
-type alist =
-  | Nil  : alist
-  | Cons : 'a ex * 'a box * alist -> alist
-
 type apair =
   | P : 'a sort * 'a ex loc -> apair
-
-let assq_chrono = Chrono.create "assq"
-
-let assq : type a. a ex -> alist -> a box = fun e l ->
-  let rec fn : alist -> a box = fun l ->
-    match l with
-    | Nil -> raise Not_found
-    | Cons(f,r,l) -> match e === f with Eq -> r | NEq -> fn l
-  in
-  Chrono.add_time assq_chrono fn l
 
 exception NotClosed (* raised for ITag *)
 
@@ -52,8 +38,8 @@ let map : type a. ?mapper:mapper -> a ex loc -> a box
             | HApp(s,f,a) -> happ e.pos s (map f) (map a)
             | HFun(a,b,f) -> hfun e.pos a b (bndr_name f)
                                   (fun x -> map (bndr_subst f (mk_free a x)))
-            | UWit(s,t,f) -> box e
-            | EWit(s,t,f) -> box e
+            | UWit(_)     -> box e
+            | EWit(_)     -> box e
             | UVar(_,_)   -> box e
             | ITag(_,_)   -> box e
             | Goal(_,_)   -> box e
@@ -167,14 +153,16 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
     | HDef(_,_)   -> acc
     | HApp(_,f,a) -> owits (owits acc f) a
     | HFun(_,_,f) -> owits acc (bndr_subst f Dumm)
-    | UWit(_,s,_) ->
+    | UWit(w)     ->
         begin
+          let (s,_,_) = w.valu in
           match s with
           | O -> if is_in e acc then acc else e :: acc
           | _ -> acc
         end
-    | EWit(_,s,_) ->
+    | EWit(w)     ->
         begin
+          let (s,_,_) = w.valu in
           match s with
           | O -> if is_in e acc then acc else e :: acc
           | _ -> acc
@@ -256,8 +244,8 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
         | _ -> default o
       in
       match e.elt with
-      | UWit(_,s,_) -> var_of_ordi_wit s e
-      | EWit(_,s,_) -> var_of_ordi_wit s e
+      | UWit(w)     -> let (s,_,_) = w.valu in var_of_ordi_wit s e
+      | EWit(w)     -> let (s,_,_) = w.valu in var_of_ordi_wit s e
       | OWMu(_,_)   -> var_of_ordi_wit O e
       | OWNu(_,_)   -> var_of_ordi_wit O e
       | OSch(_,_)   -> var_of_ordi_wit O e
