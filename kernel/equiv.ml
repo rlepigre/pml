@@ -133,7 +133,7 @@ let eq_clsptr : type a. a clsptr -> a clsptr -> bool =
         let vs = Array.init a1 (fun _ -> new_itag T) in
         let b1 = msubst b1 vs in
         let b2 = msubst b2 vs in
-        eq_expr b1 b2))
+        eq_expr ~strict:true b1 b2))
 
 type anyclsptr = C : 'a sort * 'a clsptr -> anyclsptr
 module Cls =
