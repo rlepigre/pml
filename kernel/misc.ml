@@ -115,8 +115,8 @@ let map : type a. ?mapper:mapper -> a ex loc -> a box
 
             | Conv        -> box e
             | Succ(o)     -> succ e.pos (map o)
-            | OWMu(_,_)   -> box e
-            | OWNu(_,_)   -> box e
+            | OWMu(_)     -> box e
+            | OWNu(_)     -> box e
             | OSch(_,_)   -> box e
             | Vari(_,x)   -> vari e.pos x
             | Dumm        -> box e
@@ -155,14 +155,14 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
     | HFun(_,_,f) -> owits acc (bndr_subst f Dumm)
     | UWit(w)     ->
         begin
-          let (s,_,_) = w.valu in
+          let (s,_,_) = !(w.valu) in
           match s with
           | O -> if is_in e acc then acc else e :: acc
           | _ -> acc
         end
     | EWit(w)     ->
         begin
-          let (s,_,_) = w.valu in
+          let (s,_,_) = !(w.valu) in
           match s with
           | O -> if is_in e acc then acc else e :: acc
           | _ -> acc
@@ -209,8 +209,8 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
 
     | Conv        -> acc
     | Succ(o)     -> owits acc o
-    | OWMu(_,_)   -> if is_in e acc then acc else e :: acc
-    | OWNu(_,_)   -> if is_in e acc then acc else e :: acc
+    | OWMu(_)     -> if is_in e acc then acc else e :: acc
+    | OWNu(_)     -> if is_in e acc then acc else e :: acc
     | OSch(_,_)   -> if is_in e acc then acc else e :: acc
 
     | Vari _      -> assert false
@@ -244,10 +244,10 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
         | _ -> default o
       in
       match e.elt with
-      | UWit(w)     -> let (s,_,_) = w.valu in var_of_ordi_wit s e
-      | EWit(w)     -> let (s,_,_) = w.valu in var_of_ordi_wit s e
-      | OWMu(_,_)   -> var_of_ordi_wit O e
-      | OWNu(_,_)   -> var_of_ordi_wit O e
+      | UWit(w)     -> let (s,_,_) = !(w.valu) in var_of_ordi_wit s e
+      | EWit(w)     -> let (s,_,_) = !(w.valu) in var_of_ordi_wit s e
+      | OWMu(_)     -> var_of_ordi_wit O e
+      | OWNu(_)     -> var_of_ordi_wit O e
       | OSch(_,_)   -> var_of_ordi_wit O e
       | _           -> default e
     in

@@ -42,14 +42,16 @@ let add_sort : type a. string -> a sort -> env -> env =
 let add_expr : type a. strloc -> a sort -> a box -> env -> env =
   fun expr_name s expr_box env ->
     let expr_def = Bindlib.unbox expr_box in
-    let ex = Expr(s, {expr_name; expr_def}) in
+    let expr_hash = Compare.hash_expr expr_def in
+    let ex = Expr(s, {expr_name; expr_def; expr_hash}) in
     let global_exprs = SMap.add expr_name.elt ex env.global_exprs in
     let local_exprs = SMap.add expr_name.elt ex env.local_exprs in
     {env with global_exprs; local_exprs}
 
 let add_value : strloc -> term -> prop -> e_valu -> env -> env =
   fun value_name value_orig value_type value_eval env ->
-    let nv = {value_name; value_type; value_orig; value_eval} in
+    let value_hash = Compare.hash_expr (Erase.to_valu value_eval) in
+    let nv = {value_name; value_type; value_orig; value_eval; value_hash} in
     let global_values = SMap.add value_name.elt nv env.global_values in
     let local_values = SMap.add value_name.elt nv env.local_values in
     {env with global_values; local_values}

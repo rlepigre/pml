@@ -124,9 +124,9 @@ type _ ex =
   (** Convergent ordinal. *)
   | Succ : o ex loc                                  -> o  ex
   (** Successor of an ordinal. *)
-  | OWMu : int * (o ex loc * t ex loc * (o, p) bndr) -> o  ex
+  | OWMu : owit eps                                  -> o  ex
   (** Ordinal mu witness. *)
-  | OWNu : int * (o ex loc * t ex loc * (o, p) bndr) -> o  ex
+  | OWNu : owit eps                                  -> o  ex
   (** Ordinal nu witness. *)
   | OSch : int * (o ex loc option * int * schema)    -> o  ex
   (** Ordinal schema witness. *)
@@ -159,10 +159,11 @@ type _ ex =
 and 'a eps = { hash   : int ref
              ; vars   : s_elt list ref
              ; refr   : unit -> unit
-             ; valu   : 'a }
+             ; valu   : 'a ref }
 
 and vwit = (v, t) bndr * p ex loc * p ex loc
 and 'a qwit = 'a sort * t ex loc * ('a, p) bndr
+and owit = o ex loc * t ex loc * (o, p) bndr
 
 and s_elt = U : 'a sort * 'a uvar -> s_elt
 
@@ -189,13 +190,15 @@ and (_,_) bseq =
 
 and 'a expr =
   { expr_name : strloc
-  ; expr_def  : 'a ex loc }
+  ; expr_def  : 'a ex loc
+  ; expr_hash : int }
 
 and value =
   { value_name : strloc
   ; value_orig : t ex loc
   ; value_type : p ex loc
-  ; value_eval : e_valu }
+  ; value_eval : e_valu
+  ; value_hash : int }
 
 and fix_schema =
   { fsch_index : Scp.index (** index of the schema in the call graph *)
@@ -551,8 +554,8 @@ let rec sort : type a b. a ex loc ->  a sort * a ex loc= fun e ->
   | HDef(s,_)       -> (s, e)
   | HApp(d,u,v)     -> let (F(_,s),_) = sort u in (s,e)
   | HFun(d,c,r)     -> (F(d, c), e)
-  | UWit(w)         -> let (s,_,_) = w.valu in (s, e)
-  | EWit(w)         -> let (s,_,_) = w.valu in (s, e)
+  | UWit(w)         -> let (s,_,_) = !(w.valu) in (s, e)
+  | EWit(w)         -> let (s,_,_) = !(w.valu) in (s, e)
   | UVar(s,_)       -> (s,e)
   | ITag(s,_)       -> (s,e)
   | Goal(s,_)       -> (s,e)

@@ -188,23 +188,54 @@ let {eq_expr; eq_bndr; eq_ombinder} =
     | (ITag(_,i1)    , ITag(_,i2)    ) -> i1 = i2
     (* NOTE should not be compare dummy expressions. *)
     | (Dumm          , Dumm          ) -> false
-    | (VWit(w1)      , VWit(w2)      ) -> w1.valu == w2.valu
+    | (VWit(w1)      , VWit(w2)      ) -> w1.valu == w2.valu ||
+                                            if strict || (!(w1.vars) = [] && !(w2.vars) = [])
+                                            then false
+                                            else
+                                              (let (f1,a1,b1) = !(w1.valu) in
+                                               let (f2,a2,b2) = !(w2.valu) in
+                                               eq_bndr V f1 f2 &&
+                                                 eq_expr a1 a2 && eq_expr b1 b2)
     | (SWit(_,w1)    , SWit(_,w2)    ) -> w1 == w2 ||
                                             (let (f1,a1) = w1 in
                                              let (f2,a2) = w2 in
                                              eq_bndr S f1 f2 && eq_expr a1 a2)
-    | (UWit(w1)      , UWit(w2)      ) -> w1.valu == w2.valu
-    | (EWit(w1)      , EWit(w2)      ) -> w1.valu == w2.valu
-    | (OWMu(_,w1)    , OWMu(_,w2)    ) -> w1 == w2 ||
-                                            (let (o1,t1,b1) = w1 in
-                                             let (o2,t2,b2) = w2 in
-                                             eq_expr o1 o2 && eq_expr t1 t2
-                                             && eq_bndr O b1 b2)
-    | (OWNu(_,w1)    , OWNu(_,w2)    ) -> w1 == w2 ||
-                                            (let (o1,t1,b1) = w1 in
-                                             let (o2,t2,b2) = w2 in
-                                             eq_expr o1 o2 && eq_expr t1 t2
-                                             && eq_bndr O b1 b2)
+    | (UWit(w1)      , UWit(w2)      ) -> !(w1.valu) == !(w2.valu) ||
+                                            if strict || (!(w1.vars) = [] && !(w2.vars) = [])
+                                            then false
+                                            else
+                                              (let (s1,t1,b1) = !(w1.valu) in
+                                               let (s2,t2,b2) = !(w2.valu) in
+                                               match eq_sort s1 s2 with
+                                               | Eq.Eq ->
+                                                  eq_expr t1 t2 && eq_bndr s1 b1 b2
+                                               | _ -> false)
+    | (EWit(w1)      , EWit(w2)      ) -> !(w1.valu) == !(w2.valu) ||
+                                            if strict || (!(w1.vars) = [] && !(w2.vars) = [])
+                                            then false
+                                            else
+                                              (let (s1,t1,b1) = !(w1.valu) in
+                                               let (s2,t2,b2) = !(w2.valu) in
+                                               match eq_sort s1 s2 with
+                                               | Eq.Eq ->
+                                                  eq_expr t1 t2 && eq_bndr s1 b1 b2
+                                               | _ -> false)
+    | (OWMu(w1)      , OWMu(w2)      ) -> !(w1.valu) == !(w2.valu) ||
+                                            if strict || (!(w1.vars) = [] && !(w2.vars) = [])
+                                            then false
+                                            else
+                                              (let (o1,t1,b1) = !(w1.valu) in
+                                               let (o2,t2,b2) = !(w2.valu) in
+                                               eq_expr o1 o2 && eq_expr t1 t2
+                                               && eq_bndr O b1 b2)
+    | (OWNu(w1)      , OWNu(w2)      ) -> !(w1.valu) == !(w2.valu) ||
+                                            if strict || (!(w1.vars) = [] && !(w2.vars) = [])
+                                            then false
+                                            else
+                                              (let (o1,t1,b1) = !(w1.valu) in
+                                               let (o2,t2,b2) = !(w2.valu) in
+                                               eq_expr o1 o2 && eq_expr t1 t2
+                                               && eq_bndr O b1 b2)
     | (OSch(_,w1)    , OSch(_,w2)    ) -> w1 == w2 ||
                                             (let (o1,i1,s1) = w1 in
                                              let (o2,i2,s2) = w2 in
@@ -322,10 +353,11 @@ type hash =
   ; hash_ombinder : 'a. (o ex, 'a ex loc) mbinder -> int
   ; hash_vwit     : vwit -> int
   ; hash_qwit     : 'a. 'a qwit -> int
+  ; hash_owit     : owit -> int
   }
 
 (* hash function with unification variable instantiation. *)
-let {hash_expr; hash_bndr; hash_ombinder; hash_vwit; hash_qwit} =
+let {hash_expr; hash_bndr; hash_ombinder; hash_vwit; hash_qwit; hash_owit} =
   let c = ref (-1) in
   let new_itag : type a. a sort -> a ex = fun s -> incr c; ITag(s,!c) in
   let hash : type a. a -> int = Hashtbl.hash in
@@ -339,8 +371,8 @@ let {hash_expr; hash_bndr; hash_ombinder; hash_vwit; hash_qwit} =
     in
     let e = Norm.whnf e in
     match e.elt with
-    | HDef(_,d)   -> hash_expr d.expr_def
-    | VDef(d)     -> hash_expr (Erase.to_valu d.value_eval)
+    | HDef(_,d)   -> d.expr_hash
+    | VDef(d)     -> d.value_hash
     | Valu(v)     -> hash_expr v
     | Coer(_,e,_) -> hash_expr e
     | Such(_,_,r) -> hash_expr (bseq_dummy r.binder)
@@ -383,8 +415,8 @@ let {hash_expr; hash_bndr; hash_ombinder; hash_vwit; hash_qwit} =
     | SWit(i,w)   -> hash (`SWit(i))
     | UWit(w)     -> w.refr (); hash (`UWit !(w.hash))
     | EWit(w)     -> w.refr (); hash (`EWit !(w.hash))
-    | OWMu(i,w)   -> hash (`OWMu(i))
-    | OWNu(i,w)   -> hash (`OWNu(i))
+    | OWMu(w)     -> w.refr (); hash (`OWMu !(w.hash))
+    | OWNu(w)     -> w.refr (); hash (`OWNu !(w.hash))
     | OSch(i,w)   -> hash (`OSch(i))
     | UVar(i,u)   -> hash (`UVar(u.uvar_key))
     (* two next cases are automatically stronger with oracle *)
@@ -408,6 +440,9 @@ let {hash_expr; hash_bndr; hash_ombinder; hash_vwit; hash_qwit} =
 
   and hash_qwit : type a. a qwit -> int =
     fun (s,t,b) -> hash (hash_sort s, hash_expr t, hash_bndr s b)
+
+  and hash_owit : owit -> int =
+    fun (s,t,b) -> hash (hash_expr s, hash_expr t, hash_bndr O b)
   in
 
   let hash_chrono = Chrono.create "hash" in
@@ -439,7 +474,13 @@ let {hash_expr; hash_bndr; hash_ombinder; hash_vwit; hash_qwit} =
       c := -1; (* Reset. *)
       Chrono.add_time hash_chrono hash_qwit w
   in
-  {hash_expr; hash_bndr; hash_ombinder; hash_vwit; hash_qwit}
+
+  let hash_owit = fun w ->
+      c := -1; (* Reset. *)
+      Chrono.add_time hash_chrono hash_owit w
+  in
+  { hash_expr; hash_bndr; hash_ombinder
+  ; hash_vwit; hash_qwit; hash_owit}
 
 module VWit = struct
   type t = vwit
@@ -460,6 +501,16 @@ module QWit = struct
                && eq_bndr ~strict:true s1 b1 b2
     | _ -> false
   let vars (Q(_, t, b)) = bndr_uvars b @ uvars t
+end
+
+module OWit = struct
+  type t = owit
+  let hash = hash_owit
+  let equal (o1,a1,b1) (o2,a2,b2) =
+    eq_expr ~strict:true o1 o2
+    && eq_expr ~strict:true a1 a2
+    && eq_bndr ~strict:true O b1 b2
+  let vars (o, a, b) = uvars o @ uvars a @ bndr_uvars b
 end
 
 let is_in : type a. a ex loc -> a ex loc list -> bool = fun e1 es ->

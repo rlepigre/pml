@@ -95,10 +95,8 @@ let uvar_iter : type a. bool -> bool -> uvar_fun -> a ex loc -> unit =
                      if todo e then (buvar_iter b; uvar_iter a)
     | UWit(w)     -> if todo e then luvar_iter w
     | EWit(w)     -> if todo e then luvar_iter w
-    | OWMu(_,w)   -> let (o,t,b) = w in
-                     if todo e then (uvar_iter o; uvar_iter t; buvar_iter b)
-    | OWNu(_,w)   -> let (o,t,b) = w in
-                     if todo e then (uvar_iter o; uvar_iter t; buvar_iter b)
+    | OWMu(w)     -> if todo e then luvar_iter w
+    | OWNu(w)     -> if todo e then luvar_iter w
     | OSch(_,w)   ->
        let (o,i,s) = w in
        if todo e then

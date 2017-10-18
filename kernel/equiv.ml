@@ -518,9 +518,9 @@ let eq_v_nodes : pool -> v_node -> v_node -> bool =
     | (VN_Cons(c1,p1), VN_Cons(c2,p2)) -> c1.elt = c2.elt && eq_vptr po p1 p2
     | (VN_Reco(m1)   , VN_Reco(m2)   ) -> A.equal (eq_vptr po) m1 m2
     | (VN_Scis       , VN_Scis       ) -> true
-    | (VN_VWit(w1)   , VN_VWit(w2)   ) -> w1 == w2
-    | (VN_UWit(w1)   , VN_UWit(w2)   ) -> w1 == w2
-    | (VN_EWit(w1)   , VN_EWit(w2)   ) -> w1 == w2
+    | (VN_VWit(w1)   , VN_VWit(w2)   ) -> w1.valu == w2.valu
+    | (VN_UWit(w1)   , VN_UWit(w2)   ) -> w1.valu == w2.valu
+    | (VN_EWit(w1)   , VN_EWit(w2)   ) -> w1.valu == w2.valu
     | (VN_ITag(n1)   , VN_ITag(n2)   ) -> n1 = n2
     | (VN_HApp(e1)   , VN_HApp(e2)   ) -> eq_ho_appl po e1 e2
     | (VN_Goal(v1)   , VN_Goal(v2)   ) -> eq_expr v1 v2
@@ -546,8 +546,8 @@ let eq_t_nodes : pool -> t_node -> t_node -> bool =
     | (TN_FixY(b1,p1)  , TN_FixY(b2,p2)  ) -> eq_cl po V b1 b2
                                               && eq_vptr po p1 p2
     | (TN_Prnt(s1)     , TN_Prnt(s2)     ) -> s1 = s2
-    | (TN_UWit(w1)     , TN_UWit(w2)     ) -> w1 == w2
-    | (TN_EWit(w1)     , TN_EWit(w2)     ) -> w1 == w2
+    | (TN_UWit(w1)     , TN_UWit(w2)     ) -> w1.valu == w2.valu
+    | (TN_EWit(w1)     , TN_EWit(w2)     ) -> w1.valu == w2.valu
     | (TN_ITag(n1)     , TN_ITag(n2)     ) -> n1 = n2
     | (TN_HApp(e1)     , TN_HApp(e2)     ) -> eq_ho_appl po e1 e2
     | (TN_Goal(t1)     , TN_Goal(t2)     ) -> eq_expr t1 t2
@@ -1262,29 +1262,29 @@ and unif_v_nodes : pool -> VPtr.t -> v_node -> VPtr.t -> v_node -> pool =
                                           unif_vptr po p1 p2
     | (VN_Reco(m1)   , VN_Reco(m2)   ) -> A.fold2 unif_vptr po m1 m2
     | (VN_Scis       , VN_Scis       ) -> po
-    | (VN_VWit(w1)   , VN_VWit(w2)   ) -> if w1 == w2 then po
+    | (VN_VWit(w1)   , VN_VWit(w2)   ) -> if !(w1.valu) == !(w2.valu) then po
                                           else if !(w1.vars) = [] && !(w2.vars) = []
                                           then raise NoUnif
                                           else
-                                            (let (f1,a1,b1) = w1.valu in
-                                             let (f2,a2,b2) = w2.valu in
+                                            (let (f1,a1,b1) = !(w1.valu) in
+                                             let (f2,a2,b2) = !(w2.valu) in
                                              let po = eq_bndr po V f1 f2 in
                                              let po = eq_expr po a1 a2 in
                                              eq_expr po b1 b2)
-    | (VN_UWit(w1)   , VN_UWit(w2)   ) -> if w1 == w2 then po
+    | (VN_UWit(w1)   , VN_UWit(w2)   ) -> if !(w1.valu) == !(w2.valu) then po
                                           else if !(w1.vars) = [] && !(w2.vars) = []
                                           then raise NoUnif
                                           else
-                                            (let (_,t1,b1) = w1.valu in
-                                             let (_,t2,b2) = w2.valu in
+                                            (let (_,t1,b1) = !(w1.valu) in
+                                             let (_,t2,b2) = !(w2.valu) in
                                              let po = eq_expr po t1 t2 in
                                              eq_bndr po V b1 b2)
-    | (VN_EWit(w1)   , VN_EWit(w2)   ) -> if w1 == w2 then po
+    | (VN_EWit(w1)   , VN_EWit(w2)   ) -> if !(w1.valu) == !(w2.valu) then po
                                           else if !(w1.vars) = [] && !(w2.vars) = []
                                           then raise NoUnif
                                           else
-                                            (let (_,t1,b1) = w1.valu in
-                                             let (_,t2,b2) = w2.valu in
+                                            (let (_,t1,b1) = !(w1.valu) in
+                                             let (_,t2,b2) = !(w2.valu) in
                                              let po = eq_expr po t1 t2 in
                                              eq_bndr po V b1 b2)
     | (VN_ITag(n1)   , VN_ITag(n2)   ) -> if n1 = n2 then po else raise NoUnif
@@ -1339,20 +1339,20 @@ and unif_t_nodes : pool -> TPtr.t -> t_node -> TPtr.t -> t_node -> pool =
     | (TN_FixY(b1,p1)  , TN_FixY(b2,p2)  ) -> let po = unif_cl po V b1 b2 in
                                               unif_vptr po p1 p2
     | (TN_Prnt(s1)     , TN_Prnt(s2)     ) -> if s1 <> s2 then raise NoUnif; po
-    | (TN_UWit(w1)     , TN_UWit(w2)     ) -> if w1 == w2 then po
+    | (TN_UWit(w1)     , TN_UWit(w2)     ) -> if !(w1.valu) == !(w2.valu) then po
                                               else if !(w1.vars) = [] && !(w2.vars) = []
                                               then raise NoUnif
                                               else
-                                                (let (_,t1,b1) = w1.valu in
-                                                 let (_,t2,b2) = w2.valu in
+                                                (let (_,t1,b1) = !(w1.valu) in
+                                                 let (_,t2,b2) = !(w2.valu) in
                                                  let po = eq_expr po t1 t2 in
                                                  eq_bndr po T b1 b2)
-    | (TN_EWit(w1)     , TN_EWit(w2)     ) -> if w1 == w2 then po
+    | (TN_EWit(w1)     , TN_EWit(w2)     ) -> if !(w1.valu) == !(w2.valu) then po
                                               else if !(w1.vars) = [] && !(w2.vars) = []
                                               then raise NoUnif
                                               else
-                                                (let (_,t1,b1) = w1.valu in
-                                                 let (_,t2,b2) = w2.valu in
+                                                (let (_,t1,b1) = !(w1.valu) in
+                                                 let (_,t2,b2) = !(w2.valu) in
                                                  let po = eq_expr po t1 t2 in
                                                  eq_bndr po T b1 b2)
     | (TN_ITag(n1)     , TN_ITag(n2)     ) -> if n1 <> n2 then raise NoUnif; po

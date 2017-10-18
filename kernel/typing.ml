@@ -96,7 +96,7 @@ let rec instantiate : type a b. ctxt -> (a, b) bseq -> b =
 
 let extract_vwit_type : valu -> prop = fun v ->
   match (Norm.whnf v).elt with
-  | VWit{valu=(_,a,_)} -> a
+  | VWit{valu={contents = (_,a,_)}} -> a
   | _                  -> assert false (* should not happen *)
 
 let extract_swit_type : stac -> prop = fun s ->
@@ -682,8 +682,8 @@ and get_relat  : ordi array -> (int * int) list =
     let l = ref [] in
     Array.iteri (fun i o ->
       let rec gn o = match (Norm.whnf o).elt with
-        | OWMu(_,(o',_,_))
-        | OWNu(_,(o',_,_))
+        | OWMu{valu={contents = (o',_,_)}}
+        | OWNu{valu={contents = (o',_,_)}}
         | OSch(_,(Some o',_,_))
         | Succ(o') ->
            (try hn (Array.length os - 1) o' with Not_found -> gn o')
@@ -941,7 +941,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
        in Typ_TSuch(type_valu ctx v c)
     (* Witness. *)
     | VWit(w)     ->
-        let (_,a,_) = w.valu in
+        let (_,a,_) = !(w.valu) in
         let (b, equations) = check_nobox v ctx.equations in
         assert b;
         let p = subtype {ctx with equations} t a c in
