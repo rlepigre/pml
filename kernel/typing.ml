@@ -5,11 +5,11 @@ open Bindlib
 open Sorts
 open Pos
 open Ast
+open Epsilon
 open Equiv
 open Output
 open Uvars
 open Compare
-open Epsilon
 
 type sorted = E : 'a sort * 'a ex loc -> sorted
 
@@ -1189,13 +1189,16 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
   | e -> type_error (E(S,s)) c e
 
 let type_check : term -> prop -> prop * typ_proof = fun t a ->
-  let ctx = empty_ctxt () in
-  let prf = type_term ctx t a in
-  List.iter (fun f -> f ()) (List.rev !(ctx.add_calls));
-  if not (Scp.scp ctx.callgraph) then loops t;
-  let l = uvars a in
-  assert(l = []); (* FIXME #44 *)
-  (Norm.whnf a, prf)
+  try
+    let ctx = empty_ctxt () in
+    let prf = type_term ctx t a in
+    List.iter (fun f -> f ()) (List.rev !(ctx.add_calls));
+    if not (Scp.scp ctx.callgraph) then loops t;
+    let l = uvars a in
+    assert(l = []); (* FIXME #44 *)
+    reset_tbls ();
+    (Norm.whnf a, prf)
+  with e -> reset_tbls (); raise e
 
 let type_check t = Chrono.add_time type_chrono (type_check t)
 
@@ -1208,5 +1211,9 @@ let is_subtype : prop -> prop -> bool = fun a b ->
     assert(la = []); (* FIXME #44 *)
     assert(lb = []); (* FIXME #44 *)
     List.iter (fun f -> f ()) (List.rev !(ctx.add_calls));
-    Scp.scp ctx.callgraph
-  with _ -> false
+    let res = Scp.scp ctx.callgraph in
+    reset_tbls ();
+    res
+  with _ ->
+    reset_tbls ();
+    false

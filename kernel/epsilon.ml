@@ -24,6 +24,13 @@ let swit_hash   = SWitHash.create 256
 module CWitHash = Hashtbl.Make(CWit)
 let cwit_hash   = CWitHash.create 256
 
+let reset_epsilons () =
+  VWitHash.clear vwit_hash;
+  QWitHash.clear qwit_hash;
+  OWitHash.clear owit_hash;
+  SWitHash.clear swit_hash;
+  CWitHash.clear cwit_hash
+
 let vwit : (v,t) bndr -> prop -> prop -> valu =
   fun f a b ->
     let valu = (f,a,b) in

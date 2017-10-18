@@ -318,6 +318,11 @@ type pool =
 let funptrs : anyfunptr FunHash.t = FunHash.create 256
 let clsptrs : anyclsptr ClsHash.t = ClsHash.create 256
 
+let reset_tbls () =
+  Epsilon.reset_epsilons ();
+  ClsHash.clear clsptrs;
+  FunHash.clear funptrs
+
 let is_empty : pool -> bool =
   fun {vs; ts} -> VPtrMap.is_empty vs && TPtrMap.is_empty ts
 
