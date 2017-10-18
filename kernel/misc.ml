@@ -341,10 +341,6 @@ let box_closure: type a. a ex loc -> a box * t var array * v var array
     let tv = ref [] in
     let mapper : type a. recall -> a ex loc -> a box = fun {default} e ->
       let s, e = sort e in
-      match e.elt with
-      | VDef _ -> box e
-      | HDef _ -> box e
-      | _      ->
       (* FIXME: this is quadratic !!! *)
       let e' = lift e in
       match is_closed e', s with
