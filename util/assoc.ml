@@ -24,7 +24,11 @@ module ListMap =
             (fun acc (_, v) (_, v') -> f acc v v') acc l
 
     let hash f l =
-      List.fold_left (fun acc (k, v) -> Hashtbl.hash (k, f v, acc)) 17 l
+      let mix x y =
+        ((y lsl 17) - x) lxor ((x lsr 7) - y)
+      in
+      let mix3 x y z = mix x (mix y z) in
+      List.fold_left (fun acc (k, v) -> mix3 (Hashtbl.hash k) (f v) acc) 17 l
 
     let fold_map f l acc =
       let acc = ref acc in

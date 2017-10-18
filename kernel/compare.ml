@@ -325,11 +325,23 @@ let {hash_expr; hash_bndr; hash_ombinder; hash_vwit
   let c = ref (-1) in
   let new_itag : type a. a sort -> a ex = fun s -> incr c; ITag(s,!c) in
   let hash : type a. a -> int = Hashtbl.hash in
-
+  let mix x y =
+    ((y lsl 17) - x) lxor ((x lsr 7) - y)
+  in
+  let mix3 x y z = mix x (mix y z) in
+  let khash1 k x =
+    mix (Obj.magic k : int) x
+  in
+  let khash2 k x y =
+    mix (Obj.magic k : int) (mix x y)
+  in
+  let khash3 k x y z =
+    mix (mix (Obj.magic k : int) x) (mix y z)
+  in
   let rec hash_expr : type a. a ex loc -> int =
     fun e ->
     let hash_cond = function
-      | Equiv(t,b,u) -> hash (`Equiv(hash_expr t, b, hash_expr u))
+      | Equiv(t,b,u) -> khash3 `Equiv (hash_expr t) (hash b) (hash_expr u)
       | Posit(o)     -> hash (`Posit(hash_expr o))
       | NoBox(v)     -> hash (`NoBox(hash_expr v))
     in
@@ -340,53 +352,53 @@ let {hash_expr; hash_bndr; hash_ombinder; hash_vwit
     | Valu(v)     -> hash_expr v
     | Coer(_,e,_) -> hash_expr e
     | Such(_,_,r) -> hash_expr (bseq_dummy r.binder)
-    | Vari(_,x)   -> hash (`Vari (Bindlib.hash_var x))
-    | HFun(s,_,b) -> hash (`HFun (hash_bndr s b))
-    | HApp(s,f,a) -> hash (`HApp (hash_sort s, hash_expr f, hash_expr a))
-    | Func(a,b)   -> hash (`Func (hash_expr a, hash_expr b))
-    | DSum(m)     -> hash (`DSum (A.hash (fun (_,e) -> hash_expr e) m))
-    | Prod(m)     -> hash (`Prod (A.hash (fun (_,e) -> hash_expr e) m))
-    | Univ(s,b)   -> hash (`Univ (hash_sort s, hash_bndr s b))
-    | Exis(s,b)   -> hash (`Exit (hash_sort s, hash_bndr s b))
-    | FixM(o,b)   -> hash (`FixM (hash_expr o, hash_bndr P b))
-    | FixN(o,b)   -> hash (`FixN (hash_expr o, hash_bndr P b))
-    | Memb(t,a)   -> hash (`Memb (hash_expr t, hash_expr a))
-    | Rest(a,c)   -> hash (`Rest (hash_expr a, hash_cond c))
-    | Impl(c,a)   -> hash (`Impl (hash_expr a, hash_cond c))
+    | Vari(_,x)   -> khash1 `Vari (Bindlib.hash_var x)
+    | HFun(s,_,b) -> khash1 `HFun (hash_bndr s b)
+    | HApp(s,f,a) -> khash3 `HApp (hash_sort s) (hash_expr f) (hash_expr a)
+    | Func(a,b)   -> khash2 `Func (hash_expr a) (hash_expr b)
+    | DSum(m)     -> khash1 `DSum (A.hash (fun (_,e) -> hash_expr e) m)
+    | Prod(m)     -> khash1 `Prod (A.hash (fun (_,e) -> hash_expr e) m)
+    | Univ(s,b)   -> khash2 `Univ (hash_sort s) (hash_bndr s b)
+    | Exis(s,b)   -> khash2 `Exit (hash_sort s) (hash_bndr s b)
+    | FixM(o,b)   -> khash2 `FixM (hash_expr o) (hash_bndr P b)
+    | FixN(o,b)   -> khash2 `FixN (hash_expr o) (hash_bndr P b)
+    | Memb(t,a)   -> khash2 `Memb (hash_expr t) (hash_expr a)
+    | Rest(a,c)   -> khash2 `Rest (hash_expr a) (hash_cond c)
+    | Impl(c,a)   -> khash2 `Impl (hash_expr a) (hash_cond c)
     (* NOTE type annotation ignored. *)
-    | LAbs(_,b)   -> hash (`LAbs (hash_bndr V b))
-    | Cons(c,v)   -> hash (`Cons (c.elt, hash_expr v))
-    | Reco(m)     -> hash (`Reco (A.hash (fun (_,e) -> hash_expr e) m))
-    | Scis        -> hash (`Scis)
-    | Appl(t,u)   -> hash (`Appl (hash_expr t, hash_expr u))
+    | LAbs(_,b)   -> khash1 `LAbs (hash_bndr V b)
+    | Cons(c,v)   -> khash2 `Cons (hash c.elt) (hash_expr v)
+    | Reco(m)     -> khash1 `Reco (A.hash (fun (_,e) -> hash_expr e) m)
+    | Scis        -> hash `Scis
+    | Appl(t,u)   -> khash2 `Appl (hash_expr t) (hash_expr u)
     (* NOTE type annotation ignored. *)
-    | MAbs(b)     -> hash (`MAbs (hash_bndr S b))
-    | Name(s,t)   -> hash (`Name (hash_expr s, hash_expr t))
-    | Proj(v,l)   -> hash (`Proj (l.elt, hash_expr v))
-    | Case(v,m)   -> hash (`Case (hash_expr v, A.hash (fun (_,e) -> (hash_bndr V e)) m))
+    | MAbs(b)     -> khash1 `MAbs (hash_bndr S b)
+    | Name(s,t)   -> khash2 `Name (hash_expr s) (hash_expr t)
+    | Proj(v,l)   -> khash2 `Proj (hash l.elt) (hash_expr v)
+    | Case(v,m)   -> khash2 `Case (hash_expr v) (A.hash (fun (_,e) -> (hash_bndr V e)) m)
     | FixY(f,v)   -> hash (`FixY (hash_bndr V f, hash_expr v))
-    | Prnt(s1)    -> hash (`Prnt (s1))
-    | Epsi        -> hash (`Epsi)
-    | Push(v,s)   -> hash (`Push(hash_expr v, hash_expr s))
-    | Fram(t,s)   -> hash (`Fram(hash_expr t, hash_expr s))
-    | Conv        -> hash (`Conv)
-    | Succ(o)     -> hash (`Succ (hash_expr o))
+    | Prnt(s1)    -> khash1 `Prnt (hash s1)
+    | Epsi        -> hash `Epsi
+    | Push(v,s)   -> khash2 `Push (hash_expr v) (hash_expr s)
+    | Fram(t,s)   -> khash2 `Fram (hash_expr t) (hash_expr s)
+    | Conv        -> hash `Conv
+    | Succ(o)     -> khash1 `Succ (hash_expr o)
     (* NOTE type annotations ignored. *)
     | ITag(_,i)   -> hash (`ITag(i))
     (* NOTE should not be compare dummy expressions. *)
     | Dumm        -> hash (`Dumm)
-    | VWit(w)     -> w.refr (); hash (`VWit !(w.hash))
-    | SWit(w)     -> w.refr (); hash (`SWit !(w.hash))
-    | UWit(w)     -> w.refr (); hash (`UWit !(w.hash))
-    | EWit(w)     -> w.refr (); hash (`EWit !(w.hash))
-    | OWMu(w)     -> w.refr (); hash (`OWMu !(w.hash))
-    | OWNu(w)     -> w.refr (); hash (`OWNu !(w.hash))
-    | OSch(i,w)   -> w.refr (); hash (`OSch(i, !(w.hash)))
-    | UVar(i,u)   -> hash (`UVar(u.uvar_key))
+    | VWit(w)     -> w.refr (); khash1 `VWit !(w.hash)
+    | SWit(w)     -> w.refr (); khash1 `SWit !(w.hash)
+    | UWit(w)     -> w.refr (); khash1 `UWit !(w.hash)
+    | EWit(w)     -> w.refr (); khash1 `EWit !(w.hash)
+    | OWMu(w)     -> w.refr (); khash1 `OWMu !(w.hash)
+    | OWNu(w)     -> w.refr (); khash1 `OWNu !(w.hash)
+    | OSch(i,w)   -> w.refr (); khash2 `OSch i !(w.hash)
+    | UVar(i,u)   -> khash1 `UVar u.uvar_key
     (* two next cases are automatically stronger with oracle *)
-    | VPtr v      -> hash (`VPtr(v))
-    | TPtr t      -> hash (`TPtr(t))
-    | Goal(s,str) -> hash (`Goal(hash_sort s, str))
+    | VPtr v      -> khash1 `VPtr (hash v)
+    | TPtr t      -> khash1 `TPtr (hash t)
+    | Goal(s,str) -> khash2 `Goal (hash_sort s) (hash str)
 
   and hash_bndr : type a b. a sort -> (a,b) bndr -> int =
     fun s b ->
@@ -400,27 +412,27 @@ let {hash_expr; hash_bndr; hash_ombinder; hash_vwit
       hash_expr (msubst omb ta)
 
   and hash_expr_opt = function
-    | None -> hash (`None)
-    | Some e -> hash (`Some (hash_expr e))
+    | None -> hash `None
+    | Some e -> khash1 `Some (hash_expr e)
 
   and hash_vwit : vwit -> int =
-    fun (f,a,b) -> hash (hash_bndr V f, hash_expr a, hash_expr b)
+    fun (f,a,b) -> mix3 (hash_bndr V f) (hash_expr a) (hash_expr b)
 
   and hash_qwit : type a. a qwit -> int =
-    fun (s,t,b) -> hash (hash_sort s, hash_expr t, hash_bndr s b)
+    fun (s,t,b) -> mix3 (hash_sort s) (hash_expr t) (hash_bndr s b)
 
   and hash_owit : owit -> int =
-    fun (s,t,b) -> hash (hash_expr s, hash_expr t, hash_bndr O b)
+    fun (s,t,b) -> mix3 (hash_expr s) (hash_expr t) (hash_bndr O b)
 
   and hash_swit : swit -> int =
-    fun (b,t) -> hash (hash_bndr S b, hash_expr t)
+    fun (b,t) -> mix (hash_bndr S b) (hash_expr t)
 
   and hash_cwit : cwit -> int =
     fun (c,sch) ->
     let hash_sch =
       match sch with
-      | FixSch s -> hash (`FixSch (s.fsch_index))
-      | SubSch s -> hash (`SubSch (s.ssch_index))
+      | FixSch s -> khash1 `FixSch (hash s.fsch_index)
+      | SubSch s -> khash1 `SubSch (hash s.ssch_index)
     in
     hash (hash_expr_opt c, hash_sch)
   in
