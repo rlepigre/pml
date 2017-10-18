@@ -83,7 +83,7 @@ and     stac_erasure : stac -> e_sbox = fun s ->
   | Fram(t,s) -> sfram (term_erasure t) (stac_erasure s)
   | ITag(_)   -> erasure_error "a tag cannot be erased (stack)"
   | Dumm      -> erasure_error "a dummy value cannot be erased (stack)"
-  | SWit(_,_) -> erasure_error "a witness cannot be erased (stack)"
+  | SWit(_)   -> erasure_error "a witness cannot be erased (stack)"
   | UWit(_)   -> erasure_error "a witness cannot be erased (stack)"
   | EWit(_)   -> erasure_error "a witness cannot be erased (stack)"
   | UVar(_)   -> erasure_error "unif. variables cannot be erased (stack)"

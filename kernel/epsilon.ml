@@ -9,22 +9,20 @@ let ownu_counter = ref (-1)
 let osch_counter = ref (-1)
 
 module VWitHash = Hashtbl.Make(VWit)
-let vwit_hash    = VWitHash.create 256
+let vwit_hash   = VWitHash.create 256
 
 module QWitHash = Hashtbl.Make(QWit)
 type aqwit = Q : 'a qwit eps -> aqwit
-let qwit_hash    = QWitHash.create 256
+let qwit_hash   = QWitHash.create 256
 
 module OWitHash = Hashtbl.Make(OWit)
-let owit_hash    = OWitHash.create 256
+let owit_hash   = OWitHash.create 256
 
-let swit_counter = ref (-1)
+module SWitHash = Hashtbl.Make(SWit)
+let swit_hash   = SWitHash.create 256
 
-let reset_counters : unit -> unit = fun () ->
-  osch_counter := (-1); swit_counter := (-1)
-
-let osch : ordi option -> int -> schema -> ordi =
-  fun o i s -> incr osch_counter; Pos.none (OSch(!osch_counter, (o,i,s)))
+module CWitHash = Hashtbl.Make(CWit)
+let cwit_hash   = CWitHash.create 256
 
 let vwit : (v,t) bndr -> prop -> prop -> valu =
   fun f a b ->
@@ -100,6 +98,12 @@ let qwit : type a. a sort -> term -> (a,p) bndr -> a qwit eps =
       refr ~force:true w;
       w
 
+let uwit : type a. a sort -> term -> (a,p) bndr -> a ex loc =
+  fun s t f -> Pos.none (UWit(qwit s t f))
+
+let ewit : type a. a sort -> term -> (a,p) bndr -> a ex loc =
+  fun s t f -> Pos.none (EWit(qwit s t f))
+
 let owit : ordi -> term -> (o,p) bndr -> owit eps =
   fun o a b ->
     let valu = (o,a,b) in
@@ -131,18 +135,76 @@ let owit : ordi -> term -> (o,p) bndr -> owit eps =
       refr ~force:true w;
       w
 
-let uwit : type a. a sort -> term -> (a,p) bndr -> a ex loc =
-  fun s t f -> Pos.none (UWit(qwit s t f))
-
-let ewit : type a. a sort -> term -> (a,p) bndr -> a ex loc =
-  fun s t f -> Pos.none (EWit(qwit s t f))
-
 let owmu : ordi -> term -> (o, p) bndr -> ordi =
   fun o t b -> Pos.none (OWMu(owit o t b))
 
 let ownu : ordi -> term -> (o, p) bndr -> ordi =
   fun o t b -> Pos.none (OWNu(owit o t b))
 
+let swit : (s,t) bndr -> prop -> swit eps =
+  fun b s ->
+    let valu = (b,s) in
+    try SWitHash.find swit_hash valu
+    with Not_found ->
+      let rec refr ?(force=false) w =
+        if force || exists_set !(w.vars) then
+          begin
+            let oldvars = !(w.vars) in
+            Timed.(w.vars := SWit.vars valu);
+            Timed.(w.hash := SWit.hash valu);
+            List.iter (fun (U(_,v)) ->
+                let same (U(_,w)) = v.uvar_key = w.uvar_key in
+                if not (List.exists same oldvars)
+                then uvar_hook v (fun () -> refr w)) !(w.vars);
+            try
+              let w' = SWitHash.find swit_hash valu in
+              (*Printf.eprintf "merge owit\n%!";*)
+              Timed.(w.valu := !(w'.valu))
+            with Not_found ->
+              SWitHash.add swit_hash valu w
+          end
+      in
+      let rec w = { vars = ref []
+                  ; hash = ref 0
+                  ; refr = (fun () -> refr w)
+                  ; valu = ref valu}
+      in
+      refr ~force:true w;
+      w
 
 let swit : (s,t) bndr -> prop -> stac =
-  fun f a -> incr swit_counter; Pos.none (SWit(!swit_counter, (f,a)))
+  fun f a -> Pos.none (SWit(swit f a))
+
+let cwit : ordi option -> schema -> cwit eps =
+  fun o s ->
+    let valu = (o,s) in
+    try CWitHash.find cwit_hash valu
+    with Not_found ->
+      let rec refr ?(force=false) w =
+        if force || exists_set !(w.vars) then
+          begin
+            let oldvars = !(w.vars) in
+            Timed.(w.vars := CWit.vars valu);
+            Timed.(w.hash := CWit.hash valu);
+            List.iter (fun (U(_,v)) ->
+                let same (U(_,w)) = v.uvar_key = w.uvar_key in
+                if not (List.exists same oldvars)
+                then uvar_hook v (fun () -> refr w)) !(w.vars);
+            try
+              let w' = CWitHash.find cwit_hash valu in
+              (*Printf.eprintf "merge owit\n%!";*)
+              Timed.(w.valu := !(w'.valu))
+            with Not_found ->
+              CWitHash.add cwit_hash valu w
+          end
+      in
+      let rec w = { vars = ref []
+                  ; hash = ref 0
+                  ; refr = (fun () -> refr w)
+                  ; valu = ref valu}
+      in
+      refr ~force:true w;
+      w
+
+let osch : ordi option -> int -> schema -> ordi =
+  fun o i s -> Pos.none (OSch(i, cwit o s))

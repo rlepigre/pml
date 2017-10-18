@@ -101,7 +101,7 @@ let extract_vwit_type : valu -> prop = fun v ->
 
 let extract_swit_type : stac -> prop = fun s ->
   match (Norm.whnf s).elt with
-  | SWit(_,(_,a))   -> a
+  | SWit{valu={contents=(_,a)}} -> a
   | _               -> assert false (* should not happen *)
 
 type typ_rule =
@@ -684,7 +684,7 @@ and get_relat  : ordi array -> (int * int) list =
       let rec gn o = match (Norm.whnf o).elt with
         | OWMu{valu={contents = (o',_,_)}}
         | OWNu{valu={contents = (o',_,_)}}
-        | OSch(_,(Some o',_,_))
+        | OSch(_,{valu={contents = (Some o', _)}})
         | Succ(o') ->
            (try hn (Array.length os - 1) o' with Not_found -> gn o')
         | _ -> ()
@@ -1160,9 +1160,8 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
         let p1 = type_term ctx t (Pos.none (Func(c,a))) in
         let p2 = type_stac ctx pi a in
         Stk_Fram(p1,p2)
-    | SWit(_,w)   ->
-        let (_,a) = w in
-        log_typ "coucou";
+    | SWit(w)   ->
+        let (_,a) = !(w.valu) in
         Stk_SWit(gen_subtype ctx c a)
     (* Definition. *)
     | HDef(_,d)   ->
@@ -1190,7 +1189,6 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
   | e -> type_error (E(S,s)) c e
 
 let type_check : term -> prop -> prop * typ_proof = fun t a ->
-  reset_counters ();
   let ctx = empty_ctxt () in
   let prf = type_term ctx t a in
   List.iter (fun f -> f ()) (List.rev !(ctx.add_calls));
@@ -1203,7 +1201,6 @@ let type_check t = Chrono.add_time type_chrono (type_check t)
 
 let is_subtype : prop -> prop -> bool = fun a b ->
   try
-    reset_counters ();
     let ctx = empty_ctxt () in
     let _ = gen_subtype ctx a b in
     let la = uvars a in

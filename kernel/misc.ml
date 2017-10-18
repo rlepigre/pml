@@ -111,7 +111,7 @@ let map : type a. ?mapper:mapper -> a ex loc -> a box
             | Epsi        -> box e
             | Push(v,s)   -> push e.pos (map v) (map s)
             | Fram(t,s)   -> fram e.pos (map t) (map s)
-            | SWit(f,a)   -> box e
+            | SWit(_)     -> box e
 
             | Conv        -> box e
             | Succ(o)     -> succ e.pos (map o)
@@ -205,7 +205,7 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
     | Epsi        -> acc
     | Push(v,s)   -> owits (owits acc v) s
     | Fram(t,s)   -> owits (owits acc t) s
-    | SWit(_,_)   -> acc
+    | SWit(_)     -> acc
 
     | Conv        -> acc
     | Succ(o)     -> owits acc o
@@ -341,6 +341,10 @@ let box_closure: type a. a ex loc -> a box * t var array * v var array
     let tv = ref [] in
     let mapper : type a. recall -> a ex loc -> a box = fun {default} e ->
       let s, e = sort e in
+      match e.elt with
+      | VDef _ -> box e
+      | HDef _ -> box e
+      | _      ->
       (* FIXME: this is quadratic !!! *)
       let e' = lift e in
       match is_closed e', s with

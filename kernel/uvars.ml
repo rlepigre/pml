@@ -91,27 +91,12 @@ let uvar_iter : type a. bool -> bool -> uvar_fun -> a ex loc -> unit =
     | VPtr(_)     -> ()
     | TPtr(_)     -> ()
     | VWit(w)     -> if todo e then luvar_iter w
-    | SWit(_,w)   -> let (b,a) = w in
-                     if todo e then (buvar_iter b; uvar_iter a)
+    | SWit(w)     -> if todo e then luvar_iter w
     | UWit(w)     -> if todo e then luvar_iter w
     | EWit(w)     -> if todo e then luvar_iter w
     | OWMu(w)     -> if todo e then luvar_iter w
     | OWNu(w)     -> if todo e then luvar_iter w
-    | OSch(_,w)   ->
-       let (o,i,s) = w in
-       if todo e then
-         begin
-           match s with
-           | FixSch s ->
-              let (t,b) = s.fsch_judge in
-              let (_,t) = Bindlib.unbind (mk_free V) (snd t) in
-              let (_,k) = Bindlib.unmbind (mk_free O) b in
-              Extra.Option.iter uvar_iter o; uvar_iter t; uvar_iter k
-           | SubSch s ->
-              let b = s.ssch_judge in
-              let (_,(k1,k2)) = Bindlib.unmbind (mk_free O) b in
-              Extra.Option.iter uvar_iter o; uvar_iter k1; uvar_iter k2
-         end
+    | OSch(i,w)   -> if todo e then luvar_iter w
     | UVar(s,u)   -> f.f s u
   in uvar_iter e
 

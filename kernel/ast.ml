@@ -128,7 +128,7 @@ type _ ex =
   (** Ordinal mu witness. *)
   | OWNu : owit eps                                  -> o  ex
   (** Ordinal nu witness. *)
-  | OSch : int * (o ex loc option * int * schema)    -> o  ex
+  | OSch : int * cwit eps                            -> o  ex
   (** Ordinal schema witness. *)
 
   (* Type annotations. *)
@@ -146,7 +146,7 @@ type _ ex =
   (** Dummy constructor.*)
   | VWit : vwit eps                                  -> v  ex
   (** Value witness. *)
-  | SWit : int * ((s, t) bndr * p ex loc)            -> s  ex
+  | SWit : swit eps                                  -> s  ex
   (** Stack witness. *)
   | UWit : 'a qwit eps                               -> 'a ex
   (** Universal quantifier witness. *)
@@ -164,6 +164,8 @@ and 'a eps = { hash   : int ref
 and vwit = (v, t) bndr * p ex loc * p ex loc
 and 'a qwit = 'a sort * t ex loc * ('a, p) bndr
 and owit = o ex loc * t ex loc * (o, p) bndr
+and cwit = o ex loc option * schema
+and swit = (s, t) bndr * p ex loc
 
 and s_elt = U : 'a sort * 'a uvar -> s_elt
 
