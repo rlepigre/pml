@@ -250,9 +250,9 @@ let print_v_node : out_channel -> v_node -> unit = fun ch n ->
   | VN_Reco(m)     -> let pelt ch (k, p) = prnt ch "%S=%a" k VPtr.print p in
                       prnt ch "VN_Reco(%a)" (Print.print_map pelt ":") m
   | VN_Scis        -> prnt ch "VN_Scis"
-  | VN_VWit(w)     -> prnt ch "%a" pex (Pos.none (VWit(w)))
-  | VN_UWit(w)     -> prnt ch "%a" pex (Pos.none (UWit(w)))
-  | VN_EWit(w)     -> prnt ch "%a" pex (Pos.none (EWit(w)))
+  | VN_VWit(w)     -> prnt ch "VN_VWit(%a)" pex (Pos.none (VWit(w)))
+  | VN_UWit(w)     -> prnt ch "VN_UWit(%a)" pex (Pos.none (UWit(w)))
+  | VN_EWit(w)     -> prnt ch "VN_EWit(%a)" pex (Pos.none (EWit(w)))
   | VN_HApp(e)     -> let HO(s,f,a) = e in
                       prnt ch "VN_HApp(%a,%a)" pcl f pcl a
   | VN_UVar(v)     -> prnt ch "VN_UVar(%a)" pex (Pos.none (UVar(V,v)))
@@ -276,8 +276,8 @@ let print_t_node : out_channel -> t_node -> unit = fun ch n ->
   | TN_FixY(b,pv)  -> prnt ch "TN_FixY(%a,%a)" (pbcl V) b
                         VPtr.print pv
   | TN_Prnt(s)     -> prnt ch "TN_Prnt(%S)" s
-  | TN_UWit(w)     -> prnt ch "%a" pex (Pos.none (UWit(w)))
-  | TN_EWit(w)     -> prnt ch "%a" pex (Pos.none (EWit(w)))
+  | TN_UWit(w)     -> prnt ch "TN_UWit(%a)" pex (Pos.none (UWit(w)))
+  | TN_EWit(w)     -> prnt ch "TN_EWit(%a)" pex (Pos.none (EWit(w)))
   | TN_HApp(e)     -> let HO(s,f,a) = e in
                       prnt ch "TN_HApp(%a,%a)" pcl f pcl a
   | TN_UVar(v)     -> prnt ch "TN_UVar(%a)" pex (Pos.none (UVar(T,v)))
