@@ -82,7 +82,8 @@ let qwit : type a. ctxt -> a sort -> term -> (a,p) bndr
       | Eq.Eq -> (w, ctx)
       | _ -> assert false
     with Not_found ->
-      let rec refr ?(force=false) w =
+      let rec refr : ?force:bool -> (a qwit, string) eps -> unit
+      = fun ?(force=false) w ->
         if force || exists_set !(w.vars) then
           begin
             let oldvars = !(w.vars) in
@@ -97,7 +98,7 @@ let qwit : type a. ctxt -> a sort -> term -> (a,p) bndr
               (*Printf.eprintf "merge qwit\n%!";*)
               let (s',_,_) = !(w'.valu) in
               match eq_sort s s' with
-              | Eq.Eq -> Timed.(w.valu := Obj.magic !(w'.valu))
+              | Eq.Eq -> Timed.(w.valu := !(w'.valu))
               | _ -> assert false
             with Not_found ->
               QWitHash.add qwit_hash key (Q w)

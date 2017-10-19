@@ -740,23 +740,20 @@ and add_bndr_closure : type a b. pool -> a sort -> b sort ->
     let po = !po in
     let key = T(sa,sr,funptr) in
     (*print_pool "TEST" stderr po;*)
-    let funptr =
-      try
-        let T(sa',sr',funptr') = FunHash.find funptrs key in
-        match eq_sort sa sa', eq_sort sr sr' with
-        | Eq.Eq, Eq.Eq -> Obj.magic funptr'
-        | _ -> assert false
-      with Not_found ->
-        FunHash.add  funptrs key key;
-        funptr
-    in
-    ((funptr,vs,ts), po)
+    try
+      let T(sa',sr',funptr') = FunHash.find funptrs key in
+      match eq_sort sa sa', eq_sort sr sr' with
+      | Eq.Eq, Eq.Eq -> ((funptr',vs,ts), po)
+      | _ -> assert false
+    with Not_found ->
+      FunHash.add  funptrs key key;
+      ((funptr,vs,ts), po)
 
 and add_ho_appl
     : type a b. pool -> a sort -> (a -> b) ex loc
            -> a ex loc -> b ho_appl * pool
   = fun po se f e ->
-    let sf = fst (sort f) in
+    let (sf, f) = sort f in
     let (f, vf, tf as cf) = Misc.make_closure f in
     let (e, ve, te as ce) = Misc.make_closure e in
     let po = ref po in
@@ -774,28 +771,28 @@ and add_ho_appl
     in
     let po = !po in
     let key = C(sf, f) in
-    let f =
+    let f : unit -> (a -> b) clsptr = fun () ->
       try
         let C(sf',f') = ClsHash.find clsptrs key in
         match eq_sort sf sf' with
-        | Eq.Eq -> Obj.magic f'
+        | Eq.Eq -> f'
         | _ -> assert false
       with Not_found ->
         ClsHash.add clsptrs key key;
         f
     in
     let key = C(se,e) in
-    let e =
+    let e : unit -> a clsptr = fun () ->
       try
         let C(se',e') = ClsHash.find clsptrs key in
         match eq_sort se se' with
-        | Eq.Eq -> Obj.magic e'
+        | Eq.Eq -> e'
         | _ -> assert false
       with Not_found ->
         ClsHash.add clsptrs key key;
         e
     in
-    (HO(se,(f,vf,tf),(e,ve,te)), po)
+    (HO(se,(f (),vf,tf),(e (),ve,te)), po)
 
 (** Creation of a [TPtr.t] from a [Ptr.t]. A value node is inserted in the
     pool in case of a [VPtr.t]. *)
