@@ -819,7 +819,9 @@ let subst_closure (funptr,vs,ts) =
 let rec normalise : TPtr.t -> pool -> Ptr.t * pool =
   fun p po ->
     let in_norm = po.in_norm in
-    if TPtrSet.mem p in_norm then find (Ptr.T_ptr p) po else
+    if TPtrSet.mem p in_norm then
+      find (Ptr.T_ptr p) po
+    else
     let po = { po with in_norm = TPtrSet.add p in_norm } in
     let (p, po) =
        match snd (TPtrMap.find p po.ts) with
@@ -910,9 +912,10 @@ let rec normalise : TPtr.t -> pool -> Ptr.t * pool =
             let (pu, po) = insert_t_node (TN_Valu(pv)) po in
             let (pap, po) = insert_t_node (TN_Appl(pt, pu)) po in
             let po = union (Ptr.T_ptr p) (Ptr.T_ptr pap) po in
+            let (t, po) = normalise pap po in
             log2 "normalised in TN_FixY: %a => %a (%d)" VPtr.print pv
                  TPtr.print pap po.next;
-            normalise pap po
+            (t, po)
           end
        | TN_Prnt(_)     -> (Ptr.T_ptr p, po)
        | TN_UWit(_)     -> (Ptr.T_ptr p, po)
@@ -925,7 +928,9 @@ let rec normalise : TPtr.t -> pool -> Ptr.t * pool =
             | Unset _ -> (Ptr.T_ptr p, po)
             | Set t   -> let (tp, po) = add_term po t in
                          let po = union (Ptr.T_ptr p) (Ptr.T_ptr tp) po in
-                         normalise tp po
+                         let (t, po) = normalise tp po in
+                         (t, po)
+
           end
        | TN_ITag(n)      -> (Ptr.T_ptr p, po)
     in
@@ -958,11 +963,10 @@ and reinsert : Ptr.t -> pool -> pool = fun p po ->
      let (pp1, n1) = find_t_node tp po in
      begin
        match n1 with
-       | TN_Valu(_) ->
-          PtrSet.fold reinsert pp1 po
+       | TN_Valu(_) -> po
        | TN_UVar({uvar_val = {contents = Set t}}) ->
           let (tp,po) = add_term po t in
-          join p (Ptr.T_ptr tp) po
+          union p (Ptr.T_ptr tp) po
        | _ ->
           log2 "normalisation of parent %a" TPtr.print tp;
           let (p', po) = normalise tp po in
@@ -975,18 +979,9 @@ and reinsert : Ptr.t -> pool -> pool = fun p po ->
        match n1 with
        | VN_UVar({uvar_val = {contents = Set v}}) ->
           let (vp,po) = add_valu po v in
-          join p (Ptr.V_ptr vp) po
+          union p (Ptr.V_ptr vp) po
        | _ -> po
      end
-
-and join_nobox : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
-  match p1, p2 with
-  | Ptr.V_ptr pv1, Ptr.V_ptr pv2 ->
-     if VPtrSet.mem pv1 po.bs && not (VPtrSet.mem pv2 po.bs) then
-       { po with bs = VPtrSet.add pv2 po.bs }
-     else
-       po
-  | _ -> po
 
 (** Union operation. *)
 and join : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
@@ -995,10 +990,10 @@ and join : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
   let nps = parents p1 po in
   let pp2 = parents p2 po in
   let po = { po with eq_map = PtrMap.add p1 p2 po.eq_map } in
-  let po = join_nobox p1 p2 po in
-  let po = add_parents p2 nps po in
   let po = check_parents_eq nps pp2 po in
-  PtrSet.fold reinsert nps po
+  let po = PtrSet.fold reinsert nps po in
+  let po = add_parents p2 nps po in
+  po
 
 (* when the join can be arbitrary, better to point to
    the oldest pointer (likely to given less occur-check failure*)
@@ -1046,9 +1041,12 @@ and union : ?no_rec:bool -> Ptr.t -> Ptr.t -> pool -> pool =
          | (_              , VN_LAbs(_)     )
            | (_              , VN_Reco(_)     )
            | (_              , VN_Cons(_,_)   ) -> join p1 p2 po
-         (* age_join otherwise. *)
+         (* nobox or age_join otherwise. *)
          | (_              , _              ) ->
-            age_join p2 p1 po
+            match (VPtrSet.mem vp1 po.bs, VPtrSet.mem vp2 po.bs) with
+            | (true, false) -> join p2 p1 po
+            | (false, true) -> join p1 p2 po
+            | (_    , _   ) -> age_join p2 p1 po
        end
 
 (** Obtain the canonical term / value pointed by a pointer. *)
@@ -1095,8 +1093,9 @@ let rec canonical_term : bool -> TPtr.t -> pool -> term * pool = fun clos p po -
                               match !(v.uvar_val) with
                               | Unset _ -> (Pos.none (UVar(T,v)), po)
                               | Set t   ->
-                                  let (p, po) = add_term po t in
-                                  ct p po
+                                  let (tp, po) = add_term po t in
+                                  let po = union (Ptr.T_ptr p) (Ptr.T_ptr tp) po in
+                                  ct tp po
                             end
         | TN_ITag(n)     -> (Pos.none (ITag(T,n)), po)
         | TN_Goal(t)     -> (t, po)
@@ -1139,8 +1138,9 @@ and     canonical_valu : bool -> VPtr.t -> pool -> valu * pool = fun clos p po -
                               match !(v.uvar_val) with
                               | Unset _ -> (Pos.none (UVar(V,v)), po)
                               | Set w   ->
-                                  let (p, po) = add_valu po w in
-                                  cv p po
+                                 let (vp, po) = add_valu po w in
+                                 let po = union (Ptr.V_ptr p) (Ptr.V_ptr vp) po in
+                                 cv vp po
                             end
         | VN_ITag(n)     -> (Pos.none (ITag(V,n)), po)
         | VN_Goal(v)     -> (v, po)
@@ -1222,7 +1222,7 @@ and unif_ptr : pool -> Ptr.t -> Ptr.t -> pool = fun po p1 p2 ->
           let (p, po) = canonical_valu p2 po in
           if uvar_occurs v p then raise NoUnif;
           uvar_set v (Pos.none (Valu p));
-          join (Ptr.T_ptr p1) (Ptr.V_ptr p2) po
+          union (Ptr.T_ptr p1) (Ptr.V_ptr p2) po
        | _ -> raise NoUnif
      end
   | (Ptr.V_ptr p1, Ptr.T_ptr p2) ->
@@ -1233,7 +1233,7 @@ and unif_ptr : pool -> Ptr.t -> Ptr.t -> pool = fun po p1 p2 ->
           let (p, po) = canonical_valu p1 po in
           if uvar_occurs v p then raise NoUnif;
           uvar_set v (Pos.none (Valu p));
-          join (Ptr.T_ptr p2) (Ptr.V_ptr p1) po
+          union (Ptr.T_ptr p2) (Ptr.V_ptr p1) po
        | _ -> raise NoUnif
      end
 
@@ -1266,14 +1266,14 @@ and unif_v_nodes : pool -> VPtr.t -> v_node -> VPtr.t -> v_node -> pool =
     | (VN_UVar(v1)   , _             ) -> let (p, po) = canonical_valu p2 po in
                                           if uvar_occurs v1 p then raise NoUnif;
                                           uvar_set v1 p;
-                                          join (Ptr.V_ptr p1) (Ptr.V_ptr p2) po
+                                          union (Ptr.V_ptr p1) (Ptr.V_ptr p2) po
     | (_             , VN_UVar(v2)   ) -> log2 "coucou";
                                           let (p, po) = canonical_valu p1 po in
                                           log2 "coucou2";
                                           if uvar_occurs v2 p then raise NoUnif;
                                           uvar_set v2 p;
                                           log2 "coucou3";
-                                          join (Ptr.V_ptr p2) (Ptr.V_ptr p1) po
+                                          union (Ptr.V_ptr p2) (Ptr.V_ptr p1) po
     | _ ->
     let po = union ~no_rec:true (Ptr.V_ptr p1) (Ptr.V_ptr p2) po in
     match (n1, n2) with
@@ -1338,11 +1338,11 @@ and unif_t_nodes : pool -> TPtr.t -> t_node -> TPtr.t -> t_node -> pool =
     | (TN_UVar(v1)     , _               ) -> let (p, po) = canonical_term p2 po in
                                               if uvar_occurs v1 p then raise NoUnif;
                                               uvar_set v1 p;
-                                              join (Ptr.T_ptr p1) (Ptr.T_ptr p2) po
+                                              union (Ptr.T_ptr p1) (Ptr.T_ptr p2) po
     | (_               , TN_UVar(v2)     ) -> let (p, po) = canonical_term p1 po in
                                               if uvar_occurs v2 p then raise NoUnif;
                                               uvar_set v2 p;
-                                              join (Ptr.T_ptr p2) (Ptr.T_ptr p1) po
+                                              union (Ptr.T_ptr p2) (Ptr.T_ptr p1) po
     | _ ->
     let po = union ~no_rec:true (Ptr.T_ptr p1) (Ptr.T_ptr p2) po in
     match (n1, n2) with
