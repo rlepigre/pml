@@ -176,66 +176,73 @@ let {eq_expr; eq_bndr} =
     | (ITag(_,i1)    , ITag(_,i2)    ) -> i1 = i2
     (* NOTE should not be compare dummy expressions. *)
     | (Dumm          , Dumm          ) -> false
-    | (VWit(w1)      , VWit(w2)      ) -> w1.valu == w2.valu ||
-                                            if strict || (!(w1.vars) = [] && !(w2.vars) = [])
-                                            then false
-                                            else
-                                              (let (f1,a1,b1) = !(w1.valu) in
-                                               let (f2,a2,b2) = !(w2.valu) in
-                                               eq_bndr V f1 f2 &&
-                                                 eq_expr a1 a2 && eq_expr b1 b2)
-    | (SWit(w1)      , SWit(w2)      ) -> !(w1.valu) == !(w2.valu) ||
-                                            if strict || (!(w1.vars) = [] && !(w2.vars) = [])
-                                            then false
-                                            else
-                                              (let (f1,a1) = !(w1.valu) in
-                                               let (f2,a2) = !(w2.valu) in
-                                               eq_bndr S f1 f2 && eq_expr a1 a2)
-    | (UWit(w1)      , UWit(w2)      ) -> !(w1.valu) == !(w2.valu) ||
-                                            if strict || (!(w1.vars) = [] && !(w2.vars) = [])
-                                            then false
-                                            else
-                                              (let (s1,t1,b1) = !(w1.valu) in
-                                               let (s2,t2,b2) = !(w2.valu) in
-                                               match eq_sort s1 s2 with
-                                               | Eq.Eq ->
-                                                  eq_expr t1 t2 && eq_bndr s1 b1 b2
-                                               | _ -> false)
-    | (EWit(w1)      , EWit(w2)      ) -> !(w1.valu) == !(w2.valu) ||
-                                            if strict || (!(w1.vars) = [] && !(w2.vars) = [])
-                                            then false
-                                            else
-                                              (let (s1,t1,b1) = !(w1.valu) in
-                                               let (s2,t2,b2) = !(w2.valu) in
-                                               match eq_sort s1 s2 with
-                                               | Eq.Eq ->
-                                                  eq_expr t1 t2 && eq_bndr s1 b1 b2
-                                               | _ -> false)
-    | (OWMu(w1)      , OWMu(w2)      ) -> !(w1.valu) == !(w2.valu) ||
-                                            if strict || (!(w1.vars) = [] && !(w2.vars) = [])
-                                            then false
-                                            else
-                                              (let (o1,t1,b1) = !(w1.valu) in
-                                               let (o2,t2,b2) = !(w2.valu) in
-                                               eq_expr o1 o2 && eq_expr t1 t2
-                                               && eq_bndr O b1 b2)
-    | (OWNu(w1)      , OWNu(w2)      ) -> !(w1.valu) == !(w2.valu) ||
-                                            if strict || (!(w1.vars) = [] && !(w2.vars) = [])
-                                            then false
-                                            else
-                                              (let (o1,t1,b1) = !(w1.valu) in
-                                               let (o2,t2,b2) = !(w2.valu) in
-                                               eq_expr o1 o2 && eq_expr t1 t2
-                                               && eq_bndr O b1 b2)
-    | (OSch(i1,o1,w1), OSch(i2,o2,w2)) -> i1 = i2
-                                          && eq_opt_expr o1 o2
-                                          && (!(w1.valu) == !(w2.valu) ||
-                                            if strict || (!(w1.vars) = [] && !(w2.vars) = [])
-                                            then false
-                                            else
-                                              (let s1 = !(w1.valu) in
-                                               let s2 = !(w2.valu) in
-                                               eq_schema s1 s2))
+    | (VWit(w1)      , VWit(w2)      ) ->
+       w1.valu == w2.valu ||
+         if strict || (!(w1.vars) = [] && !(w2.vars) = [])
+         then false
+         else
+           (let (f1,a1,b1) = !(w1.valu) in
+            let (f2,a2,b2) = !(w2.valu) in
+            eq_bndr V f1 f2 &&
+              eq_expr a1 a2 && eq_expr b1 b2)
+    | (SWit(w1)      , SWit(w2)      ) ->
+       !(w1.valu) == !(w2.valu) ||
+         if strict || (!(w1.vars) = [] && !(w2.vars) = [])
+         then false
+         else
+           (let (f1,a1) = !(w1.valu) in
+            let (f2,a2) = !(w2.valu) in
+            eq_bndr S f1 f2 && eq_expr a1 a2)
+    | (UWit(w1)      , UWit(w2)      ) ->
+       !(w1.valu) == !(w2.valu) ||
+         if strict || (!(w1.vars) = [] && !(w2.vars) = [])
+         then false
+         else
+           (let (s1,t1,b1) = !(w1.valu) in
+            let (s2,t2,b2) = !(w2.valu) in
+            match eq_sort s1 s2 with
+            | Eq.Eq ->
+               eq_expr t1 t2 && eq_bndr s1 b1 b2
+            | _ -> false)
+    | (EWit(w1)      , EWit(w2)      ) ->
+       !(w1.valu) == !(w2.valu) ||
+         if strict || (!(w1.vars) = [] && !(w2.vars) = [])
+         then false
+         else
+           (let (s1,t1,b1) = !(w1.valu) in
+            let (s2,t2,b2) = !(w2.valu) in
+            match eq_sort s1 s2 with
+            | Eq.Eq ->
+               eq_expr t1 t2 && eq_bndr s1 b1 b2
+            | _ -> false)
+    | (OWMu(w1)      , OWMu(w2)      ) ->
+       !(w1.valu) == !(w2.valu) ||
+         if strict || (!(w1.vars) = [] && !(w2.vars) = [])
+         then false
+         else
+           (let (o1,t1,b1) = !(w1.valu) in
+            let (o2,t2,b2) = !(w2.valu) in
+            eq_expr o1 o2 && eq_expr t1 t2
+            && eq_bndr O b1 b2)
+    | (OWNu(w1)      , OWNu(w2)      ) ->
+       !(w1.valu) == !(w2.valu) ||
+         if strict || (!(w1.vars) = [] && !(w2.vars) = [])
+         then false
+         else
+           (let (o1,t1,b1) = !(w1.valu) in
+            let (o2,t2,b2) = !(w2.valu) in
+            eq_expr o1 o2 && eq_expr t1 t2
+            && eq_bndr O b1 b2)
+    | (OSch(i1,o1,w1), OSch(i2,o2,w2)) ->
+       i1 = i2
+       && eq_opt_expr o1 o2
+       && (!(w1.valu) == !(w2.valu) ||
+             if strict || (!(w1.vars) = [] && !(w2.vars) = [])
+             then false
+             else
+               (let s1 = !(w1.valu) in
+                let s2 = !(w2.valu) in
+                eq_schema s1 s2))
     | (UVar(_,u1)    , UVar(_,u2)    ) ->
        if strict then u1.uvar_key = u2.uvar_key else
          begin
@@ -377,7 +384,8 @@ let {hash_expr; hash_bndr; hash_ombinder; hash_vwit
     | MAbs(b)     -> khash1 `MAbs (hash_bndr S b)
     | Name(s,t)   -> khash2 `Name (hash_expr s) (hash_expr t)
     | Proj(v,l)   -> khash2 `Proj (hash l.elt) (hash_expr v)
-    | Case(v,m)   -> khash2 `Case (hash_expr v) (A.hash (fun (_,e) -> (hash_bndr V e)) m)
+    | Case(v,m)   -> khash2 `Case (hash_expr v)
+                            (A.hash (fun (_,e) -> (hash_bndr V e)) m)
     | FixY(f,v)   -> hash (`FixY (hash_bndr V f, hash_expr v))
     | Prnt(s1)    -> khash1 `Prnt (hash s1)
     | Epsi        -> hash `Epsi

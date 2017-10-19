@@ -93,15 +93,15 @@ let rec ex : type a. a ex loc printer = fun ch e ->
                      match is_eq e with
                      | Some(e1,s,e2) -> fprintf ch "%a%s%a" ex e1 s ex e2
                      | None ->
-                        let (l,r) = if is_arrow a then ("(",")") else ("","") in
-                        fprintf ch "%a ∈ %s%a%s" ex t l ex a r
+                       let (l,r) = if is_arrow a then ("(",")") else ("","") in
+                       fprintf ch "%a ∈ %s%a%s" ex t l ex a r
                    end
   | Rest(a,c)   -> begin
                      match is_eq e with
                      | Some(e1,s,e2) -> fprintf ch "%a%s%a" ex e1 s ex e2
                      | None ->
-                        let (l,r) = if is_arrow a then ("(",")") else ("","") in
-                        fprintf ch "(%s%a%s | %a)" l ex a r rel c
+                       let (l,r) = if is_arrow a then ("(",")") else ("","") in
+                       fprintf ch "(%s%a%s | %a)" l ex a r rel c
                    end
   | Impl(e,a)   -> fprintf ch "%a ↪ %a" rel e ex a
   | LAbs(ao,b)  -> let (x,t) = unbind (mk_free V) (snd b) in

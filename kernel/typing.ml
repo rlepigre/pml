@@ -300,7 +300,8 @@ let rec subtype =
     let (t_is_val, ctx) = term_is_value t ctx in
     try let r =
       (* Same types.  *) (** FIXME: keep the pool *)
-      if eq_expr ~oracle:(oracle (ref ctx.equations.pool)) ~strict:false a b then
+      if eq_expr ~oracle:(oracle (ref ctx.equations.pool)) ~strict:false a b
+      then
         begin
           log_sub "reflexivity applies";
           Sub_Equal
@@ -771,7 +772,8 @@ and elim_sub_schema : ctxt -> sub_schema -> sub_specialised =
     { sspe_param ; sspe_relat; sspe_judge }
 
 (* Instantiation of a schema with ordinal witnesses. *)
-and inst_fix_schema : ctxt -> fix_schema -> ordi array -> fix_specialised * ctxt =
+and inst_fix_schema : ctxt -> fix_schema -> ordi array
+                      -> fix_specialised * ctxt =
   fun ctx sch os ->
     let arity = mbinder_arity (snd sch.fsch_judge) in
     let (eps, ctx_names) = cwit ctx.ctx_names (FixSch sch) in
@@ -784,7 +786,8 @@ and inst_fix_schema : ctxt -> fix_schema -> ordi array -> fix_specialised * ctxt
     ({ fspe_param ; fspe_judge }, ctx)
 
 (* Instantiation of a schema with ordinal witnesses. *)
-and inst_sub_schema : ctxt -> sub_schema -> ordi array -> sub_specialised * ctxt =
+and inst_sub_schema : ctxt -> sub_schema -> ordi array
+                      -> sub_specialised * ctxt =
   fun ctx sch os ->
     let arity = mbinder_arity sch.ssch_judge in
     let (eps, ctx_names) = cwit ctx.ctx_names (SubSch sch) in

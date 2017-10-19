@@ -675,8 +675,7 @@ let rec add_term : pool -> term -> TPtr.t * pool = fun po t ->
                    insert_t_node (TN_Proj(pv,l)) po
   | Case(v,m)   -> let (pv, po) = add_valu po v in
                    let (m,  po) = A.fold_map
-                                    (fun _ (_,x) po -> add_bndr_closure po V T x)
-                                    m po
+                       (fun _ (_,x) po -> add_bndr_closure po V T x) m po
                    in
                    insert_t_node (TN_Case(pv,m)) po
   | FixY(b,v)   -> let (pv, po) = add_valu po v in
@@ -754,7 +753,8 @@ and add_bndr_closure : type a b. pool -> a sort -> b sort ->
     ((funptr,vs,ts), po)
 
 and add_ho_appl
-    : type a b. pool -> a sort -> (a -> b) ex loc -> a ex loc -> b ho_appl * pool
+    : type a b. pool -> a sort -> (a -> b) ex loc
+           -> a ex loc -> b ho_appl * pool
   = fun po se f e ->
     let sf = fst (sort f) in
     let (f, vf, tf as cf) = Misc.make_closure f in
@@ -828,7 +828,8 @@ let rec normalise : TPtr.t -> pool -> Ptr.t * pool =
        | TN_Valu(pv)    -> (Ptr.V_ptr pv, po)
        | TN_Appl(pt,pu) ->
           begin
-            log2 "normalise in %a = TN_Appl: %a %a" TPtr.print p TPtr.print pt TPtr.print pu;
+            log2 "normalise in %a = TN_Appl: %a %a"
+                 TPtr.print p TPtr.print pt TPtr.print pu;
             let (pt, po) = normalise pt po in
             let (pu, po) = normalise pu po in
              (* argument must be really normalised, even if update is true *)
@@ -1055,7 +1056,8 @@ and union : ?no_rec:bool -> Ptr.t -> Ptr.t -> pool -> pool =
 (** Obtain the canonical term / value pointed by a pointer. *)
 (* NOTE: the "clos" bool is here to not follow the union find map if
     under closure, otherwise if loops, for instance on "exp n" *)
-let rec canonical_term : bool -> TPtr.t -> pool -> term * pool = fun clos p po ->
+let rec canonical_term : bool -> TPtr.t -> pool -> term * pool
+  = fun clos p po ->
   let (p, po) = if clos then (Ptr.T_ptr p,po) else find (Ptr.T_ptr p) po in
   let ct = canonical_term clos in
   let cv = canonical_valu clos in
@@ -1078,8 +1080,8 @@ let rec canonical_term : bool -> TPtr.t -> pool -> term * pool = fun clos p po -
                             (Pos.none (Proj(v,l)), po)
         | TN_Case(pv,m)  -> let (v, po) = cv pv po in
                             let (m, po) = A.fold_map (fun _ b po ->
-                                              let (p, po) = canonical_bndr_closure b po in
-                                              ((None, p), po)) m po
+                              let (p, po) = canonical_bndr_closure b po in
+                              ((None, p), po)) m po
                             in
                             (Pos.none (Case(v, m)), po)
         | TN_FixY(b,pv)  -> let (v, po) = cv pv po in
@@ -1097,7 +1099,9 @@ let rec canonical_term : bool -> TPtr.t -> pool -> term * pool = fun clos p po -
                               | Unset _ -> (Pos.none (UVar(T,v)), po)
                               | Set t   ->
                                   let (tp, po) = add_term po t in
-                                  let po = union (Ptr.T_ptr p) (Ptr.T_ptr tp) po in
+                                  let po = union (Ptr.T_ptr p)
+                                                 (Ptr.T_ptr tp) po
+                                  in
                                   ct tp po
                             end
         | TN_ITag(n)     -> (Pos.none (ITag(T,n)), po)
@@ -1109,7 +1113,8 @@ let rec canonical_term : bool -> TPtr.t -> pool -> term * pool = fun clos p po -
 
 (* NOTE: the "clos" bool is here to not follow the union find map if
     under closure, otherwise if loops, for instance on "exp n" *)
-and     canonical_valu : bool -> VPtr.t -> pool -> valu * pool = fun clos p po ->
+and     canonical_valu : bool -> VPtr.t -> pool -> valu * pool
+= fun clos p po ->
   let (p, po) = if clos then (Ptr.V_ptr p, po) else find (Ptr.V_ptr p) po in
   let cv = canonical_valu clos in
   match p with
@@ -1142,7 +1147,9 @@ and     canonical_valu : bool -> VPtr.t -> pool -> valu * pool = fun clos p po -
                               | Unset _ -> (Pos.none (UVar(V,v)), po)
                               | Set w   ->
                                  let (vp, po) = add_valu po w in
-                                 let po = union (Ptr.V_ptr p) (Ptr.V_ptr vp) po in
+                                 let po = union (Ptr.V_ptr p)
+                                                (Ptr.V_ptr vp) po
+                                 in
                                  cv vp po
                             end
         | VN_ITag(n)     -> (Pos.none (ITag(V,n)), po)
@@ -1161,7 +1168,8 @@ and canonical_closure: type a. a closure -> pool -> a ex loc * pool =
     in
     (msubst (msubst clsptr vs) ts, !po)
 
-and canonical_bndr_closure : type a b.(a,b) bndr_closure -> pool -> (a,b) bndr * pool =
+and canonical_bndr_closure : type a b.(a,b) bndr_closure -> pool
+                                  -> (a,b) bndr * pool =
   fun (funptr,vs,ts) po ->
     let po = ref po in
     let vs = Array.map (fun p -> let (p, po') = canonical_valu true p !po in
@@ -1260,67 +1268,75 @@ and unif_v_nodes : pool -> VPtr.t -> v_node -> VPtr.t -> v_node -> pool =
     (* FIXME #40, use oracle for VN_LAbs *)
     (* FIXME #50 (note), share VN_VWit and alike *)
     match (n1, n2) with
-    | (VN_UVar({uvar_val = {contents = Set v}})   , _             )
-       ->                                 let po = reinsert (Ptr.V_ptr p1) po in
-                                          unif_vptr po p1 p2
-
-    | (_, VN_UVar({uvar_val = {contents = Set v}}))
-       ->                                 let po = reinsert (Ptr.V_ptr p2) po in
-                                          unif_vptr po p1 p2
+    | (VN_UVar({uvar_val = {contents = Set v}}), _) ->
+       let po = reinsert (Ptr.V_ptr p1) po in
+       unif_vptr po p1 p2
+    | (_, VN_UVar({uvar_val = {contents = Set v}})) ->
+       let po = reinsert (Ptr.V_ptr p2) po in
+       unif_vptr po p1 p2
     | (VN_UVar(v1)   , VN_UVar(v2)   )
         when v1.uvar_key = v2.uvar_key -> assert false
-    | (VN_UVar(v1)   , _             ) -> let (p, po) = canonical_valu p2 po in
-                                          if uvar_occurs v1 p then raise NoUnif;
-                                          uvar_set v1 p;
-                                          union (Ptr.V_ptr p1) (Ptr.V_ptr p2) po
-    | (_             , VN_UVar(v2)   ) -> log2 "coucou";
-                                          let (p, po) = canonical_valu p1 po in
-                                          log2 "coucou2";
-                                          if uvar_occurs v2 p then raise NoUnif;
-                                          uvar_set v2 p;
-                                          log2 "coucou3";
-                                          union (Ptr.V_ptr p2) (Ptr.V_ptr p1) po
+    | (VN_UVar(v1)   , _             ) ->
+       let (p, po) = canonical_valu p2 po in
+       if uvar_occurs v1 p then raise NoUnif;
+       uvar_set v1 p;
+       union (Ptr.V_ptr p1) (Ptr.V_ptr p2) po
+    | (_             , VN_UVar(v2)   ) ->
+       let (p, po) = canonical_valu p1 po in
+       if uvar_occurs v2 p then raise NoUnif;
+       uvar_set v2 p;
+       union (Ptr.V_ptr p2) (Ptr.V_ptr p1) po
     | _ ->
     let po = union ~no_rec:true (Ptr.V_ptr p1) (Ptr.V_ptr p2) po in
     match (n1, n2) with
-    | (VN_LAbs(b1)   , VN_LAbs(b2)   ) -> unif_cl po V b1 b2
-    | (VN_Cons(c1,p1), VN_Cons(c2,p2)) -> if c1.elt <> c2.elt then raise NoUnif;
-                                          unif_vptr po p1 p2
-    | (VN_Reco(m1)   , VN_Reco(m2)   ) -> A.fold2 unif_vptr po m1 m2
+    | (VN_LAbs(b1)   , VN_LAbs(b2)   ) ->
+       unif_cl po V b1 b2
+    | (VN_Cons(c1,p1), VN_Cons(c2,p2)) ->
+       if c1.elt <> c2.elt then raise NoUnif;
+       unif_vptr po p1 p2
+    | (VN_Reco(m1)   , VN_Reco(m2)   ) ->
+       A.fold2 unif_vptr po m1 m2
     | (VN_Scis       , VN_Scis       ) -> po
-    | (VN_VWit(w1)   , VN_VWit(w2)   ) -> if !(w1.valu) == !(w2.valu) then po
-                                          else if !(w1.vars) = []
-                                                  && !(w2.vars) = []
-                                          then raise NoUnif
-                                          else
-                                            (let (f1,a1,b1) = !(w1.valu) in
-                                             let (f2,a2,b2) = !(w2.valu) in
-                                             let po = eq_bndr po V f1 f2 in
-                                             let po = eq_expr po a1 a2 in
-                                             eq_expr po b1 b2)
-    | (VN_UWit(w1)   , VN_UWit(w2)   ) -> if !(w1.valu) == !(w2.valu) then po
-                                          else if !(w1.vars) = []
-                                                  && !(w2.vars) = []
-                                          then raise NoUnif
-                                          else
-                                            (let (_,t1,b1) = !(w1.valu) in
-                                             let (_,t2,b2) = !(w2.valu) in
-                                             let po = eq_expr po t1 t2 in
-                                             eq_bndr po V b1 b2)
-    | (VN_EWit(w1)   , VN_EWit(w2)   ) -> if !(w1.valu) == !(w2.valu) then po
-                                          else if !(w1.vars) = []
-                                                  && !(w2.vars) = []
-                                          then raise NoUnif
-                                          else
-                                            (let (_,t1,b1) = !(w1.valu) in
-                                             let (_,t2,b2) = !(w2.valu) in
-                                             let po = eq_expr po t1 t2 in
-                                             eq_bndr po V b1 b2)
-    | (VN_ITag(n1)   , VN_ITag(n2)   ) -> if n1 = n2 then po else raise NoUnif
-    | (VN_HApp(e1)   , VN_HApp(e2)   ) -> if eq_ho_appl po e1 e2 then po
-                                          else raise NoUnif
-    | (VN_Goal(v1)   , VN_Goal(v2)   ) -> eq_expr po v1 v2
-    | (_             , _             ) -> raise NoUnif
+    | (VN_VWit(w1)   , VN_VWit(w2)   ) ->
+       if !(w1.valu) == !(w2.valu) then po
+       else if !(w1.vars) = []
+               && !(w2.vars) = []
+       then raise NoUnif
+       else
+         (let (f1,a1,b1) = !(w1.valu) in
+          let (f2,a2,b2) = !(w2.valu) in
+          let po = eq_bndr po V f1 f2 in
+          let po = eq_expr po a1 a2 in
+          eq_expr po b1 b2)
+    | (VN_UWit(w1)   , VN_UWit(w2)   ) ->
+       if !(w1.valu) == !(w2.valu) then po
+       else if !(w1.vars) = []
+               && !(w2.vars) = []
+       then raise NoUnif
+       else
+         (let (_,t1,b1) = !(w1.valu) in
+          let (_,t2,b2) = !(w2.valu) in
+          let po = eq_expr po t1 t2 in
+          eq_bndr po V b1 b2)
+    | (VN_EWit(w1)   , VN_EWit(w2)   ) ->
+       if !(w1.valu) == !(w2.valu) then po
+       else if !(w1.vars) = []
+               && !(w2.vars) = []
+       then raise NoUnif
+       else
+         (let (_,t1,b1) = !(w1.valu) in
+          let (_,t2,b2) = !(w2.valu) in
+          let po = eq_expr po t1 t2 in
+          eq_bndr po V b1 b2)
+    | (VN_ITag(n1)   , VN_ITag(n2)   ) ->
+       if n1 = n2 then po else raise NoUnif
+    | (VN_HApp(e1)   , VN_HApp(e2)   ) ->
+       if eq_ho_appl po e1 e2 then po
+       else raise NoUnif
+    | (VN_Goal(v1)   , VN_Goal(v2)   ) ->
+       eq_expr po v1 v2
+    | (_             , _             ) ->
+       raise NoUnif
 
 and unif_t_nodes : pool -> TPtr.t -> t_node -> TPtr.t -> t_node -> pool =
   fun po p1 n1 p2 n2 -> if n1 == n2 then po else
@@ -1338,59 +1354,75 @@ and unif_t_nodes : pool -> TPtr.t -> t_node -> TPtr.t -> t_node -> pool =
     (* FIXME #50 (note), share VN_VWit and alike *)
     log2 "unif_t_nodes %a = %a" print_t_node n1 print_t_node n2;
     match (n1, n2) with
-    | (TN_UVar({uvar_val = {contents = Set v}})   , _             )
-       ->                                 let po = reinsert (Ptr.T_ptr p1) po in
-                                          unif_tptr po p1 p2
-    | (_, TN_UVar({uvar_val = {contents = Set v}}))
-       ->                                 let po = reinsert (Ptr.T_ptr p2) po in
-                                          unif_tptr po p1 p2
+    | (TN_UVar({uvar_val = {contents = Set v}}), _) ->
+       let po = reinsert (Ptr.T_ptr p1) po in
+       unif_tptr po p1 p2
+    | (_, TN_UVar({uvar_val = {contents = Set v}})) ->
+       let po = reinsert (Ptr.T_ptr p2) po in
+       unif_tptr po p1 p2
     | (TN_UVar(v1)   , TN_UVar(v2)   )
             when v1.uvar_key = v2.uvar_key -> assert false
-    | (TN_UVar(v1)     , _               ) -> let (p, po) = canonical_term p2 po in
-                                              if uvar_occurs v1 p then raise NoUnif;
-                                              uvar_set v1 p;
-                                              union (Ptr.T_ptr p1) (Ptr.T_ptr p2) po
-    | (_               , TN_UVar(v2)     ) -> let (p, po) = canonical_term p1 po in
-                                              if uvar_occurs v2 p then raise NoUnif;
-                                              uvar_set v2 p;
-                                              union (Ptr.T_ptr p2) (Ptr.T_ptr p1) po
+    | (TN_UVar(v1)     , _               ) ->
+       let (p, po) = canonical_term p2 po in
+       if uvar_occurs v1 p then raise NoUnif;
+       uvar_set v1 p;
+       union (Ptr.T_ptr p1) (Ptr.T_ptr p2) po
+    | (_               , TN_UVar(v2)     ) ->
+       let (p, po) = canonical_term p1 po in
+       if uvar_occurs v2 p then raise NoUnif;
+       uvar_set v2 p;
+       union (Ptr.T_ptr p2) (Ptr.T_ptr p1) po
     | _ ->
     let po = union ~no_rec:true (Ptr.T_ptr p1) (Ptr.T_ptr p2) po in
     match (n1, n2) with
-    | (TN_Valu(p1)     , TN_Valu(p2)     ) -> unif_vptr po p1 p2
-    | (TN_Appl(p11,p12), TN_Appl(p21,p22)) -> let po = unif_tptr po p11 p21 in
-                                              unif_tptr po p12 p22
-    | (TN_MAbs(b1)     , TN_MAbs(b2)     ) -> unif_cl po S b1 b2
-    | (TN_Name(s1,p1)  , TN_Name(s2,p2)  ) -> let po = eq_expr po s1 s2 in
-                                              unif_tptr po p1 p2
-    | (TN_Proj(p1,l1)  , TN_Proj(p2,l2)  ) -> if l1.elt <> l2.elt then raise NoUnif;
-                                              unif_vptr po p1 p2
-    | (TN_Case(p1,m1)  , TN_Case(p2,m2)  ) -> let po = unif_vptr po p1 p2 in
-                                              A.fold2 (fun po -> unif_cl po V) po m1 m2
-    | (TN_FixY(b1,p1)  , TN_FixY(b2,p2)  ) -> let po = unif_cl po V b1 b2 in
-                                              unif_vptr po p1 p2
-    | (TN_Prnt(s1)     , TN_Prnt(s2)     ) -> if s1 <> s2 then raise NoUnif; po
-    | (TN_UWit(w1)     , TN_UWit(w2)     ) -> if !(w1.valu) == !(w2.valu) then po
-                                              else if !(w1.vars) = [] && !(w2.vars) = []
-                                              then raise NoUnif
-                                              else
-                                                (let (_,t1,b1) = !(w1.valu) in
-                                                 let (_,t2,b2) = !(w2.valu) in
-                                                 let po = eq_expr po t1 t2 in
-                                                 eq_bndr po T b1 b2)
-    | (TN_EWit(w1)     , TN_EWit(w2)     ) -> if !(w1.valu) == !(w2.valu) then po
-                                              else if !(w1.vars) = [] && !(w2.vars) = []
-                                              then raise NoUnif
-                                              else
-                                                (let (_,t1,b1) = !(w1.valu) in
-                                                 let (_,t2,b2) = !(w2.valu) in
-                                                 let po = eq_expr po t1 t2 in
-                                                 eq_bndr po T b1 b2)
-    | (TN_ITag(n1)     , TN_ITag(n2)     ) -> if n1 <> n2 then raise NoUnif; po
-    | (TN_HApp(e1)     , TN_HApp(e2)     ) -> if eq_ho_appl po e1 e2 then po
-                                              else raise NoUnif
-    | (TN_Goal(t1)     , TN_Goal(t2)     ) -> eq_expr po t1 t2
-    | (_               , _               ) -> raise NoUnif
+    | (TN_Valu(p1)     , TN_Valu(p2)     ) ->
+       unif_vptr po p1 p2
+    | (TN_Appl(p11,p12), TN_Appl(p21,p22)) ->
+       let po = unif_tptr po p11 p21 in
+       unif_tptr po p12 p22
+    | (TN_MAbs(b1)     , TN_MAbs(b2)     ) ->
+       unif_cl po S b1 b2
+    | (TN_Name(s1,p1)  , TN_Name(s2,p2)  ) ->
+       let po = eq_expr po s1 s2 in
+       unif_tptr po p1 p2
+    | (TN_Proj(p1,l1)  , TN_Proj(p2,l2)  ) ->
+       if l1.elt <> l2.elt then raise NoUnif;
+       unif_vptr po p1 p2
+    | (TN_Case(p1,m1)  , TN_Case(p2,m2)  ) ->
+       let po = unif_vptr po p1 p2 in
+       A.fold2 (fun po -> unif_cl po V) po m1 m2
+    | (TN_FixY(b1,p1)  , TN_FixY(b2,p2)  ) ->
+       let po = unif_cl po V b1 b2 in
+       unif_vptr po p1 p2
+    | (TN_Prnt(s1)     , TN_Prnt(s2)     ) ->
+       if s1 <> s2 then raise NoUnif; po
+    | (TN_UWit(w1)     , TN_UWit(w2)     ) ->
+       if !(w1.valu) == !(w2.valu) then po
+       else if !(w1.vars) = [] && !(w2.vars) = []
+       then raise NoUnif
+       else
+         (let (_,t1,b1) = !(w1.valu) in
+          let (_,t2,b2) = !(w2.valu) in
+          let po = eq_expr po t1 t2 in
+          eq_bndr po T b1 b2)
+    | (TN_EWit(w1)     , TN_EWit(w2)     ) ->
+       if !(w1.valu) == !(w2.valu) then po
+       else if !(w1.vars) = [] && !(w2.vars) = []
+       then raise NoUnif
+       else
+         (let (_,t1,b1) = !(w1.valu) in
+          let (_,t2,b2) = !(w2.valu) in
+          let po = eq_expr po t1 t2 in
+          eq_bndr po T b1 b2)
+    | (TN_ITag(n1)     , TN_ITag(n2)     ) ->
+       if n1 <> n2 then raise NoUnif; po
+    | (TN_HApp(e1)     , TN_HApp(e2)     ) ->
+       if eq_ho_appl po e1 e2 then po
+       else raise NoUnif
+    | (TN_Goal(t1)     , TN_Goal(t2)     ) ->
+       eq_expr po t1 t2
+    | (_               , _               ) ->
+       raise NoUnif
 
 and eq_val : pool ref -> valu -> valu -> bool = fun pool v1 v2 ->
   if v1.elt == v2.elt then true else
