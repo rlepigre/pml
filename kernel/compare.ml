@@ -334,19 +334,11 @@ let {hash_expr; hash_bndr; hash_ombinder; hash_vwit
   let c = ref (-1) in
   let new_itag : type a. a sort -> a ex = fun s -> incr c; ITag(s,!c) in
   let hash : type a. a -> int = Hashtbl.hash in
-  let mix x y =
-    ((y lsl 17) - x) lxor ((x lsr 7) - y)
-  in
+  let mix x y = ((y lsl 17) - x) lxor ((x lsr 7) - y) in
   let mix3 x y z = mix x (mix y z) in
-  let khash1 k x =
-    mix (Obj.magic k : int) x
-  in
-  let khash2 k x y =
-    mix (Obj.magic k : int) (mix x y)
-  in
-  let khash3 k x y z =
-    mix (mix (Obj.magic k : int) x) (mix y z)
-  in
+  let khash1 k x = mix (hash k) x in
+  let khash2 k x y = mix (hash k) (mix x y) in
+  let khash3 k x y z = mix (mix (hash k) x) (mix y z) in
   let rec hash_expr : type a. a ex loc -> int =
     fun e ->
     let hash_cond = function
