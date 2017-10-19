@@ -7,154 +7,26 @@ open Pos
 open Ast
 open Output
 open Print
+open Uvars
 
 (* Log functions registration. *)
 let log_equ = Log.register 'c' (Some "cmp") "comparing informations"
 let log_equ = Log.(log_equ.p)
 
-let log_uni = Log.register 'u' (Some "uni") "unification informations"
-let log_uni = Log.(log_uni.p)
-
-(* Setting a unification variable. *)
+(* Setting a unification variable. (not in uvars.ml: needs print) *)
 let uvar_set : type a. a uvar -> a ex loc -> unit = fun u e ->
   log_uni "?%i ← %a" u.uvar_key Print.ex e;
-  assert(!(u.uvar_val) = None);
-  Timed.(u.uvar_val := Some e)
+  match !(u.uvar_val) with
+  | Set   _     -> assert false
+  | Unset hooks ->
+     Timed.(u.uvar_val := Set e);
+     List.iter (fun f -> f ()) hooks
 
-(* Unification variable equality test. *)
-let uvar_eq : type a. a uvar -> a uvar -> bool =
-  fun u v -> u.uvar_key == v.uvar_key
-
-type uvar_fun = { f : 'a. 'a sort -> 'a uvar -> unit }
-
-type b = A : 'a ex -> b
-
-let uvar_iter : type a. bool -> bool -> uvar_fun -> a ex loc -> unit =
-  fun ignore_epsilon ignore_fixpoint f e ->
-  let not_closed b = not (Bindlib.binder_closed (snd b)) in
-  let adone = Ahash.create 67 in
-  let todo : type a . a ex loc -> bool =
-  fun e ->
-      not (ignore_epsilon) &&
-        if Ahash.mem adone (A e.elt) then false
-        else (
-          Ahash.add adone (A e.elt) ();
-          true)
-  in
-  let rec uvar_iter : type a. a ex loc -> unit = fun e ->
-    let uvar_iter_cond c =
-      match c with
-      | Equiv(t,_,u) -> uvar_iter t; uvar_iter u
-      | NoBox(v)     -> uvar_iter v;
-      | Posit(o)     -> uvar_iter o
-    in
-    let buvar_iter b = if not_closed b then uvar_iter (bndr_subst b Dumm) in
-    let e = Norm.whnf e in
-    match e.elt with
-    | Vari(_)     -> ()
-    | HFun(_,_,b) -> buvar_iter b
-    | HApp(_,a,b) -> uvar_iter a; uvar_iter b
-    | HDef(_)     -> () (* NOTE no unification variable in definition. *)
-    | Func(a,b)   -> uvar_iter a; uvar_iter b
-    | Prod(m)     -> A.iter (fun _ (_,a) -> uvar_iter a) m
-    | DSum(m)     -> A.iter (fun _ (_,a) -> uvar_iter a) m
-    | Univ(_,b)   -> buvar_iter b
-    | Exis(_,b)   -> buvar_iter b
-    | FixM(o,b)   -> if not ignore_fixpoint then (uvar_iter o; buvar_iter b)
-    | FixN(o,b)   -> if not ignore_fixpoint then (uvar_iter o; buvar_iter b)
-    | Memb(t,a)   -> uvar_iter t; uvar_iter a
-    | Rest(a,c)   -> uvar_iter a; uvar_iter_cond c
-    | Impl(c,a)   -> uvar_iter_cond c; uvar_iter a
-    (* NOTE type annotation ignored. *)
-    | LAbs(_,b)   -> buvar_iter b
-    | Cons(_,v)   -> uvar_iter v
-    | Reco(m)     -> A.iter (fun _ (_,a) -> uvar_iter a) m
-    | Scis        -> ()
-    | VDef(_)     -> () (* NOTE no unification variable in definition. *)
-    | Valu(v)     -> uvar_iter v
-    | Appl(t,u)   -> uvar_iter t; uvar_iter u
-    (* NOTE type annotation ignored. *)
-    | MAbs(b)     -> buvar_iter b
-    | Name(s,t)   -> uvar_iter s; uvar_iter t
-    | Proj(v,_)   -> uvar_iter v
-    | Case(v,m)   -> let fn _ (_,b) = buvar_iter b in
-                     uvar_iter v; A.iter fn m
-    | FixY(f,v)   -> buvar_iter f; uvar_iter v
-    | Prnt(_)     -> ()
-    | Epsi        -> ()
-    | Push(v,s)   -> uvar_iter v; uvar_iter s
-    | Fram(t,s)   -> uvar_iter t; uvar_iter s
-    | Conv        -> ()
-    | Succ(o)     -> uvar_iter o
-    (* NOTE type annotations ignored. *)
-    | Coer(_,e,_) -> uvar_iter e
-    | Such(_,_,r) -> uvar_iter (bseq_dummy r.binder)
-    | ITag(_)     -> ()
-    | Dumm        -> ()
-    | Goal(_)     -> ()
-    | VWit(_,w)   -> let (f,a,b) = w in
-                     if todo e then (buvar_iter f; uvar_iter a; uvar_iter b)
-    | SWit(_,w)   -> let (b,a) = w in
-                     if todo e then (buvar_iter b; uvar_iter a)
-    | UWit(_,_,w) -> let (t,b) = w in
-                     if todo e then (uvar_iter t; buvar_iter b)
-    | EWit(_,_,w) -> let (t,b) = w in
-                     if todo e then (uvar_iter t; buvar_iter b)
-    | OWMu(_,w)   -> let (o,t,b) = w in
-                     if todo e then (uvar_iter o; uvar_iter t; buvar_iter b)
-    | OWNu(_,w)   -> let (o,t,b) = w in
-                     if todo e then (uvar_iter o; uvar_iter t; buvar_iter b)
-    | OSch(_,w)   ->
-       let (o,i,s) = w in
-       if todo e then
-         begin
-           match s with
-           | FixSch s ->
-              let (t,b) = s.fsch_judge in
-              let (_,t) = Bindlib.unbind (mk_free V) (snd t) in
-              let (_,k) = Bindlib.unmbind (mk_free O) b in
-              Extra.Option.iter uvar_iter o; uvar_iter t; uvar_iter k
-           | SubSch s ->
-              let b = s.ssch_judge in
-              let (_,(k1,k2)) = Bindlib.unmbind (mk_free O) b in
-              Extra.Option.iter uvar_iter o; uvar_iter k1; uvar_iter k2
-         end
-    | UVar(s,u)   -> f.f s u
-  in uvar_iter e
-
-type s_elt = U : 'a sort * 'a uvar -> s_elt
-
-let uvars : type a. ?ignore_epsilon:bool -> ?ignore_fixpoint:bool
-                 -> a ex loc -> s_elt list =
-  fun ?(ignore_epsilon=false) ?(ignore_fixpoint=false) e ->
-  let uvars = ref [] in
-  let f s u =
-    let p (U(_,v)) = v.uvar_key == u.uvar_key in
-    if not (List.exists p !uvars) then uvars := (U(s,u)) :: !uvars
-  in
-  uvar_iter ignore_epsilon ignore_fixpoint {f} e; !uvars
-
-let occur_chrono = Chrono.create "occur"
-
-let uvar_occurs : type a b. a uvar -> b ex loc -> bool = fun u e ->
-  let f _ v =
-    if v.uvar_key == u.uvar_key then
-      begin
-        log_equ "Occur check on %d" u.uvar_key;
-        raise Exit
-      end
-  in
-  try Chrono.add_time occur_chrono (uvar_iter false false {f}) e; false
-  with Exit -> true
-
-let nb_vis_uvars a =
-  List.length (uvars ~ignore_epsilon:true ~ignore_fixpoint:true a)
-
-let uvar_occurs_rel : type a. a uvar -> rel -> bool = fun u c ->
-  match c with
-  | Equiv(t,_,s) -> uvar_occurs u t || uvar_occurs u s
-  | NoBox(v)     -> uvar_occurs u v;
-  | Posit(o)     -> uvar_occurs u o
+let uvar_hook : type a. a uvar -> (unit -> unit) -> unit = fun u f ->
+   match !(u.uvar_val) with
+  | Set   _     -> ()
+  | Unset hooks ->
+     Timed.(u.uvar_val := Unset (f::hooks))
 
 let full_eq = ref false
 
@@ -172,13 +44,10 @@ type eq =
                     'a ex loc -> 'a ex loc -> bool
   ; eq_bndr     : 'a 'b. ?oracle:oracle -> ?strict:bool -> 'a sort ->
                     ('a,'b) bndr ->
-                    ('a,'b) bndr -> bool
-  ; eq_ombinder : 'a. ?oracle:oracle -> ?strict:bool ->
-                    (o ex, 'a ex loc) mbinder ->
-                    (o ex, 'a ex loc) mbinder -> bool }
+                    ('a,'b) bndr -> bool }
 
 (* Comparison function with unification variable instantiation. *)
-let {eq_expr; eq_bndr; eq_ombinder} =
+let {eq_expr; eq_bndr} =
   let c = ref (-1) in
   let new_itag : type a. a sort -> a ex = fun s -> incr c; ITag(s,!c) in
 
@@ -186,20 +55,11 @@ let {eq_expr; eq_bndr; eq_ombinder} =
     fun oracle strict e1 e2 ->
     let eq_expr e1 e2 = eq_expr oracle strict e1 e2 in
     let eq_bndr b1 b2 = eq_bndr oracle strict b1 b2 in
-    let eq_ombinder omb1 omb2 = eq_ombinder oracle strict omb1 omb2 in
-    let eq_ombinder2 omb1 omb2 = eq_ombinder2 oracle strict omb1 omb2 in
     let eq_fix_schema sch1 sch2 =
-      sch1.fsch_index = sch2.fsch_index &&
-      let (b1, omb1)  = sch1.fsch_judge in
-      let (b2, omb2)  = sch2.fsch_judge in
-      eq_bndr V b1 b2 && eq_ombinder omb1 omb2
+      sch1.fsch_index = sch2.fsch_index
     in
     let eq_sub_schema sch1 sch2 =
-      sch1.ssch_index = sch2.ssch_index &&
-      sch1.ssch_relat = sch2.ssch_relat &&
-      let omb1 = sch1.ssch_judge in
-      let omb2 = sch1.ssch_judge in
-      eq_ombinder2 omb1 omb2
+      sch1.ssch_index = sch2.ssch_index
     in
     let eq_opt_expr o1 o2 = match (o1, o2) with
       | (None   , None   ) -> true
@@ -316,31 +176,73 @@ let {eq_expr; eq_bndr; eq_ombinder} =
     | (ITag(_,i1)    , ITag(_,i2)    ) -> i1 = i2
     (* NOTE should not be compare dummy expressions. *)
     | (Dumm          , Dumm          ) -> false
-    | (VWit(_,w1)    , VWit(_,w2)    ) -> let (f1,a1,b1) = w1 in
-                                          let (f2,a2,b2) = w2 in
-                                          eq_bndr V f1 f2 && eq_expr a1 a2
-                                          && eq_expr b1 b2
-    | (SWit(_,w1)    , SWit(_,w2)    ) -> let (f1,a1) = w1 in
-                                          let (f2,a2) = w2 in
-                                          eq_bndr S f1 f2 && eq_expr a1 a2
-    | (UWit(_,s1,w1) , UWit(_,_,w2)  ) -> let (t1,b1) = w1 in
-                                          let (t2,b2) = w2 in
-                                          eq_bndr s1 b1 b2 && eq_expr t1 t2
-    | (EWit(_,s1,w1) , EWit(_,_,w2)  ) -> let (t1,b1) = w1 in
-                                          let (t2,b2) = w2 in
-                                          eq_bndr s1 b1 b2 && eq_expr t1 t2
-    | (OWMu(_,w1)    , OWMu(_,w2)    ) -> let (o1,t1,b1) = w1 in
-                                          let (o2,t2,b2) = w2 in
-                                          eq_expr o1 o2 && eq_expr t1 t2
-                                          && eq_bndr O b1 b2
-    | (OWNu(_,w1)    , OWNu(_,w2)    ) -> let (o1,t1,b1) = w1 in
-                                          let (o2,t2,b2) = w2 in
-                                          eq_expr o1 o2 && eq_expr t1 t2
-                                          && eq_bndr O b1 b2
-    | (OSch(_,w1)    , OSch(_,w2)    ) -> let (o1,i1,s1) = w1 in
-                                          let (o2,i2,s2) = w2 in
-                                          i1 = i2 && eq_opt_expr o1 o2
-                                          && eq_schema s1 s2
+    | (VWit(w1)      , VWit(w2)      ) ->
+       w1.valu == w2.valu ||
+         if strict || (!(w1.vars) = [] && !(w2.vars) = [])
+         then false
+         else
+           (let (f1,a1,b1) = !(w1.valu) in
+            let (f2,a2,b2) = !(w2.valu) in
+            eq_bndr V f1 f2 &&
+              eq_expr a1 a2 && eq_expr b1 b2)
+    | (SWit(w1)      , SWit(w2)      ) ->
+       !(w1.valu) == !(w2.valu) ||
+         if strict || (!(w1.vars) = [] && !(w2.vars) = [])
+         then false
+         else
+           (let (f1,a1) = !(w1.valu) in
+            let (f2,a2) = !(w2.valu) in
+            eq_bndr S f1 f2 && eq_expr a1 a2)
+    | (UWit(w1)      , UWit(w2)      ) ->
+       !(w1.valu) == !(w2.valu) ||
+         if strict || (!(w1.vars) = [] && !(w2.vars) = [])
+         then false
+         else
+           (let (s1,t1,b1) = !(w1.valu) in
+            let (s2,t2,b2) = !(w2.valu) in
+            match eq_sort s1 s2 with
+            | Eq.Eq ->
+               eq_expr t1 t2 && eq_bndr s1 b1 b2
+            | _ -> false)
+    | (EWit(w1)      , EWit(w2)      ) ->
+       !(w1.valu) == !(w2.valu) ||
+         if strict || (!(w1.vars) = [] && !(w2.vars) = [])
+         then false
+         else
+           (let (s1,t1,b1) = !(w1.valu) in
+            let (s2,t2,b2) = !(w2.valu) in
+            match eq_sort s1 s2 with
+            | Eq.Eq ->
+               eq_expr t1 t2 && eq_bndr s1 b1 b2
+            | _ -> false)
+    | (OWMu(w1)      , OWMu(w2)      ) ->
+       !(w1.valu) == !(w2.valu) ||
+         if strict || (!(w1.vars) = [] && !(w2.vars) = [])
+         then false
+         else
+           (let (o1,t1,b1) = !(w1.valu) in
+            let (o2,t2,b2) = !(w2.valu) in
+            eq_expr o1 o2 && eq_expr t1 t2
+            && eq_bndr O b1 b2)
+    | (OWNu(w1)      , OWNu(w2)      ) ->
+       !(w1.valu) == !(w2.valu) ||
+         if strict || (!(w1.vars) = [] && !(w2.vars) = [])
+         then false
+         else
+           (let (o1,t1,b1) = !(w1.valu) in
+            let (o2,t2,b2) = !(w2.valu) in
+            eq_expr o1 o2 && eq_expr t1 t2
+            && eq_bndr O b1 b2)
+    | (OSch(i1,o1,w1), OSch(i2,o2,w2)) ->
+       i1 = i2
+       && eq_opt_expr o1 o2
+       && (!(w1.valu) == !(w2.valu) ||
+             if strict || (!(w1.vars) = [] && !(w2.vars) = [])
+             then false
+             else
+               (let s1 = !(w1.valu) in
+                let s2 = !(w2.valu) in
+                eq_schema s1 s2))
     | (UVar(_,u1)    , UVar(_,u2)    ) ->
        if strict then u1.uvar_key = u2.uvar_key else
          begin
@@ -375,6 +277,9 @@ let {eq_expr; eq_bndr; eq_ombinder} =
        in
        let e1 = remove_occur_check e1 in
        if uvar_occurs u2 e1 then false else (uvar_set u2 e1; true)
+    (* two next cases are automatically stronger with oracle *)
+    | (VPtr v1       , VPtr v2       ) -> v1 = v2
+    | (TPtr t1       , TPtr t2       ) -> t1 = t2
     | _                                -> false)
 
   and eq_bndr : type a b. oracle -> bool -> a sort ->
@@ -384,29 +289,6 @@ let {eq_expr; eq_bndr; eq_ombinder} =
         let t = new_itag s1 in
         eq_expr oracle strict (bndr_subst b1 t) (bndr_subst b2 t)
 
-  and eq_ombinder : type a. oracle -> bool ->
-                            (o ex, a ex loc) mbinder ->
-                            (o ex, a ex loc) mbinder -> bool =
-    fun oracle strict omb1 omb2 ->
-      if omb1 == omb2 then true else
-      let ar1 = mbinder_arity omb1 in
-      let ar2 = mbinder_arity omb2 in
-      if ar1 <> ar2 then false else
-      let ta = Array.init ar1 (fun _ -> new_itag O) in
-      eq_expr oracle strict (msubst omb1 ta) (msubst omb2 ta)
-
-  and eq_ombinder2 : type a. oracle -> bool ->
-                            (o ex, p ex loc * p ex loc) mbinder ->
-                            (o ex, p ex loc * p ex loc) mbinder -> bool =
-    fun oracle strict omb1 omb2 ->
-      if omb1 == omb2 then true else
-      let ar1 = mbinder_arity omb1 in
-      let ar2 = mbinder_arity omb2 in
-      if ar1 <> ar2 then false else
-      let ta = Array.init ar1 (fun _ -> new_itag O) in
-      let (k11, k12) = msubst omb1 ta in
-      let (k21, k22) = msubst omb2 ta in
-      eq_expr oracle strict k11 k21 && eq_expr oracle strict k12 k22
   in
 
   let compare_chrono = Chrono.create "compare" in
@@ -433,16 +315,222 @@ let {eq_expr; eq_bndr; eq_ombinder} =
         (Timed.pure_test (eq_bndr oracle strict s1 b1)) b2
   in
 
-  let eq_ombinder : type a. ?oracle:oracle -> ?strict:bool ->
-                      (o ex, a ex loc) mbinder ->
-                      (o ex, a ex loc) mbinder -> bool =
-    fun ?(oracle=default_oracle) ?(strict=false) omb1 omb2 ->
-      c := -1; (* Reset. *)
-      Chrono.add_time compare_chrono
-        (Timed.pure_test (eq_ombinder oracle strict omb1)) omb2
+  {eq_expr; eq_bndr}
+
+type hash =
+  { hash_expr     : 'a. 'a ex loc -> int
+  ; hash_bndr     : 'a 'b. 'a sort -> ('a,'b) bndr -> int
+  ; hash_ombinder : 'a. (o ex, 'a ex loc) mbinder -> int
+  ; hash_vwit     : vwit -> int
+  ; hash_qwit     : 'a. 'a qwit -> int
+  ; hash_owit     : owit -> int
+  ; hash_swit     : swit -> int
+  ; hash_cwit     : schema -> int
+  }
+
+(* hash function with unification variable instantiation. *)
+let {hash_expr; hash_bndr; hash_ombinder; hash_vwit
+    ; hash_qwit; hash_owit; hash_swit; hash_cwit} =
+  let c = ref (-1) in
+  let new_itag : type a. a sort -> a ex = fun s -> incr c; ITag(s,!c) in
+  let hash : type a. a -> int = Hashtbl.hash in
+  let mix x y = ((y lsl 17) - x) lxor ((x lsr 7) - y) in
+  let mix3 x y z = mix x (mix y z) in
+  let khash1 k x = mix (hash k) x in
+  let khash2 k x y = mix (hash k) (mix x y) in
+  let khash3 k x y z = mix (mix (hash k) x) (mix y z) in
+  let rec hash_expr : type a. a ex loc -> int =
+    fun e ->
+    let hash_cond = function
+      | Equiv(t,b,u) -> khash3 `Equiv (hash_expr t) (hash b) (hash_expr u)
+      | Posit(o)     -> hash (`Posit(hash_expr o))
+      | NoBox(v)     -> hash (`NoBox(hash_expr v))
+    in
+    let e = Norm.whnf e in
+    match e.elt with
+    | HDef(_,d)   -> d.expr_hash
+    | VDef(d)     -> d.value_hash
+    | Valu(v)     -> hash_expr v
+    | Coer(_,e,_) -> hash_expr e
+    | Such(_,_,r) -> hash_expr (bseq_dummy r.binder)
+    | Vari(_,x)   -> khash1 `Vari (Bindlib.hash_var x)
+    | HFun(s,_,b) -> khash1 `HFun (hash_bndr s b)
+    | HApp(s,f,a) -> khash3 `HApp (hash_sort s) (hash_expr f) (hash_expr a)
+    | Func(a,b)   -> khash2 `Func (hash_expr a) (hash_expr b)
+    | DSum(m)     -> khash1 `DSum (A.hash (fun (_,e) -> hash_expr e) m)
+    | Prod(m)     -> khash1 `Prod (A.hash (fun (_,e) -> hash_expr e) m)
+    | Univ(s,b)   -> khash2 `Univ (hash_sort s) (hash_bndr s b)
+    | Exis(s,b)   -> khash2 `Exit (hash_sort s) (hash_bndr s b)
+    | FixM(o,b)   -> khash2 `FixM (hash_expr o) (hash_bndr P b)
+    | FixN(o,b)   -> khash2 `FixN (hash_expr o) (hash_bndr P b)
+    | Memb(t,a)   -> khash2 `Memb (hash_expr t) (hash_expr a)
+    | Rest(a,c)   -> khash2 `Rest (hash_expr a) (hash_cond c)
+    | Impl(c,a)   -> khash2 `Impl (hash_expr a) (hash_cond c)
+    (* NOTE type annotation ignored. *)
+    | LAbs(_,b)   -> khash1 `LAbs (hash_bndr V b)
+    | Cons(c,v)   -> khash2 `Cons (hash c.elt) (hash_expr v)
+    | Reco(m)     -> khash1 `Reco (A.hash (fun (_,e) -> hash_expr e) m)
+    | Scis        -> hash `Scis
+    | Appl(t,u)   -> khash2 `Appl (hash_expr t) (hash_expr u)
+    (* NOTE type annotation ignored. *)
+    | MAbs(b)     -> khash1 `MAbs (hash_bndr S b)
+    | Name(s,t)   -> khash2 `Name (hash_expr s) (hash_expr t)
+    | Proj(v,l)   -> khash2 `Proj (hash l.elt) (hash_expr v)
+    | Case(v,m)   -> khash2 `Case (hash_expr v)
+                            (A.hash (fun (_,e) -> (hash_bndr V e)) m)
+    | FixY(f,v)   -> hash (`FixY (hash_bndr V f, hash_expr v))
+    | Prnt(s1)    -> khash1 `Prnt (hash s1)
+    | Epsi        -> hash `Epsi
+    | Push(v,s)   -> khash2 `Push (hash_expr v) (hash_expr s)
+    | Fram(t,s)   -> khash2 `Fram (hash_expr t) (hash_expr s)
+    | Conv        -> hash `Conv
+    | Succ(o)     -> khash1 `Succ (hash_expr o)
+    (* NOTE type annotations ignored. *)
+    | ITag(_,i)   -> hash (`ITag(i))
+    (* NOTE should not be compare dummy expressions. *)
+    | Dumm        -> hash (`Dumm)
+    | VWit(w)     -> w.refr (); khash1 `VWit !(w.hash)
+    | SWit(w)     -> w.refr (); khash1 `SWit !(w.hash)
+    | UWit(w)     -> w.refr (); khash1 `UWit !(w.hash)
+    | EWit(w)     -> w.refr (); khash1 `EWit !(w.hash)
+    | OWMu(w)     -> w.refr (); khash1 `OWMu !(w.hash)
+    | OWNu(w)     -> w.refr (); khash1 `OWNu !(w.hash)
+    | OSch(i,o,w) -> w.refr (); khash3 `OSch i (hash_opt_expr o) !(w.hash)
+    | UVar(i,u)   -> khash1 `UVar u.uvar_key
+    (* two next cases are automatically stronger with oracle *)
+    | VPtr v      -> khash1 `VPtr (hash v)
+    | TPtr t      -> khash1 `TPtr (hash t)
+    | Goal(s,str) -> khash2 `Goal (hash_sort s) (hash str)
+
+  and hash_bndr : type a b. a sort -> (a,b) bndr -> int =
+    fun s b ->
+      let t = new_itag s in
+      hash_expr (bndr_subst b t)
+
+  and hash_ombinder : type a. (o ex, a ex loc) mbinder -> int =
+    fun omb ->
+      let ar = mbinder_arity omb in
+      let ta = Array.init ar (fun _ -> new_itag O) in
+      hash_expr (msubst omb ta)
+
+  and hash_opt_expr = function
+    | None -> hash `None
+    | Some e -> khash1 `Some (hash_expr e)
+
+  and hash_vwit : vwit -> int =
+    fun (f,a,b) -> mix3 (hash_bndr V f) (hash_expr a) (hash_expr b)
+
+  and hash_qwit : type a. a qwit -> int =
+    fun (s,t,b) -> mix3 (hash_sort s) (hash_expr t) (hash_bndr s b)
+
+  and hash_owit : owit -> int =
+    fun (s,t,b) -> mix3 (hash_expr s) (hash_expr t) (hash_bndr O b)
+
+  and hash_swit : swit -> int =
+    fun (b,t) -> mix (hash_bndr S b) (hash_expr t)
+
+  and hash_cwit : schema -> int =
+    function
+      | FixSch s -> khash1 `FixSch (hash s.fsch_index)
+      | SubSch s -> khash1 `SubSch (hash s.ssch_index)
   in
 
-  {eq_expr; eq_bndr; eq_ombinder}
+  let hash_chrono = Chrono.create "hash" in
+
+  let hash_expr : type a. a ex loc -> int =
+    fun e ->
+      c := -1; (* Reset. *)
+      Chrono.add_time hash_chrono hash_expr e
+  in
+
+  let hash_bndr : type a b. a sort -> (a,b) bndr -> int =
+    fun s b ->
+      c := -1; (* Reset. *)
+      Chrono.add_time hash_chrono (hash_bndr s) b
+  in
+
+  let hash_ombinder : type a. (o ex, a ex loc) mbinder -> int =
+    fun omb ->
+      c := -1; (* Reset. *)
+      Chrono.add_time hash_chrono hash_ombinder omb
+  in
+
+  let hash_vwit = fun w ->
+      c := -1; (* Reset. *)
+      Chrono.add_time hash_chrono hash_vwit w
+  in
+
+  let hash_qwit = fun w ->
+      c := -1; (* Reset. *)
+      Chrono.add_time hash_chrono hash_qwit w
+  in
+
+  let hash_owit = fun w ->
+      c := -1; (* Reset. *)
+      Chrono.add_time hash_chrono hash_owit w
+  in
+  { hash_expr; hash_bndr; hash_ombinder; hash_vwit
+  ; hash_qwit; hash_owit; hash_swit; hash_cwit }
+
+module VWit = struct
+  type t = vwit
+  let hash = hash_vwit
+  let equal (f1,a1,b1) (f2,a2,b2) =
+    eq_bndr ~strict:true V f1 f2
+    && eq_expr ~strict:true a1 a2
+    && eq_expr ~strict:true b1 b2
+  let vars (f, a, b) = bndr_uvars f @ uvars a @ uvars b
+end
+
+module QWit = struct
+  type t = Q:'a qwit -> t
+  let hash (Q w) = hash_qwit w
+  let equal (Q (s1,t1,b1)) (Q(s2,t2,b2)) =
+    match eq_sort s1 s2 with
+    | Eq.Eq -> eq_expr ~strict:true t1 t2
+               && eq_bndr ~strict:true s1 b1 b2
+    | _ -> false
+  let vars (Q(_, t, b)) = bndr_uvars b @ uvars t
+end
+
+module OWit = struct
+  type t = owit
+  let hash = hash_owit
+  let equal (o1,a1,b1) (o2,a2,b2) =
+    eq_expr ~strict:true o1 o2
+    && eq_expr ~strict:true a1 a2
+    && eq_bndr ~strict:true O b1 b2
+  let vars (o, a, b) = uvars o @ uvars a @ bndr_uvars b
+end
+
+module SWit = struct
+  type t = swit
+  let hash = hash_swit
+  let equal (b1,a1) (b2,a2) =
+    eq_bndr ~strict:true S b1 b2
+    && eq_expr ~strict:true a1 a2
+  let vars (b, a) = uvars a @ bndr_uvars b
+end
+
+module CWit = struct
+  type t = schema
+  let hash = hash_cwit
+  let equal s1 s2 =
+    (match (s1, s2) with
+     | (FixSch s1, FixSch s2) -> s1.fsch_index = s2.fsch_index
+     | (SubSch s1, SubSch s2) -> s1.ssch_index = s2.ssch_index
+     | (_        , _        ) -> false)
+  let vars s =
+    (match s with
+     | FixSch s ->
+        let (b, mb) = s.fsch_judge in
+        let (_, mb) = unmbind (mk_free O) mb in
+        bndr_uvars b @ uvars mb
+     | SubSch s ->
+        let mb = s.ssch_judge in
+        let (_, (e1,e2)) = unmbind (mk_free O) mb in
+        uvars e1 @ uvars e2)
+end
 
 let is_in : type a. a ex loc -> a ex loc list -> bool = fun e1 es ->
   List.exists (fun e2 -> eq_expr ~strict:true e1 e2) es

@@ -5,8 +5,10 @@ open Bindlib
 open Sorts
 open Pos
 open Ast
+open Epsilon
 open Equiv
 open Output
+open Uvars
 open Compare
 
 type sorted = E : 'a sort * 'a ex loc -> sorted
@@ -51,6 +53,7 @@ let log_typ = Log.(log_typ.p)
 type ctxt  =
   { uvarcount : int ref
   ; equations : eq_ctxt
+  ; ctx_names : Bindlib.ctxt
   (* the first of the pair is positive, the second
      is stricly less than the first *)
   ; positives : (ordi * ordi) list
@@ -63,6 +66,7 @@ type ctxt  =
 let empty_ctxt () =
   { uvarcount = ref 0
   ; equations = empty_ctxt
+  ; ctx_names = Bindlib.empty_ctxt
   ; positives = []
   ; fix_ihs   = Buckets.empty (==)
   ; sub_ihs   = []
@@ -74,7 +78,7 @@ let new_uvar : type a. ctxt -> a sort -> a ex loc = fun ctx s ->
   let c = ctx.uvarcount in
   let i = !c in incr c;
   log_uni "?%i : %a" i Print.sort s;
-  Pos.none (UVar(s, {uvar_key = i; uvar_val = ref None}))
+  Pos.none (UVar(s, {uvar_key = i; uvar_val = ref (Unset [])}))
 
 let add_positive : ctxt -> ordi -> ordi -> ctxt = fun ctx o oo ->
   let o = Norm.whnf o in
@@ -94,12 +98,12 @@ let rec instantiate : type a b. ctxt -> (a, b) bseq -> b =
 
 let extract_vwit_type : valu -> prop = fun v ->
   match (Norm.whnf v).elt with
-  | VWit(_,(_,a,_)) -> a
-  | _               -> assert false (* should not happen *)
+  | VWit{valu={contents = (_,a,_)}} -> a
+  | _                  -> assert false (* should not happen *)
 
 let extract_swit_type : stac -> prop = fun s ->
   match (Norm.whnf s).elt with
-  | SWit(_,(_,a))   -> a
+  | SWit{valu={contents=(_,a)}} -> a
   | _               -> assert false (* should not happen *)
 
 type typ_rule =
@@ -140,7 +144,9 @@ and  sub_rule =
   | Sub_Univ_r of sub_proof
   | Sub_Exis_l of sub_proof
   | Sub_Rest_l of sub_proof option (* None means contradictory context. *)
-  | Sub_Rest_r of sub_proof
+  | Sub_Rest_r of sub_proof option
+  | Sub_Impl_l of sub_proof option (* None means contradictory context. *)
+  | Sub_Impl_r of sub_proof option
   | Sub_Memb_l of sub_proof option (* None means contradictory context. *)
   | Sub_Memb_r of sub_proof
   | Sub_Gene   of sub_proof
@@ -169,7 +175,8 @@ let rec learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
                   learn_equivalences {ctx with equations} wit a
   | Rest(a,c)  -> let equations = learn ctx.equations c in
                   learn_equivalences {ctx with equations} wit a
-  | Exis(s, f) -> let t = ewit s twit f in
+  | Exis(s, f) -> let (t, ctx_names) = ewit ctx.ctx_names s twit f in
+                  let ctx = { ctx with ctx_names } in
                   learn_equivalences ctx wit (bndr_subst f t.elt)
   | Prod(fs)   ->
      A.fold (fun lbl (_, b) ctx ->
@@ -189,15 +196,16 @@ let rec learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
      end
   (** Learn positivity of the ordinal *)
   | FixM(o,f)  ->
-      let bound =
+      let (bound, ctx) =
         match (Norm.whnf o).elt with
-        | Succ(o) -> o
+        | Succ(o) -> (o, ctx)
         | _       ->
            (** We know that o is positive and wit in a
                so we can build an eps < o *)
            let f o = bndr_subst f (FixM(Pos.none o, f)) in
            let f = binder_from_fun "o" f in
-           owmu o twit (None, f)
+           let (o', ctx_names) = owmu ctx.ctx_names o twit (None, f) in
+           (o', { ctx with ctx_names })
       in
       let ctx = add_positive ctx o bound in
       (* NOTE: may loop on mu X.X *)
@@ -227,7 +235,8 @@ let rec learn_neg_equivalences : ctxt -> valu -> term option -> prop -> ctxt =
     | HDef(_,e), _  -> learn_neg_equivalences ctx wit arg e.expr_def
     | Impl(c,a), _  -> let equations = learn ctx.equations c in
                        learn_neg_equivalences {ctx with equations} wit arg a
-    | Univ(s, f), _ -> let t = uwit s twit f in
+    | Univ(s, f), _ -> let (t, ctx_names) = uwit ctx.ctx_names s twit f in
+                       let ctx = { ctx with ctx_names } in
                        learn_neg_equivalences ctx wit arg (bndr_subst f t.elt)
     | Func(a,b), Some arg ->
        begin
@@ -238,15 +247,16 @@ let rec learn_neg_equivalences : ctxt -> valu -> term option -> prop -> ctxt =
        end
   (** Learn positivity of the ordinal *)
     | FixN(o,f), _ ->
-      let bound =
+      let (bound, ctx) =
         match (Norm.whnf o).elt with
-        | Succ(o) -> o
+        | Succ(o) -> (o, ctx)
         | _       ->
            (** We know that o is positive and wit in a
                so we can build an eps < o *)
            let f o = bndr_subst f (FixN(Pos.none o, f)) in
            let f = binder_from_fun "o" f in
-           ownu o twit (None, f)
+           let (o', ctx_names) = ownu ctx.ctx_names o twit (None, f) in
+           (o', { ctx with ctx_names })
       in
       let ctx = add_positive ctx o bound in
       (* NOTE: may loop on nu X.X *)
@@ -256,13 +266,6 @@ let rec learn_neg_equivalences : ctxt -> valu -> term option -> prop -> ctxt =
 let term_is_value : term -> ctxt -> bool * ctxt = fun t ctx ->
   let (is_val, equations) = is_value t ctx.equations in
   (is_val, {ctx with equations})
-
-let oracle ctx = {
-    eq_val = (fun v1 v2 ->
-      Chrono.add_time equiv_chrono (eq_val ctx.equations v1) v2);
-    eq_trm = (fun v1 v2 ->
-      Chrono.add_time equiv_chrono (eq_trm ctx.equations v1) v2)
-  }
 
 let print_pos : out_channel -> (ordi * ordi) list -> unit =
   fun ch os ->
@@ -296,13 +299,15 @@ let rec subtype =
     let b = Norm.whnf b in
     let (t_is_val, ctx) = term_is_value t ctx in
     try let r =
-      (* Same types.  *)
-      if eq_expr ~oracle:(oracle ctx) a b then
+      (* Same types.  *) (** FIXME: keep the pool *)
+      if eq_expr ~oracle:(oracle (ref ctx.equations.pool)) ~strict:false a b
+      then
         begin
           log_sub "reflexivity applies";
           Sub_Equal
         end
-      else
+      else (
+      log_sub "reflexivity does not applies";
       match (a.elt, b.elt) with
       (* Unfolding of definitions. *)
       | (HDef(_,d)  , _          ) ->
@@ -312,13 +317,17 @@ let rec subtype =
       (* Universal quantification on the right. *)
       | (_          , Univ(s,f)  ) ->
          if t_is_val then
-           Sub_Univ_r(subtype ctx t a (bndr_subst f (uwit s t f).elt))
+           let (eps, ctx_names) = uwit ctx.ctx_names s t f in
+           let ctx = { ctx with ctx_names } in
+           Sub_Univ_r(subtype ctx t a (bndr_subst f eps.elt))
          else
            gen_subtype ctx a b
       (* Existential quantification on the left. *)
       | (Exis(s,f)  , _          ) ->
          if t_is_val then
-           Sub_Exis_l(subtype ctx t (bndr_subst f (ewit s t f).elt) b)
+           let (eps, ctx_names) = ewit ctx.ctx_names s t f in
+           let ctx = { ctx with ctx_names } in
+           Sub_Exis_l(subtype ctx t (bndr_subst f eps.elt) b)
          else
            gen_subtype ctx a b
       (* Membership on the left. *)
@@ -347,7 +356,7 @@ let rec subtype =
            begin
              try
                let equations = learn ctx.equations e in
-               Sub_Rest_l(Some(subtype {ctx with equations} t a c))
+               Sub_Impl_r(Some(subtype {ctx with equations} t a c))
              with Contradiction -> Sub_Rest_l(None)
            end
           (* NOTE may need a backtrack because a right rule could work *)
@@ -369,11 +378,10 @@ let rec subtype =
             match o.elt with
               Succ o' -> (ctx, o')
             | _ ->
-               let o' =
-                 let f o = bndr_subst f (FixM(Pos.none o, f)) in
-                 let f = binder_from_fun "o" f in
-                 owmu o t (None,f)
-               in
+               let f o = bndr_subst f (FixM(Pos.none o, f)) in
+               let f = binder_from_fun "o" f in
+               let (o', ctx_names) = owmu ctx.ctx_names o t (None,f) in
+               let ctx = { ctx with ctx_names } in
                (add_positive ctx o o', o')
           in
           let a = bndr_subst f (FixM(o',f)) in
@@ -394,11 +402,10 @@ let rec subtype =
             match o.elt with
               Succ o' -> (ctx, o')
             | _ ->
-               let o' =
-                 let f o = bndr_subst f (FixN(Pos.none o, f)) in
-                 let f = binder_from_fun "o" f in
-                 ownu o t (None, f)
-               in
+               let f o = bndr_subst f (FixN(Pos.none o, f)) in
+               let f = binder_from_fun "o" f in
+               let (o', ctx_names) = ownu ctx.ctx_names o t (None, f) in
+               let ctx = { ctx with ctx_names } in
                (add_positive ctx o o', o')
           in
           let b = bndr_subst f (FixN(o',f)) in
@@ -411,8 +418,10 @@ let rec subtype =
       (* Arrow types. *)
       | (Func(a1,b1), Func(a2,b2)) when t_is_val ->
          let fn x = appl None (box t) (valu None (vari None x)) in
+         (** FIXME: guess a better name *)
          let f = (None, unbox (vbind (mk_free V) "x" fn)) in
-         let vwit = vwit f a2 b2 in
+         let (vwit, ctx_names) = vwit ctx.ctx_names f a2 b2 in
+         let ctx = { ctx with ctx_names } in
          let ctx = learn_nobox ctx vwit in
          let wit = Pos.none (Valu(vwit)) in
          let ctx, wit = match is_singleton a2 with
@@ -463,10 +472,10 @@ let rec subtype =
               try snd (A.find c cs2) with Not_found ->
               subtype_msg p ("Sum clash on constructor " ^ c ^ "...")
             in
-            let wit =
-              let f = bndr_from_fun "x" (fun x -> Valu(Pos.none x)) in
-              vwit f a a
-            in
+            (** FIXME: guess a better name *)
+            let f = bndr_from_fun "x" (fun x -> Valu(Pos.none x)) in
+            let (wit, ctx_names) = vwit ctx.ctx_names f a a in
+            let ctx = { ctx with ctx_names } in
             let equations =
               learn ctx.equations (Equiv(t,true,Pos.none (Valu(wit))))
             in
@@ -499,16 +508,30 @@ let rec subtype =
       (* Restriction on the right. *)
       | (_          , Rest(c,e)  ) ->
          begin
-            let prf = subtype ctx t a c in
-            let _ = prove ctx.equations e in
-            Sub_Rest_r(prf)
+           (* we learn the equation that we will prove below *)
+           let prf =
+             try
+               let equations = learn ctx.equations e in
+               Some(subtype {ctx with equations} t a c)
+             with
+               Contradiction -> None
+           in
+           let _ = prove ctx.equations e in
+           Sub_Rest_r(prf)
           end
       (* Implication on the left. *)
       | (Impl(e,c)   , _        ) ->
          begin
-            let prf = subtype ctx t c b in
-            let _ = prove ctx.equations e in
-            Sub_Rest_r(prf)
+           (* we learn the equation that we will prove below *)
+           let prf =
+             try
+               let equations = learn ctx.equations e in
+               Some(subtype {ctx with equations} t c b)
+             with
+               Contradiction -> None
+           in
+           let _ = prove ctx.equations e in
+           Sub_Impl_l(prf)
           end
       (* Mu right and Nu Left, infinite case. *)
       | (_          , FixM(o,f) ) when is_conv o ->
@@ -536,7 +559,7 @@ let rec subtype =
          gen_subtype ctx a b
       (* No rule apply. *)
       | _                          ->
-         subtype_msg None "No rule applies"
+         subtype_msg None "No rule applies")
     in
     (t, a, b, r)
     with
@@ -547,10 +570,11 @@ let rec subtype =
 
 and gen_subtype : ctxt -> prop -> prop -> sub_rule =
   fun ctx a b ->
-    let wit =
-      let f = bndr_from_fun "x" (fun x -> Valu(Pos.none x)) in
-      Pos.none (Valu(vwit f a b))
-    in
+    let f = bndr_from_fun "x" (fun x -> Valu(Pos.none x)) in
+    (** FIXME : guess a better name *)
+    let (eps, ctx_names) = vwit ctx.ctx_names f a b in
+    let ctx = { ctx with ctx_names } in
+    let wit = Pos.none (Valu eps) in
     Sub_Gene(subtype ctx wit a b)
 
 and check_sub : ctxt -> prop -> prop -> check_sub = fun ctx a b ->
@@ -602,7 +626,7 @@ and check_sub : ctxt -> prop -> prop -> check_sub = fun ctx a b ->
            log_sub "the schema has %i arguments" (Array.length os);
            let ctx = { ctx with sub_ihs = sch :: ctx.sub_ihs } in
            (* Instantiation of the schema. *)
-           let spe = inst_sub_schema ctx sch os in
+           let (spe, ctx) = inst_sub_schema ctx sch os in
            let ctx = {ctx with positives = spe.sspe_relat} in
            Sub_New({ctx with top_ih = (sch.ssch_index, spe.sspe_param)},
                    spe.sspe_judge)
@@ -656,7 +680,7 @@ and check_fix : ctxt -> valu -> (v, t) bndr -> prop -> typ_proof =
         else { ctx with fix_ihs = Buckets.add b sch ctx.fix_ihs }
       in
       (* Instantiation of the schema. *)
-      let spe = inst_fix_schema ctx sch os in
+      let (spe, ctx) = inst_fix_schema ctx sch os in
       let ctx = {ctx with top_ih = (sch.fsch_index, spe.fspe_param)} in
       (* Unrolling of the fixpoint and proof continued. *)
       let t = bndr_subst b (build_v_fixy b).elt in
@@ -670,9 +694,9 @@ and get_relat  : ordi array -> (int * int) list =
     let l = ref [] in
     Array.iteri (fun i o ->
       let rec gn o = match (Norm.whnf o).elt with
-        | OWMu(_,(o',_,_))
-        | OWNu(_,(o',_,_))
-        | OSch(_,(Some o',_,_))
+        | OWMu{valu={contents = (o',_,_)}}
+        | OWNu{valu={contents = (o',_,_)}}
+        | OSch(_,Some o',_)
         | Succ(o') ->
            (try hn (Array.length os - 1) o' with Not_found -> gn o')
         | _ -> ()
@@ -748,26 +772,31 @@ and elim_sub_schema : ctxt -> sub_schema -> sub_specialised =
     { sspe_param ; sspe_relat; sspe_judge }
 
 (* Instantiation of a schema with ordinal witnesses. *)
-and inst_fix_schema : ctxt -> fix_schema -> ordi array -> fix_specialised =
+and inst_fix_schema : ctxt -> fix_schema -> ordi array
+                      -> fix_specialised * ctxt =
   fun ctx sch os ->
     let arity = mbinder_arity (snd sch.fsch_judge) in
-    let rec fn i = osch None i (FixSch sch) in
+    let (eps, ctx_names) = cwit ctx.ctx_names (FixSch sch) in
+    let ctx = { ctx with ctx_names } in
+    let rec fn i = osch i None eps in
     let fspe_param = Array.init arity fn in
     let xs = Array.map (fun e -> e.elt) fspe_param in
     let a = msubst (snd sch.fsch_judge) xs in
     let fspe_judge = (fst sch.fsch_judge, a) in
-    { fspe_param ; fspe_judge }
+    ({ fspe_param ; fspe_judge }, ctx)
 
 (* Instantiation of a schema with ordinal witnesses. *)
-and inst_sub_schema : ctxt -> sub_schema -> ordi array -> sub_specialised =
+and inst_sub_schema : ctxt -> sub_schema -> ordi array
+                      -> sub_specialised * ctxt =
   fun ctx sch os ->
     let arity = mbinder_arity sch.ssch_judge in
+    let (eps, ctx_names) = cwit ctx.ctx_names (SubSch sch) in
     let cache = ref [] in
     let rec fn i =
       try List.assoc i !cache with Not_found ->
-          let bound = try Some (fn (List.assoc i sch.ssch_relat))
-                      with Not_found -> None in
-        let res = osch bound i (SubSch sch) in
+        let bound = try Some (fn (List.assoc i sch.ssch_relat))
+                    with Not_found -> None in
+        let res = osch i bound eps in
         cache := (i,res)::!cache;
         res
     in
@@ -777,7 +806,7 @@ and inst_sub_schema : ctxt -> sub_schema -> ordi array -> sub_specialised =
     let sspe_relat = List.map (fun (i,j) -> (sspe_param.(i),sspe_param.(j)))
                               sch.ssch_relat
     in
-    { sspe_param ; sspe_relat; sspe_judge }
+    ({ sspe_param ; sspe_relat; sspe_judge }, ctx)
 
 (* Add a call to the call-graph. *)
 and add_call : ctxt -> (Scp.index * ordi array) -> bool -> unit =
@@ -844,12 +873,14 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
             assert(eq_vars x y); (* x must not be free in b *)
             let w = Pos.make v.pos (Valu(v)) in
             (* NOTE UWit is almost always use with value *)
-            let rec break_univ c =
+            let rec break_univ ctx c =
               match (Norm.whnf c).elt with
-              | Univ(O,f) -> break_univ (bndr_subst f (uwit O w f).elt)
-              | _         -> c
+              | Univ(O,f) -> let (eps, ctx_names) = uwit ctx.ctx_names O w f in
+                             let ctx = { ctx with ctx_names } in
+                             break_univ ctx (bndr_subst f eps.elt)
+              | _         -> (c, ctx)
             in
-            let c = break_univ c in
+            let (c, ctx) = break_univ ctx c in
             let p = Chrono.add_time check_fix_chrono (check_fix ctx v b) c in
             Typ_FixY(p)
          (* General case for typing λ-abstraction *)
@@ -862,7 +893,8 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
             let b = new_uvar ctx P in
             let c' = Pos.none (Func(a,b)) in
             let p1 = subtype ctx t c' c in
-            let wit = vwit f a b in
+            let (wit,ctx_names) = vwit ctx.ctx_names f a b in
+            let ctx = { ctx with ctx_names } in
             let twit = Pos.none(Valu wit) in
             (* Learn the equivalence that are valid in the witness. *)
             begin
@@ -928,8 +960,8 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
           with _ -> cannot_unify b a
        in Typ_TSuch(type_valu ctx v c)
     (* Witness. *)
-    | VWit(_,w)   ->
-        let (_,a,_) = w in
+    | VWit(w)     ->
+        let (_,a,_) = !(w.valu) in
         let (b, equations) = check_nobox v ctx.equations in
         assert b;
         let p = subtype {ctx with equations} t a c in
@@ -950,8 +982,9 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
         Typ_Goal(str)
 
     (* Constructors that cannot appear in user-defined terms. *)
-    | UWit(_,_,_) -> unexpected "∀-witness during typing..."
-    | EWit(_,_,_) -> unexpected "∃-witness during typing..."
+    | VPtr(_)     -> unexpected "VPtr during typing..."
+    | UWit(_)     -> unexpected "∀-witness during typing..."
+    | EWit(_)     -> unexpected "∃-witness during typing..."
     | UVar(_)     -> unexpected "unification variable during typing..."
     | Vari(_)     -> unexpected "Free variable during typing..."
     | Dumm        -> unexpected "Dummy value during typing..."
@@ -965,7 +998,7 @@ and is_typed : type a. a v_or_t -> a ex loc -> bool = fun t e ->
   let e = Norm.whnf e in
   match (t,e.elt) with
   | _, Coer(_,_,a)     -> uvars a = []
-  | _, VWit(_,(_,a,_)) -> uvars a = []
+  | _, VWit(w)         -> !(w.vars) = []
   | _, Appl(t,_)       -> is_typed VoT_T t
   | _, Valu(v)         -> is_typed VoT_V v
   | _, Proj(v,_)       -> is_typed VoT_V v
@@ -1010,7 +1043,9 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
         if is_val then Typ_Func_s(p1,p2) else Typ_Func_e(p1,p2)
     (* μ-abstraction. *)
     | MAbs(b)     ->
-        let t = bndr_subst b (swit b c).elt in
+        let (eps, ctx_names) = swit ctx.ctx_names b c in
+        let ctx = { ctx with ctx_names } in
+        let t = bndr_subst b eps.elt in
         Typ_Mu(type_term ctx t c)
     (* Named term. *)
     | Name(pi,t)  ->
@@ -1039,7 +1074,8 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
           let (_,a) = A.find d ts in
           let vd = vdot v d in
           let a = Pos.none (Memb(vd, a)) in
-          let wit = vwit f a c in
+          let (wit, ctx_names) = vwit ctx.ctx_names f a c in
+          let ctx = { ctx with ctx_names } in
           let t = bndr_subst f wit.elt in
           (try
             let ctx = learn_nobox ctx wit in
@@ -1107,9 +1143,10 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
         let p = gen_subtype ctx a c in
         Typ_Prnt((t, a, c, p))
     (* Constructors that cannot appear in user-defined terms. *)
+    | TPtr(_)     -> unexpected "TPtr during typing..."
     | FixY(_,_)   -> unexpected "Fixpoint at the toplevel..."
-    | UWit(_,_,_) -> unexpected "∀-witness during typing..."
-    | EWit(_,_,_) -> unexpected "∃-witness during typing..."
+    | UWit(_)     -> unexpected "∀-witness during typing..."
+    | EWit(_)     -> unexpected "∃-witness during typing..."
     | UVar(_)     -> unexpected "unification variable during typing..."
     | Vari(_)     -> unexpected "Free variable during typing..."
     | Dumm        -> unexpected "Dummy value during typing..."
@@ -1143,8 +1180,8 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
         let p1 = type_term ctx t (Pos.none (Func(c,a))) in
         let p2 = type_stac ctx pi a in
         Stk_Fram(p1,p2)
-    | SWit(_,w)   ->
-        let (_,a) = w in
+    | SWit(w)   ->
+        let (_,a) = !(w.valu) in
         Stk_SWit(gen_subtype ctx c a)
     (* Definition. *)
     | HDef(_,d)   ->
@@ -1160,8 +1197,8 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
     | Coer(_,_,_) -> .
     | Such(_,_,_) -> .
     | Epsi        -> unexpected "Empty stack during typing..."
-    | UWit(_,_,_) -> unexpected "∀-witness during typing..."
-    | EWit(_,_,_) -> unexpected "∃-witness during typing..."
+    | UWit(_)     -> unexpected "∀-witness during typing..."
+    | EWit(_)     -> unexpected "∃-witness during typing..."
     | UVar(_)     -> unexpected "unification variable during typing..."
     | Vari(_)     -> unexpected "Free variable during typing..."
     | Dumm        -> unexpected "Dummy value during typing..."
@@ -1172,20 +1209,21 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
   | e -> type_error (E(S,s)) c e
 
 let type_check : term -> prop -> prop * typ_proof = fun t a ->
-  reset_counters ();
-  let ctx = empty_ctxt () in
-  let prf = type_term ctx t a in
-  List.iter (fun f -> f ()) (List.rev !(ctx.add_calls));
-  if not (Scp.scp ctx.callgraph) then loops t;
-  let l = uvars a in
-  assert(l = []); (* FIXME #44 *)
-  (Norm.whnf a, prf)
+  try
+    let ctx = empty_ctxt () in
+    let prf = type_term ctx t a in
+    List.iter (fun f -> f ()) (List.rev !(ctx.add_calls));
+    if not (Scp.scp ctx.callgraph) then loops t;
+    let l = uvars a in
+    assert(l = []); (* FIXME #44 *)
+    reset_tbls ();
+    (Norm.whnf a, prf)
+  with e -> reset_tbls (); raise e
 
 let type_check t = Chrono.add_time type_chrono (type_check t)
 
 let is_subtype : prop -> prop -> bool = fun a b ->
   try
-    reset_counters ();
     let ctx = empty_ctxt () in
     let _ = gen_subtype ctx a b in
     let la = uvars a in
@@ -1193,5 +1231,9 @@ let is_subtype : prop -> prop -> bool = fun a b ->
     assert(la = []); (* FIXME #44 *)
     assert(lb = []); (* FIXME #44 *)
     List.iter (fun f -> f ()) (List.rev !(ctx.add_calls));
-    Scp.scp ctx.callgraph
-  with _ -> false
+    let res = Scp.scp ctx.callgraph in
+    reset_tbls ();
+    res
+  with _ ->
+    reset_tbls ();
+    false

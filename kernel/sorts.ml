@@ -34,6 +34,8 @@ let rec eq_sort : type a b. a sort -> b sort -> (a,b) Eq.t = fun s1 s2 ->
   | (F(a1,b1), F(a2,b2)) -> eq_sort a1 a2 &&& eq_sort b1 b2
   | (_       , _       ) -> NEq
 
+let rec hash_sort : type a. a sort -> int = Hashtbl.hash
+
 (** Filter type for the sorts of terms and values. *)
 type _ v_or_t =
   | VoT_V : v v_or_t

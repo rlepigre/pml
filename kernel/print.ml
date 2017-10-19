@@ -6,6 +6,7 @@ open Pos
 open Ast
 open Output
 open Printf
+open Uvars
 
 let print_map : (string * 'a) printer -> string -> 'a A.t printer =
   fun pelem sep ch m -> print_list pelem sep ch (A.bindings m)
@@ -20,6 +21,14 @@ let rec sort : type a. a sort printer = fun ch s ->
   | F(a,b) -> let (l,r) = match a with F(_,_) -> ("(",")") | _ -> ("","") in
               fprintf ch "%s%a%s → %a" l sort a r sort b
 
+let print_vars ch e =
+  let vars = uvars e in
+  match vars with
+  | [] -> ()
+  | U (_,x)::l -> fprintf ch "(?%d%t)" x.uvar_key
+                    (fun ch -> List.iter (function U (_,x) ->
+                                   fprintf ch ",?%d" x.uvar_key) l)
+
 let rec ex : type a. a ex loc printer = fun ch e ->
   let rec is_arrow : type a. a ex loc -> bool = fun e ->
     match (Norm.repr e).elt with
@@ -30,7 +39,23 @@ let rec ex : type a. a ex loc printer = fun ch e ->
     | FixN(_,_) -> true
     | _         -> false
   in
-  match (Norm.repr e).elt with
+  let is_unit : v ex loc -> bool = fun e ->
+    match (Norm.repr e).elt with
+    | Reco(m)   -> m = A.empty
+    | _         -> false
+  in
+  let is_eq : p ex loc -> (t ex loc * string * t ex loc) option = fun e ->
+    match (Norm.repr e).elt with
+    | Rest({elt=Memb({elt=Valu r},{elt=Prod m})},Equiv(e1,b,e2))
+    | Memb({elt=Valu r},{elt=Rest({elt=Prod m},Equiv(e1,b,e2))}) ->
+       if is_unit r && m = A.empty then
+         let s = if b then "≡" else "!=" in
+         Some(e1,s,e2)
+       else None
+    | _ -> None
+  in
+  let e = Norm.repr e in
+  match e.elt with
   | Vari(_,x)   -> output_string ch (name_of x)
   | HFun(s,_,b) -> let (x,t) = unbind (mk_free s) (snd b) in
                    fprintf ch "(%s ↦ %a)" (name_of x) ex t
@@ -53,21 +78,31 @@ let rec ex : type a. a ex loc printer = fun ch e ->
                      fprintf ch "%s : %a" l ex a
                    in fprintf ch "[%a]" (print_map pelt "; ") m
   | Univ(s,b)   -> let (x,a) = unbind (mk_free s) (snd b) in
-                   fprintf ch "∀%s:%a.%a" (name_of x)
+                   fprintf ch "∀%s:%a,%a" (name_of x)
                      sort s ex a
   | Exis(s,b)   -> let (x,a) = unbind (mk_free s) (snd b) in
-                   fprintf ch "∃%s:%a.%a" (name_of x)
+                   fprintf ch "∃%s:%a,%a" (name_of x)
                      sort s ex a
   | FixM(o,b)   -> let (x,a) = unbind (mk_free P) (snd b) in
-                   fprintf ch "μ(%a) %s.%a"
+                   fprintf ch "μ_%a %s,%a"
                            ex o (name_of x) ex a
   | FixN(o,b)   -> let (x,a) = unbind (mk_free P) (snd b) in
-                   fprintf ch "ν(%a) %s.%a"
+                   fprintf ch "ν_%a %s,%a"
                            ex o (name_of x) ex a
-  | Memb(t,a)   -> let (l,r) = if is_arrow a then ("(",")") else ("","") in
-                   fprintf ch "%a ∈ %s%a%s" ex t l ex a r
-  | Rest(a,e)   -> let (l,r) = if is_arrow a then ("(",")") else ("","") in
-                   fprintf ch "(%s%a%s | %a)" l ex a r rel e
+  | Memb(t,a)   -> begin
+                     match is_eq e with
+                     | Some(e1,s,e2) -> fprintf ch "%a%s%a" ex e1 s ex e2
+                     | None ->
+                       let (l,r) = if is_arrow a then ("(",")") else ("","") in
+                       fprintf ch "%a ∈ %s%a%s" ex t l ex a r
+                   end
+  | Rest(a,c)   -> begin
+                     match is_eq e with
+                     | Some(e1,s,e2) -> fprintf ch "%a%s%a" ex e1 s ex e2
+                     | None ->
+                       let (l,r) = if is_arrow a then ("(",")") else ("","") in
+                       fprintf ch "(%s%a%s | %a)" l ex a r rel c
+                   end
   | Impl(e,a)   -> fprintf ch "%a ↪ %a" rel e ex a
   | LAbs(ao,b)  -> let (x,t) = unbind (mk_free V) (snd b) in
                    begin
@@ -77,7 +112,8 @@ let rec ex : type a. a ex loc printer = fun ch e ->
                      | Some a -> fprintf ch "λ(%s:%a).%a"
                                          (name_of x) ex a ex t
                    end
-  | Cons(c,v)   -> fprintf ch "%s[%a]" c.elt ex v
+  | Cons(c,v)   -> if is_unit v then fprintf ch "%s" c.elt
+                   else fprintf ch "%s[%a]" c.elt ex v
   | Reco(m)     -> let pelt ch (l,(_,a)) =
                      fprintf ch "%s = %a" l ex a
                    in fprintf ch "{%a}" (print_map pelt "; ") m
@@ -127,15 +163,17 @@ let rec ex : type a. a ex loc printer = fun ch e ->
       in aux r.binder
   | ITag(_,i)   -> fprintf ch "#%i" i
   | Dumm        -> output_string ch "∅"
-  | VWit(i,_)   -> fprintf ch "ει%i" i
-  | SWit(i,_)   -> fprintf ch "εσ%i" i
-  | UWit(i,s,_) -> fprintf ch "ε∀%a%i" sort s i
-  | EWit(i,s,_) -> fprintf ch "ε∃%a%i" sort s i
-  | OWMu(i,_)   -> fprintf ch "εκμ%i" i
-  | OWNu(i,_)   -> fprintf ch "εκν%i" i
-  | OSch(i,_)   -> fprintf ch "εκ%i" i
+  | VWit(w)     -> fprintf ch "%s" w.name
+  | SWit(w)     -> fprintf ch "%s" w.name
+  | UWit(w)     -> fprintf ch "%s" w.name
+  | EWit(w)     -> fprintf ch "%s" w.name
+  | OWMu(w)     -> fprintf ch "%s" w.name
+  | OWNu(w)     -> fprintf ch "%s" w.name
+  | OSch(i,_,w) -> fprintf ch "%s" w.name.(i)
   | UVar(_,u)   -> fprintf ch "?%i" u.uvar_key
   | Goal(_,s)   -> fprintf ch "{- %s -}" s
+  | VPtr(p)     -> fprintf ch "VPtr(%a)" VPtr.print p
+  | TPtr(p)     -> fprintf ch "VPtr(%a)" TPtr.print p
 
 and rel ch cnd =
   let eq b = if b then "=" else "≠" in

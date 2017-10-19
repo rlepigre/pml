@@ -51,20 +51,21 @@ val rec insert_sorted : ∀a:ο, ∀o∈ord<a>, ∀x∈a, ∀l∈slist<a,o>,
     case l {
       Nil      → {}
       Cons[c1] →
-        let lem = o.termi x c1.hd;
+        use o.termi x c1.hd;
         if o.cmp x c1.hd { {} }
         else {
-          let lem = o.termi c1.hd x;
-          let lem = o.total x c1.hd;
+          use o.termi c1.hd x;
+          use o.total x c1.hd;
           case c1.tl {
             Nil      → {}
             Cons[c2] →
-              let lem = insert_total o x c2.tl;
-              let lem = o.termi c1.hd c2.hd;
-              let lem = o.termi x c2.hd;
+              use insert_total o x c2.tl;
+              use o.termi c1.hd c2.hd;
+              use o.termi x c2.hd;
               if o.cmp c1.hd c2.hd {
-                let lem = insert_sorted o x c1.tl;
-                if o.cmp x c2.hd { {} } else { {} }
+                deduce sorted o c1.tl ≡ true;
+                use insert_sorted o x c1.tl;
+                  if o.cmp x c2.hd { {} } else { {} }
               } else { ✂ }
           }
         }

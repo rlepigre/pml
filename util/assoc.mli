@@ -22,9 +22,15 @@ val sort : ('a -> 'a -> int) -> 'a t -> 'a t
 
 val fold : (string -> 'a -> 'b -> 'b) -> 'a t -> 'b -> 'b
 
+val fold2 : ('b -> 'a -> 'a -> 'b) -> 'b -> 'a t -> 'a t -> 'b
+
+val fold_map : (string -> 'a -> 'b -> 'c * 'b) -> 'a t -> 'b -> 'c t * 'b
+
 val iter : (string -> 'a -> unit) -> 'a t -> unit
 
 val equal : ('a -> 'a -> bool) -> 'a t -> 'a t -> bool
+
+val compare : ('a -> 'a -> int) -> 'a t -> 'a t -> int
 
 val for_all : (string -> 'a -> bool) -> 'a t -> bool
 
@@ -33,3 +39,5 @@ val exists : (string -> 'a -> bool) -> 'a t -> bool
 val lift_box : 'a Bindlib.bindbox t -> 'a t Bindlib.bindbox
 
 val map_box : ('b -> 'a Bindlib.bindbox) -> 'b t -> 'a t Bindlib.bindbox
+
+val hash : ('a -> int) -> 'a t -> int

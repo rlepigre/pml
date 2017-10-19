@@ -10,7 +10,7 @@ open Ast
 (** [repr e] unfolds surface unification variables. *)
 let rec repr : type a. a ex loc -> a ex loc = fun exp ->
   match exp.elt with
-  | UVar(_, {uvar_val = {contents = Some exp}}) -> repr exp
+  | UVar(_, {uvar_val = {contents = Set exp}})  -> repr exp
   | _                                           -> exp
 
 (** [whnf e] normalises the expression [e] until it does not contain any
@@ -33,6 +33,6 @@ let rec whnf : type a. a ex loc -> a ex loc = fun exp ->
            else {exp with elt = HApp(s, e, f)}
       end
   (* Unfolding of a unification variable. *)
-  | UVar(_, {uvar_val = {contents = Some exp}}) -> whnf exp
+  | UVar(_, {uvar_val = {contents = Set exp}})  -> whnf exp
   (* No possible surface reduction. *)
   | _                                           -> exp

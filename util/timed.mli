@@ -38,6 +38,11 @@ val incr : int ref -> unit
 val decr : int ref -> unit
 
 (** Apply the given function to the given argument while taking care
+    of rolling back possible changes to the state of references in
+    case of exception. *)
+val apply : ('a -> 'b) -> 'a -> 'b
+
+(** Apply the given function to the given argument while taking care
     of rolling back possible changes to the state of references. *)
 val pure_apply : ('a -> 'b) -> 'a -> 'b
 

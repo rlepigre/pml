@@ -10,6 +10,26 @@ open Pos
 module M = Map.Make(String)
 module A = Assoc
 
+(** Poll inside terms *)
+(** Module for pointers on a value node of the graph. *)
+module VPtr =
+  struct
+    type t = V of int
+    let compare (V i) (V j) = i - j
+    let print ch (V i) = Printf.fprintf ch "%i" i
+  end
+module VPtrMap = Map.Make(VPtr)
+module VPtrSet = Set.Make(VPtr)
+
+(** Module for pointers on a term node of the graph. *)
+module TPtr =
+  struct
+    type t = T of int
+    let compare (T i) (T j) = i - j
+    let print ch (T i) = Printf.fprintf ch "%i" i
+  end
+module TPtrMap = Map.Make(TPtr)
+
 (** {6 Main abstract syntax tree type} *)
 
 (** Type of (well-sorted) expressions, which is the core PML abstract syntax
@@ -65,6 +85,8 @@ type _ ex =
   (** PML scisors. *)
   | VDef : value                                     -> v  ex
   (** Definition of a value. *)
+  | VPtr : VPtr.t                                    -> v  ex
+  (** Pointer in the pool. *)
 
   (* Term constructors. *)
 
@@ -84,6 +106,8 @@ type _ ex =
   (** Fixpoint combinator Y(λx.t, v). *)
   | Prnt : string                                    -> t  ex
   (** Printing instruction. *)
+  | TPtr : TPtr.t                                    -> t  ex
+  (** Pointer in the pool. *)
 
   (* Stack constructors. *)
 
@@ -100,11 +124,12 @@ type _ ex =
   (** Convergent ordinal. *)
   | Succ : o ex loc                                  -> o  ex
   (** Successor of an ordinal. *)
-  | OWMu : int * (o ex loc * t ex loc * (o, p) bndr) -> o  ex
+  | OWMu : (owit, string) eps                        -> o ex
   (** Ordinal mu witness. *)
-  | OWNu : int * (o ex loc * t ex loc * (o, p) bndr) -> o  ex
+  | OWNu : (owit, string) eps                        -> o  ex
   (** Ordinal nu witness. *)
-  | OSch : int * (o ex loc option * int * schema)    -> o  ex
+  | OSch : int * o ex loc option * (schema, string array) eps
+                                                     -> o  ex
   (** Ordinal schema witness. *)
 
   (* Type annotations. *)
@@ -120,17 +145,30 @@ type _ ex =
   (** Integer tag (usuful for comparision). *)
   | Dumm :                                              'a ex
   (** Dummy constructor.*)
-  | VWit : int * ((v, t) bndr * p ex loc * p ex loc) -> v  ex
+  | VWit : (vwit, string) eps                        -> v  ex
   (** Value witness. *)
-  | SWit : int * ((s, t) bndr * p ex loc)            -> s  ex
+  | SWit : (swit, string) eps                        -> s  ex
   (** Stack witness. *)
-  | UWit : int * 'a sort * (t ex loc * ('a, p) bndr) -> 'a ex
+  | UWit : ('a qwit, string) eps                     -> 'a ex
   (** Universal quantifier witness. *)
-  | EWit : int * 'a sort * (t ex loc * ('a, p) bndr) -> 'a ex
+  | EWit : ('a qwit, string) eps                     -> 'a ex
   (** Existential quantifier witness. *)
   | UVar : 'a sort * 'a uvar                         -> 'a ex
   (** Unification variable. *)
   | Goal : 'a sort * string                          -> 'a ex
+
+and ('a,'b) eps = { hash : int ref
+                  ; name : 'b
+                  ; vars : s_elt list ref
+                  ; refr : unit -> unit
+                  ; valu : 'a ref }
+
+and vwit = (v, t) bndr * p ex loc * p ex loc
+and 'a qwit = 'a sort * t ex loc * ('a, p) bndr
+and owit = o ex loc * t ex loc * (o, p) bndr
+and swit = (s, t) bndr * p ex loc
+
+and s_elt = U : 'a sort * 'a uvar -> s_elt
 
 and rel =
   | Equiv of (t ex loc * bool * t ex loc)
@@ -155,13 +193,15 @@ and (_,_) bseq =
 
 and 'a expr =
   { expr_name : strloc
-  ; expr_def  : 'a ex loc }
+  ; expr_def  : 'a ex loc
+  ; expr_hash : int }
 
 and value =
   { value_name : strloc
   ; value_orig : t ex loc
   ; value_type : p ex loc
-  ; value_eval : e_valu }
+  ; value_eval : e_valu
+  ; value_hash : int }
 
 and fix_schema =
   { fsch_index : Scp.index (** index of the schema in the call graph *)
@@ -193,7 +233,11 @@ and sub_specialised =
 (** Type of unification variables. *)
 and 'a uvar =
   { uvar_key : int
-  ; uvar_val : 'a ex loc option ref }
+  ; uvar_val : 'a uvar_val ref }
+
+and 'a uvar_val =
+  | Unset of (unit -> unit) list
+  | Set of 'a ex loc
 
 (** {6 Types and functions related to binders and variables.} *)
 
@@ -513,8 +557,8 @@ let rec sort : type a b. a ex loc ->  a sort * a ex loc= fun e ->
   | HDef(s,_)       -> (s, e)
   | HApp(d,u,v)     -> let (F(_,s),_) = sort u in (s,e)
   | HFun(d,c,r)     -> (F(d, c), e)
-  | UWit(_,s,_)     -> (s,e)
-  | EWit(_,s,_)     -> (s,e)
+  | UWit(w)         -> let (s,_,_) = !(w.valu) in (s, e)
+  | EWit(w)         -> let (s,_,_) = !(w.valu) in (s, e)
   | UVar(s,_)       -> (s,e)
   | ITag(s,_)       -> (s,e)
   | Goal(s,_)       -> (s,e)
@@ -538,6 +582,7 @@ let rec sort : type a b. a ex loc ->  a sort * a ex loc= fun e ->
   | VDef _          -> (V,e)
   | Coer(VoT_V,_,_) -> (V,e)
   | Such(VoT_V,_,_) -> (V,e)
+  | VPtr _          -> (V,e)
 
   | Valu _          -> (T,e)
   | Appl _          -> (T,e)
@@ -549,6 +594,7 @@ let rec sort : type a b. a ex loc ->  a sort * a ex loc= fun e ->
   | Prnt _          -> (T,e)
   | Coer(VoT_T,_,_) -> (T,e)
   | Such(VoT_T,_,_) -> (T,e)
+  | TPtr _          -> (T,e)
 
   | Epsi            -> (S,e)
   | Push _          -> (S,e)
@@ -581,37 +627,6 @@ let vdot : valu -> string -> term = fun v c ->
   let id = (None, Pos.none "x", f) in
   unbox (case None (box v) (A.singleton c id))
 
-
-let owmu_counter = ref (-1)
-let ownu_counter = ref (-1)
-let osch_counter = ref (-1)
-let vwit_counter = ref (-1)
-let swit_counter = ref (-1)
-let uwit_counter = ref (-1)
-let ewit_counter = ref (-1)
-
-let reset_counters : unit -> unit = fun () ->
-  owmu_counter := (-1); ownu_counter := (-1); osch_counter := (-1);
-  vwit_counter := (-1); swit_counter := (-1); uwit_counter := (-1);
-  ewit_counter := (-1)
-
-let owmu : ordi -> term -> (o, p) bndr -> ordi =
-  fun o t b -> incr owmu_counter; Pos.none (OWMu(!owmu_counter, (o,t,b)))
-
-let ownu : ordi -> term -> (o, p) bndr -> ordi =
-  fun o t b -> incr ownu_counter; Pos.none (OWNu(!ownu_counter, (o,t,b)))
-
-let osch : ordi option -> int -> schema -> ordi =
-  fun o i s -> incr osch_counter; Pos.none (OSch(!osch_counter, (o,i,s)))
-
-let vwit : (v,t) bndr -> prop -> prop -> valu =
-  fun f a b -> incr vwit_counter; Pos.none (VWit(!vwit_counter, (f,a,b)))
-
-let swit : (s,t) bndr -> prop -> stac =
-  fun f a -> incr swit_counter; Pos.none (SWit(!swit_counter, (f,a)))
-
-let uwit : type a. a sort -> term -> (a,p) bndr -> a ex loc =
-  fun s t f -> incr uwit_counter; Pos.none (UWit(!uwit_counter, s, (t,f)))
-
-let ewit : type a. a sort -> term -> (a,p) bndr -> a ex loc =
-  fun s t f -> incr ewit_counter; Pos.none (EWit(!ewit_counter, s, (t,f)))
+let exists_set l =
+  List.exists (fun (U(_,v)) ->
+      match !(v.uvar_val) with Set _ -> true | _ -> false) l
