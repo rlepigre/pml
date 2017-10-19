@@ -117,7 +117,7 @@ let map : type a. ?mapper:mapper -> a ex loc -> a box
             | Succ(o)     -> succ e.pos (map o)
             | OWMu(_)     -> box e
             | OWNu(_)     -> box e
-            | OSch(_,_)   -> box e
+            | OSch(_)     -> box e
             | Vari(_,x)   -> vari e.pos x
             | Dumm        -> box e
 
@@ -211,7 +211,7 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
     | Succ(o)     -> owits acc o
     | OWMu(_)     -> if is_in e acc then acc else e :: acc
     | OWNu(_)     -> if is_in e acc then acc else e :: acc
-    | OSch(_,_)   -> if is_in e acc then acc else e :: acc
+    | OSch(_)     -> if is_in e acc then acc else e :: acc
 
     | Vari _      -> assert false
     | Dumm        -> acc
@@ -244,12 +244,12 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
         | _ -> default o
       in
       match e.elt with
-      | UWit(w)     -> let (s,_,_) = !(w.valu) in var_of_ordi_wit s e
-      | EWit(w)     -> let (s,_,_) = !(w.valu) in var_of_ordi_wit s e
-      | OWMu(_)     -> var_of_ordi_wit O e
-      | OWNu(_)     -> var_of_ordi_wit O e
-      | OSch(_,_)   -> var_of_ordi_wit O e
-      | _           -> default e
+      | UWit(w) -> let (s,_,_) = !(w.valu) in var_of_ordi_wit s e
+      | EWit(w) -> let (s,_,_) = !(w.valu) in var_of_ordi_wit s e
+      | OWMu(_) -> var_of_ordi_wit O e
+      | OWNu(_) -> var_of_ordi_wit O e
+      | OSch(_) -> var_of_ordi_wit O e
+      | _       -> default e
     in
     fun e -> map ~mapper:{mapper} e
   in

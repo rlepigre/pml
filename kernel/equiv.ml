@@ -165,9 +165,9 @@ type v_node =
   | VN_Cons of A.key loc * VPtr.t
   | VN_Reco of VPtr.t A.t
   | VN_Scis
-  | VN_VWit of vwit eps
-  | VN_UWit of v qwit eps
-  | VN_EWit of v qwit eps
+  | VN_VWit of (vwit, string) eps
+  | VN_UWit of (v qwit, string) eps
+  | VN_EWit of (v qwit, string) eps
   | VN_HApp of v ho_appl
   | VN_UVar of v uvar
   | VN_ITag of int
@@ -185,8 +185,8 @@ type t_node =
   | TN_Case of VPtr.t * (v,t) bndr_closure A.t
   | TN_FixY of (v,t) bndr_closure * VPtr.t
   | TN_Prnt of string
-  | TN_UWit of t qwit eps
-  | TN_EWit of t qwit eps
+  | TN_UWit of (t qwit, string) eps
+  | TN_EWit of (t qwit, string) eps
   | TN_HApp of t ho_appl
   | TN_UVar of t uvar
   | TN_ITag of int
@@ -1513,7 +1513,8 @@ let proj_eps : valu -> string -> valu = fun v l ->
   in
   let bndr x = rest None unit_prod (eq x) in
   let t = Pos.none (Valu(Pos.none (Reco A.empty))) in
-  ewit V t (None, unbox (vbind (mk_free V) "x" bndr))
+  let ctx = Bindlib.empty_ctxt in (** FIXME *)
+  fst (ewit ctx V t (None, unbox (vbind (mk_free V) "x" bndr)))
 
 let find_proj : pool -> valu -> string -> valu * pool = fun po v l ->
   try

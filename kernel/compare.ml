@@ -227,13 +227,15 @@ let {eq_expr; eq_bndr} =
                                                let (o2,t2,b2) = !(w2.valu) in
                                                eq_expr o1 o2 && eq_expr t1 t2
                                                && eq_bndr O b1 b2)
-    | (OSch(i1,w1)   , OSch(i2,w2)   ) -> i1 = i2 && (!(w1.valu) == !(w2.valu) ||
+    | (OSch(i1,o1,w1), OSch(i2,o2,w2)) -> i1 = i2
+                                          && eq_opt_expr o1 o2
+                                          && (!(w1.valu) == !(w2.valu) ||
                                             if strict || (!(w1.vars) = [] && !(w2.vars) = [])
                                             then false
                                             else
-                                              (let (o1,s1) = !(w1.valu) in
-                                               let (o2,s2) = !(w2.valu) in
-                                               eq_opt_expr o1 o2 && eq_schema s1 s2))
+                                              (let s1 = !(w1.valu) in
+                                               let s2 = !(w2.valu) in
+                                               eq_schema s1 s2))
     | (UVar(_,u1)    , UVar(_,u2)    ) ->
        if strict then u1.uvar_key = u2.uvar_key else
          begin
@@ -316,7 +318,7 @@ type hash =
   ; hash_qwit     : 'a. 'a qwit -> int
   ; hash_owit     : owit -> int
   ; hash_swit     : swit -> int
-  ; hash_cwit     : cwit -> int
+  ; hash_cwit     : schema -> int
   }
 
 (* hash function with unification variable instantiation. *)
@@ -393,7 +395,7 @@ let {hash_expr; hash_bndr; hash_ombinder; hash_vwit
     | EWit(w)     -> w.refr (); khash1 `EWit !(w.hash)
     | OWMu(w)     -> w.refr (); khash1 `OWMu !(w.hash)
     | OWNu(w)     -> w.refr (); khash1 `OWNu !(w.hash)
-    | OSch(i,w)   -> w.refr (); khash2 `OSch i !(w.hash)
+    | OSch(i,o,w) -> w.refr (); khash3 `OSch i (hash_opt_expr o) !(w.hash)
     | UVar(i,u)   -> khash1 `UVar u.uvar_key
     (* two next cases are automatically stronger with oracle *)
     | VPtr v      -> khash1 `VPtr (hash v)
@@ -411,7 +413,7 @@ let {hash_expr; hash_bndr; hash_ombinder; hash_vwit
       let ta = Array.init ar (fun _ -> new_itag O) in
       hash_expr (msubst omb ta)
 
-  and hash_expr_opt = function
+  and hash_opt_expr = function
     | None -> hash `None
     | Some e -> khash1 `Some (hash_expr e)
 
@@ -427,14 +429,10 @@ let {hash_expr; hash_bndr; hash_ombinder; hash_vwit
   and hash_swit : swit -> int =
     fun (b,t) -> mix (hash_bndr S b) (hash_expr t)
 
-  and hash_cwit : cwit -> int =
-    fun (c,sch) ->
-    let hash_sch =
-      match sch with
+  and hash_cwit : schema -> int =
+    function
       | FixSch s -> khash1 `FixSch (hash s.fsch_index)
       | SubSch s -> khash1 `SubSch (hash s.ssch_index)
-    in
-    hash (hash_expr_opt c, hash_sch)
   in
 
   let hash_chrono = Chrono.create "hash" in
@@ -515,23 +513,14 @@ module SWit = struct
 end
 
 module CWit = struct
-  type t = cwit
+  type t = schema
   let hash = hash_cwit
-  let equal (o1,s1) (o2,s2) =
-    (match (o1, o2) with
-     | (None   , None   ) -> true
-     | (Some o1, Some o2) -> eq_expr o1 o2
-     | (_      , _      ) -> false)
-    &&
+  let equal s1 s2 =
     (match (s1, s2) with
      | (FixSch s1, FixSch s2) -> s1.fsch_index = s2.fsch_index
      | (SubSch s1, SubSch s2) -> s1.ssch_index = s2.ssch_index
      | (_        , _        ) -> false)
-  let vars (o,s) =
-    (match o with
-     | None -> []
-     | Some o -> uvars o)
-    @
+  let vars s =
     (match s with
      | FixSch s ->
         let (b, mb) = s.fsch_judge in

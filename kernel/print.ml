@@ -137,15 +137,13 @@ let rec ex : type a. a ex loc printer = fun ch e ->
       in aux r.binder
   | ITag(_,i)   -> fprintf ch "#%i" i
   | Dumm        -> output_string ch "∅"
-  | VWit(w)     -> fprintf ch "ει%i%a" !(w.hash) print_vars e
-  | SWit(w)     -> fprintf ch "εσ%i%a" !(w.hash) print_vars e
-  | UWit(w)     -> let (s,_,_) = !(w.valu) in
-                   fprintf ch "ε∀%a%i%a" sort s !(w.hash) print_vars e
-  | EWit(w)     -> let (s,_,_) = !(w.valu) in
-                   fprintf ch "ε∃%a%i%a" sort s !(w.hash) print_vars e
-  | OWMu(w)     -> fprintf ch "εκμ%i%a" !(w.hash) print_vars e
-  | OWNu(w)     -> fprintf ch "εκν%i%a" !(w.hash) print_vars e
-  | OSch(i,_)   -> fprintf ch "εκ%i%a" i print_vars e
+  | VWit(w)     -> fprintf ch "%s" w.name
+  | SWit(w)     -> fprintf ch "%s" w.name
+  | UWit(w)     -> fprintf ch "%s" w.name
+  | EWit(w)     -> fprintf ch "%s" w.name
+  | OWMu(w)     -> fprintf ch "%s" w.name
+  | OWNu(w)     -> fprintf ch "%s" w.name
+  | OSch(i,_,w) -> fprintf ch "%s" w.name.(i)
   | UVar(_,u)   -> fprintf ch "?%i" u.uvar_key
   | Goal(_,s)   -> fprintf ch "{- %s -}" s
   | VPtr(p)     -> fprintf ch "VPtr(%a)" VPtr.print p

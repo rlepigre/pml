@@ -124,11 +124,12 @@ type _ ex =
   (** Convergent ordinal. *)
   | Succ : o ex loc                                  -> o  ex
   (** Successor of an ordinal. *)
-  | OWMu : owit eps                                  -> o  ex
+  | OWMu : (owit, string) eps                        -> o ex
   (** Ordinal mu witness. *)
-  | OWNu : owit eps                                  -> o  ex
+  | OWNu : (owit, string) eps                        -> o  ex
   (** Ordinal nu witness. *)
-  | OSch : int * cwit eps                            -> o  ex
+  | OSch : int * o ex loc option * (schema, string array) eps
+                                                     -> o  ex
   (** Ordinal schema witness. *)
 
   (* Type annotations. *)
@@ -144,27 +145,27 @@ type _ ex =
   (** Integer tag (usuful for comparision). *)
   | Dumm :                                              'a ex
   (** Dummy constructor.*)
-  | VWit : vwit eps                                  -> v  ex
+  | VWit : (vwit, string) eps                        -> v  ex
   (** Value witness. *)
-  | SWit : swit eps                                  -> s  ex
+  | SWit : (swit, string) eps                        -> s  ex
   (** Stack witness. *)
-  | UWit : 'a qwit eps                               -> 'a ex
+  | UWit : ('a qwit, string) eps                     -> 'a ex
   (** Universal quantifier witness. *)
-  | EWit : 'a qwit eps                               -> 'a ex
+  | EWit : ('a qwit, string) eps                     -> 'a ex
   (** Existential quantifier witness. *)
   | UVar : 'a sort * 'a uvar                         -> 'a ex
   (** Unification variable. *)
   | Goal : 'a sort * string                          -> 'a ex
 
-and 'a eps = { hash   : int ref
-             ; vars   : s_elt list ref
-             ; refr   : unit -> unit
-             ; valu   : 'a ref }
+and ('a,'b) eps = { hash : int ref
+                  ; name : 'b
+                  ; vars : s_elt list ref
+                  ; refr : unit -> unit
+                  ; valu : 'a ref }
 
 and vwit = (v, t) bndr * p ex loc * p ex loc
 and 'a qwit = 'a sort * t ex loc * ('a, p) bndr
 and owit = o ex loc * t ex loc * (o, p) bndr
-and cwit = o ex loc option * schema
 and swit = (s, t) bndr * p ex loc
 
 and s_elt = U : 'a sort * 'a uvar -> s_elt
