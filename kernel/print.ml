@@ -41,8 +41,18 @@ let rec ex : type a. a ex loc printer = fun ch e ->
   in
   let is_unit : v ex loc -> bool = fun e ->
     match (Norm.repr e).elt with
-    | Reco(m)   -> A.empty = m
+    | Reco(m)   -> m = A.empty
     | _         -> false
+  in
+  let is_eq : p ex loc -> (t ex loc * string * t ex loc) option = fun e ->
+    match (Norm.repr e).elt with
+    | Rest({elt=Memb({elt=Valu r},{elt=Prod m})},Equiv(e1,b,e2))
+    | Memb({elt=Valu r},{elt=Rest({elt=Prod m},Equiv(e1,b,e2))}) ->
+       if is_unit r && m = A.empty then
+         let s = if b then "≡" else "!=" in
+         Some(e1,s,e2)
+       else None
+    | _ -> None
   in
   let e = Norm.repr e in
   match e.elt with
@@ -79,10 +89,20 @@ let rec ex : type a. a ex loc printer = fun ch e ->
   | FixN(o,b)   -> let (x,a) = unbind (mk_free P) (snd b) in
                    fprintf ch "ν_%a %s,%a"
                            ex o (name_of x) ex a
-  | Memb(t,a)   -> let (l,r) = if is_arrow a then ("(",")") else ("","") in
-                   fprintf ch "%a ∈ %s%a%s" ex t l ex a r
-  | Rest(a,e)   -> let (l,r) = if is_arrow a then ("(",")") else ("","") in
-                   fprintf ch "(%s%a%s | %a)" l ex a r rel e
+  | Memb(t,a)   -> begin
+                     match is_eq e with
+                     | Some(e1,s,e2) -> fprintf ch "%a%s%a" ex e1 s ex e2
+                     | None ->
+                        let (l,r) = if is_arrow a then ("(",")") else ("","") in
+                        fprintf ch "%a ∈ %s%a%s" ex t l ex a r
+                   end
+  | Rest(a,c)   -> begin
+                     match is_eq e with
+                     | Some(e1,s,e2) -> fprintf ch "%a%s%a" ex e1 s ex e2
+                     | None ->
+                        let (l,r) = if is_arrow a then ("(",")") else ("","") in
+                        fprintf ch "(%s%a%s | %a)" l ex a r rel c
+                   end
   | Impl(e,a)   -> fprintf ch "%a ↪ %a" rel e ex a
   | LAbs(ao,b)  -> let (x,t) = unbind (mk_free V) (snd b) in
                    begin
