@@ -1,7 +1,7 @@
 include lib.int
 
 type digit = [P; Z; S]
-type sinter⟨s⟩ = νs inter {} ⇒ digit × inter
+type sinter⟨s⟩ = ν_s inter, {} ⇒ digit × inter
 
 val d2i : digit ⇒ int = fun n {
   case n {
