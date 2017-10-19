@@ -39,6 +39,11 @@ let rec ex : type a. a ex loc printer = fun ch e ->
     | FixN(_,_) -> true
     | _         -> false
   in
+  let is_unit : v ex loc -> bool = fun e ->
+    match (Norm.repr e).elt with
+    | Reco(m)   -> A.empty = m
+    | _         -> false
+  in
   let e = Norm.repr e in
   match e.elt with
   | Vari(_,x)   -> output_string ch (name_of x)
@@ -63,16 +68,16 @@ let rec ex : type a. a ex loc printer = fun ch e ->
                      fprintf ch "%s : %a" l ex a
                    in fprintf ch "[%a]" (print_map pelt "; ") m
   | Univ(s,b)   -> let (x,a) = unbind (mk_free s) (snd b) in
-                   fprintf ch "∀%s:%a.%a" (name_of x)
+                   fprintf ch "∀%s:%a,%a" (name_of x)
                      sort s ex a
   | Exis(s,b)   -> let (x,a) = unbind (mk_free s) (snd b) in
-                   fprintf ch "∃%s:%a.%a" (name_of x)
+                   fprintf ch "∃%s:%a,%a" (name_of x)
                      sort s ex a
   | FixM(o,b)   -> let (x,a) = unbind (mk_free P) (snd b) in
-                   fprintf ch "μ(%a) %s.%a"
+                   fprintf ch "μ_%a %s,%a"
                            ex o (name_of x) ex a
   | FixN(o,b)   -> let (x,a) = unbind (mk_free P) (snd b) in
-                   fprintf ch "ν(%a) %s.%a"
+                   fprintf ch "ν_%a %s,%a"
                            ex o (name_of x) ex a
   | Memb(t,a)   -> let (l,r) = if is_arrow a then ("(",")") else ("","") in
                    fprintf ch "%a ∈ %s%a%s" ex t l ex a r
@@ -87,7 +92,8 @@ let rec ex : type a. a ex loc printer = fun ch e ->
                      | Some a -> fprintf ch "λ(%s:%a).%a"
                                          (name_of x) ex a ex t
                    end
-  | Cons(c,v)   -> fprintf ch "%s[%a]" c.elt ex v
+  | Cons(c,v)   -> if is_unit v then fprintf ch "%s" c.elt
+                   else fprintf ch "%s[%a]" c.elt ex v
   | Reco(m)     -> let pelt ch (l,(_,a)) =
                      fprintf ch "%s = %a" l ex a
                    in fprintf ch "{%a}" (print_map pelt "; ") m
