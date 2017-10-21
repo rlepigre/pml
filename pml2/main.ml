@@ -273,9 +273,10 @@ let _ =
   let total = ref 0.0 in
   if !timed then
     begin
-      let f name t c =
-        total := !total +. t;
-        Printf.eprintf "%10s: %8.2fs %8d\n" name t c
+      Printf.eprintf   "%10s   %8s  %8s %8s\n" "name" "self" "cumul" "count";
+      let f name time cumul c =
+        total := !total +. time;
+        Printf.eprintf "%10s: %8.2fs %8.2fs %8d\n" name time cumul c
       in
       Chrono.iter f;
       Printf.eprintf "%10s: %8.2fs\n" "total" !total
