@@ -592,7 +592,7 @@ and check_sub : ctxt -> prop -> prop -> check_sub = fun ctx a b ->
             let spe = elim_sub_schema ctx ih in
             let (a0, b0) = spe.sspe_judge in
             (* Check if schema applies. *)
-            if not (eq_expr a a0 && eq_expr b b0) then raise Exit;
+            if not (eq_expr ~strict:false a a0 && eq_expr ~strict:false b b0) then raise Exit;
             (* Check positivity of ordinals. *)
             let ok =
               List.for_all (fun (o,_) -> Ordinal.is_pos ctx.positives o)
@@ -701,7 +701,7 @@ and get_relat  : ordi array -> (int * int) list =
            (try hn (Array.length os - 1) o' with Not_found -> gn o')
         | _ -> ()
       and hn j o' =
-        if eq_expr ~strict:true o' os.(j) then l:= (j,i)::!l
+        if eq_expr o' os.(j) then l:= (j,i)::!l
         else if j > 0 then hn (j-1) o' else raise Not_found
       in
       gn o

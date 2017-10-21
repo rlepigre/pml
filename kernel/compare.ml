@@ -248,69 +248,58 @@ let {eq_expr; eq_bndr} =
        w1.valu == w2.valu ||
          if strict || (!(w1.vars) = [] && !(w2.vars) = [])
          then false
-         else
-           (let (f1,a1,b1) = !(w1.valu) in
-            let (f2,a2,b2) = !(w2.valu) in
-            eq_bndr V f1 f2 &&
-              eq_expr a1 a2 && eq_expr b1 b2)
+         else (let (f1,a1,b1) = !(w1.valu) in
+               let (f2,a2,b2) = !(w2.valu) in
+               eq_bndr V f1 f2 && eq_expr a1 a2 && eq_expr b1 b2)
     | (SWit(w1)      , SWit(w2)      ) ->
        !(w1.valu) == !(w2.valu) ||
          if strict || (!(w1.vars) = [] && !(w2.vars) = [])
          then false
-         else
-           (let (f1,a1) = !(w1.valu) in
-            let (f2,a2) = !(w2.valu) in
-            eq_bndr S f1 f2 && eq_expr a1 a2)
+         else (let (f1,a1) = !(w1.valu) in
+               let (f2,a2) = !(w2.valu) in
+               eq_bndr S f1 f2 && eq_expr a1 a2)
     | (UWit(w1)      , UWit(w2)      ) ->
        !(w1.valu) == !(w2.valu) ||
          if strict || (!(w1.vars) = [] && !(w2.vars) = [])
          then false
-         else
-           (let (s1,t1,b1) = !(w1.valu) in
-            let (s2,t2,b2) = !(w2.valu) in
-            match eq_sort s1 s2 with
-            | Eq.Eq ->
-               eq_expr t1 t2 && eq_bndr s1 b1 b2
-            | _ -> false)
+         else (let (s1,t1,b1) = !(w1.valu) in
+               let (s2,t2,b2) = !(w2.valu) in
+               match eq_sort s1 s2 with
+               | Eq.Eq -> eq_expr t1 t2 && eq_bndr s1 b1 b2
+               | _     -> false)
     | (EWit(w1)      , EWit(w2)      ) ->
        !(w1.valu) == !(w2.valu) ||
          if strict || (!(w1.vars) = [] && !(w2.vars) = [])
          then false
-         else
-           (let (s1,t1,b1) = !(w1.valu) in
-            let (s2,t2,b2) = !(w2.valu) in
-            match eq_sort s1 s2 with
-            | Eq.Eq ->
-               eq_expr t1 t2 && eq_bndr s1 b1 b2
-            | _ -> false)
+         else (let (s1,t1,b1) = !(w1.valu) in
+               let (s2,t2,b2) = !(w2.valu) in
+               match eq_sort s1 s2 with
+               | Eq.Eq -> eq_expr t1 t2 && eq_bndr s1 b1 b2
+               | _     -> false)
     | (OWMu(w1)      , OWMu(w2)      ) ->
        !(w1.valu) == !(w2.valu) ||
          if strict || (!(w1.vars) = [] && !(w2.vars) = [])
          then false
-         else
-           (let (o1,t1,b1) = !(w1.valu) in
-            let (o2,t2,b2) = !(w2.valu) in
-            eq_expr o1 o2 && eq_expr t1 t2
-            && eq_bndr O b1 b2)
+         else (let (o1,t1,b1) = !(w1.valu) in
+               let (o2,t2,b2) = !(w2.valu) in
+               eq_expr o1 o2 && eq_expr t1 t2
+               && eq_bndr O b1 b2)
     | (OWNu(w1)      , OWNu(w2)      ) ->
        !(w1.valu) == !(w2.valu) ||
          if strict || (!(w1.vars) = [] && !(w2.vars) = [])
          then false
-         else
-           (let (o1,t1,b1) = !(w1.valu) in
-            let (o2,t2,b2) = !(w2.valu) in
-            eq_expr o1 o2 && eq_expr t1 t2
-            && eq_bndr O b1 b2)
+         else (let (o1,t1,b1) = !(w1.valu) in
+               let (o2,t2,b2) = !(w2.valu) in
+               eq_expr o1 o2 && eq_expr t1 t2 && eq_bndr O b1 b2)
     | (OSch(i1,o1,w1), OSch(i2,o2,w2)) ->
        i1 = i2
        && eq_opt_expr o1 o2
        && (!(w1.valu) == !(w2.valu) ||
              if strict || (!(w1.vars) = [] && !(w2.vars) = [])
              then false
-             else
-               (let s1 = !(w1.valu) in
-                let s2 = !(w2.valu) in
-                eq_schema s1 s2))
+             else (let s1 = !(w1.valu) in
+                   let s2 = !(w2.valu) in
+                   eq_schema s1 s2))
     | (UVar(_,u1)    , UVar(_,u2)    ) ->
        if strict then u1.uvar_key = u2.uvar_key else
          begin
@@ -363,7 +352,7 @@ let {eq_expr; eq_bndr} =
 
   let eq_expr : type a. ?oracle:oracle -> ?strict:bool ->
                           a ex loc -> a ex loc -> bool =
-    fun ?(oracle=default_oracle) ?(strict=false) e1 e2 ->
+    fun ?(oracle=default_oracle) ?(strict=true) e1 e2 ->
       c := -1; (* Reset. *)
       let is_oracle = oracle != default_oracle in
       log_equ "showing %a === %a (%b)" Print.ex e1 Print.ex e2 is_oracle;
@@ -377,7 +366,7 @@ let {eq_expr; eq_bndr} =
 
   let eq_bndr : type a b. ?oracle:oracle -> ?strict:bool ->
                      a sort -> (a,b) bndr -> (a,b) bndr -> bool =
-    fun ?(oracle=default_oracle) ?(strict=false) s1 b1 b2 ->
+    fun ?(oracle=default_oracle) ?(strict=true) s1 b1 b2 ->
       c := -1; (* Reset. *)
       Chrono.add_time compare_chrono
         (Timed.pure_test (eq_bndr oracle strict s1 b1)) b2
@@ -544,9 +533,7 @@ module VWit = struct
   type t = vwit
   let hash = hash_vwit
   let equal (f1,a1,b1) (f2,a2,b2) =
-    eq_bndr ~strict:true V f1 f2
-    && eq_expr ~strict:true a1 a2
-    && eq_expr ~strict:true b1 b2
+    eq_bndr V f1 f2 && eq_expr a1 a2 && eq_expr b1 b2
   let vars (f, a, b) = bndr_uvars f @ uvars a @ uvars b
 end
 
@@ -555,8 +542,7 @@ module QWit = struct
   let hash (Q w) = hash_qwit w
   let equal (Q (s1,t1,b1)) (Q(s2,t2,b2)) =
     match eq_sort s1 s2 with
-    | Eq.Eq -> eq_expr ~strict:true t1 t2
-               && eq_bndr ~strict:true s1 b1 b2
+    | Eq.Eq -> eq_expr t1 t2 && eq_bndr s1 b1 b2
     | _ -> false
   let vars (Q(_, t, b)) = bndr_uvars b @ uvars t
 end
@@ -565,18 +551,14 @@ module OWit = struct
   type t = owit
   let hash = hash_owit
   let equal (o1,a1,b1) (o2,a2,b2) =
-    eq_expr ~strict:true o1 o2
-    && eq_expr ~strict:true a1 a2
-    && eq_bndr ~strict:true O b1 b2
+    eq_expr o1 o2 && eq_expr a1 a2 && eq_bndr O b1 b2
   let vars (o, a, b) = uvars o @ uvars a @ bndr_uvars b
 end
 
 module SWit = struct
   type t = swit
   let hash = hash_swit
-  let equal (b1,a1) (b2,a2) =
-    eq_bndr ~strict:true S b1 b2
-    && eq_expr ~strict:true a1 a2
+  let equal (b1,a1) (b2,a2) = eq_bndr S b1 b2 && eq_expr a1 a2
   let vars (b, a) = uvars a @ bndr_uvars b
 end
 
@@ -601,4 +583,4 @@ module CWit = struct
 end
 
 let is_in : type a. a ex loc -> a ex loc list -> bool = fun e1 es ->
-  List.exists (fun e2 -> eq_expr ~strict:true e1 e2) es
+  List.exists (fun e2 -> eq_expr e1 e2) es

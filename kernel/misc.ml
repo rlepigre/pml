@@ -121,7 +121,7 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
            begin
              try
                for i = 0 to arity - 1 do
-                 if eq_expr ~strict:true os.(i) o
+                 if eq_expr os.(i) o
                  then raise (Found_index(i))
                done;
                raise Not_found
@@ -183,7 +183,7 @@ let bind_spos_ordinals
     | Succ o -> succ None (search_ord o)
     | _ ->
     try
-      let (_,v) = List.find (fun (o',_) -> eq_expr ~strict:true o o') !assoc in
+      let (_,v) = List.find (fun (o',_) -> eq_expr o o') !assoc in
       v
     with Not_found ->
       let v = new_ord () in

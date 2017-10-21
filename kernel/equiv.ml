@@ -82,7 +82,7 @@ let eq_funptr : type a b.a sort -> (a, b) funptr -> (a, b) funptr -> bool =
         let ts = Array.init a1 (fun _ -> new_itag T) in
         let b1 = msubst b1 ts in
         let b2 = msubst b2 ts in
-        eq_bndr ~strict:true s b1 b2))
+        eq_bndr s b1 b2))
 
 type anyfunptr = T : 'a sort * 'b sort * ('a, 'b) funptr -> anyfunptr
 module Fun =
@@ -134,7 +134,7 @@ let eq_clsptr : type a. a clsptr -> a clsptr -> bool =
         let vs = Array.init a1 (fun _ -> new_itag T) in
         let b1 = msubst b1 vs in
         let b2 = msubst b2 vs in
-        eq_expr ~strict:true b1 b2))
+        eq_expr b1 b2))
 
 type anyclsptr = C : 'a sort * 'a clsptr -> anyclsptr
 module Cls =
@@ -528,7 +528,6 @@ let eq_cl po s (f1,vs1,ts1 as _cl1) (f2,vs2,ts2 as _cl2) =
 (** Equality functions on nodes. *)
 let eq_v_nodes : pool -> v_node -> v_node -> bool =
   fun po n1 n2 -> n1 == n2 ||
-    let eq_expr e1 e2 = eq_expr ~strict:true e1 e2 in
     (* FIXME #40, use oracle for VN_LAbs *)
     (* FIXME #50 (note), share VN_VWit and alike *)
     match (n1, n2) with
@@ -547,7 +546,6 @@ let eq_v_nodes : pool -> v_node -> v_node -> bool =
 
 let eq_t_nodes : pool -> t_node -> t_node -> bool =
   fun po n1 n2 -> n1 == n2 ||
-    let eq_expr e1 e2 = eq_expr ~strict:true e1 e2 in
     (* FIXME #40, use oracle for TN_MAbs and alike *)
     (* FIXME #50 (note), share VN_VWit and alike *)
     match (n1, n2) with
@@ -700,7 +698,6 @@ let rec add_term : pool -> term -> TPtr.t * pool = fun po t ->
                      else po
                    in
                    (ty, po)
-
   | Prnt(s)     -> insert_t_node (TN_Prnt(s)) po
   | Coer(_,t,_) -> add_term po t
   | Such(_,_,r) -> add_term po (bseq_dummy r.binder)
@@ -1484,7 +1481,7 @@ type inequiv = term * term
 let add_equiv : equiv -> eq_ctxt -> eq_ctxt = fun (t,u) {pool} ->
   log2 "add_equiv: inserting %a = %a in context\n%a" Print.ex t
     Print.ex u (print_pool "        ") pool;
-  if eq_expr ~strict:true t u then
+  if eq_expr t u then
     begin
       log2 "add_equiv: trivial proof";
       {pool}
@@ -1522,7 +1519,7 @@ let add_nobox : valu -> pool -> pool = fun v po ->
 let add_inequiv : inequiv -> eq_ctxt -> eq_ctxt = fun (t,u) {pool} ->
   log2 "add_inequiv: inserting %a ≠ %a in context\n%a" Print.ex t
     Print.ex u (print_pool "        ") pool;
-  if eq_expr ~strict:true t u then
+  if eq_expr t u then
     begin
       log2 "immediate contradiction";
       bottom ()
