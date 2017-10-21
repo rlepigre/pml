@@ -4,6 +4,7 @@
     such a graph (or pool), one will be able to read back the representative
     of a term by following the edges. *)
 
+open Extra
 open Bindlib
 open Sorts
 open Pos
@@ -498,12 +499,6 @@ let eq_tptr : pool -> TPtr.t -> TPtr.t -> bool = fun po p1 p2 ->
   let (p2, po) = find (Ptr.T_ptr p2) po in
   Ptr.compare p1 p2 = 0
 
-let for_all2 f a1 a2 =
-  try
-    Array.iter2 (fun x y -> if not (f x y) then raise Exit) a1 a2;
-    true
-  with Exit -> false
-
 let eq_ho_appl : type a. pool -> a ho_appl -> a ho_appl -> bool =
   fun po a1 a2 ->
     let open Eq in
@@ -512,16 +507,16 @@ let eq_ho_appl : type a. pool -> a ho_appl -> a ho_appl -> bool =
     match eq_sort s1 s2 with
     | Eq ->
        f1 == f2 && e1 == e2 &&
-         for_all2 (eq_vptr po) vf1 vf2 &&
-           for_all2 (eq_tptr po) tf1 tf2 &&
-             for_all2 (eq_vptr po) ve1 ve2 &&
-               for_all2 (eq_tptr po) te1 te2
+         Array.for_all2 (eq_vptr po) vf1 vf2 &&
+           Array.for_all2 (eq_tptr po) tf1 tf2 &&
+             Array.for_all2 (eq_vptr po) ve1 ve2 &&
+               Array.for_all2 (eq_tptr po) te1 te2
     | NEq -> false
 
 let eq_cl po s (f1,vs1,ts1 as _cl1) (f2,vs2,ts2 as _cl2) =
   if f1 == f2 then
-    for_all2 (eq_vptr po) vs1 vs2 &&
-    for_all2 (eq_tptr po) ts1 ts2
+    Array.for_all2 (eq_vptr po) vs1 vs2 &&
+    Array.for_all2 (eq_tptr po) ts1 ts2
   else
     ((*assert (not (eq_funptr s f1 f2) ||
                (Printf.eprintf "%a (%d)\n%a (%d)\n%!"
@@ -1259,20 +1254,39 @@ and unif_ptr : pool -> Ptr.t -> Ptr.t -> pool = fun po p1 p2 ->
        | _ -> raise NoUnif
      end
 
+and unif_expr : type a.pool -> a ex loc -> a ex loc -> pool =
+  fun po e1 e2 ->
+    let po = ref po in
+    if eq_expr ~oracle:(oracle po) ~strict:false e1 e2 then !po
+    else raise NoUnif
+
+and unif_bndr: type a b. pool -> a sort -> (a,b) bndr -> (a,b) bndr -> pool =
+  fun po s e1 e2 ->
+    let po = ref po in
+    if eq_bndr ~oracle:(oracle po) ~strict:false s e1 e2 then !po
+    else raise NoUnif
+
+and unif_ho_appl : type a. pool -> a ho_appl -> a ho_appl -> pool =
+  fun po a1 a2 ->
+    let open Eq in
+    let (HO(s1,(f1,vf1,tf1),(e1,ve1,te1)),
+         HO(s2,(f2,vf2,tf2),(e2,ve2,te2))) = (a1, a2) in
+    match eq_sort s1 s2 with
+    | Eq ->
+       if f1 == f2 && e1 == e2 then
+         begin
+           let po = Array.fold_left2 unif_vptr po vf1 vf2 in
+           let po = Array.fold_left2 unif_tptr po tf1 tf2 in
+           let po = Array.fold_left2 unif_vptr po ve1 ve2 in
+           let po = Array.fold_left2 unif_tptr po te1 te2 in
+           po
+         end
+       else raise NoUnif
+    | NEq -> raise NoUnif
 
 (** Equality functions on nodes. *)
 and unif_v_nodes : pool -> VPtr.t -> v_node -> VPtr.t -> v_node -> pool =
-  fun po p1 n1 p2 n2 -> if n1 == n2 then po else
-    let eq_expr po e1 e2 =
-      let po = ref po in
-      if eq_expr ~oracle:(oracle po) ~strict:false e1 e2 then !po
-      else raise NoUnif
-    in
-    let eq_bndr po s e1 e2 =
-      let po = ref po in
-      if eq_bndr ~oracle:(oracle po) ~strict:false s e1 e2 then !po
-      else raise NoUnif
-    in
+  fun po p1 n1 p2 n2 -> if n1 == n2 then po else begin
     log2 "unif_v_nodes %a = %a" print_v_node n1 print_v_node n2;
     (* FIXME #40, use oracle for VN_LAbs *)
     (* FIXME #50 (note), share VN_VWit and alike *)
@@ -1314,9 +1328,9 @@ and unif_v_nodes : pool -> VPtr.t -> v_node -> VPtr.t -> v_node -> pool =
        else
          (let (f1,a1,b1) = !(w1.valu) in
           let (f2,a2,b2) = !(w2.valu) in
-          let po = eq_bndr po V f1 f2 in
-          let po = eq_expr po a1 a2 in
-          eq_expr po b1 b2)
+          let po = unif_bndr po V f1 f2 in
+          let po = unif_expr po a1 a2 in
+          unif_expr po b1 b2)
     | (VN_UWit(w1)   , VN_UWit(w2)   ) ->
        if !(w1.valu) == !(w2.valu) then po
        else if !(w1.vars) = []
@@ -1325,8 +1339,8 @@ and unif_v_nodes : pool -> VPtr.t -> v_node -> VPtr.t -> v_node -> pool =
        else
          (let (_,t1,b1) = !(w1.valu) in
           let (_,t2,b2) = !(w2.valu) in
-          let po = eq_expr po t1 t2 in
-          eq_bndr po V b1 b2)
+          let po = unif_expr po t1 t2 in
+          unif_bndr po V b1 b2)
     | (VN_EWit(w1)   , VN_EWit(w2)   ) ->
        if !(w1.valu) == !(w2.valu) then po
        else if !(w1.vars) = []
@@ -1335,30 +1349,20 @@ and unif_v_nodes : pool -> VPtr.t -> v_node -> VPtr.t -> v_node -> pool =
        else
          (let (_,t1,b1) = !(w1.valu) in
           let (_,t2,b2) = !(w2.valu) in
-          let po = eq_expr po t1 t2 in
-          eq_bndr po V b1 b2)
+          let po = unif_expr po t1 t2 in
+          unif_bndr po V b1 b2)
     | (VN_ITag(n1)   , VN_ITag(n2)   ) ->
        if n1 = n2 then po else raise NoUnif
     | (VN_HApp(e1)   , VN_HApp(e2)   ) ->
-       if eq_ho_appl po e1 e2 then po
-       else raise NoUnif
+       unif_ho_appl po e1 e2
     | (VN_Goal(v1)   , VN_Goal(v2)   ) ->
-       eq_expr po v1 v2
+       unif_expr po v1 v2
     | (_             , _             ) ->
        raise NoUnif
+  end
 
 and unif_t_nodes : pool -> TPtr.t -> t_node -> TPtr.t -> t_node -> pool =
-  fun po p1 n1 p2 n2 -> if n1 == n2 then po else
-    let eq_expr po e1 e2 =
-      let po = ref po in
-      if eq_expr ~oracle:(oracle po) ~strict:false e1 e2 then !po
-      else raise NoUnif
-    in
-    let eq_bndr po s e1 e2 =
-      let po = ref po in
-      if eq_bndr ~oracle:(oracle po) ~strict:false s e1 e2 then !po
-      else raise NoUnif
-    in
+  fun po p1 n1 p2 n2 -> if n1 == n2 then po else begin
     (* FIXME #40, use oracle for TN_MAbs and alike *)
     (* FIXME #50 (note), share VN_VWit and alike *)
     log2 "unif_t_nodes %a = %a" print_t_node n1 print_t_node n2;
@@ -1392,7 +1396,7 @@ and unif_t_nodes : pool -> TPtr.t -> t_node -> TPtr.t -> t_node -> pool =
     | (TN_MAbs(b1)     , TN_MAbs(b2)     ) ->
        unif_cl po S b1 b2
     | (TN_Name(s1,p1)  , TN_Name(s2,p2)  ) ->
-       let po = eq_expr po s1 s2 in
+       let po = unif_expr po s1 s2 in
        unif_tptr po p1 p2
     | (TN_Proj(p1,l1)  , TN_Proj(p2,l2)  ) ->
        if l1.elt <> l2.elt then raise NoUnif;
@@ -1412,8 +1416,8 @@ and unif_t_nodes : pool -> TPtr.t -> t_node -> TPtr.t -> t_node -> pool =
        else
          (let (_,t1,b1) = !(w1.valu) in
           let (_,t2,b2) = !(w2.valu) in
-          let po = eq_expr po t1 t2 in
-          eq_bndr po T b1 b2)
+          let po = unif_expr po t1 t2 in
+          unif_bndr po T b1 b2)
     | (TN_EWit(w1)     , TN_EWit(w2)     ) ->
        if !(w1.valu) == !(w2.valu) then po
        else if !(w1.vars) = [] && !(w2.vars) = []
@@ -1421,17 +1425,17 @@ and unif_t_nodes : pool -> TPtr.t -> t_node -> TPtr.t -> t_node -> pool =
        else
          (let (_,t1,b1) = !(w1.valu) in
           let (_,t2,b2) = !(w2.valu) in
-          let po = eq_expr po t1 t2 in
-          eq_bndr po T b1 b2)
+          let po = unif_expr po t1 t2 in
+          unif_bndr po T b1 b2)
     | (TN_ITag(n1)     , TN_ITag(n2)     ) ->
        if n1 <> n2 then raise NoUnif; po
     | (TN_HApp(e1)     , TN_HApp(e2)     ) ->
-       if eq_ho_appl po e1 e2 then po
-       else raise NoUnif
+       unif_ho_appl po e1 e2
     | (TN_Goal(t1)     , TN_Goal(t2)     ) ->
-       eq_expr po t1 t2
+       unif_expr po t1 t2
     | (_               , _               ) ->
        raise NoUnif
+  end
 
 and eq_val : pool ref -> valu -> valu -> bool = fun pool v1 v2 ->
   if v1.elt == v2.elt then true else

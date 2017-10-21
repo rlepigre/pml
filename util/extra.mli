@@ -10,6 +10,16 @@ module List : sig
   val find_first : ('a -> bool) -> 'a list -> 'a option
 end
 
+module Array : sig
+  (** Extra functions on lists. *)
+
+  include module type of Array
+
+  val for_all2 : ('a -> 'b -> bool) -> 'a array -> 'b array -> bool
+
+  val fold_left2 : ('a -> 'b -> 'c -> 'a) -> 'a -> 'b array -> 'c array -> 'a
+end
+
 module Option : sig
   (** A module for the [option] type. *)
 

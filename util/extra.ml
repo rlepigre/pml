@@ -9,6 +9,22 @@ module List =
         | x::l -> if pred x then Some x else find_first pred l
   end
 
+module Array = struct
+  include Array
+
+  let for_all2 f a1 a2 =
+    try
+      Array.iter2 (fun x y -> if not (f x y) then raise Exit) a1 a2;
+      true
+    with Exit -> false
+
+  let fold_left2 f acc a1 a2 =
+    let acc = ref acc in
+    Array.iter2 (fun x y -> acc := f !acc x y) a1 a2;
+    !acc
+
+end
+
 module Option =
   struct
     type 'a t = 'a option
