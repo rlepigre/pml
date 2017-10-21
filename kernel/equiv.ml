@@ -528,8 +528,6 @@ let eq_cl po s (f1,vs1,ts1 as _cl1) (f2,vs2,ts2 as _cl2) =
 (** Equality functions on nodes. *)
 let eq_v_nodes : pool -> v_node -> v_node -> bool =
   fun po n1 n2 -> n1 == n2 ||
-    (* FIXME #40, use oracle for VN_LAbs *)
-    (* FIXME #50 (note), share VN_VWit and alike *)
     match (n1, n2) with
     | (VN_LAbs(b1)   , VN_LAbs(b2)   ) -> eq_cl po V b1 b2
     | (VN_Cons(c1,p1), VN_Cons(c2,p2)) -> c1.elt = c2.elt && eq_vptr po p1 p2
@@ -546,8 +544,6 @@ let eq_v_nodes : pool -> v_node -> v_node -> bool =
 
 let eq_t_nodes : pool -> t_node -> t_node -> bool =
   fun po n1 n2 -> n1 == n2 ||
-    (* FIXME #40, use oracle for TN_MAbs and alike *)
-    (* FIXME #50 (note), share VN_VWit and alike *)
     match (n1, n2) with
     | (TN_Valu(p1)     , TN_Valu(p2)     ) -> eq_vptr po p1 p2
     | (TN_Appl(p11,p12), TN_Appl(p21,p22)) -> eq_tptr po p11 p21
@@ -1287,8 +1283,6 @@ and unif_ho_appl : type a. pool -> a ho_appl -> a ho_appl -> pool =
 and unif_v_nodes : pool -> VPtr.t -> v_node -> VPtr.t -> v_node -> pool =
   fun po p1 n1 p2 n2 -> if n1 == n2 then po else begin
     log2 "unif_v_nodes %a = %a" print_v_node n1 print_v_node n2;
-    (* FIXME #40, use oracle for VN_LAbs *)
-    (* FIXME #50 (note), share VN_VWit and alike *)
     match (n1, n2) with
     | (VN_UVar({uvar_val = {contents = Set v}}), _) ->
        let po = reinsert (Ptr.V_ptr p1) po in
@@ -1356,8 +1350,6 @@ and unif_v_nodes : pool -> VPtr.t -> v_node -> VPtr.t -> v_node -> pool =
 
 and unif_t_nodes : pool -> TPtr.t -> t_node -> TPtr.t -> t_node -> pool =
   fun po p1 n1 p2 n2 -> if n1 == n2 then po else begin
-    (* FIXME #40, use oracle for TN_MAbs and alike *)
-    (* FIXME #50 (note), share VN_VWit and alike *)
     log2 "unif_t_nodes %a = %a" print_t_node n1 print_t_node n2;
     match (n1, n2) with
     | (TN_UVar({uvar_val = {contents = Set v}}), _) ->
