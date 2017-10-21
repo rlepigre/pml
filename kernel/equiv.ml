@@ -687,7 +687,9 @@ let rec add_term : pool -> term -> TPtr.t * pool = fun po t ->
                      if !pt = dummy_t_node then
                        begin
                          let f = subst_closure b in
-                         let b' = bndr_from_fun "x" (fun x -> FixY(f, Pos.none x)) in
+                         let b' = bndr_from_fun "x"
+                                                (fun x -> FixY(f, Pos.none x))
+                         in
                          let f' = Pos.none (LAbs(None, b')) in
                          let (pf, po) = add_valu po f' in
                          let t = bndr_subst f (VPtr pf) in
