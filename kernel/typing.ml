@@ -289,7 +289,11 @@ type check_sub =
   | Sub_Applies of sub_rule
   | Sub_New of ctxt * (prop * prop)
 
-let rec subtype =
+let rec unif_expr : type a. ctxt -> a ex loc -> a ex loc -> bool =
+  fun ctx a b ->
+    eq_expr ~oracle:(oracle (ref ctx.equations.pool)) ~strict:false a b
+
+and subtype =
   let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
     fun ctx t a b ->
     log_sub "proving the subtyping judgment:";
@@ -300,8 +304,7 @@ let rec subtype =
     let (t_is_val, ctx) = term_is_value t ctx in
     try let r =
       (* Same types.  *) (** FIXME: keep the pool *)
-      if eq_expr ~oracle:(oracle (ref ctx.equations.pool)) ~strict:false a b
-      then
+      if unif_expr ctx a b then
         begin
           log_sub "reflexivity applies";
           Sub_Equal
@@ -592,7 +595,10 @@ and check_sub : ctxt -> prop -> prop -> check_sub = fun ctx a b ->
             let spe = elim_sub_schema ctx ih in
             let (a0, b0) = spe.sspe_judge in
             (* Check if schema applies. *)
-            if not (eq_expr ~strict:false a a0 && eq_expr ~strict:false b b0) then raise Exit;
+            if not (Timed.pure_test
+                      (fun () -> unif_expr ctx a a0 && unif_expr ctx b b0)
+                      ())
+            then raise Exit;
             (* Check positivity of ordinals. *)
             let ok =
               List.for_all (fun (o,_) -> Ordinal.is_pos ctx.positives o)
