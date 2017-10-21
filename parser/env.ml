@@ -51,7 +51,10 @@ let add_expr : type a. strloc -> a sort -> a box -> env -> env =
 let add_value : strloc -> term -> prop -> e_valu -> env -> env =
   fun value_name value_orig value_type value_eval env ->
     let value_hash = Compare.hash_expr (Erase.to_valu value_eval) in
-    let nv = {value_name; value_type; value_orig; value_eval; value_hash} in
+    let value_eras = Erase.to_valu value_eval in
+    let nv = { value_name; value_type; value_orig
+             ; value_eval; value_eras; value_hash}
+    in
     let global_values = SMap.add value_name.elt nv env.global_values in
     let local_values = SMap.add value_name.elt nv env.local_values in
     {env with global_values; local_values}

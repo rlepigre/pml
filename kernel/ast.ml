@@ -200,6 +200,7 @@ and value =
   ; value_orig : t ex loc
   ; value_type : p ex loc
   ; value_eval : e_valu
+  ; value_eras : v ex loc
   ; value_hash : int }
 
 and fix_schema =

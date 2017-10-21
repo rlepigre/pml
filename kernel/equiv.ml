@@ -727,7 +727,7 @@ and     add_valu : bool -> pool -> valu -> VPtr.t * pool = fun safe po v ->
                    let (m, po) = A.fold fn m (A.empty, po) in
                    insert_v_node (VN_Reco(m)) po
   | Scis        -> insert_v_node VN_Scis po
-  | VDef(d)     -> add_valu po (Erase.to_valu d.value_eval)
+  | VDef(d)     -> add_valu po d.value_eras
   | Coer(_,v,_) -> add_valu po v
   | Such(_,_,r) -> add_valu po (bseq_dummy r.binder)
   | VWit(w)     -> insert_v_node (VN_VWit(w)) po
