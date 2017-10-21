@@ -152,6 +152,11 @@ module ClsHash = Hashtbl.Make(Cls)
 
 type 'a closure = 'a clsptr * VPtr.t array * TPtr.t array
 
+let subst_closure (funptr,vs,ts) =
+  let vs = Array.map (fun v -> VPtr v) vs in
+  let ts = Array.map (fun t -> TPtr t) ts in
+  msubst (msubst funptr vs) ts
+
 (** Type of a pointer map, used to keep track of equivalences. *)
 type eq_map = Ptr.t PtrMap.t
 
@@ -183,7 +188,7 @@ type t_node =
   | TN_Name of s ex loc * TPtr.t
   | TN_Proj of VPtr.t * A.key loc
   | TN_Case of VPtr.t * (v,t) bndr_closure A.t
-  | TN_FixY of (v,t) bndr_closure * VPtr.t
+  | TN_FixY of (v,t) bndr_closure * VPtr.t * TPtr.t
   | TN_Prnt of string
   | TN_UWit of (t qwit, string) eps
   | TN_EWit of (t qwit, string) eps
@@ -273,8 +278,8 @@ let print_t_node : out_channel -> t_node -> unit = fun ch n ->
                       in
                       let pmap = Print.print_map pelt "|" in
                       prnt ch "TN_Case(%a|%a)" VPtr.print pv pmap m
-  | TN_FixY(b,pv)  -> prnt ch "TN_FixY(%a,%a)" (pbcl V) b
-                        VPtr.print pv
+  | TN_FixY(b,p,_) -> prnt ch "TN_FixY(%a,%a)" (pbcl V) b
+                        VPtr.print p
   | TN_Prnt(s)     -> prnt ch "TN_Prnt(%S)" s
   | TN_UWit(w)     -> prnt ch "TN_UWit(%a)" pex (Pos.none (UWit(w)))
   | TN_EWit(w)     -> prnt ch "TN_EWit(%a)" pex (Pos.none (EWit(w)))
@@ -411,7 +416,7 @@ let children_t_node : t_node -> Ptr.t list = fun n ->
   | TN_Proj(pv,_)  -> [Ptr.V_ptr pv]
   | TN_Case(pv,cs) -> A.fold (fun _ b acc -> children_bndr_closure b acc)
                              cs [Ptr.V_ptr pv]
-  | TN_FixY(b,pv)  -> children_bndr_closure b [Ptr.V_ptr pv]
+  | TN_FixY(b,v,_) -> children_bndr_closure b [Ptr.V_ptr v]
   | TN_MAbs b      -> children_bndr_closure b []
   | TN_HApp c      -> let HO(_,b,c) = c in
                       children_closure b (children_closure c [])
@@ -561,7 +566,7 @@ let eq_t_nodes : pool -> t_node -> t_node -> bool =
                                               && l1.elt = l2.elt
     | (TN_Case(p1,m1)  , TN_Case(p2,m2)  ) -> eq_vptr po p1 p2
                                               && A.equal (eq_cl po V) m1 m2
-    | (TN_FixY(b1,p1)  , TN_FixY(b2,p2)  ) -> eq_cl po V b1 b2
+    | (TN_FixY(b1,p1,_), TN_FixY(b2,p2,_)) -> eq_cl po V b1 b2
                                               && eq_vptr po p1 p2
     | (TN_Prnt(s1)     , TN_Prnt(s2)     ) -> s1 = s2
     | (TN_UWit(w1)     , TN_UWit(w2)     ) -> w1.valu == w2.valu
@@ -680,7 +685,13 @@ let rec add_term : pool -> term -> TPtr.t * pool = fun po t ->
                    insert_t_node (TN_Case(pv,m)) po
   | FixY(b,v)   -> let (pv, po) = add_valu po v in
                    let (b,  po) = add_bndr_closure po V T b in
-                   insert_t_node (TN_FixY(b,pv)) po
+                   let f = subst_closure b in
+                   let b' = bndr_from_fun "x" (fun x -> FixY(f, Pos.none x)) in
+                   let f' = Pos.none (LAbs(None, b')) in
+                   let (pf, po) = add_valu po f' in
+                   let t = bndr_subst f (VPtr pf) in
+                   let (pt, po) = add_term po t in
+                   insert_t_node (TN_FixY(b,pv,pt)) po
   | Prnt(s)     -> insert_t_node (TN_Prnt(s)) po
   | Coer(_,t,_) -> add_term po t
   | Such(_,_,r) -> add_term po (bseq_dummy r.binder)
@@ -807,11 +818,6 @@ let insert_appl : Ptr.t -> Ptr.t -> pool -> TPtr.t * pool = fun pt pu po ->
   let (pu, po) = as_term pu po in
   insert_t_node (TN_Appl(pt,pu)) po
 
-let subst_closure (funptr,vs,ts) =
-  let vs = Array.map (fun v -> VPtr v) vs in
-  let ts = Array.map (fun t -> TPtr t) ts in
-  msubst (msubst funptr vs) ts
-
 (** Normalisation function. *)
 let rec normalise : TPtr.t -> pool -> Ptr.t * pool =
   fun p po ->
@@ -900,16 +906,10 @@ let rec normalise : TPtr.t -> pool -> Ptr.t * pool =
                end
             | _            -> (Ptr.T_ptr p, po)
           end
-       | TN_FixY(f,pv) ->
+       | TN_FixY(f,pv,pt) ->
           begin
             log2 "normalisation in TN_FixY: %a" VPtr.print pv;
             let po = { po with ns = TPtrSet.add p po.ns } in
-            let f = subst_closure f in
-            let b = bndr_from_fun "x" (fun x -> FixY(f, Pos.none x)) in
-            let f' = Pos.none (LAbs(None, b)) in
-            let (pf, po) = add_valu po f' in
-            let t = bndr_subst f (VPtr pf) in
-            let (pt, po) = add_term po t in
             let (pu, po) = insert_t_node (TN_Valu(pv)) po in
             let (pap, po) = insert_t_node (TN_Appl(pt, pu)) po in
             let po = union (Ptr.T_ptr p) (Ptr.T_ptr pap) po in
@@ -1081,7 +1081,7 @@ let rec canonical_term : bool -> TPtr.t -> pool -> term * pool
                               ((None, p), po)) m po
                             in
                             (Pos.none (Case(v, m)), po)
-        | TN_FixY(b,pv)  -> let (v, po) = cv pv po in
+        | TN_FixY(b,pv,_)-> let (v, po) = cv pv po in
                             let (b, po) = canonical_bndr_closure b po in
                             (Pos.none (FixY(b,v)), po)
         | TN_Prnt(s)     -> (Pos.none (Prnt(s)), po)
@@ -1388,7 +1388,7 @@ and unif_t_nodes : pool -> TPtr.t -> t_node -> TPtr.t -> t_node -> pool =
     | (TN_Case(p1,m1)  , TN_Case(p2,m2)  ) ->
        let po = unif_vptr po p1 p2 in
        A.fold2 (fun po -> unif_cl po V) po m1 m2
-    | (TN_FixY(b1,p1)  , TN_FixY(b2,p2)  ) ->
+    | (TN_FixY(b1,p1,_), TN_FixY(b2,p2,_)) ->
        let po = unif_cl po V b1 b2 in
        unif_vptr po p1 p2
     | (TN_Prnt(s1)     , TN_Prnt(s2)     ) ->
