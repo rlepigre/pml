@@ -940,8 +940,6 @@ let rec normalise : TPtr.t -> pool -> Ptr.t * pool =
     find p { po with in_norm }
 
 and check_eq : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
-  let (p1, po) = find p1 po in
-  let (p2, po) = find p2 po in
   if p1 = p2 then po else
     match (p1, p2) with
     | Ptr.V_ptr vp1, Ptr.V_ptr vp2 ->
@@ -951,7 +949,7 @@ and check_eq : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
     | Ptr.T_ptr tp1, Ptr.T_ptr tp2 ->
        let (pp1, n1) = find_t_node tp1 po in
        let (pp2, n2) = find_t_node tp2 po in
-       if eq_t_nodes po n1 n2 then join p1 p2 po else po
+       if eq_t_nodes po n1 n2 then union p1 p2 po else po
     | _ -> po
 
 and check_parents_eq pp1 pp2 po =

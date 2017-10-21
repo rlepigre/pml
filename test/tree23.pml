@@ -303,7 +303,7 @@ val add_height : ∀a:ο, ∀f∈(a⇒a⇒cmp), cmp_total<f,a> ⇒ ∀x∈a, ∀
     let _ = height_total (add f x t) n;
     let _ = height_total (add f x t) S[n];
     case add_aux f x t {
-      N1[u] → {--}
+      N1[u] → {}
       N2[c] → cond<height (add f x t) n,{},{}>
     }
   }
