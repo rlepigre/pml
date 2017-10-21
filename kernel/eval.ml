@@ -1,52 +1,31 @@
 (** Evaluation in an abstract machine. *)
 
 open Bindlib
+open Ast
 open Pos
 
 module A = Assoc
 
-type e_valu =
-  | VVari of e_valu var
-  | VLAbs of (e_valu, e_term) binder
-  | VCons of string * e_valu
-  | VReco of e_valu A.t
-  | VScis
-and  e_term =
-  | TVari of e_term var
-  | TValu of e_valu
-  | TAppl of e_term * e_term
-  | TMAbs of (e_stac, e_term) binder
-  | TName of e_stac * e_term
-  | TProj of e_valu * string
-  | TCase of e_valu * (e_valu, e_term) binder A.t
-  | TFixY of (e_valu, e_term) binder * e_valu
-  | TPrnt of string
-and  e_stac =
-  | SVari of e_stac var
-  | SEpsi
-  | SPush of e_valu * e_stac
-  | SFram of e_term * e_stac
-
-type e_vvar = e_valu var
-type e_tvar = e_term var
-type e_svar = e_stac var
+type e_vvar = e_valu Bindlib.var
+type e_tvar = e_term Bindlib.var
+type e_svar = e_stac Bindlib.var
 
 type e_vbox = e_valu bindbox
 type e_tbox = e_term bindbox
 type e_sbox = e_stac bindbox
 
-let mk_vvari : e_valu var -> e_valu =
+let mk_vvari : e_valu Bindlib.var -> e_valu =
   fun x -> VVari(x)
 
-let mk_tvari : e_term var -> e_term =
+let mk_tvari : e_term Bindlib.var -> e_term =
   fun x -> TVari(x)
 
-let mk_svari : e_stac var -> e_stac =
+let mk_svari : e_stac Bindlib.var -> e_stac =
   fun x -> SVari(x)
 
 (* Smart constructors for values. *)
 let vlabs : string -> (e_vvar -> e_tbox) -> e_vbox =
-  fun x f -> box_apply (fun b -> VLAbs(b)) (vbind mk_vvari x f)
+  fun x f -> box_apply (fun b -> VLAbs(b)) (Bindlib.vbind mk_vvari x f)
 
 let vcons : string -> e_vbox -> e_vbox =
   fun c -> box_apply (fun v -> VCons(c,v))
@@ -56,6 +35,9 @@ let vreco : e_vbox A.t -> e_vbox =
 
 let vscis : e_vbox =
   box VScis
+
+let vvdef : value -> e_vbox =
+  fun v -> box (VVdef v)
 
 (* Smart constructors for terms. *)
 let tvalu : e_vbox -> e_tbox =
@@ -101,18 +83,21 @@ exception Runtime_error of string
 let runtime_error : type a. string -> a =
   fun msg -> raise (Runtime_error msg)
 
-let step : proc -> proc option = function
+let rec step : proc -> proc option = function
   | (TValu(v)          , SEpsi      ) -> None
   | (TAppl(t,u)        , pi         ) -> Some (u, SFram(t,pi))
   | (TValu(v)          , SFram(t,pi)) -> Some (t, SPush(v,pi))
+  | (TValu(VVdef(d))   , pi         ) -> step (TValu(d.value_eval), pi)
   | (TValu(VLAbs(b))   , SPush(v,pi)) -> Some (subst b v, pi)
   | (TMAbs(b)          , pi         ) -> Some (subst b pi, pi)
   | (TName(pi,t)       , _          ) -> Some (t, pi)
+  | (TProj(VVdef(d),l) , pi         ) -> step (TProj(d.value_eval,l), pi)
   | (TProj(VReco(m),l) , pi         ) ->
       begin
         try Some (TValu(A.find l m), pi)
         with Not_found -> runtime_error "Unknown record field"
       end
+  | (TCase(VVdef(d),m)  , pi        ) -> step (TCase(d.value_eval,m), pi)
   | (TCase(VCons(c,v),m), pi        ) ->
       begin
         try Some (subst (A.find c m) v, pi)

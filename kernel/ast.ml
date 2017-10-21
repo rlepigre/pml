@@ -4,7 +4,6 @@
 open Extra
 open Bindlib
 open Sorts
-open Eval
 open Pos
 
 module M = Map.Make(String)
@@ -252,6 +251,29 @@ and ('a, 'b) bndr = popt * ('a ex, 'b ex loc) binder
 (** Type of an expression in a (bindlib) bindbox.
     @see <https://www.lama.univ-savoie.fr/~raffalli/bindlib.html> bindlib *)
 and 'a box = 'a ex loc bindbox
+
+and e_valu =
+  | VVari of e_valu Bindlib.var
+  | VLAbs of (e_valu, e_term) binder
+  | VCons of string * e_valu
+  | VReco of e_valu A.t
+  | VVdef of value
+  | VScis
+and  e_term =
+  | TVari of e_term Bindlib.var
+  | TValu of e_valu
+  | TAppl of e_term * e_term
+  | TMAbs of (e_stac, e_term) Bindlib.binder
+  | TName of e_stac * e_term
+  | TProj of e_valu * string
+  | TCase of e_valu * (e_valu, e_term) Bindlib.binder A.t
+  | TFixY of (e_valu, e_term) Bindlib.binder * e_valu
+  | TPrnt of string
+and  e_stac =
+  | SVari of e_stac Bindlib.var
+  | SEpsi
+  | SPush of e_valu * e_stac
+  | SFram of e_term * e_stac
 
 (** Sequence of functions to build and [bseq]. *)
 type (_,_) fseq =

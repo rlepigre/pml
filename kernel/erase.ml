@@ -25,7 +25,7 @@ let rec valu_erasure : valu -> e_vbox = fun v ->
   | Reco(m)     -> vreco (A.map (fun (_,v) -> valu_erasure v) m)
   | Scis        -> vscis
   | Goal(_,s)   -> vscis
-  | VDef(d)     -> box d.value_eval
+  | VDef(d)     -> vvdef d
   | Coer(_,v,_) -> valu_erasure v
   | Such(_,_,r) -> valu_erasure (bseq_dummy r.binder)
   | VPtr(_)     -> erasure_error "a pool pointer cannot be erased (value)"
@@ -112,6 +112,7 @@ let rec to_valu : e_valu -> vbox = fun v ->
                   in labs None None (Pos.none (binder_name b)) f
   | VCons(c,v) -> cons None (Pos.none c) (to_valu v)
   | VReco(m)   -> reco None (A.map (fun v -> (None, to_valu v)) m)
+  | VVdef(d)   -> box (Pos.none (VDef d))
   | VScis      -> scis None
 
 and to_term : e_term -> tbox = fun t ->

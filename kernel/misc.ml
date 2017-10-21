@@ -271,7 +271,6 @@ let make_bndr_closure
     let (x,e) = unbind (mk_free s) (snd b0) in
     let (e,tv,vv,tl,vl) = box_closure e in
     let b = bind_var x e in
-
     let b = box_pair (box (fst b0)) b in
     (unbox (bind_mvar vv (bind_mvar tv b)), vl, tl)
 
