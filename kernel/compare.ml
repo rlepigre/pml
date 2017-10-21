@@ -150,9 +150,9 @@ let {eq_expr; eq_bndr} =
     | (Vari(_,x1)    , Vari(_,x2)    ) ->
         Bindlib.eq_vars x1 x2
     | (HFun(s1,_,b1) , HFun(_,_,b2)  ) -> eq_bndr s1 b1 b2
-    | (HApp _        , _             ) when flexible e1 ->
+    | (HApp _        , _             ) when not strict && flexible e1 ->
        immitate e1 e2 && eq_expr e1 e2
-    | (_             , HApp _        ) when flexible e2 ->
+    | (_             , HApp _        ) when not strict && flexible e2 ->
        immitate e2 e1 && eq_expr e1 e2
     | (HApp(s1,f1,a1), HApp(s2,f2,a2)) ->
         begin
