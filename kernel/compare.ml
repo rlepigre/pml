@@ -8,6 +8,7 @@ open Ast
 open Output
 open Print
 open Uvars
+open Mapper
 
 (* Log functions registration. *)
 let log_equ = Log.register 'c' (Some "cmp") "comparing informations"
@@ -46,6 +47,19 @@ type eq =
                     ('a,'b) bndr ->
                     ('a,'b) bndr -> bool }
 
+let rec flexible : type a. a ex loc -> bool = fun e ->
+  let e = Norm.whnf e in
+  match e.elt with
+  | UVar _ -> true
+  | HApp(s,f,_) -> flexible f
+  | _ -> false
+
+(** A type to store the arguments for higher-order unification *)
+type 'a args =
+  | Nil : ('a -> 'a) args
+  | Cns : 'a sort * 'a var * 'a ex loc * ('b -> 'c) args ->
+          (('a -> 'b) -> 'c) args
+
 (* Comparison function with unification variable instantiation. *)
 let {eq_expr; eq_bndr} =
   let c = ref (-1) in
@@ -72,6 +86,56 @@ let {eq_expr; eq_bndr} =
       | (SubSch s1, SubSch s2) -> eq_sub_schema s1 s2
       | _ -> false
     in
+    (** bind_args and immitage: two functions for higher-order unification *)
+    let bind_args : type a b. a sort -> (a -> b) args -> b ex loc -> a ex loc =
+      fun sa args b ->
+        let b' : b box =
+          let mapper : type a. recall -> a ex loc -> a box = fun {default} e ->
+            let (s',e) = Ast.sort e in
+            let rec fn : type b. b args -> a box = function
+              | Nil -> raise Not_found
+              | Cns(s,v,a,args) ->
+                 let v = box_apply Pos.none (box_of_var v) in
+                 match eq_sort s s' with
+                 | Eq.Eq -> if eq_expr e a then v else fn args
+                 | _ -> fn args
+            in
+            try fn args
+            with Not_found -> default e
+         in
+         map ~mapper:{mapper} b
+       in
+       let rec blam : type a. a sort -> (a -> b) args -> a box =
+         fun sa args ->
+           match args with
+           | Nil -> b'
+           | Cns(sb,w,_,args) ->
+              (* b = sa -> b' *)
+              match sa with
+              | F(_,s) ->
+                 let t = blam s args in
+                 box_apply (fun x -> Pos.none (HFun(sb,s,(None,x))))
+                           (bind_var w t)
+              | _ -> .
+       in
+       unbox (blam sa args)
+   in
+   let immitate : type a. a ex loc -> a ex loc -> bool =
+    fun a b ->
+      let rec fn : type b. b ex loc -> (b -> a) args -> bool =
+        fun f args ->
+          match (Norm.whnf f).elt with
+          | HApp(s,f,a) ->
+             let v = new_var (mk_free s) "x" in
+             fn f (Cns(s,v,a,args))
+          | UVar(s,uv) ->
+             let b = bind_args s args b in
+             log_uni "projection";
+             not (uvar_occurs uv b) && (uvar_set uv b; true)
+          | _ -> assert false
+      in
+      fn a Nil
+    in
     let e1 = Norm.whnf e1 in
     let e2 = Norm.whnf e2 in
     if e1.elt == e2.elt then true else (
@@ -86,6 +150,10 @@ let {eq_expr; eq_bndr} =
     | (Vari(_,x1)    , Vari(_,x2)    ) ->
         Bindlib.eq_vars x1 x2
     | (HFun(s1,_,b1) , HFun(_,_,b2)  ) -> eq_bndr s1 b1 b2
+    | (HApp _        , _             ) when flexible e1 ->
+       immitate e1 e2 && eq_expr e1 e2
+    | (_             , HApp _        ) when flexible e2 ->
+       immitate e2 e1 && eq_expr e1 e2
     | (HApp(s1,f1,a1), HApp(s2,f2,a2)) ->
         begin
           match eq_sort s1 s2 with

@@ -21,6 +21,8 @@ type uvar_fun = { f : 'a. 'a sort -> 'a uvar -> unit }
 
 type b = A : 'a ex -> b
 
+exception Occurs
+
 let uvar_iter : type a. bool -> bool -> uvar_fun -> a ex loc -> unit =
   fun ignore_epsilon ignore_fixpoint f e ->
   let not_closed b = not (Bindlib.binder_closed (snd b)) in
@@ -85,7 +87,7 @@ let uvar_iter : type a. bool -> bool -> uvar_fun -> a ex loc -> unit =
     (* NOTE type annotations ignored. *)
     | Coer(_,e,_) -> uvar_iter e
     | Such(_,_,r) -> uvar_iter (bseq_dummy r.binder)
-    | ITag(_)     -> ()
+    | ITag(_)     -> raise Occurs
     | Dumm        -> ()
     | Goal(_)     -> ()
     | VPtr(_)     -> ()
@@ -127,11 +129,11 @@ let uvar_occurs : type a b. a uvar -> b ex loc -> bool = fun u e ->
     if v.uvar_key == u.uvar_key then
       begin
         log_uni "Occur check on %d" u.uvar_key;
-        raise Exit
+        raise Occurs
       end
   in
   try Chrono.add_time occur_chrono (uvar_iter false false {f}) e; false
-  with Exit -> true
+  with Occurs -> true
 
 let nb_vis_uvars a =
   List.length (uvars ~ignore_epsilon:true ~ignore_fixpoint:true a)
