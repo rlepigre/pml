@@ -1322,9 +1322,7 @@ and unif_v_nodes : pool -> VPtr.t -> v_node -> VPtr.t -> v_node -> pool =
     | (VN_Scis       , VN_Scis       ) -> po
     | (VN_VWit(w1)   , VN_VWit(w2)   ) ->
        if !(w1.valu) == !(w2.valu) then po
-       else if !(w1.vars) = []
-               && !(w2.vars) = []
-       then raise NoUnif
+       else if !(w1.vars) = [] && !(w2.vars) = [] then raise NoUnif
        else
          (let (f1,a1,b1) = !(w1.valu) in
           let (f2,a2,b2) = !(w2.valu) in
@@ -1333,9 +1331,7 @@ and unif_v_nodes : pool -> VPtr.t -> v_node -> VPtr.t -> v_node -> pool =
           unif_expr po b1 b2)
     | (VN_UWit(w1)   , VN_UWit(w2)   ) ->
        if !(w1.valu) == !(w2.valu) then po
-       else if !(w1.vars) = []
-               && !(w2.vars) = []
-       then raise NoUnif
+       else if !(w1.vars) = [] && !(w2.vars) = [] then raise NoUnif
        else
          (let (_,t1,b1) = !(w1.valu) in
           let (_,t2,b2) = !(w2.valu) in
@@ -1343,9 +1339,7 @@ and unif_v_nodes : pool -> VPtr.t -> v_node -> VPtr.t -> v_node -> pool =
           unif_bndr po V b1 b2)
     | (VN_EWit(w1)   , VN_EWit(w2)   ) ->
        if !(w1.valu) == !(w2.valu) then po
-       else if !(w1.vars) = []
-               && !(w2.vars) = []
-       then raise NoUnif
+       else if !(w1.vars) = [] && !(w2.vars) = [] then raise NoUnif
        else
          (let (_,t1,b1) = !(w1.valu) in
           let (_,t2,b2) = !(w2.valu) in
@@ -1411,8 +1405,7 @@ and unif_t_nodes : pool -> TPtr.t -> t_node -> TPtr.t -> t_node -> pool =
        if s1 <> s2 then raise NoUnif; po
     | (TN_UWit(w1)     , TN_UWit(w2)     ) ->
        if !(w1.valu) == !(w2.valu) then po
-       else if !(w1.vars) = [] && !(w2.vars) = []
-       then raise NoUnif
+       else if !(w1.vars) = [] && !(w2.vars) = [] then raise NoUnif
        else
          (let (_,t1,b1) = !(w1.valu) in
           let (_,t2,b2) = !(w2.valu) in
@@ -1420,8 +1413,7 @@ and unif_t_nodes : pool -> TPtr.t -> t_node -> TPtr.t -> t_node -> pool =
           unif_bndr po T b1 b2)
     | (TN_EWit(w1)     , TN_EWit(w2)     ) ->
        if !(w1.valu) == !(w2.valu) then po
-       else if !(w1.vars) = [] && !(w2.vars) = []
-       then raise NoUnif
+       else if !(w1.vars) = [] && !(w2.vars) = [] then raise NoUnif
        else
          (let (_,t1,b1) = !(w1.valu) in
           let (_,t2,b2) = !(w2.valu) in
