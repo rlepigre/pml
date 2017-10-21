@@ -24,9 +24,14 @@ val get_name  : t -> string
 (** [get_time chr] gets the current time (in seconds) stored in [chr]. *)
 val get_time  : t -> float
 
+(** [get_time chr] gets the current cumulative time (including children,
+    in seconds) stored in [chr]. *)
+val get_cumul  : t -> float
+
 (** [get_count chr] gets the number of function calls timed using [chr]. *)
 val get_count : t -> int
 
-(** [iter fn] calls [fn name time count] with the [name], [time] and [count]
+(** [iter fn] calls [fn name time cumul count] with the
+       [name], [time], [cumul] and [count]
     of all the timers on the system. *)
-val iter : (string -> float -> int -> unit) -> unit
+val iter : (string -> float -> float -> int -> unit) -> unit
