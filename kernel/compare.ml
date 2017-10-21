@@ -243,7 +243,7 @@ let {eq_expr; eq_bndr} =
     | (_             , Such(_,_,r)   ) -> eq_expr e1 (bseq_dummy r.binder)
     | (ITag(_,i1)    , ITag(_,i2)    ) -> i1 = i2
     (* NOTE should not be compare dummy expressions. *)
-    | (Dumm          , Dumm          ) -> false
+    | (Dumm(_)       , Dumm(_)       ) -> false
     | (VWit(w1)      , VWit(w2)      ) ->
        w1.valu == w2.valu ||
          if strict || (!(w1.vars) = [] && !(w2.vars) = [])
@@ -445,7 +445,7 @@ let {hash_expr; hash_bndr; hash_ombinder; hash_vwit
     (* NOTE type annotations ignored. *)
     | ITag(_,i)   -> hash (`ITag(i))
     (* NOTE should not be compare dummy expressions. *)
-    | Dumm        -> hash (`Dumm)
+    | Dumm(s)     -> khash1 `Dumm (hash_sort s)
     | VWit(w)     -> w.refr (); khash1 `VWit !(w.hash)
     | SWit(w)     -> w.refr (); khash1 `SWit !(w.hash)
     | UWit(w)     -> w.refr (); khash1 `UWit !(w.hash)
@@ -534,7 +534,7 @@ module VWit = struct
   let hash = hash_vwit
   let equal (f1,a1,b1) (f2,a2,b2) =
     eq_bndr V f1 f2 && eq_expr a1 a2 && eq_expr b1 b2
-  let vars (f, a, b) = bndr_uvars f @ uvars a @ uvars b
+  let vars (f, a, b) = bndr_uvars V f @ uvars a @ uvars b
 end
 
 module QWit = struct
@@ -544,7 +544,7 @@ module QWit = struct
     match eq_sort s1 s2 with
     | Eq.Eq -> eq_expr t1 t2 && eq_bndr s1 b1 b2
     | _ -> false
-  let vars (Q(_, t, b)) = bndr_uvars b @ uvars t
+  let vars (Q(s, t, b)) = bndr_uvars s b @ uvars t
 end
 
 module OWit = struct
@@ -552,14 +552,14 @@ module OWit = struct
   let hash = hash_owit
   let equal (o1,a1,b1) (o2,a2,b2) =
     eq_expr o1 o2 && eq_expr a1 a2 && eq_bndr O b1 b2
-  let vars (o, a, b) = uvars o @ uvars a @ bndr_uvars b
+  let vars (o, a, b) = uvars o @ uvars a @ bndr_uvars O b
 end
 
 module SWit = struct
   type t = swit
   let hash = hash_swit
   let equal (b1,a1) (b2,a2) = eq_bndr S b1 b2 && eq_expr a1 a2
-  let vars (b, a) = uvars a @ bndr_uvars b
+  let vars (b, a) = uvars a @ bndr_uvars S b
 end
 
 module CWit = struct
@@ -575,7 +575,7 @@ module CWit = struct
      | FixSch s ->
         let (b, mb) = s.fsch_judge in
         let (_, mb) = unmbind (mk_free O) mb in
-        bndr_uvars b @ uvars mb
+        bndr_uvars V b @ uvars mb
      | SubSch s ->
         let mb = s.ssch_judge in
         let (_, (e1,e2)) = unmbind (mk_free O) mb in

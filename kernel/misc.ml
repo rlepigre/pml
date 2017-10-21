@@ -38,7 +38,7 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
     match (Norm.whnf e).elt with
     | HDef(_,_)   -> acc
     | HApp(_,f,a) -> owits (owits acc f) a
-    | HFun(_,_,f) -> owits acc (bndr_subst f Dumm)
+    | HFun(s,_,f) -> owits acc (bndr_subst f (Dumm s))
     | UWit(w)     ->
         begin
           let (s,_,_) = !(w.valu) in
@@ -60,16 +60,16 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
     | Func(a,b)   -> owits (owits acc a) b
     | Prod(m)     -> A.fold (fun _ (_,a) acc -> owits acc a) m acc
     | DSum(m)     -> A.fold (fun _ (_,a) acc -> owits acc a) m acc
-    | Univ(_,f)   -> owits acc (bndr_subst f Dumm)
-    | Exis(_,f)   -> owits acc (bndr_subst f Dumm)
-    | FixM(o,f)   -> owits (owits acc o) (bndr_subst f Dumm)
-    | FixN(o,f)   -> owits (owits acc o) (bndr_subst f Dumm)
+    | Univ(s,f)   -> owits acc (bndr_subst f (Dumm s))
+    | Exis(s,f)   -> owits acc (bndr_subst f (Dumm s))
+    | FixM(o,f)   -> owits (owits acc o) (bndr_subst f (Dumm P))
+    | FixN(o,f)   -> owits (owits acc o) (bndr_subst f (Dumm P))
     | Memb(t,a)   -> owits (owits acc t) a
     | Rest(a,c)   -> owits (from_cond acc c) a
     | Impl(c,a)   -> owits (from_cond acc c) a
 
     | VWit(_)     -> acc
-    | LAbs(_,f)   -> owits acc (bndr_subst f Dumm)
+    | LAbs(_,f)   -> owits acc (bndr_subst f (Dumm V))
     | Cons(_,v)   -> owits acc v
     | Reco(m)     -> A.fold (fun _ (_,v) acc -> owits acc v) m acc
     | Scis        -> acc
@@ -77,12 +77,12 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
 
     | Valu(v)     -> owits acc v
     | Appl(t,u)   -> owits (owits acc t) u
-    | MAbs(f)     -> owits acc (bndr_subst f Dumm)
+    | MAbs(f)     -> owits acc (bndr_subst f (Dumm S))
     | Name(s,t)   -> owits (owits acc s) t
     | Proj(v,_)   -> owits acc v
-    | Case(v,m)   -> let fn _ (_,f) acc = owits acc (bndr_subst f Dumm) in
+    | Case(v,m)   -> let fn _ (_,f) acc = owits acc (bndr_subst f (Dumm V)) in
                      A.fold fn m (owits acc v)
-    | FixY(f,v)   -> owits (owits acc (bndr_subst f Dumm)) v
+    | FixY(f,v)   -> owits (owits acc (bndr_subst f (Dumm V))) v
     | Prnt(_)     -> acc
 
     | Coer(_,e,_) -> owits acc e
@@ -100,7 +100,7 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
     | OSch(_)     -> if is_in e acc then acc else e :: acc
 
     | Vari _      -> assert false
-    | Dumm        -> acc
+    | Dumm _      -> acc
     | VPtr _      -> acc
     | TPtr _      -> acc
   in
@@ -227,27 +227,29 @@ let box_closure: type a. a ex loc -> a box * t var array * v var array
     let tv = ref [] in
     let mapper : type a. recall -> a ex loc -> a box = fun {default} e ->
       let s, e = sort e in
-      (* FIXME: this is quadratic !!! *)
-      let e' = lift e in
+      let svl = !vl and stl = !tl and svv = !vv and stv = !tv in
+      let e' = default e in
       match is_closed e', s with
       | true, V ->
+         vl := svl; tl := stl; vv := svv; tv := stv;
          let v = new_var (mk_free V) "v" in
          vl := e :: !vl;
          vv := v :: !vv;
-         box_apply Pos.none (box_of_var v)
+         box (Pos.none (mk_free V v))
       | true, T ->
+         vl := svl; tl := stl; vv := svv; tv := stv;
          let v = new_var (mk_free T) "v" in
          tl := e :: !tl;
          tv := v :: !tv;
-         box_apply Pos.none (box_of_var v)
-      | _ -> default e
+         box (Pos.none (mk_free T v))
+      | _ -> e'
     in
     let e = map ~mapper:{mapper} e in
     let tl = Array.of_list !tl in
     let vl = Array.of_list !vl in
     let tv = Array.of_list !tv in
     let vv = Array.of_list !vv in
-    (e,tv,vv,tl,vl)
+    (lift (unbox e),tv,vv,tl,vl)
 
 type 'a closure =
   (v ex, (t ex, 'a) mbinder) mbinder * v ex loc array * t ex loc array

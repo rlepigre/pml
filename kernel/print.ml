@@ -162,7 +162,7 @@ let rec ex : type a. a ex loc printer = fun ch e ->
             aux seq
       in aux r.binder
   | ITag(_,i)   -> fprintf ch "#%i" i
-  | Dumm        -> output_string ch "∅"
+  | Dumm(_)     -> output_string ch "∅"
   | VWit(w)     -> fprintf ch "%s" w.name
   | SWit(w)     -> fprintf ch "%s" w.name
   | UWit(w)     -> fprintf ch "%s" w.name

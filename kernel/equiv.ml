@@ -707,7 +707,7 @@ let rec add_term : pool -> term -> TPtr.t * pool = fun po t ->
   | Goal(_)     -> insert_t_node (TN_Goal(t)) po
   | TPtr(pt)    -> assert (TPtrMap.mem pt po.ts); (pt, po)
   | Vari(_)     -> invalid_arg "free variable in the pool"
-  | Dumm        -> invalid_arg "dummy terms forbidden in the pool"
+  | Dumm(_)     -> invalid_arg "dummy terms forbidden in the pool"
 
 and     add_valu : pool -> valu -> VPtr.t * pool = fun po v ->
   let v = Norm.whnf v in
@@ -737,7 +737,7 @@ and     add_valu : pool -> valu -> VPtr.t * pool = fun po v ->
   | Goal(_)     -> insert_v_node (VN_Goal(v)) po
   | VPtr(pv)    -> assert (VPtrMap.mem pv po.vs); (pv, po)
   | Vari(_)     -> invalid_arg "free variable in the pool"
-  | Dumm        -> invalid_arg "dummy terms forbidden in the pool"
+  | Dumm(_)     -> invalid_arg "dummy terms forbidden in the pool"
 
 and add_bndr_closure : type a b. pool -> a sort -> b sort ->
                        (a, b) bndr -> (a, b) bndr_closure * pool =

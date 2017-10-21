@@ -143,7 +143,7 @@ type _ ex =
 
   | ITag : 'a sort * int                             -> 'a ex
   (** Integer tag (usuful for comparision). *)
-  | Dumm :                                              'a ex
+  | Dumm : 'a sort                                   -> 'a ex
   (** Dummy constructor.*)
   | VWit : (vwit, string) eps                        -> v  ex
   (** Value witness. *)
@@ -549,8 +549,8 @@ let build_t_fixy : (v,t) bndr -> term = fun b ->
 
 let rec bseq_dummy : type a b. (a, prop * b) bseq -> b = fun seq ->
   match seq with
-  | BLast(_,f) -> snd (subst f Dumm)
-  | BMore(_,f) -> bseq_dummy (subst f Dumm)
+  | BLast(s,f) -> snd (subst f (Dumm s))
+  | BMore(s,f) -> bseq_dummy (subst f (Dumm s))
 
 let rec sort : type a b. a ex loc ->  a sort * a ex loc= fun e ->
   match e.elt with
@@ -608,7 +608,7 @@ let rec sort : type a b. a ex loc ->  a sort * a ex loc= fun e ->
   | OSch _          -> (O,e)
 
   | Vari(s,_)       -> (s,e)
-  | Dumm            -> Output.bug_msg "Dumm in Ast.sort"; assert false
+  | Dumm(s)         -> (s,e)
 
 let isVal : type a.a ex loc -> v ex loc option = fun e ->
   match sort e with

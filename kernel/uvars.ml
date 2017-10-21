@@ -46,25 +46,27 @@ let uvar_iter : type a. bool -> bool -> uvar_fun -> a ex loc -> unit =
       fun w -> w.refr ();
                List.iter (fun (U(s,v)) -> f.f s v) !(w.vars)
     in
-    let buvar_iter b = if not_closed b then uvar_iter (bndr_subst b Dumm) in
+    let buvar_iter s b =
+      if not_closed b then uvar_iter (bndr_subst b (Dumm s))
+    in
     let e = Norm.whnf e in
     match e.elt with
     | Vari(_)     -> ()
-    | HFun(_,_,b) -> buvar_iter b
+    | HFun(s,_,b) -> buvar_iter s b
     | HApp(_,a,b) -> uvar_iter a; uvar_iter b
     | HDef(_)     -> () (* NOTE no unification variable in definition. *)
     | Func(a,b)   -> uvar_iter a; uvar_iter b
     | Prod(m)     -> A.iter (fun _ (_,a) -> uvar_iter a) m
     | DSum(m)     -> A.iter (fun _ (_,a) -> uvar_iter a) m
-    | Univ(_,b)   -> buvar_iter b
-    | Exis(_,b)   -> buvar_iter b
-    | FixM(o,b)   -> if not ignore_fixpoint then (uvar_iter o; buvar_iter b)
-    | FixN(o,b)   -> if not ignore_fixpoint then (uvar_iter o; buvar_iter b)
+    | Univ(s,b)   -> buvar_iter s b
+    | Exis(s,b)   -> buvar_iter s b
+    | FixM(o,b)   -> if not ignore_fixpoint then (uvar_iter o; buvar_iter P b)
+    | FixN(o,b)   -> if not ignore_fixpoint then (uvar_iter o; buvar_iter P b)
     | Memb(t,a)   -> uvar_iter t; uvar_iter a
     | Rest(a,c)   -> uvar_iter a; uvar_iter_cond c
     | Impl(c,a)   -> uvar_iter_cond c; uvar_iter a
     (* NOTE type annotation ignored. *)
-    | LAbs(_,b)   -> buvar_iter b
+    | LAbs(_,b)   -> buvar_iter V b
     | Cons(_,v)   -> uvar_iter v
     | Reco(m)     -> A.iter (fun _ (_,a) -> uvar_iter a) m
     | Scis        -> ()
@@ -72,12 +74,12 @@ let uvar_iter : type a. bool -> bool -> uvar_fun -> a ex loc -> unit =
     | Valu(v)     -> uvar_iter v
     | Appl(t,u)   -> uvar_iter t; uvar_iter u
     (* NOTE type annotation ignored. *)
-    | MAbs(b)     -> buvar_iter b
+    | MAbs(b)     -> buvar_iter S b
     | Name(s,t)   -> uvar_iter s; uvar_iter t
     | Proj(v,_)   -> uvar_iter v
-    | Case(v,m)   -> let fn _ (_,b) = buvar_iter b in
+    | Case(v,m)   -> let fn _ (_,b) = buvar_iter V b in
                      uvar_iter v; A.iter fn m
-    | FixY(f,v)   -> buvar_iter f; uvar_iter v
+    | FixY(f,v)   -> buvar_iter V f; uvar_iter v
     | Prnt(_)     -> ()
     | Epsi        -> ()
     | Push(v,s)   -> uvar_iter v; uvar_iter s
@@ -88,7 +90,7 @@ let uvar_iter : type a. bool -> bool -> uvar_fun -> a ex loc -> unit =
     | Coer(_,e,_) -> uvar_iter e
     | Such(_,_,r) -> uvar_iter (bseq_dummy r.binder)
     | ITag(_)     -> raise Occurs
-    | Dumm        -> ()
+    | Dumm(_)     -> ()
     | Goal(_)     -> ()
     | VPtr(_)     -> ()
     | TPtr(_)     -> ()
@@ -118,9 +120,9 @@ let uvars : type a. ?ignore_epsilon:bool -> ?ignore_fixpoint:bool
   uvar_iter ignore_epsilon ignore_fixpoint {f} e; !uvars
 
 let bndr_uvars : type a b. ?ignore_epsilon:bool -> ?ignore_fixpoint:bool
-                      -> (a, b) bndr -> s_elt list =
-  fun ?(ignore_epsilon=false) ?(ignore_fixpoint=false) b ->
-  uvars ~ignore_epsilon ~ignore_fixpoint (bndr_subst b Dumm)
+                      -> a sort -> (a, b) bndr -> s_elt list =
+  fun ?(ignore_epsilon=false) ?(ignore_fixpoint=false) s b ->
+  uvars ~ignore_epsilon ~ignore_fixpoint (bndr_subst b (Dumm s))
 
 let occur_chrono = Chrono.create "occur"
 

@@ -109,7 +109,7 @@ let map : type a. ?mapper:mapper -> a ex loc -> a box
             | OWNu(_)     -> box e
             | OSch(_)     -> box e
             | Vari(_,x)   -> vari e.pos x
-            | Dumm        -> box e
+            | Dumm(_)     -> box e
 
             | VPtr _      -> box e
             | TPtr _      -> box e

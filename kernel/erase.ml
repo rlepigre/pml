@@ -30,7 +30,7 @@ let rec valu_erasure : valu -> e_vbox = fun v ->
   | Such(_,_,r) -> valu_erasure (bseq_dummy r.binder)
   | VPtr(_)     -> erasure_error "a pool pointer cannot be erased (value)"
   | ITag(_)     -> erasure_error "a tag cannot be erased (value)"
-  | Dumm        -> erasure_error "a dummy value cannot be erased (value)"
+  | Dumm(_)     -> erasure_error "a dummy value cannot be erased (value)"
   | VWit(_)     -> erasure_error "a witness cannot be erased (value)"
   | UWit(_)     -> erasure_error "a witness cannot be erased (value)"
   | EWit(_)     -> erasure_error "a witness cannot be erased (value)"
@@ -65,7 +65,7 @@ and     term_erasure : term -> e_tbox = fun t ->
   | Such(_,_,r) -> term_erasure (bseq_dummy r.binder)
   | TPtr(_)     -> erasure_error "a pool pointer cannot be erased (term)"
   | ITag(_)     -> erasure_error "a tag cannot be erased (term)"
-  | Dumm        -> erasure_error "a dummy value cannot be erased (term)"
+  | Dumm(_)     -> erasure_error "a dummy value cannot be erased (term)"
   | UWit(_)     -> erasure_error "a witness cannot be erased (term)"
   | EWit(_)     -> erasure_error "a witness cannot be erased (term)"
   | UVar(_)     -> erasure_error "unif. variables cannot be erased (term)"
@@ -82,7 +82,7 @@ and     stac_erasure : stac -> e_sbox = fun s ->
   | Push(v,s) -> spush (valu_erasure v) (stac_erasure s)
   | Fram(t,s) -> sfram (term_erasure t) (stac_erasure s)
   | ITag(_)   -> erasure_error "a tag cannot be erased (stack)"
-  | Dumm      -> erasure_error "a dummy value cannot be erased (stack)"
+  | Dumm(_)   -> erasure_error "a dummy value cannot be erased (stack)"
   | SWit(_)   -> erasure_error "a witness cannot be erased (stack)"
   | UWit(_)   -> erasure_error "a witness cannot be erased (stack)"
   | EWit(_)   -> erasure_error "a witness cannot be erased (stack)"

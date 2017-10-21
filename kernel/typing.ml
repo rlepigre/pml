@@ -993,7 +993,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
     | EWit(_)     -> unexpected "∃-witness during typing..."
     | UVar(_)     -> unexpected "unification variable during typing..."
     | Vari(_)     -> unexpected "Free variable during typing..."
-    | Dumm        -> unexpected "Dummy value during typing..."
+    | Dumm(_)     -> unexpected "Dummy value during typing..."
     | ITag(_)     -> unexpected "ITag during typing..."
   in (Pos.make v.pos (Valu(v)), c, r)
   with
@@ -1155,7 +1155,7 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
     | EWit(_)     -> unexpected "∃-witness during typing..."
     | UVar(_)     -> unexpected "unification variable during typing..."
     | Vari(_)     -> unexpected "Free variable during typing..."
-    | Dumm        -> unexpected "Dummy value during typing..."
+    | Dumm(_)     -> unexpected "Dummy value during typing..."
     | ITag(_)     -> unexpected "ITag during typing..."
   in (t, c, r)
   with
@@ -1207,7 +1207,7 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
     | EWit(_)     -> unexpected "∃-witness during typing..."
     | UVar(_)     -> unexpected "unification variable during typing..."
     | Vari(_)     -> unexpected "Free variable during typing..."
-    | Dumm        -> unexpected "Dummy value during typing..."
+    | Dumm(_)     -> unexpected "Dummy value during typing..."
     | ITag(_)     -> unexpected "Tag during typing..."
   in (s, c, r)
   with
