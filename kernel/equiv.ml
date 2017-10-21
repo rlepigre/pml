@@ -188,7 +188,7 @@ type t_node =
   | TN_Name of s ex loc * TPtr.t
   | TN_Proj of VPtr.t * A.key loc
   | TN_Case of VPtr.t * (v,t) bndr_closure A.t
-  | TN_FixY of (v,t) bndr_closure * VPtr.t * TPtr.t
+  | TN_FixY of (v,t) bndr_closure * VPtr.t * TPtr.t ref
   | TN_Prnt of string
   | TN_UWit of (t qwit, string) eps
   | TN_EWit of (t qwit, string) eps
@@ -685,13 +685,25 @@ let rec add_term : pool -> term -> TPtr.t * pool = fun po t ->
                    insert_t_node (TN_Case(pv,m)) po
   | FixY(b,v)   -> let (pv, po) = add_valu po v in
                    let (b,  po) = add_bndr_closure po V T b in
-                   let f = subst_closure b in
-                   let b' = bndr_from_fun "x" (fun x -> FixY(f, Pos.none x)) in
-                   let f' = Pos.none (LAbs(None, b')) in
-                   let (pf, po) = add_valu po f' in
-                   let t = bndr_subst f (VPtr pf) in
-                   let (pt, po) = add_term po t in
-                   insert_t_node (TN_FixY(b,pv,pt)) po
+                   let dummy_t_node = TPtr.T (-1) in
+                   let pt = ref dummy_t_node in
+                   let (ty, po) = insert_t_node (TN_FixY(b,pv,pt)) po in
+                   let po =
+                     if !pt = dummy_t_node then
+                       begin
+                         let f = subst_closure b in
+                         let b' = bndr_from_fun "x" (fun x -> FixY(f, Pos.none x)) in
+                         let f' = Pos.none (LAbs(None, b')) in
+                         let (pf, po) = add_valu po f' in
+                         let t = bndr_subst f (VPtr pf) in
+                         let (pt', po) = add_term po t in
+                         pt := pt';
+                         po
+                       end
+                     else po
+                   in
+                   (ty, po)
+
   | Prnt(s)     -> insert_t_node (TN_Prnt(s)) po
   | Coer(_,t,_) -> add_term po t
   | Such(_,_,r) -> add_term po (bseq_dummy r.binder)
@@ -911,7 +923,7 @@ let rec normalise : TPtr.t -> pool -> Ptr.t * pool =
             log2 "normalisation in TN_FixY: %a" VPtr.print pv;
             let po = { po with ns = TPtrSet.add p po.ns } in
             let (pu, po) = insert_t_node (TN_Valu(pv)) po in
-            let (pap, po) = insert_t_node (TN_Appl(pt, pu)) po in
+            let (pap, po) = insert_t_node (TN_Appl(!pt, pu)) po in
             let po = union (Ptr.T_ptr p) (Ptr.T_ptr pap) po in
             let (t, po) = normalise pap po in
             log2 "normalised in TN_FixY: %a => %a (%d)" VPtr.print pv
