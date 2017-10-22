@@ -150,16 +150,21 @@ let {eq_expr; eq_bndr} =
     | (Vari(_,x1)    , Vari(_,x2)    ) ->
        Bindlib.eq_vars x1 x2
     | (HFun(s1,_,b1) , HFun(_,_,b2)  ) -> eq_bndr s1 b1 b2
-    | (HApp _        , _             ) when not strict && flexible e1 ->
-       immitate e1 e2 && eq_expr e1 e2
-    | (_             , HApp _        ) when not strict && flexible e2 ->
-       immitate e2 e1 && eq_expr e1 e2
     | (HApp(s1,f1,a1), HApp(s2,f2,a2)) ->
         begin
           match eq_sort s1 s2 with
           | Eq  -> eq_expr f1 f2 && eq_expr a1 a2
           | NEq -> false
         end
+        || (if not strict && flexible e1 then
+              immitate e1 e2 && eq_expr e1 e2
+            else if not strict && flexible e2 then
+              immitate e2 e1 && eq_expr e1 e2
+            else false)
+    | (HApp _        , _             ) when not strict && flexible e1 ->
+       immitate e1 e2 && eq_expr e1 e2
+    | (_             , HApp _        ) when not strict && flexible e2 ->
+       immitate e2 e1 && eq_expr e1 e2
     | (HFun(s1,_,b1), _             ) ->
        let t = new_itag s1 in
        eq_expr (bndr_subst b1 t) (Pos.none (HApp(s1,e2,Pos.none t)))
