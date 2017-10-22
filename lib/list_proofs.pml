@@ -10,6 +10,17 @@ val rec app_total : ∀a, ∀l1 l2 ∈list<a>, ∃v:ι, app l1 l2 ≡ v =
     }
   }
 
+val rec rev_app_total : ∀a, ∀l1 l2 ∈list<a>, ∃v:ι, rev_app l1 l2 ≡ v =
+  fun l1 l2 {
+    case l1 {
+      Nil     → {}
+      Cons[c] → use rev_app_total c.tl (c.hd :: l2)
+    }
+  }
+
+val rev_total : ∀a, ∀l∈list<a>, ∃v:ι, rev l ≡ v =
+  fun l { use rev_app_total l [] }
+
 val rec app_asso : ∀a, ∀x y z∈list<a>, app x (app y z) ≡ app (app x y) z =
   fun l1 l2 l3 {
     case l1 {
@@ -26,6 +37,49 @@ val rec app_asso : ∀a, ∀x y z∈list<a>, app x (app y z) ≡ app (app x y) z
               let ind : app tl (app l2 l3) ≡ app (app tl l2) l3 = app_asso tl l2 l3;
               {}
     }
+  }
+
+val rec app_nil : ∀a, ∀l∈list<a>, app l [] ≡ l = //FIXME: a useless ∃v:ι, blocks
+  fun l {
+    case l {
+      []    → {}
+      h::l' → use app_nil l'
+    }
+  }
+
+val rec app_rev_rev1 : ∀a, ∀x y z∈list<a>,
+                        rev_app x (rev_app y z) ≡ rev_app (app y x) z =
+  fun x y z {
+    case y {
+      []     → {}
+      h::y' →
+        deduce rev_app x (rev_app y z) = rev_app x (rev_app y' (h::z));
+        use app_total y' x; // FIXME: loop without this line
+        deduce rev_app (app y x) z ≡ rev_app (app y' x) (h::z);
+        use app_rev_rev1 x y' (h::z)
+    }
+  }
+
+val rec app_rev_rev2 : ∀a, ∀x y z∈list<a>,
+                        rev_app (rev_app x y) z ≡ rev_app y (app x z) =
+  fun x y z {
+    case x {
+      []     → {}
+      h::x' →
+        deduce rev_app (rev_app x y) z ≡ rev_app (rev_app x' (h::y)) z;
+        show rev_app (rev_app x' (h::y)) z ≡ rev_app (h::y) (app x' z)
+          using app_rev_rev2 x' (h::y) z;
+        deduce rev_app y (app x z) ≡ rev_app y (h::(app x' z));
+        use app_total x' z
+    }
+  }
+
+val rev_rev : ∀a, ∀x∈list<a>, rev (rev x) ≡ x =
+  fun x {
+    use rev_app_total x [];
+    deduce rev (rev x) ≡ rev_app (rev_app x []) [];
+    show rev (rev x) ≡ rev_app [] (app x []) using app_rev_rev2 x [] [];
+    use app_nil x
   }
 
 def total<f:ι,a> = ∀x∈a, ∃v:ι, f x ≡ v

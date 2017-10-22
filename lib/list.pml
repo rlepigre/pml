@@ -52,7 +52,7 @@ val sum : list<nat> ⇒ nat = fold_left add zero
 val rec app : ∀b, list<b> ⇒ list<b> ⇒ list<b> =
   fun l1 l2 {
     case l1 {
-      []       → []
+      []       → l2
       hd :: tl → cons hd (app tl l2)
     }
   }
@@ -60,8 +60,9 @@ val rec app : ∀b, list<b> ⇒ list<b> ⇒ list<b> =
 val rec rev_app : ∀b, list<b> ⇒ list<b> ⇒ list<b> =
   fun l1 l2 {
     case l1 {
-      []       → []
-      hd :: tl → app tl (hd :: l2)
+      []       → l2
+      hd :: tl → rev_app tl (hd :: l2) // FIXME: loop if app instead of rev_app
+                                       // in the proof of rev_total (l2 = [])
     }
   }
 
