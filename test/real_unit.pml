@@ -97,7 +97,7 @@ val id_id2 : ∀ x:ι, x∈real_bool ⇒ id_bool x ≡ x =
     }
   }
 
-val toto : C[{}] ≡ D[{}] ⇒ [] = fun x { x }
+val toto : C[{}] ≡ D[{}] ⇒ ∅ = fun x { x }
 
 val or : real_bool ⇒ real_bool ⇒ real_bool =
   fun b1 b2 {

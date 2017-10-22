@@ -13,14 +13,6 @@ open Raw
 let single_line _loc =
   if _loc.start_line <> _loc.end_line then give_up ()
 
-(* Parser of a list separated by a given string. *)
-let lsep s elt =
-  parser {e:elt es:{_:STR(s) elt}* -> e::es}?[[]]
-
-(* Parser of a (non-empty) list separated by a given string. *)
-let lsep_ne s elt =
-  parser e:elt es:{_:STR(s) elt}* -> e::es
-
 (* String litteral. *)
 let str_lit =
   let normal = List.fold_left Charset.del Charset.full ['\\'; '"'; '\r'] in
@@ -102,6 +94,10 @@ let parser prod    = "×" | "*"
 let parser lambda  = "λ"
 let parser langle  = "<" | "⟨"
 let parser rangle  = ">" | "⟩"
+let parser empty_s = "[.]" | "∅"
+let parser comma   = ","
+let parser semi    = ";"
+let parser column  = ":"
 
 (* Such that. *)
 let parser _st_ = _:_such_ _:_that_
@@ -149,8 +145,8 @@ let parser sort @ (p : ps) =
 let sort = sort Fs
 
 (* Auxiliary parser for sort arguments. *)
-let parser s_arg  = id:llid so:{":" s:sort}?
-let parser s_lst  = l:(lsep_ne "," s_arg)
+let parser s_arg  = id:llid so:{_:column s:sort}?
+let parser s_lst  = l:(list1 s_arg comma)
 let parser s_args = {_:langle l:s_lst _:rangle}?[[]]
 
 (* Priorities for parsing propositions (Atom, Memb, Rest, Prod, Full). *)
@@ -196,7 +192,7 @@ let parser expr @(m : mode) =
       when m <<= Prp P
       -> tuple_type _loc (a::bs)
   (* Proposition (non-empty product) *)
-  | "{" fs:(lsep_ne ";" (parser l:llid ":" a:prop)) s:strict "}"
+  | "{" fs:(list1 (parser l:llid ":" a:prop) semi) s:strict "}"
       when m <<= Prp A
       -> in_pos _loc (EProd(fs,s))
   (* Proposition (extensible empty record) *)
@@ -208,9 +204,13 @@ let parser expr @(m : mode) =
       when m <<= HO (* HO level to avoid ambiguity *)
       -> in_pos _loc EUnit
   (* Proposition (disjoint sum) *)
-  | "[" fs:(lsep ";" (parser l:luid a:{_:_of_ a:prop}?)) "]"
+  | "[" fs:(list1 (parser l:luid a:{_:_of_ a:prop}?) semi) "]"
       when m <<= Prp A
       -> in_pos _loc (EDSum(fs))
+  (* empty type *)
+  | empty_s
+      when m <<= Prp A
+      -> in_pos _loc (EDSum [])
   (* Proposition (universal quantification) *)
   | "∀" x:llid xs:llid* s:{':' s:sort}? ',' a:prop
       when m <<= Prp F
@@ -276,7 +276,7 @@ let parser expr @(m : mode) =
       when m <<= Trm A
       -> v_bool _loc false
   (* Term (empty list) *)
-  | "[.]"
+  | '[' ']'
       when m <<= Trm A
       -> v_nil _loc
   (* Term (list constructor) *)
@@ -284,11 +284,11 @@ let parser expr @(m : mode) =
       when m <<= Trm I
       -> v_cons _loc t u
   (* Term (record) *)
-  | "{" fs:(lsep_ne ";" field) "}"
+  | "{" fs:(list1 field semi) "}"
       when m <<= Trm A
       -> record _loc fs
   (* Term (tuple) *)
-  | "(" t:term "," ts:(lsep_ne "," term) ")"
+  | "(" t:term "," ts:(list1 term comma) ")"
       when m <<= Trm A
       -> tuple_term _loc (t::ts)
   (* Term (scisors) *)
@@ -395,7 +395,7 @@ let parser expr @(m : mode) =
       -> in_pos _loc (EGoal(s))
 
 (* Higher-order variable arguments. *)
-and parser ho_args = {_:langle (lsep "," any) _:rangle}?[[]]
+and parser ho_args = {_:langle (list1 any comma) _:rangle}?[[]]
 
 (* Variable with optional type. *)
 and parser arg_t = id:llid ao:{":" a:prop}?
@@ -412,8 +412,8 @@ and parser field_nt =
 (* Argument of let-binding. *)
 and parser let_arg =
   | id:llid_wc ao:{':' a:prop}?                -> `LetArgVar(id,ao)
-  | '{' fs:(lsep_ne ";" field_nt) '}'          -> `LetArgRec(fs)
-  | '(' f:arg_t ',' fs:(lsep_ne "," arg_t) ')' -> `LetArgTup(f::fs)
+  | '{' fs:(list1 field_nt semi) '}'           -> `LetArgRec(fs)
+  | '(' f:arg_t ',' fs:(list1 arg_t comma) ')' -> `LetArgTup(f::fs)
 
 (* Record field. *)
 and parser field = l:llid {"=" t:(expr (Trm R))}?

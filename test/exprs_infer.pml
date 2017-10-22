@@ -1,6 +1,6 @@
 def unit = {}
-def null = []
-def triv = {} ⇒ []
+def null = ∅
+def triv = {} ⇒ ∅
 def blop = ∀ x, x
 def id = fun x { x }
 def stack = (fun x { x }) · ε

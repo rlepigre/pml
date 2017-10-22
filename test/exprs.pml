@@ -1,6 +1,6 @@
 def unit : ο = {}
-def null : ο = []
-def triv : ο = {} ⇒ []
+def null : ο = ∅
+def triv : ο = {} ⇒ ∅
 def blop = ∀ x:ο, x
 def id = fun x { x }
 def stack = (fun x { x }) · ε
