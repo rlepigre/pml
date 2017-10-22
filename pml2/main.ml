@@ -10,8 +10,9 @@ open Config
 
 let _ = Printexc.record_backtrace true
 
-let verbose = ref true
-let timed   = ref false
+let verbose   = ref true
+let timed     = ref false
+let recompile = ref false
 
 let find_file : string -> string = fun fn ->
   let add_fn dir = Filename.concat dir fn in
@@ -69,17 +70,20 @@ let rec interpret : Env.env -> Raw.toplevel -> Env.env = fun env top ->
       let fn = find_module ps in
       if !verbose then
         out "include %S\n%!" fn;
-      Log.without (handle_file env) fn
+      Log.without (handle_file false env) fn
 
 (* Handling the files. *)
-and handle_file env fn =
+and handle_file nodep env fn =
   try
-    try Env.load_file env fn with Env.Compile ->
-    if !verbose then out "[%s]\n%!" fn;
-    Env.start fn;
-    let ast = Parser.parse_file fn in
-    let env = List.fold_left interpret env ast in
-    Env.save_file env fn; env
+    try if !recompile && nodep then raise Env.Compile;
+        Env.load_file env fn
+    with
+    | Env.Compile ->
+       if !verbose then out "[%s]\n%!" fn;
+       Env.start fn;
+       let ast = Parser.parse_file fn in
+       let env = List.fold_left interpret env ast in
+       Env.save_file env fn; env
   with
   | No_parse(p)             ->
       begin
@@ -133,7 +137,8 @@ and handle_file env fn =
 
 let parsing_chrono = Chrono.create "parsing"
 
-let handle_file = Chrono.add_time parsing_chrono handle_file
+let handle_file recompile env fn =
+  Chrono.add_time parsing_chrono (handle_file recompile env) fn
 
 (* Command line argument parsing. *)
 let files =
@@ -165,8 +170,11 @@ let files =
       , Arg.Set Output.always_colors
       , " Always use colors.")
     ; ( "--timed"
-      , Arg.Set timed
+      , Arg.Tuple [Arg.Set timed; Arg.Set recompile]
       , " Display a timing report after the execution.")
+    ; ( "--recompile"
+      , Arg.Set recompile
+      , " Force compilation of files given on command line.")
     ; ( "--quiet"
       , Arg.Clear verbose
       , " Disables the printing definition data.")
@@ -265,7 +273,7 @@ let _ =
       err_msg "Unexpected exception [%s]." (Printexc.to_string e);
       err_msg "%t" Printexc.print_backtrace;
   in
-  try ignore (List.fold_left handle_file Env.empty files) with
+  try ignore (List.fold_left (handle_file true) Env.empty files) with
   | e -> print_exn e; exit 1
 
 
