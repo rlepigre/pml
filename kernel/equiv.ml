@@ -845,36 +845,40 @@ let rec normalise : TPtr.t -> pool -> Ptr.t * pool =
             if TPtrSet.mem tp in_norm || TPtrSet.mem tp po.ns then
               (Ptr.T_ptr tp, po)
             else
+            let in_norm = po.in_norm in
             let po = { po with in_norm = TPtrSet.add tp in_norm } in
             let po = union (Ptr.T_ptr p) (Ptr.T_ptr tp) po in
             log2 "normalised in %a = TN_Appl: %a %a => %a"
                      TPtr.print p Ptr.print pt Ptr.print pu TPtr.print tp;
-            match (pt, pu) with
-            | (Ptr.V_ptr pf, Ptr.V_ptr pv) ->
-               if TPtrSet.mem tp po.ns then (Ptr.T_ptr tp, po)
-               else begin
-                 match snd (VPtrMap.find pf po.vs), VPtrSet.mem pv po.bs with
-                 | VN_LAbs(b), true ->
-                    begin
-                      log2 "normalised in TN_Appl Lambda";
-                      let po = { po with ns = TPtrSet.add tp po.ns } in
-                      let po = { po with ns = TPtrSet.add p po.ns } in
-                      let b = subst_closure b in
-                      let t = bndr_subst b (VPtr pv) in
-                      let (tp, po) = add_term false po t in
-                      let po = union (Ptr.T_ptr p) (Ptr.T_ptr tp) po in
-                      let (t, po) = normalise tp po in
-                      log2 "normalised in %a = TN_Appl Lambda %a %a => %a"
-                           TPtr.print p Ptr.print pt Ptr.print pu Ptr.print t;
-                      (t,po)
-                    end
-                 | _          ->
-                    log2 "normalised insert(1) TN_Appl: %a" TPtr.print tp;
-                    (Ptr.T_ptr tp, po)
-               end
-            | (_           , _           ) ->
-               log2 "normalised insert(2) TN_Appl: %a" TPtr.print tp;
-                (Ptr.T_ptr tp, po)
+            let (p, po) =
+              match (pt, pu) with
+              | (Ptr.V_ptr pf, Ptr.V_ptr pv) ->
+                 if TPtrSet.mem tp po.ns then (Ptr.T_ptr tp, po)
+                 else begin
+                     match snd (VPtrMap.find pf po.vs), VPtrSet.mem pv po.bs with
+                     | VN_LAbs(b), true ->
+                        begin
+                          log2 "normalised in TN_Appl Lambda";
+                          let po = { po with ns = TPtrSet.add tp po.ns } in
+                          let po = { po with ns = TPtrSet.add p po.ns } in
+                          let b = subst_closure b in
+                          let t = bndr_subst b (VPtr pv) in
+                          let (tp, po) = add_term false po t in
+                          let po = union (Ptr.T_ptr p) (Ptr.T_ptr tp) po in
+                          let (t, po) = normalise tp po in
+                          log2 "normalised in %a = TN_Appl Lambda %a %a => %a"
+                               TPtr.print p Ptr.print pt Ptr.print pu Ptr.print t;
+                          (t,po)
+                        end
+                     | _          ->
+                        log2 "normalised insert(1) TN_Appl: %a" TPtr.print tp;
+                        (Ptr.T_ptr tp, po)
+                   end
+              | (_           , _           ) ->
+                 log2 "normalised insert(2) TN_Appl: %a" TPtr.print tp;
+                 (Ptr.T_ptr tp, po)
+            in
+            let po = { po with in_norm } in (p, po)
           end
        | TN_MAbs(b)     -> (Ptr.T_ptr p, po) (* FIXME #45 can do better. *)
        | TN_Name(s,pt)  -> (Ptr.T_ptr p, po) (* FIXME #45 can do better. *)
