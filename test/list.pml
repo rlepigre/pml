@@ -10,7 +10,7 @@ val cns : ∀a:ο, a ⇒ list<a> ⇒ list<a> = fun e l { Cns[{ hd = e; tl = l }]
 val rec app : ∀b:ο, list<b> ⇒ list<b> ⇒ list<b> =
   fun l1 l2 {
     case l1 {
-      Nil[_] → nil
+      Nil[_] → l2
       Cns[c] → let hd = c.hd;
                let tl = app c.tl l2;
                Cns[{ hd = hd; tl = tl }]
@@ -20,7 +20,7 @@ val rec app : ∀b:ο, list<b> ⇒ list<b> ⇒ list<b> =
 val rec app2 : ∀b:ο, list<b> ⇒ list<b> ⇒ list<b> =
   fun l1 l2 {
     case l1 {
-      Nil    → nil
+      Nil    → l2
       Cns[c] → cns c.hd (app2 c.tl l2)
     }
   }
