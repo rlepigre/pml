@@ -37,8 +37,27 @@ val fifo_pair : fifo_sig =
 
 type ope<a> = [ Push of a ; Pop ]
 
-val apply : ∀a, fifo_sig ⇒ ope<a> ⇒ option<a> =
-  fun fifo_str ops {
-    let fifo = t such that fifo_str : fifo_sig_aux<f>;
-    None
-  }
+// apply a sequence of operations and performs a last "pop"
+// FIXME: Unexpected exception [Raw.Too_many_args(_)].
+// val apply : ∀a, fifo_sig ⇒ ope<a> ⇒ option<a> =
+//   fun fifo ops {
+//     let t such that fifo : fifo_sig_aux<t>;
+//     let rec fn : ∀a, t<a> ⇒ ope<a> ⇒ t<a> =
+//       fun f ops {
+//         case ops {
+//           []      → f
+//           op::ops → case op {
+//             Push[x] → fifo.push x f
+//             Pop     → case fifo.pop f {
+//               None → f
+//               Some[(e,f)] → f
+//             }
+//           }
+//         }
+//       };
+//     let f = fn fifo.empty ops;
+//     case pop f {
+//       None → None
+//       Some[(e,f)] → Some[e]
+//     }
+//   }
