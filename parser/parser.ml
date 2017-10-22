@@ -360,8 +360,8 @@ let parser expr @(m : mode) =
       when m <<= Trm A
       -> in_pos _loc (ECoer(t,a))
   (* Term (let such that) *)
-  | _let_ vs:s_lst _st_ x:llid_wc ':' a:prop ';' u:term
-      when m <<= Trm F
+  | _let_ vs:s_lst _st_ x:llid_wc ':' a:prop ';' u:(expr (Trm S))
+      when m <<= Trm S
       -> esuch _loc vs x a u
   (* Term (parentheses) *)
   | "(" t:term ")"
