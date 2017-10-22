@@ -38,7 +38,6 @@ val fifo_pair : fifo_sig =
 type ope<a> = [ Push of a ; Pop ]
 
 // apply a sequence of operations and performs a last "pop"
-// FIXME: Unexpected exception [Raw.Too_many_args(_)].
 // val apply : ∀a, fifo_sig ⇒ ope<a> ⇒ option<a> =
 //   fun fifo ops {
 //     let t such that fifo : fifo_sig_aux<t>;
