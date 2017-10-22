@@ -121,26 +121,87 @@ val rec equiv_pop :
 
 type ope<a> = [ Push of a ; Pop ]
 
+val rec apply_aux : ∀t,∀a, fifo_sig_aux<t> ⇒ t<a> ⇒ list<ope<a>> ⇒ t<a> =
+  fun fifo f ops {
+    let t such that fifo:fifo_sig_aux<t>;
+    let a such that f:t<a>;
+    case ops {
+      []      → f
+      op::ops →
+        let f:t<a> = apply_aux fifo f ops;
+        case op {
+          Push[x] → fifo.push x f
+          Pop     → case fifo.pop f {
+            None        → f
+            Some[(e,f)] → f
+          }
+        }
+    }
+  }
+
+val rec apply_aux_total : ∀t,∀a, ∀fifo∈fifo_sig_aux<t>, ∀f∈t<a>, ∀ops∈list<ope<a>>,
+                            ∃v:ι, apply_aux fifo f ops ≡ v =
+  fun fifo f ops { {-requires to know that push and pop are total-} }
+
 // apply a sequence of operations and performs a last "pop"
 val apply : ∀a, fifo_sig ⇒ list<ope<a>> ⇒ option<a> =
   fun fifo ops {
+    let a such that _ : option<a>;
     let t such that fifo : fifo_sig_aux<t>;
-    let rec fn : ∀a, t<a> ⇒ list<ope<a>> ⇒ t<a> =
-      fun f ops {
-        case ops {
-          []      → f
-          op::ops → case op {
-            Push[x] → fifo.push x f
-            Pop     → case fifo.pop f {
-              None → f
-              Some[(e,f)] → f
-            }
-          }
-        }
-      };
-    let f = fn fifo.empty ops;
+    let fifo:fifo_sig_aux<t> = fifo;
+    let f : t<a> = apply_aux fifo fifo.empty ops;
     case fifo.pop f {
-      None → None
+      None        → None
       Some[(e,f)] → Some[e]
+    }
+  }
+
+def equiv_fifo<fifo1,fifo2> =
+  ∀a, ∀ops∈list<ope<a>>, apply fifo1 ops ≡ apply fifo2 ops
+
+// val rec fifo_pair_aux :
+//   ∀a, ∀ops∈list<ope<a>>,
+//      ∃l1 l2∈list<a>, apply_aux fifo_pair fifo_pair.empty ops ≡ (l1,l2) =
+//   fun ops {
+//     let a such that ops : list<ope<a>>;
+//     let fp = fifo_pair;
+//     let t such that fp : fifo_sig_aux<t>;
+//     let fp : fifo_sig_aux<t> = fp;
+//     case ops {
+//       []      → (nil,nil, {})
+//       op::ops' →
+//         let (l1,l2,u) = fifo_pair_aux ops';
+//         let f : t<a> = apply_aux fp fp.empty ops';
+//         deduce f ≡ (l1,l2);
+//         case op {
+//           Pop     →
+//             use apply_aux_total fp fp.empty ops';
+//             deduce apply_aux fp fp.empty ops ≡
+
+// (        let f:t<a> = apply_aux fp fp.empty ops';
+//         case op {
+//           Push[x] → fp.push x f
+//           Pop     → case fp.pop f {
+//             None        → f
+//             Some[(e,f)] → f
+//           }
+//         });
+
+//            //   case fp.pop f { None → f | Some[(e,f)] → f };
+//             case fp.pop f {
+//               None        → deduce apply_aux fp fp.empty ops ≡ f;
+//                             (l1,l2,{})
+//               Some[(e,p)] → (p.1,p.2,{})
+//             }
+//           Push[x] → (x::l1,l2,{})
+//         }
+//     }
+//   }
+
+val rec th : equiv_fifo<fifo_pair,fifo_simple> =
+  fun ops {
+    case ops {
+      []      → {}
+      op::ops → {--}
     }
   }
