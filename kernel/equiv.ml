@@ -841,9 +841,12 @@ let rec normalise : TPtr.t -> pool -> Ptr.t * pool =
                  TPtr.print p TPtr.print pt TPtr.print pu;
             let (pt, po) = normalise pt po in
             let (pu, po) = normalise pu po in
-             (* argument must be really normalised, even if update is true *)
             let (tp, po) = insert_appl pt pu po in
-            let po = union (Ptr.T_ptr p)  (Ptr.T_ptr tp) po in
+            if TPtrSet.mem tp in_norm || TPtrSet.mem tp po.ns then
+              (Ptr.T_ptr tp, po)
+            else
+            let po = { po with in_norm = TPtrSet.add tp in_norm } in
+            let po = union (Ptr.T_ptr p) (Ptr.T_ptr tp) po in
             log2 "normalised in %a = TN_Appl: %a %a => %a"
                      TPtr.print p Ptr.print pt Ptr.print pu TPtr.print tp;
             match (pt, pu) with
