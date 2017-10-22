@@ -34,3 +34,11 @@ val fifo_pair : fifo_sig =
    { empty = ((nil, nil) : ∀a, list<a> * list<a>)
    ; push  = fun e p { let (s1,s2) = p; ((e::s1), s2) }
    ; pop   = fun p { pop p.1 p.2 } }
+
+type ope<a> = [ Push of a ; Pop ]
+
+val apply : ∀a, fifo_sig ⇒ ope<a> ⇒ option<a> =
+  fun fifo_str ops {
+    let fifo = t such that fifo_str : fifo_sig_aux<f>;
+    None
+  }
