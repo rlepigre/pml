@@ -10,7 +10,6 @@ type stack_sig = ∃stack:ο→ο, stack_sig_aux<stack>
 include lib.list
 
 val stack_impl : stack_sig =
-  ({ empty = []
-   ; push  = fun e s { e :: s }
-   ; pop   = fun s { case s { [] → None | e :: s → Some[(e, s)] } } }
-  : stack_sig_aux<list>)
+  { empty = nil
+  ; push  = fun e s { e :: s }
+  ; pop   = fun s { case s { [] → None | e :: s → Some[(e, s)] } } }
