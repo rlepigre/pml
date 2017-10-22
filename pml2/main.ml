@@ -104,7 +104,7 @@ and handle_file nodep env fn =
         Quote.quote_file stderr p;
         exit 1
       end
-  | Sort_clash(t,s) ->
+  | Sort_clash(t,s)         ->
       begin
         let _ =
           match t.pos with
@@ -112,6 +112,16 @@ and handle_file nodep env fn =
                         pretty_print_raw_sort s print_raw_expr t
           | Some p -> err_msg "Sort %a expected %a."
                         pretty_print_raw_sort s Pos.print_short_pos p;
+                      Quote.quote_file stderr p
+        in
+        exit 1
+      end
+  | Too_many_args(s)        ->
+      begin
+        let _ =
+          match s.pos with
+          | None   -> err_msg "Variable %s has too many arguments." s.elt
+          | Some p -> err_msg "Variable %s has too many arguments." s.elt;
                       Quote.quote_file stderr p
         in
         exit 1
