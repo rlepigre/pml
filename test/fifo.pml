@@ -122,25 +122,25 @@ val rec equiv_pop :
 type ope<a> = [ Push of a ; Pop ]
 
 // apply a sequence of operations and performs a last "pop"
-// val apply : ∀a, fifo_sig ⇒ ope<a> ⇒ option<a> =
-//   fun fifo ops {
-//     let t such that fifo : fifo_sig_aux<t>;
-//     let rec fn : ∀a, t<a> ⇒ ope<a> ⇒ t<a> =
-//       fun f ops {
-//         case ops {
-//           []      → f
-//           op::ops → case op {
-//             Push[x] → fifo.push x f
-//             Pop     → case fifo.pop f {
-//               None → f
-//               Some[(e,f)] → f
-//             }
-//           }
-//         }
-//       };
-//     let f = fn fifo.empty ops;
-//     case pop f {
-//       None → None
-//       Some[(e,f)] → Some[e]
-//     }
-//   }
+val apply : ∀a, fifo_sig ⇒ list<ope<a>> ⇒ option<a> =
+  fun fifo ops {
+    let t such that fifo : fifo_sig_aux<t>;
+    let rec fn : ∀a, t<a> ⇒ list<ope<a>> ⇒ t<a> =
+      fun f ops {
+        case ops {
+          []      → f
+          op::ops → case op {
+            Push[x] → fifo.push x f
+            Pop     → case fifo.pop f {
+              None → f
+              Some[(e,f)] → f
+            }
+          }
+        }
+      };
+    let f = fn fifo.empty ops;
+    case fifo.pop f {
+      None → None
+      Some[(e,f)] → Some[e]
+    }
+  }
