@@ -14,6 +14,8 @@ let verbose   = ref true
 let timed     = ref false
 let recompile = ref false
 
+let parsing_chrono = Chrono.create "parsing"
+
 let find_file : string -> string = fun fn ->
   let add_fn dir = Filename.concat dir fn in
   let ls = fn :: (List.map add_fn path) in
@@ -81,7 +83,7 @@ and handle_file nodep env fn =
     | Env.Compile ->
        if !verbose then out "[%s]\n%!" fn;
        Env.start fn;
-       let ast = Parser.parse_file fn in
+       let ast = Chrono.add_time parsing_chrono Parser.parse_file fn in
        let env = List.fold_left interpret env ast in
        Env.save_file env fn; env
   with
@@ -134,11 +136,6 @@ and handle_file nodep env fn =
                     Quote.quote_file stderr p
       end;
       exit 1
-
-let parsing_chrono = Chrono.create "parsing"
-
-let handle_file recompile env fn =
-  Chrono.add_time parsing_chrono (handle_file recompile env) fn
 
 (* Command line argument parsing. *)
 let files =
