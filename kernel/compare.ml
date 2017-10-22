@@ -216,10 +216,8 @@ let {eq_expr; eq_bndr} =
     | (Scis          , Scis          ) -> true
     | (VDef(d1)      , VDef(d2)      ) when d1 == d2
                                        -> true
-    | (VDef(d1)      , _             ) ->
-        eq_expr (Erase.to_valu d1.value_eval) e2
-    | (_             , VDef(d2)      ) ->
-        eq_expr e1 (Erase.to_valu d2.value_eval)
+    | (VDef(d1)      , _             ) -> eq_expr d1.value_eras e2
+    | (_             , VDef(d2)      ) -> eq_expr e1 d2.value_eras
     | (Valu(v1)      , Valu(v2)      ) -> eq_expr v1 v2
     | (Appl(t1,u1)   , Appl(t2,u2)   ) -> eq_expr t1 t2 && eq_expr u1 u2
     (* NOTE type annotation ignored. *)
