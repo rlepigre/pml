@@ -322,9 +322,11 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
             in
             let nb_args = List.length args in
             let rec decompose acc nb s =
-              match (nb, s.elt) with
+              match (nb, (sort_repr env s).elt) with
               | (0, _        ) -> (List.rev acc, s)
               | (n, SFun(a,b)) -> decompose (a::acc) (n-1) b
+              | (n, SUni(r)  ) -> assert false
+                                  (* FIXME instantiate with SFUN? *)
               | (_, _        ) -> too_many_args x
             in
             let (ss, sx) = decompose [] nb_args sx in
