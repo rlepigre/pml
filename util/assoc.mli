@@ -4,6 +4,8 @@ type 'a t
 
 val empty : 'a t
 
+val length : 'a t -> int
+
 val add : string -> 'a -> 'a t -> 'a t
 
 val mem : string -> 'a t -> bool

@@ -20,6 +20,8 @@ module ListMap =
 
     let fold f l acc = List.fold_left (fun acc (k, v) -> f k v acc) acc l
 
+    let length = List.length
+
     let fold2 f acc l = List.fold_left2
             (fun acc (_, v) (_, v') -> f acc v v') acc l
 

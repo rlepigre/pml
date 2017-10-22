@@ -1316,6 +1316,7 @@ and unif_v_nodes : pool -> VPtr.t -> v_node -> VPtr.t -> v_node -> pool =
        if c1.elt <> c2.elt then raise NoUnif;
        unif_vptr po p1 p2
     | (VN_Reco(m1)   , VN_Reco(m2)   ) ->
+       if A.length m1 <> A.length m2 then raise NoUnif;
        A.fold2 unif_vptr po m1 m2
     | (VN_Scis       , VN_Scis       ) -> po
     | (VN_VWit(w1)   , VN_VWit(w2)   ) ->
@@ -1392,6 +1393,7 @@ and unif_t_nodes : pool -> TPtr.t -> t_node -> TPtr.t -> t_node -> pool =
        if l1.elt <> l2.elt then raise NoUnif;
        unif_vptr po p1 p2
     | (TN_Case(p1,m1)  , TN_Case(p2,m2)  ) ->
+       if A.length m1 <> A.length m2 then raise NoUnif;
        let po = unif_vptr po p1 p2 in
        A.fold2 (fun po -> unif_cl po V) po m1 m2
     | (TN_FixY(b1,p1,_), TN_FixY(b2,p2,_)) ->
