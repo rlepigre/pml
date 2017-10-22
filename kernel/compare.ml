@@ -148,7 +148,7 @@ let {eq_expr; eq_bndr} =
     if !full_eq then log_equ "comparing %a and %a" Print.ex e1 Print.ex e2;
     match (e1.elt, e2.elt) with
     | (Vari(_,x1)    , Vari(_,x2)    ) ->
-        Bindlib.eq_vars x1 x2
+       Bindlib.eq_vars x1 x2
     | (HFun(s1,_,b1) , HFun(_,_,b2)  ) -> eq_bndr s1 b1 b2
     | (HApp _        , _             ) when not strict && flexible e1 ->
        immitate e1 e2 && eq_expr e1 e2
@@ -160,6 +160,12 @@ let {eq_expr; eq_bndr} =
           | Eq  -> eq_expr f1 f2 && eq_expr a1 a2
           | NEq -> false
         end
+    | (HFun(s1,_,b1), _             ) ->
+       let t = new_itag s1 in
+       eq_expr (bndr_subst b1 t) (Pos.none (HApp(s1,e2,Pos.none t)))
+    | (_             , HFun(s1,_,b2)) ->
+       let t = new_itag s1 in
+       eq_expr (Pos.none (HApp(s1,e1,Pos.none t))) (bndr_subst b2 t)
     | (HDef(_,d)     , _             ) -> eq_expr d.expr_def e2
     | (_             , HDef(_,d)     ) -> eq_expr e1 d.expr_def
     | (Func(a1,b1)   , Func(a2,b2)   ) -> eq_expr a1 a2 && eq_expr b1 b2
