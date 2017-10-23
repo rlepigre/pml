@@ -14,7 +14,8 @@ val rec rev_app_total : ∀a, ∀l1 l2 ∈list<a>, ∃v:ι, rev_app l1 l2 ≡ v 
   fun l1 l2 {
     case l1 {
       Nil     → {}
-      Cons[c] → use rev_app_total c.tl (c.hd :: l2)
+      Cons[c] →
+        use rev_app_total c.tl (c.hd :: l2)
     }
   }
 
@@ -39,7 +40,7 @@ val rec app_asso : ∀a, ∀x y z∈list<a>, app x (app y z) ≡ app (app x y) z
     }
   }
 
-val rec app_nil : ∀a, ∀l∈list<a>, app l [] ≡ l = //FIXME: a useless ∃v:ι, blocks
+val rec app_nil : ∀a, ∀l∈list<a>, app l [] ≡ l =
   fun l {
     case l {
       []    → {}
@@ -54,7 +55,7 @@ val rec app_rev_rev1 : ∀a, ∀x y z∈list<a>,
       []     → {}
       h::y' →
         deduce rev_app x (rev_app y z) = rev_app x (rev_app y' (h::z));
-        use app_total y' x; // FIXME: loop without this line
+        use app_total y' x;
         deduce rev_app (app y x) z ≡ rev_app (app y' x) (h::z);
         use app_rev_rev1 x y' (h::z)
     }

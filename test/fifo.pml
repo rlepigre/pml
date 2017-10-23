@@ -48,7 +48,10 @@ val equiv_push :
     translate<fifo_pair.push x f> ≡ fifo_simple.push x translate<f> =
   fun x f {
     let (s1,s2) = f;
-    deduce fifo_pair.push f = (x::s1, s2); // FIXME: why necessary ?
+    deduce fifo_pair.push x f ≡ ((x::s1), s2);
+    deduce translate<((x::s1), s2)> ≡ app (x::s1) (rev s2);
+    deduce translate<f> ≡ app s1 (rev s2);
+    use rev_total s2;
     {}
   }
 
