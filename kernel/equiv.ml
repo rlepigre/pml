@@ -578,30 +578,30 @@ let immediate_nobox : v_node -> bool = function
   | VN_ITag _ -> false
 
 (** Insertion function for nodes. *)
-exception FoundV of VPtr.t
+exception FoundV of VPtr.t * pool
 let insert_v_node : v_node -> pool -> VPtr.t * pool = fun nn po ->
   let children = children_v_node nn in
   try
     match children with
     | [] ->
-       let fn p (_,n) = if eq_v_nodes po n nn then raise (FoundV p) in
+       let fn p (_,n) = if eq_v_nodes po n nn then raise (FoundV (p,po)) in
        VPtrMap.iter fn po.vs; raise Not_found
     | n::_ ->
-       let rec fn up n = match n with
+       let rec fn up po n = match n with
          | Ptr.V_ptr n ->
-            if eq_v_nodes po (snd (find_v_node n po)) nn then raise (FoundV n)
+            if eq_v_nodes po (snd (find_v_node n po)) nn then raise (FoundV (n,po))
         | Ptr.T_ptr n ->
             let (pps, node) = find_t_node n po in
             match node with
             | TN_Valu _ when up ->
-               PtrSet.iter (fn false) pps
+               PtrSet.iter (fn false po) pps
             | _ -> ()
        in
-       let (n, _) = find n po in (* FIXME: loose path shortening ? *)
-       PtrSet.iter (fn true) (parents n po);
+       let (n, po) = find n po in
+       PtrSet.iter (fn true po) (parents n po);
        raise Not_found
   with
-  | FoundV(p) -> (p, po)
+  | FoundV(p,po) -> (p, po)
   | Not_found ->
       let ptr = VPtr.V po.next in
       let vs = VPtrMap.add ptr (PtrSet.empty, nn) po.vs in
@@ -611,30 +611,31 @@ let insert_v_node : v_node -> pool -> VPtr.t * pool = fun nn po ->
       let po = add_parent_v_nodes ptr children po in
       (ptr, po)
 
-exception FoundT of TPtr.t
+exception FoundT of TPtr.t * pool
+
 let insert_t_node : t_node -> pool -> TPtr.t * pool = fun nn po ->
   let children = children_t_node nn in
   try
     match children with
     | [] ->
-       let fn p (_,n) = if eq_t_nodes po n nn then raise (FoundT p) in
+       let fn p (_,n) = if eq_t_nodes po n nn then raise (FoundT (p,po)) in
        TPtrMap.iter fn po.ts; raise Not_found
     | n::_ ->
-       let rec fn up n = match n with
+       let rec fn up po n = match n with
          | Ptr.V_ptr _ -> ()
          | Ptr.T_ptr n ->
             let (pps, node) = find_t_node n po in
-            if eq_t_nodes po (snd (find_t_node n po)) nn then raise (FoundT n);
+            if eq_t_nodes po (snd (find_t_node n po)) nn then raise (FoundT (n,po));
             match node with
             | TN_Valu _ when up ->
-               PtrSet.iter (fn false) pps
+               PtrSet.iter (fn false po) pps
             | _ -> ()
        in
-       let (n, _) = find n po in (* FIXME: loose path shortening ? *)
-       PtrSet.iter (fn true) (parents n po);
+       let (n, po) = find n po in
+       PtrSet.iter (fn true po) (parents n po);
        raise Not_found
   with
-  | FoundT(p) -> (p, po)
+  | FoundT(p, po) -> (p, po)
   | Not_found ->
       let ptr = TPtr.T po.next in
       let ts = TPtrMap.add ptr (PtrSet.empty, nn) po.ts in
@@ -1505,9 +1506,13 @@ let add_vptr_nobox : VPtr.t -> pool -> pool = fun vp po ->
   match vp with
   | Ptr.T_ptr(_) -> assert false
   | Ptr.V_ptr(vp) ->
-     let po = { po with bs = VPtrSet.add vp po.bs } in
-     let nps = parents (Ptr.V_ptr vp) po in
-     PtrSet.fold reinsert nps po
+     if not (VPtrSet.mem vp po.bs) then
+       begin
+         let po = { po with bs = VPtrSet.add vp po.bs } in
+         let nps = parents (Ptr.V_ptr vp) po in
+         PtrSet.fold reinsert nps po
+       end
+     else po
 
 let add_nobox : valu -> pool -> pool = fun v po ->
   log2 "add_nobox: inserting %a not box in context\n%a" Print.ex v
