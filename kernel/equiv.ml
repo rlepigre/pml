@@ -310,13 +310,13 @@ type pool =
        nodes that have no link in the union-find map (i.e.,
        parents are unused if the node is present in the eq_map).
 
-       TODO: this invariant is not enforced by the data structure.
+       TODO #15: this invariant is not enforced by the data structure.
 
    3°) Term in the pool are kept in normal form. Any update that
        could trigger other normalisation has to be propagated.
        This is the role of the parent node.
 
-       TODO: manage update of unification variables
+       TODO #4: manage update of unification variables
  *)
 
 let funptrs : anyfunptr FunHash.t = FunHash.create 256
@@ -402,7 +402,7 @@ let children_v_node : v_node -> Ptr.t list = fun n ->
   | VN_UWit _
   | VN_EWit _
   | VN_Goal _
-  | VN_UVar _ (* TODO #50 check *)
+  | VN_UVar _ (* TODO #4 check *)
   | VN_ITag _
   | VN_Scis       -> []
 
@@ -422,7 +422,7 @@ let children_t_node : t_node -> Ptr.t list = fun n ->
   | TN_EWit _
   | TN_Prnt _
   | TN_Goal _
-  | TN_UVar _  (* TODO #50 check *)
+  | TN_UVar _  (* TODO #4 check *)
   | TN_ITag _    -> []
 
 (** Find operation (with path contraction). *)
@@ -870,8 +870,8 @@ let rec normalise : TPtr.t -> pool -> Ptr.t * pool =
               log2 "normalised insert(2) TN_Appl: %a" TPtr.print tp;
               (Ptr.T_ptr tp, po)
          end
-      | TN_MAbs(b)     -> (Ptr.T_ptr p, po) (* FIXME #45 can do better. *)
-      | TN_Name(s,pt)  -> (Ptr.T_ptr p, po) (* FIXME #45 can do better. *)
+      | TN_MAbs(b)     -> (Ptr.T_ptr p, po) (* FIXME #7 can do better. *)
+      | TN_Name(s,pt)  -> (Ptr.T_ptr p, po) (* FIXME #7 can do better. *)
       | TN_Proj(pv0,l)  ->
          begin
            let (pv, po) = find_valu pv0 po in
@@ -1542,7 +1542,7 @@ let add_inequiv : inequiv -> eq_ctxt -> eq_ctxt = fun (t,u) {pool} ->
     ignore (Timed.apply (unif_ptr pool pt) pu);
     log2 "add_inequiv: contradiction found";
     bottom ()
-  with NoUnif -> {pool} (* TODO #51 store clauses *)
+  with NoUnif -> {pool} (* TODO #3 store clauses *)
 
 (* Main module interface. *)
 
@@ -1646,7 +1646,7 @@ let learn : eq_ctxt -> rel -> eq_ctxt = fun ctx rel ->
       match rel with
       | Equiv(t,b,u) ->
          (if b then add_equiv else add_inequiv) (t,u) ctx
-      | Posit _ -> assert false (* TODO #32 *)
+      | Posit _ -> assert false (* TODO #14 *)
       | NoBox(v) ->
          {pool = add_nobox v ctx.pool }
     in
@@ -1662,7 +1662,7 @@ let prove : eq_ctxt -> rel -> eq_ctxt = fun ctx rel ->
       match rel with
       | Equiv(t,b,u) ->
          ignore ((if b then add_inequiv else add_equiv) (t,u) ctx);
-      | Posit _ -> assert false (* TODO #32 *)
+      | Posit _ -> assert false (* TODO #14 *)
       | NoBox(v) ->
          let (b, ctx) = check_nobox v ctx in
          if b then raise Contradiction

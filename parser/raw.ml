@@ -629,7 +629,7 @@ let rec sort_filter : type a b. a sort -> boxed -> a box =
           | Eq.Eq  -> e
           | Eq.NEq -> Printf.printf "ERROR: %a ≠ %a\n%!"
                         Print.sort s Print.sort k;
-                      assert false (* FIXME #46 error management. *)
+                      assert false (* FIXME #11 error management. *)
         end
 
 let to_valu : boxed -> v box = sort_filter V
@@ -696,7 +696,7 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
                 end
           with Not_found ->
             let d = find_value x.elt env in
-            if args <> [] then assert false; (* FIXME #46 *)
+            if args <> [] then assert false; (* FIXME #11 *)
             Box(V, Bindlib.box (Pos.make x.pos (VDef(d))))
         end
     | (EHOFn(x,k,f) , SFun(a,b)) ->
@@ -797,7 +797,7 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
              let u = to_term (unsugar env vars u _st) in
              equiv t b u
           | EPosit _ ->
-             assert false (* TODO #32 *)
+             assert false (* TODO #14 *)
           | ENoBox(v) ->
              let v = to_valu (unsugar env vars v _sv) in
              nobox v
@@ -816,7 +816,7 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
              let u = to_term (unsugar env vars u _st) in
              equiv t b u
           | EPosit _ ->
-             assert false (* TODO #32 *)
+             assert false (* TODO #14 *)
           | ENoBox(v) ->
              let v = to_valu (unsugar env vars v _sv) in
              nobox v
@@ -1108,7 +1108,7 @@ let record _loc fs =
   in
   in_pos _loc (EReco(List.map fn fs))
 
-(* TODO #33: keep position in l *)
+(* TODO #17: keep position in l *)
 let erest a l =
   List.fold_left (fun a x ->
       none (ERest(Some a,ENoBox(none (EVari(x, [])))))) a l

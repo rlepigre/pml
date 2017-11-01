@@ -181,7 +181,7 @@ let rec learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
   | Prod(fs)   ->
      A.fold (fun lbl (_, b) ctx ->
          let (v,pool,ctx_names) =
-           find_proj ctx.equations.pool ctx.ctx_names  wit lbl
+           find_proj ctx.equations.pool ctx.ctx_names wit lbl
          in
          let ctx = { ctx with equations = { pool }; ctx_names } in
          learn_equivalences ctx v b) fs ctx
@@ -218,7 +218,7 @@ let rec is_singleton : prop -> term option = fun t ->
   match (Norm.whnf t).elt with
   | Memb(x,_) -> Some x
   | Rest(t,_) -> is_singleton t
-  | _         -> None (* TODO #52: more cases are possible *)
+  | _         -> None (* TODO #10: more cases are possible *)
 
 (* add to the context some conditions.
    A condition c is added if c false implies wit in a is true.
@@ -305,7 +305,7 @@ and subtype =
     let b = Norm.whnf b in
     let (t_is_val, ctx) = term_is_value t ctx in
     try let r =
-      (* Same types.  *) (** FIXME: keep the pool *)
+      (* Same types.  *)
       if unif_expr ctx a b then
         begin
           log_sub "reflexivity applies";
@@ -423,7 +423,7 @@ and subtype =
       (* Arrow types. *)
       | (Func(a1,b1), Func(a2,b2)) when t_is_val ->
          let fn x = appl None (box t) (valu None (vari None x)) in
-         (** FIXME: guess a better name *)
+         (** FIXME #9: guess a better name *)
          let f = (None, unbox (vbind (mk_free V) "x" fn)) in
          let (vwit, ctx_names) = vwit ctx.ctx_names f a2 b2 in
          let ctx = { ctx with ctx_names } in
@@ -477,7 +477,7 @@ and subtype =
               try snd (A.find c cs2) with Not_found ->
               subtype_msg p ("Sum clash on constructor " ^ c ^ "...")
             in
-            (** FIXME: guess a better name *)
+            (** FIXME #9: guess a better name *)
             let f = bndr_from_fun "x" (fun x -> Valu(Pos.none x)) in
             let (wit, ctx_names) = vwit ctx.ctx_names f a a in
             let ctx = { ctx with ctx_names } in
@@ -576,7 +576,7 @@ and subtype =
 and gen_subtype : ctxt -> prop -> prop -> sub_rule =
   fun ctx a b ->
     let f = bndr_from_fun "x" (fun x -> Valu(Pos.none x)) in
-    (** FIXME : guess a better name *)
+    (** FIXME #9: guess a better name *)
     let (eps, ctx_names) = vwit ctx.ctx_names f a b in
     let ctx = { ctx with ctx_names } in
     let wit = Pos.none (Valu eps) in
@@ -622,7 +622,7 @@ and check_sub : ctxt -> prop -> prop -> check_sub = fun ctx a b ->
         in
         log_sub "no suitable induction hypothesis";
         match a.elt, b.elt with
-        (* TODO #57 to avoid the restiction uvars a = [] && uvars b = [] below,
+        (* TODO #5 to avoid the restiction uvars a = [] && uvars b = [] below,
            subml introduces unification variables parametrised by the
            generalised ordinals *)
         | ((FixM _ | FixN _), _) | (_, (FixM _ | FixN _)) when no_uvars () ->
@@ -1224,7 +1224,7 @@ let type_check : term -> prop -> prop * typ_proof = fun t a ->
     List.iter (fun f -> f ()) (List.rev !(ctx.add_calls));
     if not (Scp.scp ctx.callgraph) then loops t;
     let l = uvars a in
-    assert(l = []); (* FIXME #44 *)
+    assert(l = []); (* FIXME #16 *)
     reset_tbls ();
     (Norm.whnf a, prf)
   with e -> reset_tbls (); raise e
@@ -1237,8 +1237,8 @@ let is_subtype : prop -> prop -> bool = fun a b ->
     let _ = gen_subtype ctx a b in
     let la = uvars a in
     let lb = uvars b in
-    assert(la = []); (* FIXME #44 *)
-    assert(lb = []); (* FIXME #44 *)
+    assert(la = []); (* FIXME #16 *)
+    assert(lb = []); (* FIXME #16 *)
     List.iter (fun f -> f ()) (List.rev !(ctx.add_calls));
     let res = Scp.scp ctx.callgraph in
     reset_tbls ();
