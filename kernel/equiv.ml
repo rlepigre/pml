@@ -1620,18 +1620,22 @@ let check_nobox : valu -> eq_ctxt -> bool * eq_ctxt = fun v {pool} ->
   | Ptr.V_ptr(vp) -> (VPtrSet.mem vp pool.bs, { pool })
 
 (* Test whether a term is equivalent to a value or not. *)
-let is_value : term -> eq_ctxt -> bool * eq_ctxt = fun t {pool} ->
+let is_value : term -> eq_ctxt -> bool * bool * eq_ctxt = fun t {pool} ->
   log2 "inserting %a not box in context\n%a" Print.ex t
     (print_pool "        ") pool;
   let (pt, pool) = add_term true pool t in
   log2 "insertion at %a" TPtr.print pt;
   log2 "obtained context:\n%a" (print_pool "        ") pool;
   let (pt, pool) = normalise pt pool in
-  let res = match pt with Ptr.V_ptr(_) -> true | Ptr.T_ptr(_) -> false in
+  let (is_val, no_box) = match pt with
+    | Ptr.V_ptr(v) -> (true, VPtrSet.mem v pool.bs)
+    | Ptr.T_ptr(_) -> (false, false) in
   log2 "normalisation to %a" Ptr.print pt;
   log2 "obtained context:\n%a" (print_pool "        ") pool;
-  log "%a is%s a value" Print.ex t (if res then "" else " not");
-  (res, {pool})
+  log "%a is%s a value and is%s box" Print.ex t
+      (if is_val then "" else " not")
+      (if no_box then " not" else "");
+  (is_val, no_box, {pool})
 
 (* Test whether a term is equivalent to a value or not. *)
 let to_value : term -> eq_ctxt -> valu option * eq_ctxt = fun t {pool} ->

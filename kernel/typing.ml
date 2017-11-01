@@ -38,6 +38,8 @@ exception Reachable
 
 exception No_typing_IH of strloc
 
+exception Not_total
+
 exception Unexpected_error of string
 let unexpected : string -> 'a =
   fun msg -> raise (Unexpected_error(msg))
@@ -268,9 +270,9 @@ let rec learn_neg_equivalences : ctxt -> valu -> term option -> prop -> ctxt =
       learn_neg_equivalences ctx wit arg (bndr_subst f (FixN(bound,f)))
     | _          -> ctx
 
-let term_is_value : term -> ctxt -> bool * ctxt = fun t ctx ->
-  let (is_val, equations) = is_value t ctx.equations in
-  (is_val, {ctx with equations})
+let term_is_value : term -> ctxt -> bool * bool * ctxt = fun t ctx ->
+  let (is_val, no_box, equations) = is_value t ctx.equations in
+  (is_val, no_box, {ctx with equations})
 
 let print_pos : out_channel -> (ordi * ordi) list -> unit =
   fun ch os ->
@@ -306,7 +308,7 @@ and subtype =
       print_pos ctx.positives Print.ex t Print.ex a Print.ex b;
     let a = Norm.whnf a in
     let b = Norm.whnf b in
-    let (t_is_val, ctx) = term_is_value t ctx in
+    let (t_is_val, _, ctx) = term_is_value t ctx in
     try let r =
       (* Same types.  *)
       if unif_expr ctx a b then
@@ -1040,25 +1042,28 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
     | Valu(v)     ->
         let (_, _, r) = type_valu ctx v c in r
     (* Application or strong application. *)
-    | Appl(t,u)   ->
+    | Appl(f,u)   ->
         (* try to get the type of u. usefull in let syntactic sugar *)
         let a = match (Norm.whnf t).elt with
           | Valu{elt = LAbs(Some a, _)} -> a
           | _ -> new_uvar ctx P
         in
-        let (is_val, ctx) = term_is_value u ctx in
+        let (is_val, _, ctx) = term_is_value u ctx in
         let ae = if is_val then Pos.none (Memb(u, a)) else a in
         let tot = ctx.totality in
         let (p1,p2) =
           if is_typed VoT_T t && not (is_typed VoT_T u) then
-            let p1 = type_term ctx t (Pos.none (Func(tot,ae,c))) in
+            let p1 = type_term ctx f (Pos.none (Func(tot,ae,c))) in
             let p2 = type_term ctx u a in
             (p1,p2)
           else
             let p2 = type_term ctx u a in
-            let p1 = type_term ctx t (Pos.none (Func(tot,ae,c))) in
+            let p1 = type_term ctx f (Pos.none (Func(tot,ae,c))) in
             (p1,p2)
         in
+        let (is_val, no_box, ctx) = term_is_value t ctx in
+        if (not is_val && not no_box && Totality.is_not_tot tot)
+         then type_error (E(T,t)) c Not_total;
         if is_val then Typ_Func_s(p1,p2) else Typ_Func_e(p1,p2)
     (* μ-abstraction. *)
     | MAbs(b)     ->
