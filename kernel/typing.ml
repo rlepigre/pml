@@ -180,8 +180,10 @@ let rec learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
                   learn_equivalences ctx wit (bndr_subst f t.elt)
   | Prod(fs)   ->
      A.fold (fun lbl (_, b) ctx ->
-         let (v,pool) =  find_proj ctx.equations.pool wit lbl in
-         let ctx = { ctx with equations = { pool } } in
+         let (v,pool,ctx_names) =
+           find_proj ctx.equations.pool ctx.ctx_names  wit lbl
+         in
+         let ctx = { ctx with equations = { pool }; ctx_names } in
          learn_equivalences ctx v b) fs ctx
   | DSum(fs)   ->
      begin

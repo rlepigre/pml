@@ -1548,38 +1548,40 @@ let add_inequiv : inequiv -> eq_ctxt -> eq_ctxt = fun (t,u) {pool} ->
 
 (* epsilon for projection:
    proj_eps v l define a value w such v.l = w *)
-let proj_eps : valu -> string -> valu = fun v l ->
-  let eq x = equiv (valu None (vari None x))
-                   true
-                   (proj None (box v) (Pos.none l))
-  in
-  let bndr x = rest None unit_prod (eq x) in
-  let t = Pos.none (Valu(Pos.none (Reco A.empty))) in
-  let ctx = Bindlib.empty_ctxt in (** FIXME *)
-  fst (ewit ctx V t (None, unbox (vbind (mk_free V) "x" bndr)))
+let proj_eps : Bindlib.ctxt -> valu -> string -> valu * Bindlib.ctxt =
+  fun names v l ->
+    let eq x = equiv (valu None (vari None x))
+                     true
+                     (proj None (box v) (Pos.none l))
+    in
+    let bndr x = rest None unit_prod (eq x) in
+    let t = Pos.none (Valu(Pos.none (Reco A.empty))) in
+    ewit names V t (None, unbox (vbind (mk_free V) "x" bndr))
 
-let find_proj : pool -> valu -> string -> valu * pool = fun po v l ->
-  try
-    let (vp, po) = add_valu true po v in
-    let (vp, po) = find (Ptr.V_ptr vp) po in
-    match vp with
-    | Ptr.T_ptr(_) -> assert false (* Should never happen. *)
-    | Ptr.V_ptr(vp) ->
-       let (_, n) = find_v_node vp po in
-       let (wp, w, po) =
-         match n with
-         | VN_Reco(m) ->
-            let pt = A.find l m in
-            (pt, Pos.none (VPtr pt), po)
-         | _ ->
-            let w = proj_eps v l in
-            let (wp, po) = add_valu true po w in
-            let (pt, po) = add_term true po (Pos.none (Proj(v,Pos.none l))) in
-            let po = union (Ptr.V_ptr wp) (Ptr.T_ptr pt) po in
-            (wp, w, po)
-       in
-       let po = if (VPtrSet.mem vp po.bs) then add_vptr_nobox wp po else po in
-       (w, po)
+let find_proj : pool -> Bindlib.ctxt -> valu -> string
+                -> valu * pool * Bindlib.ctxt =
+  fun po names v l ->
+    try
+      let (vp, po) = add_valu true po v in
+      let (vp, po) = find (Ptr.V_ptr vp) po in
+      match vp with
+      | Ptr.T_ptr(_) -> assert false (* Should never happen. *)
+      | Ptr.V_ptr(vp) ->
+         let (_, n) = find_v_node vp po in
+         let (wp, w, po, names) =
+           match n with
+           | VN_Reco(m) ->
+              let pt = A.find l m in
+              (pt, Pos.none (VPtr pt), po, names)
+           | _ ->
+              let (w,names) = proj_eps names v l in
+              let (wp, po) = add_valu true po w in
+              let (pt, po) = add_term true po (Pos.none (Proj(v,Pos.none l))) in
+              let po = union (Ptr.V_ptr wp) (Ptr.T_ptr pt) po in
+              (wp, w, po, names)
+         in
+         let po = if (VPtrSet.mem vp po.bs) then add_vptr_nobox wp po else po in
+         (w, po, names)
   with e -> bug_msg "unexpected exception in find_proj: %s"
                     (Printexc.to_string e);
             assert false
