@@ -589,7 +589,8 @@ let insert_v_node : v_node -> pool -> VPtr.t * pool = fun nn po ->
     | n::_ ->
        let rec fn up po n = match n with
          | Ptr.V_ptr n ->
-            if eq_v_nodes po (snd (find_v_node n po)) nn then raise (FoundV (n,po))
+            if eq_v_nodes po (snd (find_v_node n po)) nn
+            then raise (FoundV (n,po))
         | Ptr.T_ptr n ->
             let (pps, node) = find_t_node n po in
             match node with
@@ -625,7 +626,8 @@ let insert_t_node : t_node -> pool -> TPtr.t * pool = fun nn po ->
          | Ptr.V_ptr _ -> ()
          | Ptr.T_ptr n ->
             let (pps, node) = find_t_node n po in
-            if eq_t_nodes po (snd (find_t_node n po)) nn then raise (FoundT (n,po));
+            if eq_t_nodes po (snd (find_t_node n po)) nn
+            then raise (FoundT (n,po));
             match node with
             | TN_Valu _ when up ->
                PtrSet.iter (fn false po) pps
@@ -1575,12 +1577,14 @@ let find_proj : pool -> Bindlib.ctxt -> valu -> string
               (pt, Pos.none (VPtr pt), po, names)
            | _ ->
               let (w,names) = proj_eps names v l in
-              let (wp, po) = add_valu true po w in
-              let (pt, po) = add_term true po (Pos.none (Proj(v,Pos.none l))) in
+              let (wp,po) = add_valu true po w in
+              let (pt,po) = add_term true po (Pos.none (Proj(v,Pos.none l))) in
               let po = union (Ptr.V_ptr wp) (Ptr.T_ptr pt) po in
               (wp, w, po, names)
          in
-         let po = if (VPtrSet.mem vp po.bs) then add_vptr_nobox wp po else po in
+         let po =
+           if (VPtrSet.mem vp po.bs) then add_vptr_nobox wp po else po
+         in
          (w, po, names)
   with e -> bug_msg "unexpected exception in find_proj: %s"
                     (Printexc.to_string e);

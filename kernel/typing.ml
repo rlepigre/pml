@@ -692,7 +692,8 @@ and check_fix : ctxt -> valu -> (v, t) bndr -> prop -> unit -> typ_proof =
       let ctx = {ctx with top_ih = (sch.fsch_index, spe.fspe_param)} in
       (* Unrolling of the fixpoint and proof continued. *)
       let t = bndr_subst b (build_v_fixy b).elt in
-      (fun () -> Chrono.add_time type_chrono (type_term ctx t) (snd spe.fspe_judge))
+      (fun () ->
+        Chrono.add_time type_chrono (type_term ctx t) (snd spe.fspe_judge))
     end
   else
     let res = find_suitable ihs in (fun () -> res)
@@ -890,7 +891,9 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
               | _         -> (c, ctx)
             in
             let (c, ctx) = break_univ ctx c in
-            let p = Chrono.add_time check_fix_chrono (check_fix ctx v b) c () in
+            let p =
+              Chrono.add_time check_fix_chrono (check_fix ctx v b) c ()
+            in
             Typ_FixY(p)
          (* General case for typing λ-abstraction *)
          | _                      ->
