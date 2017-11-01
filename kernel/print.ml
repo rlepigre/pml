@@ -29,15 +29,23 @@ let print_vars ch e =
                     (fun ch -> List.iter (function U (_,x) ->
                                    fprintf ch ",?%d" x.uvar_key) l)
 
+let arrow ch t =
+  let open Totality in
+  match norm t with
+  | Tot   -> fprintf ch "⇒"
+  | Ter   -> fprintf ch "→"
+  | Any   -> fprintf ch "↝"
+  | Unk _ -> fprintf ch "?>"
+
 let rec ex : type a. a ex loc printer = fun ch e ->
   let rec is_arrow : type a. a ex loc -> bool = fun e ->
     match (Norm.repr e).elt with
-    | Func(_,_) -> true
-    | Univ(_,_) -> true
-    | Exis(_,_) -> true
-    | FixM(_,_) -> true
-    | FixN(_,_) -> true
-    | _         -> false
+    | Func(_) -> true
+    | Univ(_) -> true
+    | Exis(_) -> true
+    | FixM(_) -> true
+    | FixN(_) -> true
+    | _       -> false
   in
   let is_unit : v ex loc -> bool = fun e ->
     match (Norm.repr e).elt with
@@ -69,8 +77,8 @@ let rec ex : type a. a ex loc printer = fun ch e ->
                    in
                    print_app f; fprintf ch "%a>" ex a
   | HDef(_,d)   -> output_string ch d.expr_name.elt
-  | Func(a,b)   -> let (l,r) = if is_arrow a then ("(",")") else ("","") in
-                   fprintf ch "%s%a%s ⇒ %a" l ex a r ex b
+  | Func(t,a,b) -> let (l,r) = if is_arrow a then ("(",")") else ("","") in
+                   fprintf ch "%s%a%s %a %a" l ex a r arrow t ex b
   | Prod(m)     -> let pelt ch (l,(_,a)) =
                      fprintf ch "%s : %a" l ex a
                    in fprintf ch "{%a}" (print_map pelt "; ") m
@@ -136,9 +144,6 @@ let rec ex : type a. a ex loc printer = fun ch e ->
                    fprintf ch "Y(λ%s.%a, %a)" (name_of x)
                      ex t ex v
   | Prnt(s)     -> fprintf ch "print(%S)" s
-  | Epsi        -> output_string ch "ε"
-  | Push(v,s)   -> fprintf ch "%a · %a" ex v ex s
-  | Fram(t,s)   -> fprintf ch "[%a] %a" ex t ex s
   | Conv        -> output_string ch "∞"
   | Succ(o)     -> fprintf ch "%a+1" ex o
   | Coer(_,e,a) -> fprintf ch "(%a : %a)" ex e ex a

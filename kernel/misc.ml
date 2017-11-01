@@ -57,7 +57,7 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
     | ITag(_,_)   -> acc
     | Goal(_,_)   -> acc
 
-    | Func(a,b)   -> owits (owits acc a) b
+    | Func(_,a,b) -> owits (owits acc a) b
     | Prod(m)     -> A.fold (fun _ (_,a) acc -> owits acc a) m acc
     | DSum(m)     -> A.fold (fun _ (_,a) acc -> owits acc a) m acc
     | Univ(s,f)   -> owits acc (bndr_subst f (Dumm s))
@@ -88,9 +88,6 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
     | Coer(_,e,_) -> owits acc e
     | Such(_,_,b) -> owits acc (bseq_dummy b.binder)
 
-    | Epsi        -> acc
-    | Push(v,s)   -> owits (owits acc v) s
-    | Fram(t,s)   -> owits (owits acc t) s
     | SWit(_)     -> acc
 
     | Conv        -> acc
@@ -195,7 +192,7 @@ let bind_spos_ordinals
     fun { recall; default } e ->
       match e.elt with
       | HDef(_,e)   -> recall e.expr_def
-      | Func(a,b)   -> func e.pos (bind_all (neg o) a) (recall b)
+      | Func(t,a,b) -> func e.pos t (bind_all (neg o) a) (recall b)
       | FixM({ elt = Conv},f) when o = Neg ->
          fixm e.pos (new_ord ()) (bndr_name f)
               (fun x -> recall (bndr_subst f (mk_free P x)))

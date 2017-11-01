@@ -34,7 +34,7 @@ let map : type a. ?mapper:mapper -> a ex loc -> a box
             | ITag(_,_)   -> box e
             | Goal(_,_)   -> box e
 
-            | Func(a,b)   -> func e.pos (map a) (map b)
+            | Func(t,a,b) -> func e.pos t (map a) (map b)
             | Prod(m)     -> prod e.pos (A.map (fun (p,a) -> (p, map a)) m)
             | DSum(m)     -> dsum e.pos (A.map (fun (p,a) -> (p, map a)) m)
             | Univ(s,f)   -> univ e.pos (bndr_name f) s
@@ -98,9 +98,6 @@ let map : type a. ?mapper:mapper -> a ex loc -> a box
                                (map v)
             | Prnt(s)     -> prnt e.pos s
 
-            | Epsi        -> box e
-            | Push(v,s)   -> push e.pos (map v) (map s)
-            | Fram(t,s)   -> fram e.pos (map t) (map s)
             | SWit(_)     -> box e
 
             | Conv        -> box e

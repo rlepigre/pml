@@ -85,7 +85,9 @@ let _val_     = Keyword.create "val"
 let parser elipsis = "⋯" | "..."
 let parser infty   = "∞" | "<inf>"
 let parser arrow   = "→" | "->"
-let parser impl    = "⇒" | "=>"
+let parser impl    = {"⇒" | "=>"} -> Totality.Tot
+                   | {"→" | "->"} -> Totality.Ter
+                   | {"↝" | "~>"} -> Totality.Any
 let parser scis    = "✂" | "8<"
 let parser equiv   = "≡" | "="
 let parser nequiv  = "≠"
@@ -184,9 +186,9 @@ let parser expr @(m : mode) =
       when m <<= Prp A
       -> p_bool (Some _loc)
   (* Proposition (implication) *)
-  | a:(expr (Prp P)) impl b:prop
+  | a:(expr (Prp P)) t:impl b:prop
       when m <<= Prp F
-      -> in_pos _loc (EFunc(a,b))
+      -> in_pos _loc (EFunc(t,a,b))
   (* Proposition (tuple type) *)
   | a:(expr (Prp R)) bs:{_:prod b:(expr (Prp R))}+
       when m <<= Prp P
@@ -366,19 +368,6 @@ let parser expr @(m : mode) =
   (* Term (parentheses) *)
   | "(" t:term ")"
       when m <<= Trm A
-
-  (* Stack (empty) *)
-  | "ε"
-      when m <<= Stk
-      -> in_pos _loc EEpsi
-  (* Stack (push) *)
-  | v:(expr (Trm A)) "·" s:stack
-      when m <<= Stk
-      -> in_pos _loc (EPush(v,s))
-  (* Stack (frame) *)
-  | "[" t:term "]" s:stack
-      when m <<= Stk
-      -> in_pos _loc (EFram(t,s))
 
   (* Ordinal (infinite) *)
   | infty

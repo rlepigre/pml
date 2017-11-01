@@ -61,7 +61,8 @@ type ctxt  =
   ; sub_ihs   : sub_schema list
   ; top_ih    : Scp.index * ordi array
   ; add_calls : (unit -> unit) list ref
-  ; callgraph : Scp.t }
+  ; callgraph : Scp.t
+  ; totality  : Totality.tot }
 
 let empty_ctxt () =
   { uvarcount = ref 0
@@ -72,7 +73,8 @@ let empty_ctxt () =
   ; sub_ihs   = []
   ; top_ih    = (Scp.root, [| |])
   ; add_calls = ref []
-  ; callgraph = Scp.create () }
+  ; callgraph = Scp.create ()
+  ; totality  = Totality.Tot }
 
 let new_uvar : type a. ctxt -> a sort -> a ex loc = fun ctx s ->
   let c = ctx.uvarcount in
@@ -240,7 +242,7 @@ let rec learn_neg_equivalences : ctxt -> valu -> term option -> prop -> ctxt =
     | Univ(s, f), _ -> let (t, ctx_names) = uwit ctx.ctx_names s twit f in
                        let ctx = { ctx with ctx_names } in
                        learn_neg_equivalences ctx wit arg (bndr_subst f t.elt)
-    | Func(a,b), Some arg ->
+    | Func(t,a,b), Some arg -> (* TODO: CHECK: use t ? *)
        begin
          match is_singleton a with
          | Some x -> let equations = learn ctx.equations (Equiv(arg,true,x)) in
@@ -421,7 +423,8 @@ and subtype =
       | Sub_New(ctx,(a,b)) ->
       match (a.elt, b.elt) with
       (* Arrow types. *)
-      | (Func(a1,b1), Func(a2,b2)) when t_is_val ->
+      | (Func(t1,a1,b1), Func(t2,a2,b2)) when t_is_val ->
+         if not (Totality.sub t1 t2) then subtype_msg a.pos "Arrow clash";
          let fn x = appl None (box t) (valu None (vari None x)) in
          (** FIXME #9: guess a better name *)
          let f = (None, unbox (vbind (mk_free V) "x" fn)) in
@@ -903,10 +906,11 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
               | Some a -> a
             in
             let b = new_uvar ctx P in
-            let c' = Pos.none (Func(a,b)) in
+            let tot = Totality.new_tot () in
+            let c' = Pos.none (Func(tot,a,b)) in
             let p1 = subtype ctx t c' c in
             let (wit,ctx_names) = vwit ctx.ctx_names f a b in
-            let ctx = { ctx with ctx_names } in
+            let ctx = { ctx with ctx_names; totality = tot } in
             let twit = Pos.none(Valu wit) in
             (* Learn the equivalence that are valid in the witness. *)
             begin
@@ -1042,14 +1046,15 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
         in
         let (is_val, ctx) = term_is_value u ctx in
         let ae = if is_val then Pos.none (Memb(u, a)) else a in
+        let tot = ctx.totality in
         let (p1,p2) =
           if is_typed VoT_T t && not (is_typed VoT_T u) then
-            let p1 = type_term ctx t (Pos.none (Func(ae,c))) in
+            let p1 = type_term ctx t (Pos.none (Func(tot,ae,c))) in
             let p2 = type_term ctx u a in
             (p1,p2)
           else
             let p2 = type_term ctx u a in
-            let p1 = type_term ctx t (Pos.none (Func(ae,c))) in
+            let p1 = type_term ctx t (Pos.none (Func(tot,ae,c))) in
             (p1,p2)
         in
         if is_val then Typ_Func_s(p1,p2) else Typ_Func_e(p1,p2)
@@ -1180,18 +1185,6 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
           try let (_, _, r) = type_stac ctx (Norm.whnf s) c in r
           with e -> type_error (E(S,s)) c e
         end
-    | Push(v,pi)  ->
-        let a = new_uvar ctx P in
-        let b = new_uvar ctx P in
-        let p1 = gen_subtype ctx (Pos.none (Func(a,b))) c in
-        let p2 = type_valu ctx v a in
-        let p3 = type_stac ctx pi b in
-        Stk_Push(p1,p2,p3)
-    | Fram(t,pi)  ->
-        let a = new_uvar ctx P in
-        let p1 = type_term ctx t (Pos.none (Func(c,a))) in
-        let p2 = type_stac ctx pi a in
-        Stk_Fram(p1,p2)
     | SWit(w)   ->
         let (_,a) = !(w.valu) in
         Stk_SWit(gen_subtype ctx c a)
@@ -1208,7 +1201,6 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
     (* Constructors that cannot appear in user-defined stacks. *)
     | Coer(_,_,_) -> .
     | Such(_,_,_) -> .
-    | Epsi        -> unexpected "Empty stack during typing..."
     | UWit(_)     -> unexpected "∀-witness during typing..."
     | EWit(_)     -> unexpected "∃-witness during typing..."
     | UVar(_)     -> unexpected "unification variable during typing..."

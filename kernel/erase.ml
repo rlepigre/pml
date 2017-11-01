@@ -77,10 +77,7 @@ and     stac_erasure : stac -> e_sbox = fun s ->
   | Vari(_,x) -> box_of_var (copy_var x (name_of x) mk_svari)
   | HApp(_)   -> erasure_error "not a normalisation value (stack)"
   | HDef(_,d) -> stac_erasure d.expr_def
-  | Epsi      -> sepsi
   | Goal(_)   -> sepsi
-  | Push(v,s) -> spush (valu_erasure v) (stac_erasure s)
-  | Fram(t,s) -> sfram (term_erasure t) (stac_erasure s)
   | ITag(_)   -> erasure_error "a tag cannot be erased (stack)"
   | Dumm(_)   -> erasure_error "a dummy value cannot be erased (stack)"
   | SWit(_)   -> erasure_error "a witness cannot be erased (stack)"
@@ -142,9 +139,9 @@ and to_term : e_term -> tbox = fun t ->
 and to_stac : e_stac -> sbox = fun s ->
   match s with
   | SVari(a)   -> vari None (copy_var a (name_of a) (mk_free S))
-  | SEpsi      -> epsi None
-  | SPush(v,s) -> push None (to_valu v) (to_stac s)
-  | SFram(t,s) -> fram None (to_term t) (to_stac s)
+  | SEpsi      -> assert false (* TODO *)
+  | SPush(v,s) -> assert false (* TODO *)
+  | SFram(t,s) -> assert false (* TODO *)
 
 let to_valu : e_valu -> valu =
   fun v -> unbox (to_valu v)

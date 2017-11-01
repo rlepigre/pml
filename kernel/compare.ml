@@ -173,7 +173,8 @@ let {eq_expr; eq_bndr} =
        eq_expr (Pos.none (HApp(s1,e1,Pos.none t))) (bndr_subst b2 t)
     | (HDef(_,d)     , _             ) -> eq_expr d.expr_def e2
     | (_             , HDef(_,d)     ) -> eq_expr e1 d.expr_def
-    | (Func(a1,b1)   , Func(a2,b2)   ) -> eq_expr a1 a2 && eq_expr b1 b2
+    | (Func(t1,a1,b1), Func(t2,a2,b2)) ->
+        t1 = t2 && eq_expr a1 a2 && eq_expr b1 b2
     | (DSum(m1)      , DSum(m2)      ) ->
         A.equal (fun (_,a1) (_,a2) -> eq_expr a1 a2) m1 m2
     | (Prod(m1)      , Prod(m2)      ) ->
@@ -240,9 +241,6 @@ let {eq_expr; eq_bndr} =
         eq_expr v1 v2 && A.equal cmp m1 m2
     | (FixY(f1,v1)   , FixY(f2,v2)   ) -> eq_bndr V f1 f2 && eq_expr v1 v2
     | (Prnt(s1)      , Prnt(s2)      ) -> s1 = s2
-    | (Epsi          , Epsi          ) -> true
-    | (Push(v1,s1)   , Push(v2,s2)   ) -> eq_expr v1 v2 && eq_expr s1 s2
-    | (Fram(t1,s1)   , Fram(t2,s2)   ) -> eq_expr t1 t2 && eq_expr s1 s2
     | (Conv          , Conv          ) -> true
     | (Succ(o1)      , Succ(o2)      ) -> eq_expr o1 o2
     (* NOTE type annotations ignored. *)
@@ -320,11 +318,11 @@ let {eq_expr; eq_bndr} =
          let b = Norm.whnf b in
          match b.elt with
          | Impl(c,e) when uvar_occurs_rel u1 c
-             -> remove_occur_check e
-         | Func({elt = Memb(t,a)}, b) when uvar_occurs u1 t
-           -> remove_occur_check (Pos.none (Func(a,b)))
-         | Func({elt = Rest(a,c)}, b) when uvar_occurs_rel u1 c
-           -> remove_occur_check (Pos.none (Func(a,b)))
+           -> remove_occur_check e
+         | Func(tot,{elt = Memb(t,a)}, b) when uvar_occurs u1 t
+           -> remove_occur_check (Pos.none (Func(tot,a,b)))
+         | Func(tot,{elt = Rest(a,c)}, b) when uvar_occurs_rel u1 c
+           -> remove_occur_check (Pos.none (Func(tot,a,b)))
          | _ -> b (* NOTE #48: more cases are possible *)
        in
        let e2 = remove_occur_check e2 in
@@ -337,8 +335,8 @@ let {eq_expr; eq_bndr} =
              remove_occur_check e
          | Memb(t,a) when uvar_occurs u2 t     ->
              remove_occur_check a
-         | Func({elt = Impl(c,a)}, b) when uvar_occurs_rel u2 c ->
-             remove_occur_check (Pos.none (Func(a,b)))
+         | Func(tot,{elt = Impl(c,a)}, b) when uvar_occurs_rel u2 c ->
+             remove_occur_check (Pos.none (Func(tot,a,b)))
          | _ -> b (* NOTE #48: more cases are possible *)
        in
        let e1 = remove_occur_check e1 in
@@ -422,7 +420,7 @@ let {hash_expr; hash_bndr; hash_ombinder; hash_vwit
     | Vari(_,x)   -> khash1 `Vari (Bindlib.hash_var x)
     | HFun(s,_,b) -> khash1 `HFun (hash_bndr s b)
     | HApp(s,f,a) -> khash3 `HApp (hash_sort s) (hash_expr f) (hash_expr a)
-    | Func(a,b)   -> khash2 `Func (hash_expr a) (hash_expr b)
+    | Func(t,a,b) -> khash3 `Func (hash t) (hash_expr a) (hash_expr b)
     | DSum(m)     -> khash1 `DSum (A.hash (fun (_,e) -> hash_expr e) m)
     | Prod(m)     -> khash1 `Prod (A.hash (fun (_,e) -> hash_expr e) m)
     | Univ(s,b)   -> khash2 `Univ (hash_sort s) (hash_bndr s b)
@@ -446,9 +444,6 @@ let {hash_expr; hash_bndr; hash_ombinder; hash_vwit
                             (A.hash (fun (_,e) -> (hash_bndr V e)) m)
     | FixY(f,v)   -> hash (`FixY (hash_bndr V f, hash_expr v))
     | Prnt(s1)    -> khash1 `Prnt (hash s1)
-    | Epsi        -> hash `Epsi
-    | Push(v,s)   -> khash2 `Push (hash_expr v) (hash_expr s)
-    | Fram(t,s)   -> khash2 `Fram (hash_expr t) (hash_expr s)
     | Conv        -> hash `Conv
     | Succ(o)     -> khash1 `Succ (hash_expr o)
     (* NOTE type annotations ignored. *)
