@@ -24,3 +24,5 @@ let sub t1 t2 =
   | (Ter   , _     ) -> true
   | (_     , Ter   ) -> false
   | (Any   , Any   ) -> true
+
+let is_term t = sub t Ter

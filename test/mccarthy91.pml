@@ -17,8 +17,8 @@ val u100 : nat = mul u10 u10
 val u101 : nat = succ u100
 val u91  : nat = minus u100 u9
 
-def mccarthy91 : ι = fix
-  fun mccarthy91 n {
+val rec mccarthy91 : nat ↝ nat =
+  fun n {
     if gt n u100 {
       minus n u10
     } else {

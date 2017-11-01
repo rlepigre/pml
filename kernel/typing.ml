@@ -669,7 +669,8 @@ and check_fix : ctxt -> valu -> (v, t) bndr -> prop -> unit -> typ_proof =
             in
             log_typ "it matches\n%!";
             (* Add call to call-graph and build the proof. *)
-            add_call ctx (ih.fsch_index, spe.fspe_param) true;
+            if Totality.is_term ctx.totality then
+              add_call ctx (ih.fsch_index, spe.fspe_param) true;
             (build_t_fixy b, c, Typ_Ind(ih,prf))
           with Subtype_error _ | Exit -> find_suitable ihs
         end
