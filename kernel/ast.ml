@@ -51,7 +51,7 @@ type _ ex =
 
   (* Proposition constructors. *)
 
-  | Func : p ex loc * p ex loc                       -> p  ex
+  | Func : Totality.tot * p ex loc * p ex loc        -> p  ex
   (** Arrow type. *)
   | Prod : (pos option * p ex loc) A.t               -> p  ex
   (** Product (or record) type. *)
@@ -108,15 +108,6 @@ type _ ex =
   | TPtr : TPtr.t                                    -> t  ex
   (** Pointer in the pool. *)
   | Repl : t ex loc * t ex loc * t ex loc            -> t  ex
-
-  (* Stack constructors. *)
-
-  | Epsi :                                              s  ex
-  (** Empty stack. *)
-  | Push : v ex loc * s ex loc                       -> s  ex
-  (** Value pushed on a stack. *)
-  | Fram : t ex loc * s ex loc                       -> s  ex
-  (** Stack frame. *)
 
   (* Ordinal constructors. *)
 
@@ -448,21 +439,12 @@ let sv_stac : sbox -> such_var bindbox =
 
 let s_vari : popt -> svar -> sbox = vari
 
-let epsi : popt -> sbox =
-  fun p -> box (Pos.make p Epsi)
-
-let push : popt -> vbox -> sbox -> sbox =
-  fun p -> box_apply2 (fun v s -> Pos.make p (Push(v,s)))
-
-let fram : popt -> tbox -> sbox -> sbox =
-  fun p -> box_apply2 (fun t s -> Pos.make p (Fram(t,s)))
-
 (** {5 Proposition constructors} *)
 
 let p_vari : popt -> pvar -> pbox = vari
 
-let func : popt -> pbox -> pbox -> pbox =
-  fun p -> box_apply2 (fun a b -> Pos.make p (Func(a,b)))
+let func : popt -> Totality.tot -> pbox -> pbox -> pbox =
+  fun p t -> box_apply2 (fun a b -> Pos.make p (Func(t,a,b)))
 
 let prod : popt -> (popt * pbox) A.t -> pbox =
   fun p m ->
@@ -624,9 +606,6 @@ let rec sort : type a b. a ex loc ->  a sort * a ex loc= fun e ->
   | TPtr _          -> (T,e)
   | Repl(_,_,_)     -> (T,e)
 
-  | Epsi            -> (S,e)
-  | Push _          -> (S,e)
-  | Fram _          -> (S,e)
   | SWit _          -> (S,e)
 
   | Conv            -> (O,e)

@@ -3,7 +3,6 @@ def null : ο = ∅
 def triv : ο = {} ⇒ ∅
 def blop = ∀ x:ο, x
 def id = fun x { x }
-def stack = (fun x { x }) · ε
 def delta = fun x { x x }
 def omega : τ = delta delta
 def arrow<a:ο, b:ο> : ο = a ⇒ b

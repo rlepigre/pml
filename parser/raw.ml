@@ -160,7 +160,7 @@ and raw_ex' =
   | EVari of strloc * raw_ex list
   | EHOFn of strloc * raw_sort * raw_ex
 
-  | EFunc of raw_ex * raw_ex
+  | EFunc of Totality.tot * raw_ex * raw_ex
   | EProd of (strloc * raw_ex) list * bool
   | EUnit (* Empty record as a type or a term *)
   | EDSum of (strloc * raw_ex option) list
@@ -188,10 +188,6 @@ and raw_ex' =
   | ECoer of raw_ex * raw_ex
   | ESuch of (strloc * raw_sort) ne_list * (strloc option * raw_ex) * raw_ex
 
-  | EEpsi
-  | EPush of raw_ex * raw_ex
-  | EFram of raw_ex * raw_ex
-
   | EConv
   | ESucc of raw_ex
 
@@ -206,7 +202,8 @@ let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
                          (print_list print "; ") args
     | EHOFn(x,s,e)  -> Printf.fprintf ch "EHOFn(%S,%a,%a)" x.elt
                          print_raw_sort s print e
-    | EFunc(a,b)    -> Printf.fprintf ch "EFunc(%a,%a)" print a print b
+    | EFunc(t,a,b)  -> Printf.fprintf ch "EFunc(%a %a %a)"
+                                      print a Print.arrow t print b
     | EProd(l,str)  -> Printf.fprintf ch "EProd([%a], %s)"
                          (print_list aux_ls "; ") l
                          (if str then "strict" else "extensible")
@@ -249,9 +246,6 @@ let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
                        Printf.fprintf ch "ESuch(%a,%s,%a,%a)"
                          (print_list aux_sort ", ") (ne_list_to_list vs)
                          x.elt print (snd j) print u
-    | EEpsi         -> Printf.fprintf ch "EEpsi"
-    | EPush(v,s)    -> Printf.fprintf ch "EPush(%a,%a)" print v print s
-    | EFram(t,s)    -> Printf.fprintf ch "EFram(%a,%a)" print t print s
     | EConv         -> Printf.fprintf ch "EConv"
     | ESucc(o)      -> Printf.fprintf ch "ESucc(%a)" print o
     | EGoal(str)    -> Printf.fprintf ch "EGoal(%s)" str
@@ -364,9 +358,9 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
                                     infer env vars e s
     | (EHOFn(_,_,_) , _        ) -> sort_clash e s
     (* Propositions. *)
-    | (EFunc(a,b)   , SP       ) -> infer env vars a _sp; infer env vars b _sp
-    | (EFunc(_,_)   , SUni(r)  ) -> sort_uvar_set r _sp; infer env vars e s
-    | (EFunc(_,_)   , _        ) -> sort_clash e s
+    | (EFunc(_,a,b) , SP       ) -> infer env vars a _sp; infer env vars b _sp
+    | (EFunc(_,_,_) , SUni(r)  ) -> sort_uvar_set r _sp; infer env vars e s
+    | (EFunc(_,_,_) , _        ) -> sort_clash e s
     | (EUnit        , SP       )
     | (EUnit        , SV _     )
     | (EUnit        , ST       ) -> ()
@@ -606,16 +600,6 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
           infer env vars v s
         end
     | (ESuch(_,_,_) , _        ) -> sort_clash e s
-    (* Stacks. *)
-    | (EEpsi        , SS       ) -> ()
-    | (EPush(v,s)   , SS       ) -> infer env vars v _sv; infer env vars s _ss
-    | (EFram(t,s)   , SS       ) -> infer env vars t _st; infer env vars s _ss
-    | (EEpsi        , SUni(r)  )
-    | (EPush(_,_)   , SUni(r)  )
-    | (EFram(_,_)   , SUni(r)  ) -> sort_uvar_set r _ss; infer env vars e s
-    | (EEpsi        , _        )
-    | (EPush(_,_)   , _        )
-    | (EFram(_,_)   , _        ) -> sort_clash e s
     (* Ordinals. *)
     | (EConv        , SO       ) -> ()
     | (ESucc(o)     , SO       ) -> infer env vars o s
@@ -720,10 +704,10 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
         in
         Box(F(sa,sb), hfun e.pos sa sb x fn)
     (* Propositions. *)
-    | (EFunc(a,b)   , SP       ) ->
+    | (EFunc(t,a,b) , SP       ) ->
         let a = unsugar env vars a s in
         let b = unsugar env vars b s in
-        Box(P, func e.pos (to_prop a) (to_prop b))
+        Box(P, func e.pos t (to_prop a) (to_prop b))
     | (EUnit        , SP       ) -> Box(P, strict_prod e.pos A.empty)
     | (EUnit        , SV _     ) -> Box(V, reco e.pos A.empty)
     | (EUnit        , ST       ) -> Box(T, valu e.pos (reco e.pos A.empty))
@@ -1035,16 +1019,6 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
           | ST   -> Box(T, such e.pos VoT_T d sv (build_seq VoT_T vars d))
           | _    -> assert false (* should not happen *)
         end
-    (* Stacks. *)
-    | (EEpsi        , SS       ) -> Box(S, epsi e.pos)
-    | (EPush(v,pi)  , SS       ) ->
-        let v  = to_valu (unsugar env vars v  _sv) in
-        let pi = to_stac (unsugar env vars pi _ss) in
-        Box(S, push e.pos v pi)
-    | (EFram(t,pi)  , SS       ) ->
-        let t  = to_term (unsugar env vars t  _st) in
-        let pi = to_stac (unsugar env vars pi _ss) in
-        Box(S, fram e.pos t pi)
     (* Ordinals. *)
     | (EConv        , SO       ) -> Box(O, conv e.pos)
     | (ESucc(o)     , SO       ) ->
@@ -1146,7 +1120,8 @@ let eexis _loc x xs s a =
 let euniv_in _loc x xs a b =
   let p x = Pos.in_pos _loc x in
   let c = List.fold_right (fun x c ->
-    p (EFunc(p (EMemb(p (EVari(x,[])), a)), c))) (x::xs) b
+    (* FIXME: notation for partial dependant product ? *)
+    p (EFunc(Totality.Tot, p (EMemb(p (EVari(x,[])), a)), c))) (x::xs) b
   in
   p (EUniv((x,xs),p sv,c))
 

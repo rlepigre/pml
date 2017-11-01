@@ -55,7 +55,7 @@ let uvar_iter : type a. bool -> bool -> uvar_fun -> a ex loc -> unit =
     | HFun(s,_,b) -> buvar_iter s b
     | HApp(_,a,b) -> uvar_iter a; uvar_iter b
     | HDef(_)     -> () (* NOTE no unification variable in definition. *)
-    | Func(a,b)   -> uvar_iter a; uvar_iter b
+    | Func(_,a,b) -> uvar_iter a; uvar_iter b
     | Prod(m)     -> A.iter (fun _ (_,a) -> uvar_iter a) m
     | DSum(m)     -> A.iter (fun _ (_,a) -> uvar_iter a) m
     | Univ(s,b)   -> buvar_iter s b
@@ -82,9 +82,6 @@ let uvar_iter : type a. bool -> bool -> uvar_fun -> a ex loc -> unit =
     | FixY(f,v)   -> buvar_iter V f; uvar_iter v
     | Prnt(_)     -> ()
     | Repl(t,u,a) -> uvar_iter t; uvar_iter u; uvar_iter a
-    | Epsi        -> ()
-    | Push(v,s)   -> uvar_iter v; uvar_iter s
-    | Fram(t,s)   -> uvar_iter t; uvar_iter s
     | Conv        -> ()
     | Succ(o)     -> uvar_iter o
     (* NOTE type annotations ignored. *)
