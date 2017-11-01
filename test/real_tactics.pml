@@ -353,10 +353,10 @@ val rec exists : ∀a, (a ⇒ bool) ⇒ list<a> ⇒ bool =
   }
 
 type bot = ∀x, x
-type neg<a> = a ⇒ bot
+type neg<a> = a → bot
 
 val rec find : ∀a:ο, ∀pred∈(a ⇒ bool), total<pred,a> ⇒
-               ∀l∈list<a>, neg<exists pred l ≡ false> ⇒ a =
+               ∀l∈list<a>, neg<exists pred l ≡ false> → a =
   fun pred pred_tot l exc {
     case l {
       Nil[_]  → exc {}
@@ -366,7 +366,7 @@ val rec find : ∀a:ο, ∀pred∈(a ⇒ bool), total<pred,a> ⇒
   }
 
 val find_opt : ∀a:ο, ∀pred∈(a ⇒ bool), total<pred,a> ⇒
-               list<a> ⇒ option<a> =
+               list<a> → option<a> =
   fun pred pred_tot l {
     save a {
       some (find pred pred_tot l (fun _ { restore a none}))
@@ -374,7 +374,7 @@ val find_opt : ∀a:ο, ∀pred∈(a ⇒ bool), total<pred,a> ⇒
   }
 
 val rec find_list : ∀a:ο, ∀pred∈(a ⇒ bool), total<pred,a> ⇒
-                    list<list<a>> ⇒ option<a> =
+                    list<list<a>> → option<a> =
   fun pred pred_tot l {
     case l {
       Nil     → none

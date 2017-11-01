@@ -76,7 +76,7 @@ let empty_ctxt () =
   ; top_ih    = (Scp.root, [| |])
   ; add_calls = ref []
   ; callgraph = Scp.create ()
-  ; totality  = Totality.Tot }
+  ; totality  = Totality.Ter }
 
 let new_uvar : type a. ctxt -> a sort -> a ex loc = fun ctx s ->
   let c = ctx.uvarcount in
@@ -1061,9 +1061,6 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
             let p1 = type_term ctx f (Pos.none (Func(tot,ae,c))) in
             (p1,p2)
         in
-        let (is_val, no_box, ctx) = term_is_value t ctx in
-        if (not is_val && not no_box && Totality.is_not_tot tot)
-         then type_error (E(T,t)) c Not_total;
         if is_val then Typ_Func_s(p1,p2) else Typ_Func_e(p1,p2)
     (* μ-abstraction. *)
     | MAbs(b)     ->
@@ -1072,12 +1069,13 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
         let t = bndr_subst b eps.elt in
         Typ_Mu(type_term ctx t c)
     (* Named term. *)
-    | Name(pi,t)  ->
+    | Name(pi,u)  ->
+        let ctx = check_total ctx t c in
         let a = new_uvar ctx P in
         (* type stack before seems better, generate subtyping
            constraints in the correct direction *)
         let p1 = type_stac ctx pi a in
-        let p2 = type_term ctx t a in
+        let p2 = type_term ctx u a in
         Typ_Name(p2,p1)
     (* Projection. *)
     | Proj(v,l)   ->
@@ -1188,6 +1186,13 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
   with
   | Type_error _ as e -> raise e
   | e                 -> type_error (E(T,t)) c e
+
+and check_total : ctxt -> term -> prop -> ctxt =
+  fun ctx t c ->
+    let (is_val, no_box, ctx) = term_is_value t ctx in
+    if (not is_val && not no_box && not (Totality.is_not_tot ctx.totality))
+    then type_error (E(T,t)) c Not_total
+    else ctx
 
 and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
   log_typ "proving the stack judgment:\n  %a\n  stk ⊢ %a\n  : %a"

@@ -30,15 +30,15 @@ val exists : ∀a, (a ⇒ bool) ⇒ list<a> ⇒ bool =
       fold_left f false l
     }
   }
-val peirce : ∀a b, ((a ⇒ b) ⇒ a) ⇒ a =
+val peirce : ∀a b, ((a → b) ⇒ a) ⇒ a =
   fun x {
     save k { x (fun y { restore k y }) }
   }
 
 // Usual definition of logical negation
-type neg<a> = a ⇒ ∀x, x
+type neg<a> = a → ∀x, x
 
-val dneg_elim : ∀a, neg<neg<a>> ⇒ a =
+val dneg_elim : ∀a, (neg<a> ⇒ ∀x, x)  ⇒ a =
   peirce
 
 // Disjoint sum of two types (logical disjunction)

@@ -454,22 +454,22 @@ val rec find : ∀a:ο, ∀pred∈(a ⇒ bool), total<pred,a> ⇒
                  else { find pred pred_tot c.tl exc }
     }
   }
-val find_opt : ∀a:ο, ∀pred∈(a ⇒ bool), total<pred,a> ⇒
-               list<a> ⇒ option<a> =
-  fun pred pred_tot l {
-    save a {
-      some (find pred pred_tot l (fun _ { restore a none }))
-    }
-  }
-val rec find_list : ∀a:ο, ∀pred∈(a ⇒ bool), total<pred,a> ⇒
-                    list<list<a>> ⇒ option<a> =
-  fun pred pred_tot l {
-    case l {
-      Nil     → none
-      Cons[c] →
-        save a {
-          some (find pred pred_tot c.hd
-            (fun _ { restore a (find_list pred pred_tot c.tl) }))
-        }
-    }
-  }
+// val find_opt : ∀a:ο, ∀pred∈(a ⇒ bool), total<pred,a> ⇒
+//                list<a> ⇒ option<a> =
+//   fun pred pred_tot l {
+//     save a {
+//       some (find pred pred_tot l (fun _ { restore a none }))
+//     }
+//   }
+// val rec find_list : ∀a:ο, ∀pred∈(a ⇒ bool), total<pred,a> ⇒
+//                     list<list<a>> ⇒ option<a> =
+//   fun pred pred_tot l {
+//     case l {
+//       Nil     → none
+//       Cons[c] →
+//         save a {
+//           some (find pred pred_tot c.hd
+//             (fun _ { restore a (find_list pred pred_tot c.tl) }))
+//         }
+//     }
+//   }
