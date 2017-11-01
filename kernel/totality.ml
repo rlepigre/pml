@@ -26,3 +26,5 @@ let sub t1 t2 =
   | (Any   , Any   ) -> true
 
 let is_term t = sub t Ter
+
+let is_not_tot t = sub Ter t
