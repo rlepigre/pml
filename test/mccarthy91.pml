@@ -11,9 +11,8 @@ val mccarthy91_easy : nat ⇒ nat =
     }
   }
 
-// Hard version as a value object (not typed).
-def mccarthy91_hard =
-  fix fun mccarthy91 n {
+val rec mccarthy91_hard : nat ↝ nat =
+  fun n {
     if gt n u100 {
       minus n u10
     } else {
