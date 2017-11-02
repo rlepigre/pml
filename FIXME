@@ -1,10 +1,8 @@
 
 FIXME:
         modifié :         test/exception.pml
-	modifié :         test/fifo.pml
 	modifié :         test/infinite.pml
 	modifié :         test/minimum_principle.pml
-	modifié :         test/mu.pml
 	modifié :         test/phd_examples/demo.pml
 	modifié :         test/phd_examples/implem.pml
 	modifié :         test/ramsey.pml

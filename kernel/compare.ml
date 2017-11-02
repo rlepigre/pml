@@ -174,7 +174,7 @@ let {eq_expr; eq_bndr} =
     | (HDef(_,d)     , _             ) -> eq_expr d.expr_def e2
     | (_             , HDef(_,d)     ) -> eq_expr e1 d.expr_def
     | (Func(t1,a1,b1), Func(t2,a2,b2)) ->
-        t1 = t2 && eq_expr a1 a2 && eq_expr b1 b2
+        Totality.eq t1 t2 && eq_expr a1 a2 && eq_expr b1 b2
     | (DSum(m1)      , DSum(m2)      ) ->
         A.equal (fun (_,a1) (_,a2) -> eq_expr a1 a2) m1 m2
     | (Prod(m1)      , Prod(m2)      ) ->
@@ -420,7 +420,7 @@ let {hash_expr; hash_bndr; hash_ombinder; hash_vwit
     | Vari(_,x)   -> khash1 `Vari (Bindlib.hash_var x)
     | HFun(s,_,b) -> khash1 `HFun (hash_bndr s b)
     | HApp(s,f,a) -> khash3 `HApp (hash_sort s) (hash_expr f) (hash_expr a)
-    | Func(t,a,b) -> khash3 `Func (hash t) (hash_expr a) (hash_expr b)
+    | Func(t,a,b) -> khash3 `Func (Totality.hash t) (hash_expr a) (hash_expr b)
     | DSum(m)     -> khash1 `DSum (A.hash (fun (_,e) -> hash_expr e) m)
     | Prod(m)     -> khash1 `Prod (A.hash (fun (_,e) -> hash_expr e) m)
     | Univ(s,b)   -> khash2 `Univ (hash_sort s) (hash_bndr s b)
