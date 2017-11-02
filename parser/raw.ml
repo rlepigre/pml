@@ -1161,14 +1161,16 @@ let if_then_else _loc c t e =
   let pats = [ no_arg "true" t ; no_arg "false" e ] in
   Pos.in_pos _loc (ECase(Pos.none (ECoer(c, p_bool None)), ref `T, pats))
 
-(* "let x : a = t in u" := "(fun (x:a) -> u) t" *)
+(* "let x : a = t in u" := "(fun (x:a) -> u) (t:a)" *)
 let let_binding _loc r arg t u =
   match arg with
   | `LetArgVar(id,ao) ->
       let t =
         if not r then t else
         let fix = EFixY(Pos.none (ELAbs(((id, None),[]), t))) in
-        let t = Pos.make t.pos fix in
+        Pos.make t.pos fix
+      in
+      let t =
         match ao with
         | None   -> t
         | Some a -> Pos.make t.pos (ECoer(t,a))

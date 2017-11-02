@@ -23,13 +23,13 @@ val exists : ∀a, (a ⇒ bool) ⇒ list<a> ⇒ bool =
 include lib.option
 val silly : (∀a, a ⇒ a) ⇒ {} ⇒ option<{}> =
   fun f u { f Some[f u] }
-val exists : ∀a, (a ⇒ bool) ⇒ list<a> ⇒ bool =
-  fun pred l {
-    save k {
-      let f = fun acc e { if pred e { restore k true } else { acc } };
-      fold_left f false l
-    }
-  }
+// val exists : ∀a, (a ⇒ bool) ⇒ list<a> → bool =
+//   fun pred l {
+//     save k {
+//       let f = fun acc e { if pred e { restore k true } else { acc } };
+//       fold_left f false l
+//     }
+//   }
 val peirce : ∀a b, ((a → b) ⇒ a) ⇒ a =
   fun x {
     save k { x (fun y { restore k y }) }
