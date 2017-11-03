@@ -1049,8 +1049,11 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
           | _ -> new_uvar ctx P
         in
         let (is_val, _, ctx) = term_is_value u ctx in
-        let ae = if is_val then Pos.none (Memb(u, a)) else a in
         let tot = ctx.totality in
+        let (ae, strong) =
+          if is_val || not (Totality.is_not_tot tot) then
+            (Pos.none (Memb(u, a)), true) else (a, false)
+        in
         let (p1,p2) =
           if is_typed VoT_T t && not (is_typed VoT_T u) then
             let p1 = type_term ctx f (Pos.none (Func(tot,ae,c))) in

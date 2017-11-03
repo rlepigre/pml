@@ -4,20 +4,10 @@ include lib.nat
 
 //// Properties of addition //////////////////////////////////////////////////
 
-// Totality of addition.
-
-val rec add_total : ∀n m∈nat, ∃v:ι, add n m ≡ v =
-  fun n m {
-    case n {
-      Zero → qed
-      S[k] → use add_total k m; qed
-    }
-  }
-
 // Associativity of addition (detailed proof).
 val rec add_assoc : ∀m n p∈nat, add m (add n p) ≡ add (add m n) p =
   fun m n p {
-    use add_total n p;
+    let _ = add n p;
     case m {
       Zero → deduce add n p ≡ add (add Zero n) p;
              deduce add Zero (add n p) ≡ add (add Zero n) p;
@@ -25,7 +15,7 @@ val rec add_assoc : ∀m n p∈nat, add m (add n p) ≡ add (add m n) p =
       S[k] → show add k (add n p) ≡ add (add k n) p using (add_assoc k n p);
              deduce S[add k (add n p)] ≡ S[add (add k n) p];
              deduce add S[k] (add n p) ≡ S[add (add k n) p];
-             use add_total k n;
+             let _ = add k n;
              deduce add S[k] (add n p) ≡ add S[add k n] p;
              deduce add S[k] (add n p) ≡ add (add S[k] n) p;
              qed
@@ -35,11 +25,11 @@ val rec add_assoc : ∀m n p∈nat, add m (add n p) ≡ add (add m n) p =
 // Associativity of addition (shortest proof).
 val rec add_assoc2 : ∀m n p∈nat, add m (add n p) ≡ add (add m n) p =
   fun m n p {
-    use add_total n p;
+    let _ = add n p;
     case m {
       Zero → qed
       S[k] → use add_assoc2 k n p;
-             use add_total k n;
+             let _ = add k n;
              qed
     }
   }
@@ -63,7 +53,7 @@ val rec add_n_succ : ∀m n∈nat, add m S[n] ≡ S[add m n] =
     case m {
       Zero → deduce add Zero S[n] ≡ S[add Zero n];
              qed
-      S[k] → use add_total k n; // FIXME: if this line is removed, strange error with no position
+      S[k] → let _ = add k n; // FIXME: if this line is removed, strange error with no position
              show add k S[n] ≡ S[add k n] using add_n_succ k n;
              deduce S[add k S[n]] ≡ S[S[add k n]];
              deduce add S[k] S[n] ≡ S[S[add k n]];
@@ -88,30 +78,7 @@ val rec add_comm : ∀m n∈nat, add m n ≡ add n m =
     }
   }
 
-//// Properties of difference ////////////////////////////////////////////////
-val rec minus_total : ∀n m∈nat, ∃v:ι, minus n m ≡ v =
-  fun n m {
-    case n {
-      Zero → {}
-      S[p] →
-        case m {
-          Zero → {}
-          S[q] → minus_total p q
-        }
-    }
-  }
-
 //// Properties of multiplication ////////////////////////////////////////////
-
-// Totality of multiplication.
-val rec mul_total : ∀n m∈nat, ∃v:ι, mul n m ≡ v =
-  fun n m {
-    case n {
-      Zero → qed
-      S[k] → use mul_total k m;
-             use add_total m (mul k m)
-    }
-  }
 
 // Zero as an absorbing element on the right (detailed proof).
 val rec mul_n_zero : ∀n∈nat, mul n Zero ≡ Zero =
@@ -133,10 +100,10 @@ val rec mul_n_succ : ∀n m∈nat, mul n S[m] ≡ add n (mul n m) =
              qed
       S[k] → show mul k S[m] ≡ add k (mul k m) using mul_n_succ k m;
              deduce add S[m] (mul k S[m]) ≡ add S[m] (add k (mul k m));
-             use mul_total k S[m];
+             use mul k S[m];
              deduce mul S[k] S[m] ≡ add S[m] (add k (mul k m));
              deduce mul S[k] S[m] ≡ S[add m (add k (mul k m))];
-             use mul_total k m;
+             use mul k m;
              show add m (add k (mul k m)) ≡ add (add m k) (mul k m)
                using add_assoc m k (mul k m);
              show add m k ≡ add k m using add_comm m k;
@@ -144,7 +111,7 @@ val rec mul_n_succ : ∀n m∈nat, mul n S[m] ≡ add n (mul n m) =
                using add_assoc k m (mul k m);
              deduce mul S[k] S[m] ≡ S[add k (add m (mul k m))];
              deduce mul S[k] S[m] ≡ S[add k (mul S[k] m)];
-             use mul_total S[k] m;
+             use mul S[k] m;
              deduce mul S[k] S[m] ≡ add S[k] (mul S[k] m);
              qed
     }
@@ -175,17 +142,21 @@ val rec mul_dist_l : ∀m n p∈nat, mul m (add n p) ≡ add (mul m n) (mul m p)
              deduce mul Zero (add n p) ≡ Zero;
              deduce add (mul Zero n) (mul Zero p) ≡ Zero;
              deduce mul Zero (add n p) ≡ add (mul Zero n) (mul Zero p);
+      Zero → use add n p;
+             deduce mul Z (add n p) ≡ Z;
+             deduce add (mul Z n) (mul Z p) ≡ Z;
+             deduce mul Z (add n p) ≡ add (mul Z n) (mul Z p);
              qed
       S[k] → show mul k (add n p) ≡ add (mul k n) (mul k p)
              using mul_dist_l k n p;
              deduce add (add n p) (mul k (add n p))
                ≡ add (add n p) (add (mul k n) (mul k p));
-             use add_total n p;
+             use add n p;
              deduce mul S[k] (add n p)
                ≡ add (add n p) (add (mul k n) (mul k p));
-             use mul_total k n;
-             use mul_total k p;
-             use add_total (mul k n) (mul k p);
+             use mul k n;
+             use mul k p;
+             use add (mul k n) (mul k p);
              show add (add n p) (add (mul k n) (mul k p))
                ≡ add n (add p (add (mul k n) (mul k p)))
                using add_assoc n p (add (mul k n) (mul k p));
@@ -203,7 +174,7 @@ val rec mul_dist_l : ∀m n p∈nat, mul m (add n p) ≡ add (mul m n) (mul m p)
                ≡ add n (add (mul k n) (add p (mul k p)));
              deduce add (add n p) (add (mul k n) (mul k p))
                ≡ add n (add (mul k n) (mul S[k] p));
-             use mul_total S[k] p;
+             use mul S[k] p;
              show add n (add (mul k n) (mul S[k] p))
                ≡ add (add n (mul k n)) (mul S[k] p)
                using add_assoc n (mul k n) (mul S[k] p);
@@ -217,7 +188,7 @@ val rec mul_dist_l : ∀m n p∈nat, mul m (add n p) ≡ add (mul m n) (mul m p)
 val rec mul_dist_r : ∀m n p∈nat, mul (add m n) p ≡ add (mul m p) (mul n p) =
   fun m n p {
     show mul p (add m n) ≡ add (mul p m) (mul p n) using mul_dist_l p m n;
-    use add_total m n;
+    use add m n;
     show mul p (add m n) ≡ mul (add m n) p using mul_comm p (add m n);
     deduce mul (add m n) p ≡ add (mul p m) (mul p n);
     show mul p m ≡ mul m p using mul_comm p m;
@@ -231,20 +202,20 @@ val rec mul_dist_r : ∀m n p∈nat, mul (add m n) p ≡ add (mul m p) (mul n p)
 val rec mul_assoc : ∀m n p∈nat, mul m (mul n p) ≡ mul (mul m n) p =
   fun m n p {
     case m {
-      Zero → use mul_total n p;
-             showing mul Zero (mul n p) ≡ mul (mul Zero n) p;
-             deduce mul Zero (mul n p) ≡ Zero;
-             showing Zero ≡ mul (mul Zero n) p;
-             deduce mul (mul Zero n) p ≡ mul Zero p;
-             deduce mul (mul Zero n) p ≡ Zero;
-             showing Zero ≡ Zero;
+      Zero → use mul n p;
+             showing mul Z (mul n p) ≡ mul (mul Z n) p;
+             deduce mul Z (mul n p) ≡ Z;
+             showing Z ≡ mul (mul Z n) p;
+             deduce mul (mul Z n) p ≡ mul Z p;
+             deduce mul (mul Z n) p ≡ Z;
+             showing Z ≡ Z;
              qed
       S[k] → show mul k (mul n p) ≡ mul (mul k n) p using mul_assoc k n p;
              deduce add (mul n p) (mul k (mul n p))
                ≡ add (mul n p) (mul (mul k n) p);
-             use mul_total n p;
+             use mul n p;
              deduce mul S[k] (mul n p) ≡ add (mul n p) (mul (mul k n) p);
-             use mul_total k n;
+             use mul k n;
              show add (mul n p) (mul (mul k n) p) ≡ mul (add n (mul k n)) p
                using mul_dist_r n (mul k n) p;
              deduce mul S[k] (mul n p) ≡ mul (add n (mul k n)) p;
@@ -252,33 +223,6 @@ val rec mul_assoc : ∀m n p∈nat, mul m (mul n p) ≡ mul (mul m n) p =
              qed
     }
   }
-
-val rec compare_total : ∀x y∈nat, ∃v:ι, compare x y ≡ v =
-  fun x y {
-    case x {
-      Zero → case y {
-        Zero → {}
-        S[_] → {}
-      }
-      S[x] → case y {
-        Zero → {}
-        S[y] → compare_total x y
-      }
-    }
-  }
-
-def compare_total_common =
-  fun x y {
-    use compare_total x y;
-    case compare x y { Ls → {} | Eq → {} | Gr → {} }
-  }
-
-val  eq_total : ∀x y∈nat, ∃v:ι,  eq x y ≡ v = compare_total_common
-val neq_total : ∀x y∈nat, ∃v:ι, neq x y ≡ v = compare_total_common
-val leq_total : ∀x y∈nat, ∃v:ι, leq x y ≡ v = compare_total_common
-val  lt_total : ∀x y∈nat, ∃v:ι,  lt x y ≡ v = compare_total_common
-val geq_total : ∀x y∈nat, ∃v:ι, geq x y ≡ v = compare_total_common
-val  gt_total : ∀x y∈nat, ∃v:ι,  gt x y ≡ v = compare_total_common
 
 val rec succ_gr : ∀n m∈nat, compare n m ≡ Gr ⇒ compare S[n] m ≡ Gr =
   fun n m h {
