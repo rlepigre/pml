@@ -140,7 +140,8 @@ and to_term : e_term -> tbox = fun t ->
 and to_stac : e_stac -> tbox -> tbox = fun s t ->
   let rec fn s t =
     match s with
-    | SVari(a)   -> name None (vari None (copy_var a (name_of a) (mk_free S))) t
+    | SVari(a)   -> name None (vari None
+                       (copy_var a (name_of a) (mk_free S))) t
     | SEpsi      -> t
     | SPush(v,s) -> fn s (appl None t (valu None (to_valu v)))
     | SFram(u,s) -> fn s (appl None (to_term u) t)
