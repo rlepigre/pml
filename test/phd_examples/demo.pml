@@ -15,6 +15,13 @@ val rec fold_left : ∀a b, (a ⇒ b ⇒ a) ⇒ a ⇒ list<b> ⇒ a =
       Cons[c] → fold_left f (f acc c.hd) c.tl
     }
   }
+val rec fold_left2 : ∀a b, (a ⇒ b → a) ⇒ a ⇒ list<b> → a =
+  fun f acc l {
+    case l {
+      Nil     → acc
+      Cons[c] → fold_left2 f (f acc c.hd) c.tl
+    }
+  }
 val exists : ∀a, (a ⇒ bool) ⇒ list<a> ⇒ bool =
   fun pred l {
     let f = fun acc e { if pred e { true } else { acc } };
@@ -23,13 +30,16 @@ val exists : ∀a, (a ⇒ bool) ⇒ list<a> ⇒ bool =
 include lib.option
 val silly : (∀a, a ⇒ a) ⇒ {} ⇒ option<{}> =
   fun f u { f Some[f u] }
-// val exists : ∀a, (a ⇒ bool) ⇒ list<a> → bool =
-//   fun pred l {
-//     save k {
-//       let f = fun acc e { if pred e { restore k true } else { acc } };
-//       fold_left f false l
-//     }
-//   }
+
+val exists : ∀a, (a ⇒ bool) ⇒ list<a> → bool =
+  fun pred l {
+    save k {
+      let a such that pred : a ⇒ bool;
+      let f:bool ⇒ a → bool = fun acc e { if pred e { restore k true } else { acc } };
+      fold_left2 f false l
+    }
+  }
+
 val peirce : ∀a b, ((a → b) ⇒ a) ⇒ a =
   fun x {
     save k { x (fun y { restore k y }) }
