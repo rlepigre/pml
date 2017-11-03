@@ -1120,7 +1120,7 @@ let eexis _loc x xs s a =
 let euniv_in _loc x xs a b =
   let p x = Pos.in_pos _loc x in
   let c = List.fold_right (fun x c ->
-    (* FIXME: notation for partial dependant product ? *)
+    (* FIXME #21: notation for partial dependant product ? *)
     p (EFunc(Totality.Tot, p (EMemb(p (EVari(x,[])), a)), c))) (x::xs) b
   in
   p (EUniv((x,xs),p sv,c))
