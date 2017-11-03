@@ -35,34 +35,18 @@ def app0 : ι =
 
 val appt : ∀b:ο, list<b> ⇒ list<b> ⇒ ∃w:ι, (w∈list<b>) = app0
 
-val rec app_total : ∀a:ο, ∀l1 l2 ∈list<a>, ∃v:ι, app l1 l2 ≡ v =
-  fun l1 l2 {
-    case l1 {
-      Nil[_] → {}
-      Cns[c] → let ind = app_total c.tl l2; {}
-    }
-  }
-
-val rec app2_total : ∀a:ο, ∀l1 l2 ∈list<a>, ∃v:ι, app2 l1 l2 ≡ v =
-  fun l1 l2 {
-    case l1 {
-      Nil[_] → {}
-      Cns[c] → let ind = app2_total c.tl l2; {}
-    }
-  }
-
 val rec app_asso : ∀a:ο, ∀x1 x2 x3∈list<a>, app x1 (app x2 x3) ≡ app (app x1 x2) x3 =
   fun l1 l2 l3 {
     case l1 {
       Nil    →
-       let total = app_total l2 l3; {}
+       let total = app l2 l3; {}
       Cns[c] →
        let hd = c.hd;
        let tl = c.tl;
-       let total = app_total tl l2;
-       let total = app_total l2 l3;
-       let total = app_total tl (app l2 l3); // FIXME: worked without why ?
-       let total = app_total (app tl l2) l3; // FIXME: worked without why ?
+       let total = app tl l2;
+       let total = app l2 l3;
+       let total = app tl (app l2 l3); // FIXME: worked without why ?
+       let total = app (app tl l2) l3; // FIXME: worked without why ?
        let ded : app l1 (app l2 l3) ≡ cns hd (app tl (app l2 l3)) = {};
        let ded : app (app l1 l2) l3 ≡ cns hd (app (app tl l2) l3) = {};
        let ind : app tl (app l2 l3) ≡ app (app tl l2) l3 =
@@ -74,12 +58,12 @@ val rec app2_asso : ∀a:ο, ∀x1 x2 x3∈list<a>, app2 x1 (app2 x2 x3) ≡ app
   fun l1 l2 l3 {
     case l1 {
       Nil    →
-       let total = app2_total l2 l3; {}
+       let total = app2 l2 l3; {}
       Cns[c] →
        let hd = c.hd;
        let tl = c.tl;
-       let total = app2_total tl l2;
-       let total = app2_total l2 l3;
+       let total = app2 tl l2;
+       let total = app2 l2 l3;
        let ded : app2 l1 (app2 l2 l3) ≡ cns hd (app2 tl (app2 l2 l3)) = {};
        let ded : app2 (app2 l1 l2) l3 ≡ cns hd (app2 (app2 tl l2) l3) = {};
        let ind : app2 tl (app2 l2 l3) ≡ app2 (app2 tl l2) l3 =
@@ -97,62 +81,35 @@ val rec map : ∀a b:ο, (a ⇒ b) ⇒ list<a> ⇒ list<b> =
     }
   }
 
-def total<f:ι,a:ο> : ο = ∀x∈a, ∃v:ι, f x ≡ v
-
-val compose_total : ∀a b c:ο, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c),
-                    total<f,a> ⇒ total<g,b> ⇒ total<(fun x { g (f x) }), a> =
-  fun fn gn tf tg a {
-    let lem = tf a;
-    let lem = tg (fn a); {}
-  }
-
-val rec map_total : ∀a b:ο, ∀f∈(a ⇒ b), total<f,a>
-                    ⇒ ∀l∈list<a>, ∃v:ι, map f l ≡ v =
-  fun fn ft ls {
-    case ls {
-      Nil    → {}
-      Cns[c] →
-        let hd = c.hd;
-        let tl = c.tl;
-        let lem : (∃v:ι, fn hd ≡ v) = ft hd;
-        let ind : (∃v:ι, map fn tl ≡ v) = map_total fn ft tl; {}
-    }
-  }
-
-val map_map : ∀a b c:ο, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c), total<f,a> ⇒ total<g,b>
-              ⇒ ∀l∈list<a>, map g (map f l) ≡ map (fun x { g (f x) }) l =
+val map_map : ∀a b c:ο, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c), ∀l∈list<a>,
+                        map g (map f l) ≡ map (fun x { g (f x) }) l =
   fun fn gn {
-    fix fun map_map tf tg ls {
+    fix fun map_map ls {
       case ls {
         Nil    → {}
         Cns[c] →
           let hd = c.hd; let tl = c.tl;
-          let tgf = compose_total fn gn tf tg hd;
-          let lem = tf hd;
-          let lem = map_total fn tf tl;
-          let ind = map_map tf tg tl; {}
+          let tgf = gn (fn hd);
+          let lem = fn hd;
+          let lem = map fn tl;
+          let ind = map_map tl; {}
       }
     }
   }
 
-val rec map_map : ∀a b c:ο, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c), total<f,a> ⇒ total<g,b> ⇒
-    ∀l∈list<a>, map g (map f l) ≡ map (fun x { g (f x) }) l =
-  fun fn gn tf tg ls {
+val rec map_map : ∀a b c:ο, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c), ∀l∈list<a>,
+                            map g (map f l) ≡ map (fun x { g (f x) }) l =
+  fun fn gn ls {
     case ls {
       Nil    → {}
       Cns[c] →
         let hd = c.hd;
         let tl = c.tl;
         let gof = fun x { gn (fn x) };
-        let tgf = compose_total fn gn tf tg;
-        let lem : (∃v:ι, map gof tl ≡ v) = map_total gof tgf tl;
-        let lem = tf hd;
-        let lem = tg (fn hd);
-        let lem = tgf hd;
-        let lem = map_total fn tf tl;
-        let lem = map_total gn tg (map fn tl);
-        let lem = map_total gof tgf tl;
-        let ind : map gn (map fn tl) ≡ map gof tl = map_map fn gn tf tg tl;
+        let lem = fn hd;
+        let lem = gn (fn hd);
+        let lem = map fn tl;
+        let ind : map gn (map fn tl) ≡ map gof tl = map_map fn gn tl;
         let ded : gn (fn hd) ≡ gof hd = {};
         let ded : map gn (map fn ls) =
           Cns[{ hd = gn (fn hd) ; tl = map gn (map fn tl)}] = {};

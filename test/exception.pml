@@ -1,3 +1,4 @@
+include lib.bool
 include lib.list
 
 type bot = ∀x, x
@@ -11,55 +12,46 @@ val rec exists : ∀a:ο, (a ⇒ bool) ⇒ list<a> ⇒ bool =
     }
   }
 
-def total<f:ι, a:ο> : ο = ∀x∈a, ∃y:ι, f x ≡ y
+val total : ∀a b, ∀f∈a⇒b, ∀x∈a, ∃v:ι, v ∈ b | v ≡ f x =
+  fun f x { let y = f x; y }
 
-val rec exists_total : ∀a:ο, ∀f∈(a ⇒ bool), total<f,a> ⇒ ∀l∈list<a>,
-                         ∃v:ι, exists f l ≡ v =
-  fun f ftot l {
-    case l {
-      Nil[_]  → {}
-      Cons[c] →
-        let lem : (∃y:ι, f c.hd ≡ y) = ftot c.hd;
-        if f c.hd { {} }
-        else { let lem = exists_total f ftot c.tl; {} }
-    }
-  }
-
-
-val rec find : ∀a:ο, ∀f∈(a ⇒ bool), total<f,a> ⇒
+val rec find : ∀a:ο, ∀f∈(a ⇒ bool),
                        ∀l∈list<a>, neg<(exists f l ≡ false)> → a =
-  fun f ftot l exc {
+  fun f l exc {
     case l {
       | Nil[_]  → exc {}
       | Cons[c] → let hd = c.hd; let tl = c.tl;
-                  let lem : (∃v:ι, f hd ≡ v) = ftot hd;
-//                let exc : neg<exists f tl ≡ false> = exc in //useless !!!
-                  if f hd { hd } else { find f ftot tl exc }
+                  use total f hd;
+                  if f hd { hd } else { find f tl exc }
     }
   }
 
-val find_opt : ∀a:ο, ∀f∈(a ⇒ bool), total<f,a> ⇒ list<a> → option<a> =
-  fun f ftot l {
+val find_opt : ∀a:ο, ∀f∈(a ⇒ bool), list<a> → option<a> =
+  fun f l {
     save a {
-      Some[find f ftot l (fun _ { restore a none })]
+      Some[find f l (fun _ { restore a none })]
     }
   }
 
 val notNone : ∀a:ο, option<a> ⇒ bool =
   fun o { case o { None → false | Some[_] → true } }
 
-val rec find2 : ∀a:ο, ∀f∈(a ⇒ bool), total<f,a> ⇒ list<list<a>> → option<a> =
-  fun f ftot ls {
+val rec find2 : ∀a:ο, ∀f∈(a ⇒ bool), list<list<a>> → option<a> =
+  fun f ls {
     case ls {
       Nil     → none
       Cons[c] →
         save a {
-          Some[find f ftot c.hd (fun _ { restore a (find2 f ftot c.tl) })]
+          Some[find f c.hd (fun _ { restore a (find2 f c.tl) })]
         }
     }
   }
 
 
-//val find_opt2 : ∀a:ο, ∀f∈(a ⇒ bool), total<f,a> ⇒ ∀l∈list<a>,
-//                ∃o:ι, option<a> | imp (exists f l) (notNone o) ≡ tru =
-//  fun f ftot l { save a { Some[find f ftot l (fun _ { restore a none })] } }
+// val find_opt2 : ∀a:ο, ∀f∈(a ⇒ bool), ∀l:ι, l∈list<a> →
+//                 ∃o:ι, option<a> | imp (exists f l) (notNone o) ≡ tru =
+//   fun f l {
+//      let test = total (exists f) l;
+//      if test {
+//       {-save a { Some[find f l (fun _ { restore a none })] -} }
+//      else { none }  }
