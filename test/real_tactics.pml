@@ -49,20 +49,12 @@ val rec add_comm : ∀n m∈nat, add n m ≡ add m n =
     }
   }
 
-val rec add_total : ∀n m∈nat, ∃v:ι, add n m ≡ v =
-  fun n m {
-    case n {
-      Zero[_] → {}
-      Succ[k] → add_total k m
-    }
-  }
-
 val rec add_asso : ∀n m p∈nat, add n (add m p) ≡ add (add n m) p =
   fun n m p {
-    let tot_m_p = add_total m p;
+    let tot_m_p = add m p;
     case n {
       Zero    → {}
-      Succ[k] → let tot_k_m = add_total k m;
+      Succ[k] → let tot_k_m = add k m;
                 let ih = add_asso k m p; {}
     }
   }
@@ -75,25 +67,16 @@ val rec mul_n_zero : ∀n∈nat, mul n Zero ≡ Zero =
     }
   }
 
-val rec mul_total : ∀n m∈nat, ∃v:ι, mul n m ≡ v =
-  fun n m {
-    case n {
-      Zero    → {}
-      Succ[k] → let ih = mul_total k m;
-                let lem = add_total m (mul k m); {}
-    }
-  }
-
 val rec mul_succ : ∀n m∈nat, mul n Succ[m] ≡ add (mul n m) n =
   fun n m {
     case n {
       Zero    → {}
       Succ[k] → let lem = mul_succ k m;
-                let tot = mul_total k m;
-                let tot = add_total m (mul k m);
+                let tot = mul k m;
+                let tot = add m (mul k m);
                 let lem = add_succ (add m (mul k m)) k;
                 let lem = add_asso m (mul k m) k;
-                let tot = mul_total k Succ[m]; {}
+                let tot = mul k Succ[m]; {}
     }
   }
 
@@ -103,7 +86,7 @@ val rec mul_comm : ∀n m∈nat, mul n m ≡ mul m n =
       Zero    → let lem = mul_n_zero m; {}
       Succ[k] → let ih  = mul_comm m k;
                 let lem = mul_succ m k;
-                let tot = mul_total k m;
+                let tot = mul k m;
                 let lem = add_comm (mul k m) m; {}
     }
   }
@@ -117,7 +100,7 @@ val rec mul_comm : ∀n m∈nat, mul n m ≡ mul m n =
                 let ih  : mul k m ≡ mul m k = mul_comm k m;
                 let lem : mul m Succ[k] ≡ add (mul m k) m =
                   mul_succ m k;
-                let tot : (∃v:ι, mul k m ≡ v) = mul_total k m;
+                let tot = mul k m;
                 let lem : add (mul k m) m ≡ add m (mul k m) =
                   add_comm (mul k m) m; {}
     }
@@ -134,7 +117,7 @@ val rec mul_comm : ∀n m∈nat, mul n m ≡ mul m n =
       Succ[k] → t_deduce<mul Succ[k] m ≡ add m (mul k m)>;
                 t_show<mul k m ≡ mul m k, mul_comm k m>;
                 t_show<mul m Succ[k] ≡ add (mul m k) m, mul_succ m k>;
-                t_show<(∃v:ι, mul k m ≡ v), mul_total k m>;
+                use mul k m;
                 t_show<add (mul k m) m ≡ add m (mul k m)
                       , add_comm (mul k m) m>
     }
@@ -148,7 +131,7 @@ val rec mul_comm : ∀n m∈nat, mul n m ≡ mul m n =
       Succ[k] → deduce mul Succ[k] m ≡ add m (mul k m);
                 show mul k m ≡ mul m k using mul_comm k m;
                 show mul m Succ[k] ≡ add (mul m k) m using mul_succ m k;
-                show ∃v:ι, mul k m ≡ v using mul_total k m;
+                use mul k m;
                 show add (mul k m) m ≡ add m (mul k m)
                   using add_comm (mul k m) m
     }
@@ -171,46 +154,16 @@ val rec length : ∀a:ο, list<a> ⇒ nat =
     case l { Nil → Zero | Cons[c] → Succ[length c.tl] }
   }
 
-// total<f,a> means that f is total on the domain a.
-def total<f:ι,a:ο> : ο = ∀x∈a, ∃v:ι, f x ≡ v
-
-val rec map_total : ∀a b:ο, ∀f∈(a ⇒ b), total<f,a>
-                    ⇒ ∀l∈list<a>, ∃v:ι, map f l ≡ v =
-  fun fn ft ls {
-    case ls {
-      Nil[_]  → {}
-      Cons[c] → let lem = ft c.hd;
-                let ih  = map_total fn ft c.tl; {}
-    }
-  }
-
-val rec length_total : ∀a:ο, ∀l∈list<a>, ∃v:ι, v ≡ length l =
-  fun l {
-    case l {
-      Nil[_]  → {}
-      Cons[c] → let ind = length_total c.tl; {}
-    }
-  }
-
-val compose_total : ∀a b c:ο, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c),
-                    total<f,a> ⇒ total<g,b> ⇒
-                    total<(fun x { g (f x) }), a> =
-  fun f g ftot gtot a {
-    let lem = ftot a;
-    let lem = gtot (f a); {}
-  }
-
 val map_map : ∀a b c:ο, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c),
-    total<f,a> ⇒ total<g,b> ⇒
     ∀l∈list<a>, map g (map f l) ≡ map (fun x { g (f x) }) l =
-  fun f g ftot gtot {
+  fun f g {
     fix fun map_map ls {
       case ls {
         Nil     → {}
         Cons[c] → let hd = c.hd; let tl = c.tl;
-                  let tgf = compose_total f g ftot gtot hd;
-                  let lem = ftot hd;
-                  let lem = map_total f ftot tl;
+                  let tgf = g (f hd);
+                  let lem = f hd;
+                  let lem = map f tl;
                   let ind = map_map tl; {}
       }
     }
@@ -222,7 +175,7 @@ val rec app : ∀a:ο, ∀m n:ι, vec<a, m> ⇒ vec<a, n> ⇒ vec<a, add m n> =
   fun l1 l2 {
     case l1 {
       Nil[_]  → l2
-      Cons[c] → let _ = length_total c.tl;
+      Cons[c] → let _ = length c.tl;
                 let r = app c.tl l2;
                 Cons[{hd = c.hd; tl = r}]
     }
@@ -231,7 +184,7 @@ val rec app : ∀a:ο, ∀m n:ι, vec<a, m> ⇒ vec<a, n> ⇒ vec<a, add m n> =
 val app3 : ∀a:ο, ∀m n p:ι, vec<a,m> ⇒ vec<a,n> ⇒ vec<a,p>
                            ⇒ vec<a, add m (add n p)> =
   fun l1 l2 l3 {
-    let lem = add_total (length l2) (length l3);
+    let lem = add (length l2) (length l3);
     app l1 (app l2 l3)
   }
 
@@ -278,28 +231,6 @@ val rec sorted : ∀a:ο, ∀o∈ord<a>, ∀l∈list<a>, bool =
 
 type slist<a:ο,o:τ> = ∃l:ι, l∈(list<a> | sorted o l ≡ true)
 
-val rec insert_total : ∀a:ο, ∀o∈ord<a>, ∀x∈a, ∀l∈list<a>,
-                       ∃v:ι, insert o x l ≡ v =
-  fun o x l {
-    case l {
-      Nil      → {}
-      Cons[c1] → let hd = c1.hd; let tl = c1.tl;
-                 let lem = o.tot x hd;
-                 if o.cmp x hd { {} }
-                 else { let ih = insert_total o x tl; {} }
-    }
-  }
-
-val rec isort_total :  ∀a:ο, ∀o∈ord<a>, ∀l∈list<a>,
-                       ∃v:ι, isort o l ≡ v =
-  fun o l {
-    case l {
-      Nil[_]  → {}
-      Cons[c] → let ih  = isort_total o c.tl;
-                let lem = insert_total o c.hd (isort o c.tl); {}
-    }
-  }
-
 val rec isorted : ∀a:ο, ∀o∈ord<a>, ∀x∈a, ∀l∈slist<a,o>,
                   sorted o (insert o x l) ≡ true =
   fun o x l {
@@ -314,7 +245,7 @@ val rec isorted : ∀a:ο, ∀o∈ord<a>, ∀x∈a, ∀l∈slist<a,o>,
          case c1.tl {
            Nil[_]   → {}
            Cons[c2] →
-             let lem = insert_total o x c2.tl;
+             let lem = insert o x c2.tl;
              let lem = o.tot c1.hd c2.hd;
              let lem = o.tot x c2.hd;
              if o.cmp c1.hd c2.hd {
@@ -331,7 +262,7 @@ val rec isort_sorted : ∀a:ο, ∀o∈ord<a>, ∀l∈list<a>,
   fun o l {
     case l {
       | Nil[_]  → {}
-      | Cons[c] → let lem = isort_total o c.tl;
+      | Cons[c] → let lem = isort o c.tl;
                    let ind = isort_sorted o c.tl;
                    let lem = isorted o c.hd (isort o c.tl); {}
     }
@@ -339,7 +270,7 @@ val rec isort_sorted : ∀a:ο, ∀o∈ord<a>, ∀l∈list<a>,
 
 val isort_full : ∀a:ο, ∀o∈ord<a>, list<a> ⇒ slist<a,o> =
   fun o l {
-    let tot = isort_total o l;
+    let tot = isort o l;
     let lem = isort_sorted o l;
     isort o l
   }
@@ -355,33 +286,36 @@ val rec exists : ∀a, (a ⇒ bool) ⇒ list<a> ⇒ bool =
 type bot = ∀x, x
 type neg<a> = a → bot
 
-val rec find : ∀a:ο, ∀pred∈(a ⇒ bool), total<pred,a> ⇒
+val total : ∀a b, ∀f∈a⇒b, ∀x∈a, ∃v:ι, v ∈ b | v ≡ f x =
+  fun f x { let y = f x; y }
+
+val rec find : ∀a:ο, ∀pred∈(a ⇒ bool),
                ∀l∈list<a>, neg<exists pred l ≡ false> → a =
-  fun pred pred_tot l exc {
+  fun pred l exc {
     case l {
       Nil[_]  → exc {}
-      Cons[c] → let lem = pred_tot c.hd;
-                if pred c.hd { c.hd } else { find pred pred_tot c.tl exc }
+      Cons[c] → let lem = total pred c.hd;
+                if pred c.hd { c.hd } else { find pred c.tl exc }
     }
   }
 
-val find_opt : ∀a:ο, ∀pred∈(a ⇒ bool), total<pred,a> ⇒
+val find_opt : ∀a:ο, ∀pred∈(a ⇒ bool),
                list<a> → option<a> =
-  fun pred pred_tot l {
+  fun pred l {
     save a {
-      some (find pred pred_tot l (fun _ { restore a none}))
+      some (find pred l (fun _ { restore a none}))
     }
   }
 
-val rec find_list : ∀a:ο, ∀pred∈(a ⇒ bool), total<pred,a> ⇒
+val rec find_list : ∀a:ο, ∀pred∈(a ⇒ bool),
                     list<list<a>> → option<a> =
-  fun pred pred_tot l {
+  fun pred l {
     case l {
       Nil     → none
       Cons[c] →
         save a {
-          some (find pred pred_tot c.hd (fun _ {
-              restore a (find_list pred pred_tot c.tl)
+          some (find pred c.hd (fun _ {
+              restore a (find_list pred c.tl)
             }))
         }
     }
