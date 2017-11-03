@@ -4,10 +4,11 @@ type tot = Unk of int * tot option ref
          | Any | Ter | Tot
 
 let rec norm = function
-  | Unk (_, ({ contents = Some t } as v)) -> let u = norm t in
-                                             if u != t then Timed.(v := Some u);
-                                             u
-  | t                                     -> t
+  | Unk (_, ({ contents = Some t } as v)) ->
+     let u = norm t in
+     if u != t then Timed.(v := Some u);
+     u
+  | t -> t
 
 let new_tot =
   let c = ref 0 in
