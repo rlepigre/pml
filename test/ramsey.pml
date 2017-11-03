@@ -1,6 +1,5 @@
 include lib.either
 include lib.nat
-include lib.stream
 
 type pro<a,b> = { fst : a; snd : b }
 
@@ -8,7 +7,7 @@ type col_t<f,a> = ∃v, v∈a | f v ≡ true
 type col_f<f,a> = ∃v, v∈a | f v ≡ false
 
 type sstream<o,a> = ν_o stream, {} → {hd : a; tl : stream}
-
+type stream<a> = sstream<∞,a>
 type stream_t<o,f,a> = sstream<o,col_t<f,a>>
 type stream_f<o,f,a> = sstream<o,col_f<f,a>>
 
@@ -71,23 +70,24 @@ val rec aux2 : ∀o1 o2, ∀a, ∀f∈color<a>,
     }
   }
 
-// val infinite_tape2 : ∀a, ∀f∈color<a>, stream<a>
-//                        → either<stream<a>,stream<a>> =
-//   fun f s {
-//     save a {
-//       InL[fun _ { save ct { restore a InR[fun _ { save cf {
-//                   aux2 f to_term<ct> to_term<cf> s }}]}}]
-//     }
-//   }
+val infinite_tape2 : ∀a, ∀f∈color<a>, stream<a>
+                       → either<stream<a>,stream<a>> =
+  fun f s {
+    let a such that s : stream<a>;
+    save k {
+      InL[fun _ { save ct { restore k InR[fun _ { save cf {
+                      aux2 f to_term<ct> to_term<cf> s }}]}}]
+    }
+  }
 
-// val ramsey2 : ∀a, ∀f∈(a ⇒ a ⇒ bool), stream<a>
-//                 ⇒ either<stream<a>,stream<a>> =
-//   fun f s {
-//     let a such that f : a ⇒ a ⇒ bool;
-//     let color1 : color<a> = fun a1 s {
-//       let color2 : color<a> = fun a2 s {
-//         if f a1 a2 { inl s } else { inr s } };
-//       infinite_tape2 color2 s // could use infinite_tape here
-//     };
-//     infinite_tape2 color1 s
-//   }
+val ramsey2 : ∀a, ∀f∈(a ⇒ a ⇒ bool), stream<a>
+                → either<stream<a>,stream<a>> =
+  fun f s {
+    let a such that f : a ⇒ a ⇒ bool;
+    let color1 : color<a> = fun a1 s {
+      let color2 : color<a> = fun a2 s {
+        if f a1 a2 { inl s } else { inr s } };
+      infinite_tape2 color2 s // could use infinite_tape here
+    };
+    infinite_tape2 color1 s
+  }
