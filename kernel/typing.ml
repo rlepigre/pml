@@ -244,7 +244,7 @@ let rec learn_neg_equivalences : ctxt -> valu -> term option -> prop -> ctxt =
     | Univ(s, f), _ -> let (t, ctx_names) = uwit ctx.ctx_names s twit f in
                        let ctx = { ctx with ctx_names } in
                        learn_neg_equivalences ctx wit arg (bndr_subst f t.elt)
-    | Func(t,a,b), Some arg -> (* TODO: CHECK: use t ? *)
+    | Func(t,a,b), Some arg ->
        begin
          match is_singleton a with
          | Some x -> let equations = learn ctx.equations (Equiv(arg,true,x)) in

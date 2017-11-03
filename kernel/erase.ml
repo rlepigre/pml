@@ -121,7 +121,7 @@ and to_term : e_term -> tbox = fun t ->
                     let x = copy_var x (name_of x) mk_svari in
                     to_term (subst b (mk_svari x))
                   in mabs None (Pos.none (binder_name b)) f
-  | TName(s,t) -> name None (to_stac s) (to_term t)
+  | TName(s,t) -> to_stac s (to_term t)
   | TProj(v,l) -> proj None (to_valu v) (Pos.none l)
   | TCase(v,m) -> let f b =
                     let f x =
@@ -136,18 +136,17 @@ and to_term : e_term -> tbox = fun t ->
                   fixy None (Pos.none (binder_name b)) f (to_valu v)
   | TPrnt(s)   -> prnt None s
 
-and to_stac : e_stac -> sbox = fun s ->
-  match s with
-  | SVari(a)   -> vari None (copy_var a (name_of a) (mk_free S))
-  | SEpsi      -> assert false (* TODO *)
-  | SPush(v,s) -> assert false (* TODO *)
-  | SFram(t,s) -> assert false (* TODO *)
+and to_stac : e_stac -> tbox -> tbox = fun s t ->
+  let rec fn s t =
+    match s with
+    | SVari(a)   -> name None (vari None (copy_var a (name_of a) (mk_free S))) t
+    | SEpsi      -> t
+    | SPush(v,s) -> fn s (appl None t (valu None (to_valu v)))
+    | SFram(u,s) -> fn s (appl None (to_term u) t)
+  in fn s t
 
 let to_valu : e_valu -> valu =
   fun v -> unbox (to_valu v)
 
 let to_term : e_term -> term =
   fun t -> unbox (to_term t)
-
-let to_stac : e_stac -> stac =
-  fun s -> unbox (to_stac s)
