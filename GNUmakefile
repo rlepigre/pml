@@ -145,7 +145,9 @@ libclean:
 	@find . -name \*.pmi -exec rm {} \;
 
 distclean: clean
-	@find . -name \*~ -or -name \#\* -or -name .\#\* -exec rm {} \;
+	@find . -type f -name "*~" -exec rm {} \;
+	@find . -type f -name \#\* -exec rm {} \;
+	@find . -type f -name .\#\* -exec rm {} \;
 	@rm -f pml2/config.ml
 
 # Install for the vim mode (in the user's directory).
