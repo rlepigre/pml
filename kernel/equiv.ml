@@ -841,9 +841,7 @@ let rec normalise : TPtr.t -> pool -> Ptr.t * pool =
            let (pt, po) = normalise pt po in
            let (pu, po) = normalise pu po in
            let (tp, po) = insert_appl pt pu po in
-           if TPtrSet.mem tp po.ns then
-             (Ptr.T_ptr tp, po)
-           else
+           (* NOTE: testing tp in po.ns seems incomplete *)
            let po = union (Ptr.T_ptr p) (Ptr.T_ptr tp) po in
            log2 "normalised in %a = TN_Appl: %a %a => %a"
                 TPtr.print p Ptr.print pt Ptr.print pu TPtr.print tp;
