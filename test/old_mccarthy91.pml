@@ -33,23 +33,19 @@ val lemma91 : ∀n∈nat, leq n u101 ≡ true ⇒ mccarthy91 n ≡ u91 =
 
 val mccarthy91_total : ∀n∈nat, ∃v:ι, v∈nat | mccarthy91 n ≡ v =
   fun n {
-    use leq_total n u101;
     if leq n u101 { // n ≤ 101
       use lemma91 n {};
       u91
     } else { // n > 101
-      use gt_total n u100;
       if gt n u100 { // n > 101 && n > 100
         deduce mccarthy91 n ≡ minus n u10;
-        use minus_total n u10;
+        use minus n u10;
         minus n u10
       } else { // n > 101 && n ≤ 100
         deduce leq n u101 ≡ false;
-        use compare_total n u101;
         show compare n u101 ≡ Gr using
           case compare n u101 { Ls → ✂ | Eq → ✂ | Gr → {} };
         deduce gt n u100 ≡ false;
-        use compare_total n u100;
         case compare n u100 {
           | Ls → deduce compare n u100 ≡ Ls;
                  deduce compare n S[u100] ≡ Gr;

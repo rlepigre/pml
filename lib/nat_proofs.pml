@@ -138,14 +138,10 @@ val rec mul_comm : ∀n m∈nat, mul n m ≡ mul m n =
 val rec mul_dist_l : ∀m n p∈nat, mul m (add n p) ≡ add (mul m n) (mul m p) =
   fun m n p {
     case m {
-      Zero → use add_total n p;
+      Zero → use add n p;
              deduce mul Zero (add n p) ≡ Zero;
              deduce add (mul Zero n) (mul Zero p) ≡ Zero;
              deduce mul Zero (add n p) ≡ add (mul Zero n) (mul Zero p);
-      Zero → use add n p;
-             deduce mul Z (add n p) ≡ Z;
-             deduce add (mul Z n) (mul Z p) ≡ Z;
-             deduce mul Z (add n p) ≡ add (mul Z n) (mul Z p);
              qed
       S[k] → show mul k (add n p) ≡ add (mul k n) (mul k p)
              using mul_dist_l k n p;
@@ -203,12 +199,12 @@ val rec mul_assoc : ∀m n p∈nat, mul m (mul n p) ≡ mul (mul m n) p =
   fun m n p {
     case m {
       Zero → use mul n p;
-             showing mul Z (mul n p) ≡ mul (mul Z n) p;
-             deduce mul Z (mul n p) ≡ Z;
-             showing Z ≡ mul (mul Z n) p;
-             deduce mul (mul Z n) p ≡ mul Z p;
-             deduce mul (mul Z n) p ≡ Z;
-             showing Z ≡ Z;
+             showing mul Zero (mul n p) ≡ mul (mul Zero n) p;
+             deduce mul Zero (mul n p) ≡ Zero;
+             showing Zero ≡ mul (mul Zero n) p;
+             deduce mul (mul Zero n) p ≡ mul Zero p;
+             deduce mul (mul Zero n) p ≡ Zero;
+             showing Zero ≡ Zero;
              qed
       S[k] → show mul k (mul n p) ≡ mul (mul k n) p using mul_assoc k n p;
              deduce add (mul n p) (mul k (mul n p))

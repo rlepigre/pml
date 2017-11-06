@@ -65,7 +65,7 @@ include test.stream_nat
 val rec take : ∀a, nat ⇒ stream<a> → list<a> =
   fun n s {
     case n {
-           | Z    → Nil
+           | Zero → Nil
            | S[k] → let c = s {};
                     let tl = take k c.tl;
                     Cons[{hd = c.hd; tl = tl}]
