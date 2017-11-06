@@ -133,7 +133,6 @@ val hard_lemma : ∀n∈nat, gt n u100 ≡ false ⇒ mccarthy91_hard n ≡ u91 =
 // Equiv
 val hard_is_easy : ∀n∈nat, mccarthy91_easy n ≡ mccarthy91_hard n =
   fun n {
-    //use gt_total n u100;
     if gt n u100 { // n > 100
       deduce mccarthy91_easy n ≡ minus n u10;
       deduce mccarthy91_hard n ≡ minus n u10;
