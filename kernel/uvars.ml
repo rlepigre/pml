@@ -81,6 +81,7 @@ let uvar_iter : type a. bool -> bool -> uvar_fun -> a ex loc -> unit =
                      uvar_iter v; A.iter fn m
     | FixY(f,v)   -> buvar_iter V f; uvar_iter v
     | Prnt(_)     -> ()
+    | Repl(t,u,a) -> uvar_iter t; uvar_iter u; uvar_iter a
     | Epsi        -> ()
     | Push(v,s)   -> uvar_iter v; uvar_iter s
     | Fram(t,s)   -> uvar_iter t; uvar_iter s

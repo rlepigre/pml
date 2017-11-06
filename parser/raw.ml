@@ -184,6 +184,7 @@ and raw_ex' =
   | ECase of raw_ex * flag * patt_ex list
   | EFixY of raw_ex
   | EPrnt of string
+  | ERepl of raw_ex * raw_ex * raw_ex
   | ECoer of raw_ex * raw_ex
   | ESuch of (strloc * raw_sort) ne_list * (strloc option * raw_ex) * raw_ex
 
@@ -241,6 +242,8 @@ let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
                          (print_list aux_patt "; ") l
     | EFixY(t)      -> Printf.fprintf ch "EFixY(%a)" print t
     | EPrnt(s)      -> Printf.fprintf ch "EPrnt(%S)" s
+    | ERepl(t,u,a)  -> Printf.fprintf ch "ERepl(%a,%a,%a)"
+                         print t print u print a
     | ECoer(t,a)    -> Printf.fprintf ch "ECoer(%a,%a)" print t print a
     | ESuch(vs,j,u) -> let x = Option.default (Pos.none "_") (fst j) in
                        Printf.fprintf ch "ESuch(%a,%s,%a,%a)"
@@ -570,6 +573,14 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
     | (EFixY(_)     , _        ) -> sort_clash e s
     | (EPrnt(_)     , ST       ) -> ()
     | (EPrnt(_)     , _        ) -> sort_clash e s
+    | (ERepl(t,u,p) , ST       ) -> infer env vars t _st;
+                                    infer env vars u _st;
+                                    infer env vars p _st
+    | (ERepl(t,u,p) , SUni(r)  ) -> sort_uvar_set r _st;
+                                    infer env vars t _st;
+                                    infer env vars u _st;
+                                    infer env vars p _st
+    | (ERepl(_,_,_) , _        ) -> sort_clash e s
     | (ECoer(t,a)   , SV _     )
     | (ECoer(t,a)   , ST       )
     | (ECoer(t,a)   , SUni(_)  ) -> infer env vars t s; infer env vars a _sp
@@ -961,6 +972,11 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
         Box(T, valu e.pos v)
     | (EPrnt(s)     , ST       ) ->
         Box(T, prnt e.pos s)
+    | (ERepl(t,u,p) , ST       ) ->
+        let t = to_term (unsugar env vars t _st) in
+        let u = to_term (unsugar env vars u _st) in
+        let p = to_term (unsugar env vars p _st) in
+        Box(T, repl e.pos t u p)
     (* Type annotations. *)
     | (ECoer(v,a)   , SV _     ) ->
         let v = to_valu (unsugar env vars v s) in

@@ -127,6 +127,7 @@ type typ_rule =
   | Typ_Ind    of fix_schema * sub_proof
   | Typ_Goal   of string
   | Typ_Prnt   of sub_proof
+  | Typ_Repl   of typ_proof * typ_proof
 
 and  stk_rule =
   | Stk_Push   of sub_rule * typ_proof * stk_proof
@@ -1154,6 +1155,15 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
         let a = unbox (strict_prod None A.empty) in
         let p = gen_subtype ctx a c in
         Typ_Prnt((t, a, c, p))
+    (* Replacement. *)
+    | Repl(t,u,p) ->
+        let p1 = type_term ctx u c in
+        let eq =
+          let un = unbox (strict_prod None A.empty) in
+          Pos.none (Rest(un,Equiv(t,true,u)))
+        in
+        let p2 = type_term ctx p eq in
+        Typ_Repl(p1,p2)
     (* Constructors that cannot appear in user-defined terms. *)
     | TPtr(_)     -> unexpected "TPtr during typing..."
     | FixY(_,_)   -> unexpected "Fixpoint at the toplevel..."

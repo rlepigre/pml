@@ -107,6 +107,7 @@ type _ ex =
   (** Printing instruction. *)
   | TPtr : TPtr.t                                    -> t  ex
   (** Pointer in the pool. *)
+  | Repl : t ex loc * t ex loc * t ex loc            -> t  ex
 
   (* Stack constructors. *)
 
@@ -411,6 +412,9 @@ let fixy : popt -> strloc -> (vvar -> tbox) -> vbox -> tbox =
 let prnt : popt -> string -> tbox =
   fun p s -> box (Pos.make p (Prnt(s)))
 
+let repl : popt -> tbox -> tbox -> tbox -> tbox =
+  fun p -> box_apply3 (fun t u pr -> Pos.make p (Repl(t,u,pr)))
+
 (** {5 Type annotation constructors} *)
 
 let coer : type a. popt -> a v_or_t -> a box -> pbox -> a box =
@@ -618,6 +622,7 @@ let rec sort : type a b. a ex loc ->  a sort * a ex loc= fun e ->
   | Coer(VoT_T,_,_) -> (T,e)
   | Such(VoT_T,_,_) -> (T,e)
   | TPtr _          -> (T,e)
+  | Repl(_,_,_)     -> (T,e)
 
   | Epsi            -> (S,e)
   | Push _          -> (S,e)

@@ -51,6 +51,7 @@ let parser llid_wc =
   | '_'    -> in_pos _loc "_"
 
 (* Keywords. *)
+let _because_ = Keyword.create "because"
 let _bool_    = Keyword.create "bool"
 let _case_    = Keyword.create "case"
 let _check_   = Keyword.create "check"
@@ -60,6 +61,7 @@ let _def_     = Keyword.create "def"
 let _else_    = Keyword.create "else"
 let _false_   = Keyword.create "false"
 let _fix_     = Keyword.create "fix"
+let _for_     = Keyword.create "for"
 let _fun_     = Keyword.create "fun"
 let _if_      = Keyword.create "if"
 let _include_ = Keyword.create "include"
@@ -327,6 +329,10 @@ let parser expr @(m : mode) =
   | _if_ c:term '{' t:term '}' e:{_:_else_ '{' term '}'}?
       when m <<= Trm A
       -> if_then_else _loc c t e
+  (* Term (replacement) *)
+  | _check_ u:term _for_ t:term _because_ p:(expr (Trm R))
+      when m <<= Trm R
+      -> in_pos _loc (ERepl(t,u,p))
   (* Term ("deduce" tactic) *)
   | _deduce_ a:prop$
       when m <<= Trm A

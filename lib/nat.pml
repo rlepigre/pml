@@ -63,6 +63,25 @@ val rec minus : nat ⇒ nat ⇒ nat =
     }
   }
 
+//// Number constants ////////////////////////////////////////////////////////
+
+val u0   : nat = zero
+val u1   : nat = succ u0
+val u2   : nat = succ u1
+val u3   : nat = succ u2
+val u4   : nat = succ u3
+val u5   : nat = succ u4
+val u6   : nat = succ u5
+val u7   : nat = succ u6
+val u8   : nat = succ u7
+val u9   : nat = succ u8
+val u10  : nat = succ u9
+val u11  : nat = succ u10
+val u90  : nat = mul u10 u9
+val u91  : nat = succ u90
+val u100 : nat = mul u10 u10
+val u101 : nat = succ u100
+
 //// Comparison and equality /////////////////////////////////////////////////
 
 // Comparison function.

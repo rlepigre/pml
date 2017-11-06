@@ -136,6 +136,7 @@ let rec ex : type a. a ex loc printer = fun ch e ->
                    fprintf ch "Y(λ%s.%a, %a)" (name_of x)
                      ex t ex v
   | Prnt(s)     -> fprintf ch "print(%S)" s
+  | Repl(t,u,_) -> fprintf ch "(check %a for %a)" ex t ex u
   | Epsi        -> output_string ch "ε"
   | Push(v,s)   -> fprintf ch "%a · %a" ex v ex s
   | Fram(t,s)   -> fprintf ch "[%a] %a" ex t ex s

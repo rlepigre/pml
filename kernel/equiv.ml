@@ -698,6 +698,7 @@ let rec add_term : bool -> pool -> term -> TPtr.t * pool = fun safe po t ->
                    in
                    (ty, po)
   | Prnt(s)     -> insert_t_node (TN_Prnt(s)) po
+  | Repl(_,u,_) -> add_term po u
   | Coer(_,t,_) -> add_term po t
   | Such(_,_,r) -> add_term po (bseq_dummy r.binder)
   | UWit(w)     -> insert_t_node (TN_UWit(w)) po

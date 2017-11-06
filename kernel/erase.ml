@@ -61,6 +61,7 @@ and     term_erasure : term -> e_tbox = fun t ->
                      term_erasure (bndr_subst b (mk_free V x))
                    in tfixy (binder_name (snd b)) f (valu_erasure v)
   | Prnt(s)     -> tprnt s
+  | Repl(t,_,_) -> term_erasure t
   | Coer(_,t,_) -> term_erasure t
   | Such(_,_,r) -> term_erasure (bseq_dummy r.binder)
   | TPtr(_)     -> erasure_error "a pool pointer cannot be erased (term)"

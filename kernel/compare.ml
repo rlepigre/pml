@@ -246,6 +246,8 @@ let {eq_expr; eq_bndr} =
     | (Conv          , Conv          ) -> true
     | (Succ(o1)      , Succ(o2)      ) -> eq_expr o1 o2
     (* NOTE type annotations ignored. *)
+    | (Repl(_,u1,_)  , _             ) -> eq_expr u1 e2
+    | (_             , Repl(_,u2,_)  ) -> eq_expr e1 u2
     | (Coer(_,e1,_)  , _             ) -> eq_expr e1 e2
     | (_             , Coer(_,e2,_)  ) -> eq_expr e1 e2
     | (Such(_,_,r)   , _             ) -> eq_expr (bseq_dummy r.binder) e2
@@ -446,6 +448,7 @@ let {hash_expr; hash_bndr; hash_ombinder; hash_vwit
                             (A.hash (fun (_,e) -> (hash_bndr V e)) m)
     | FixY(f,v)   -> hash (`FixY (hash_bndr V f, hash_expr v))
     | Prnt(s1)    -> khash1 `Prnt (hash s1)
+    | Repl(t,u,a) -> khash3 `Repl (hash_expr t) (hash_expr u) (hash_expr a)
     | Epsi        -> hash `Epsi
     | Push(v,s)   -> khash2 `Push (hash_expr v) (hash_expr s)
     | Fram(t,s)   -> khash2 `Fram (hash_expr t) (hash_expr s)
