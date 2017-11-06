@@ -164,7 +164,7 @@ val mem_aux : ∀a:ο, (a⇒a⇒cmp) ⇒ a => add23<a> => bool =
 val rec height : ∀a:ο, tree23<a> ⇒ nat ⇒ bool =
   fun t n {
     case n {
-    | Z    →
+    | Zero →
       case t {
       | E     → true
       | N2[_] → false
@@ -180,7 +180,7 @@ val rec height : ∀a:ο, tree23<a> ⇒ nat ⇒ bool =
 val rec height_total : ∀a:ο, ∀t∈tree23<a>, ∀n∈nat, ∃v:ι, height t n ≡ v =
   fun t n {
     case n {
-    | Z    →
+    | Zero →
       case t {
       | E     → {}
       | N2[_] → {}
@@ -226,7 +226,7 @@ val add_height_aux : ∀a:ο, ∀f∈(a⇒a⇒cmp), cmp_total<f,a> ⇒ ∀x∈a,
       | E     → {}
       | N2[c] →
          let _ = ft x c.x;
-         case n { Z → ✂ | S[p] →
+         case n { Zero → ✂ | S[p] →
          let _ = height_total c.l p;
          let _ = height_total c.r p;
          let _ = height_total t n;
@@ -252,7 +252,7 @@ val add_height_aux : ∀a:ο, ∀f∈(a⇒a⇒cmp), cmp_total<f,a> ⇒ ∀x∈a,
       | N3[c] →
          let _ = ft x c.x;
          let _ = ft x c.y;
-         case n { Z → ✂ | S[p] →
+         case n { Zero → ✂ | S[p] →
          let _ = height_total c.l p;
          let _ = height_total c.m p;
          let _ = height_total c.r p;

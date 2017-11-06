@@ -5,10 +5,10 @@ include lib.either
 val rec is_odd : nat ⇒ bool =
   fun n {
     case n {
-      Z    → false
+      Zero → false
       S[p] →
         case p {
-          Z    → true
+          Zero → true
           S[p] → is_odd p
         }
     }
@@ -17,10 +17,10 @@ val rec is_odd : nat ⇒ bool =
 val rec odd_total : ∀n∈nat, ∃v:ι, is_odd n ≡ v =
   fun n {
     case n {
-      Z    → {}
+      Zero → {}
       S[p] →
         case p {
-          Z    → {}
+          Zero → {}
           S[p] → odd_total p
         }
     }
@@ -68,10 +68,10 @@ val test : nat ⇒ {} =
     }
   }
 
-val test0 : {} = test Z
-val test1 : {} = test S[Z]
-val test2 : {} = test S[S[Z]]
-val test3 : {} = test S[S[S[Z]]]
-val test4 : {} = test S[S[S[S[Z]]]]
-val test5 : {} = test S[S[S[S[S[Z]]]]]
-val test6 : {} = test S[S[S[S[S[S[Z]]]]]]
+val test0 : {} = test u0
+val test1 : {} = test u1
+val test2 : {} = test u2
+val test3 : {} = test u3
+val test4 : {} = test u4
+val test5 : {} = test u5
+val test6 : {} = test u6

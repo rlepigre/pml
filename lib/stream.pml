@@ -30,7 +30,7 @@ include lib.list
 val rec take : ∀a, nat ⇒ stream<a> ⇒ list<a> =
   fun n s {
     case n {
-           | Z    → Nil
+           | Zero → Nil
            | S[k] → let c = s {};
                     let tl = take k c.tl;
                     Cons[{hd = c.hd; tl = tl}]
@@ -39,11 +39,11 @@ val rec take : ∀a, nat ⇒ stream<a> ⇒ list<a> =
 
 // Stream of zeroes.
 val rec zeroes : stream<nat> =
-  fun _ { {hd = Z; tl = zeroes} }
+  fun _ { {hd = Zero; tl = zeroes} }
 
 // Stream of the natural numbers starting at n.
 val rec naturals_from : nat ⇒ stream<nat> =
   fun n _ { {hd = n; tl = naturals_from S[n]} }
 
 // Stream of the natural numbers.
-val naturals : stream<nat> = naturals_from Z
+val naturals : stream<nat> = naturals_from Zero

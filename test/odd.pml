@@ -3,10 +3,10 @@ include lib.nat
 val rec is_odd : nat ⇒ bool =
   fun n {
     case n {
-      Z    → false
+      Zero → false
       S[p] →
         case p {
-          Z    → true
+          Zero → true
           S[p] → is_odd p
         }
     }
@@ -21,7 +21,7 @@ val evens_to_nat : evens ⇒ nat = fun x { x }
 val rec mul2 : nat ⇒ evens =
   fun n {
     case n {
-      Z    → Z
+      Zero → Zero
       S[p] → let r : evens = mul2 p; S[S[r]]
     }
   }
@@ -29,10 +29,10 @@ val rec mul2 : nat ⇒ evens =
 val rec succ_even : ∀n∈evens, is_odd S[n] ≡ true =
   fun n {
     case n {
-      Z    → {}
+      Zero → {}
       S[p] →
         case p {
-          Z    → ✂
+          Zero → ✂
           S[r] → succ_even r
         }
     }
@@ -41,10 +41,10 @@ val rec succ_even : ∀n∈evens, is_odd S[n] ≡ true =
 val rec succ_even_unrelevant : ∀n∈evens, succ_even n ≡ {} =
   fun n {
     case n {
-      Z    → {}
+      Zero → {}
       S[p] →
         case p {
-          Z    → ✂
+          Zero → ✂
           S[r] → succ_even_unrelevant r
         }
     }
@@ -55,10 +55,10 @@ val blop : ∀n∈evens, {} = succ_even_unrelevant
 val rec succ_odd  : ∀n∈odds , is_odd S[n] ≡ false =
   fun n {
     case n {
-      Z    → ✂
+      Zero → ✂
       S[p] →
         case p {
-          Z    → {}
+          Zero → {}
           S[r] → succ_odd r
         }
     }

@@ -10,18 +10,18 @@ val rec print_nat_list : list<nat> ⇒ {} =
     }
   }
 
-val test0 : {} = print_nat_list (take Z                naturals)
-val test1 : {} = print_nat_list (take S[Z]             naturals)
-val test2 : {} = print_nat_list (take S[S[Z]]          naturals)
-val test3 : {} = print_nat_list (take S[S[S[Z]]]       naturals)
-val test4 : {} = print_nat_list (take S[S[S[S[Z]]]]    naturals)
-val test5 : {} = print_nat_list (take S[S[S[S[S[Z]]]]] naturals)
+val test0 : {} = print_nat_list (take u0 naturals)
+val test1 : {} = print_nat_list (take u1 naturals)
+val test2 : {} = print_nat_list (take u2 naturals)
+val test3 : {} = print_nat_list (take u3 naturals)
+val test4 : {} = print_nat_list (take u4 naturals)
+val test5 : {} = print_nat_list (take u5 naturals)
 
 // Stream of the natural numbers.
 val naturals : stream<nat> =
   let rec aux : nat ⇒ stream<nat> =
     fun i _ { {hd = i; tl = aux S[i]} };
-  aux Z
+  aux Zero
 
 type sstream<o,a> = ν_o stream, {} ⇒ {hd : a; tl : stream}
 
@@ -57,5 +57,5 @@ val cons : ∀o, ∀a, a ⇒ sstream<o+1,a> ⇒ sstream<o,a> =
 // Stream of the natural numbers.
 val rec naturals : stream<nat> =
   fun _ {
-    {hd = Z; tl = map succ naturals}
+    {hd = Zero; tl = map succ naturals}
   }

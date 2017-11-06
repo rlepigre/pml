@@ -8,21 +8,21 @@ def total<f,a:ο> = ∀x∈a, ∃w:ι, f x ≡ w
 
 type bot = ∀x:ο,x
 
-type snat<o> = μ_o nat, [ Z ; S of nat ]
+type snat<o> = μ_o nat, [ Zero ; S of nat ]
 
 val rec leq_size : ∀o, ∀m∈snat<o+1>, ∀n∈nat, either<leq m n ≡ true, n∈snat<o>> =
   fun m n {
     case m {
-      Z → case n {
-          Z    → InL
+      Zero → case n {
+          Zero → InL
           S[n] → InL
         }
       S[m] →
         case n {
-          Z  → InR[Z]
+          Zero → InR[Zero]
           S[n] →
             case m {  // case for n because leq use compare
-              Z     → case n { Z → InL | S[_] → InL}
+              Zero  → case n { Zero → InL | S[_] → InL}
               S[m'] →
                 case leq_size S[m'] n {
                   InL    → InL
@@ -50,7 +50,7 @@ val minimum_principle : ∀f∈(nat ⇒ nat), total<f,nat> ⇒ ∃n∈nat, min<n
   fun f ft {
     save s {
       let k : ∀n∈ nat, min<n,f> ⇒ bot = fun n mi { restore s (n, mi) };
-      use ft Z;
-      fn f ft Z (f Z) k
+      use ft Zero;
+      fn f ft Zero (f Zero) k
     }
   }

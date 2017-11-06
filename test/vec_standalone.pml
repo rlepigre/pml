@@ -3,7 +3,7 @@ include lib.nat
 val rec add_total : ∀n m∈nat, ∃v:ι, add n m ≡ v =
   fun n m {
     case n {
-      Z    → {}
+      Zero → {}
       S[p] → add_total p m
     }
   }

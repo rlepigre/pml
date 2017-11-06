@@ -1,10 +1,10 @@
 // Unary natural numbers.
 
 // The type of unary natural numbers.
-type rec nat = [Z ; S of nat]
+type rec nat = [Zero ; S of nat]
 
 // Smart constructors for zero and the successor.
-val zero : nat = Z
+val zero : nat = Zero
 val succ : nat ⇒ nat = fun n { S[n] }
 
 // Usual numbers.
@@ -18,17 +18,17 @@ val pred : [S of nat] ⇒ nat = fun n { case n { S[p] → p } }
 
 // Predecessor function with value zero in zero.
 val full_pred : nat ⇒ nat =
-  fun n { case n { Z → zero | S[n] → n } }
+  fun n { case n { Zero → zero | S[n] → n } }
 
 // Test to zero.
 val is_zero : nat ⇒ bool =
-  fun n { case n { Z → true | S[_] → false } }
+  fun n { case n { Zero → true | S[_] → false } }
 
 // Addition function.
 val rec add : nat ⇒ nat ⇒ nat =
   fun n m {
     case n {
-      Z    → m
+      Zero → m
       S[k] → succ (add k m)
     }
   }
@@ -37,7 +37,7 @@ val rec add : nat ⇒ nat ⇒ nat =
 val rec mul : nat ⇒ nat ⇒ nat =
   fun n m {
     case n {
-      Z    → zero
+      Zero → zero
       S[k] → add m (mul k m)
     }
   }
@@ -46,7 +46,7 @@ val rec mul : nat ⇒ nat ⇒ nat =
 val rec exp : nat ⇒ nat ⇒ nat =
   fun n m {
     case m {
-      Z    → one
+      Zero → one
       S[k] → mul n (exp n k)
     }
   }
@@ -55,9 +55,9 @@ val rec exp : nat ⇒ nat ⇒ nat =
 val rec minus : nat ⇒ nat ⇒ nat =
   fun n m {
     case n {
-      Z    → zero
+      Zero → zero
       S[p] → case m {
-        Z    → n
+        Zero → n
         S[q] → minus p q
       }
     }
@@ -88,12 +88,12 @@ val u101 : nat = succ u100
 val rec compare : nat ⇒ nat ⇒ [Ls ; Eq ; Gr] =
   fun n m {
     case n {
-      Z    → case m {
-        Z    → Eq
+      Zero → case m {
+        Zero → Eq
         S[_] → Ls
       }
       S[n] → case m {
-        Z    → Gr
+        Zero → Gr
         S[m] → compare n m
       }
     }
@@ -125,9 +125,9 @@ val gt : nat ⇒ nat ⇒ bool =
 val rec ack : nat ⇒ nat ⇒ nat =
   fun m n {
     case m {
-      Z    → succ n
+      Zero → succ n
       S[p] → case n {
-        Z    → ack p one
+        Zero → ack p one
         S[q] → ack p (ack m q)
       }
     }
@@ -137,9 +137,9 @@ val rec ack : nat ⇒ nat ⇒ nat =
 val rec fact : nat ⇒ nat =
   fun n {
     case n {
-      Z    → zero
+      Zero → zero
       S[k] → case k {
-        Z    → one
+        Zero → one
         S[_] → mul n (fact k)
       }
     }
@@ -149,7 +149,7 @@ val rec fact : nat ⇒ nat =
 val rec print_nat : nat ⇒ {} =
   fun n {
     case n {
-      Z    → print "Z"
+      Zero → print "0"
       S[k] → print "S"; print_nat k
     }
   }
