@@ -90,6 +90,7 @@ pml2_byte: _build/pml2/main.byte
 
 main.byte: _build/pml2/main.byte
 main.native: _build/pml2/main.native
+main.p.native: _build/pml2/main.p.native
 
 pml2/config.ml: GNUmakefile
 	@echo "let path = [\"$(LIBDIR)/pml2\"]" > $@
@@ -103,6 +104,10 @@ _build/pml2/main.native: $(ML_FILES)
 _build/pml2/main.byte: $(ML_FILES)
 	@rm -f main.byte
 	$(OCAMLBUILD) pml2/main.byte
+
+_build/pml2/main.p.native: $(ML_FILES)
+	@rm -f main.byte
+	$(OCAMLBUILD) -cflags -ccopt,-no-pie -lflags -ccopt,-no-pie pml2/main.p.native
 
 # Checks on the source code.
 check:
