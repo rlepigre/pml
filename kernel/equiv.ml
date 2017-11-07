@@ -586,20 +586,20 @@ let insert_v_node : v_node -> pool -> VPtr.t * pool = fun nn po ->
     | [] ->
        let fn p (_,n) = if eq_v_nodes po n nn then raise (FoundV (p,po)) in
        VPtrMap.iter fn po.vs; raise Not_found
-    | n::_ ->
-       let rec fn up po n = match n with
+    | n::l ->
+       let rec fn po n = match n with
          | Ptr.V_ptr n ->
-            if eq_v_nodes po (snd (find_v_node n po)) nn
-            then raise (FoundV (n,po))
-        | Ptr.T_ptr n ->
-            let (pps, node) = find_t_node n po in
-            match node with
-            | TN_Valu _ when up ->
-               PtrSet.iter (fn false po) pps
-            | _ -> ()
+            let (_, node) = find_v_node n po in
+            if eq_v_nodes po node nn then raise (FoundV (n,po))
+         | Ptr.T_ptr n -> ()
        in
        let (n, po) = find n po in
-       PtrSet.iter (fn true po) (parents n po);
+       let inter (acc,po) n =
+           let (n, po) = find n po in
+           (PtrSet.inter (parents n po) acc, po)
+       in
+       let (possible, po) = List.fold_left inter (parents n po, po) l in
+       PtrSet.iter (fn po) possible;
        raise Not_found
   with
   | FoundV(p,po) -> (p, po)
@@ -621,20 +621,20 @@ let insert_t_node : t_node -> pool -> TPtr.t * pool = fun nn po ->
     | [] ->
        let fn p (_,n) = if eq_t_nodes po n nn then raise (FoundT (p,po)) in
        TPtrMap.iter fn po.ts; raise Not_found
-    | n::_ ->
-       let rec fn up po n = match n with
+    | n::l ->
+       let rec fn po n = match n with
          | Ptr.V_ptr _ -> ()
          | Ptr.T_ptr n ->
-            let (pps, node) = find_t_node n po in
-            if eq_t_nodes po (snd (find_t_node n po)) nn
-            then raise (FoundT (n,po));
-            match node with
-            | TN_Valu _ when up ->
-               PtrSet.iter (fn false po) pps
-            | _ -> ()
+            let (_, node) = find_t_node n po in
+            if eq_t_nodes po node nn then raise (FoundT (n,po));
        in
        let (n, po) = find n po in
-       PtrSet.iter (fn true po) (parents n po);
+       let inter (acc,po) n =
+           let (n, po) = find n po in
+           (PtrSet.inter (parents n po) acc, po)
+       in
+       let (possible, po) = List.fold_left inter (parents n po, po) l in
+       PtrSet.iter (fn po) possible;
        raise Not_found
   with
   | FoundT(p, po) -> (p, po)
