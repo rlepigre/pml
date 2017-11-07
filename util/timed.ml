@@ -1,17 +1,20 @@
 module Time =
   struct
-    type t = { mutable next : t option ; undo : unit -> unit }
+    type t = { mutable next : u ; undo : unit -> unit }
+
+     and u = Current | Past of t | Invalid
 
     let current : t ref =
-      ref { next = None ; undo = (fun () -> ()) }
+      ref { next = Current ; undo = (fun () -> ()) }
 
     let save : unit -> t = fun () -> !current
 
     let rollback : t -> unit = fun t ->
       let rec fn = function
-        | None   -> ()
-        | Some t -> fn t.next; t.undo (); t.next <- None
-      in fn t.next; t.next <- None; current := t
+        | Current -> ()
+        | Past  t -> fn t.next; t.undo (); t.next <- Invalid
+        | Invalid -> failwith "rollback: invalid time"
+      in fn t.next; t.next <- Current; current := t
   end
 
 let (<<) : 'a ref -> 'a -> unit = (:=)
@@ -19,8 +22,8 @@ let (<<) : 'a ref -> 'a -> unit = (:=)
 let (:=) : 'a ref -> 'a -> unit = fun r v ->
   let open Time in
   let v0 = !r in
-  let t = { next = None; undo = (fun () -> r := v0) } in
-  !current.next <- Some t; current := t; r := v
+  let t = { next = Current; undo = (fun () -> r := v0) } in
+  !current.next <- Past t; current := t; r := v
 
 let incr : int ref -> unit = fun r -> r := !r + 1
 let decr : int ref -> unit = fun r -> r := !r - 1
@@ -47,3 +50,11 @@ let pure_test : ('a -> bool) -> 'a -> bool = fun f v ->
     if not r then Time.rollback t; r
   with e ->
     Time.rollback t; raise e
+
+(*
+type 'a tref = Time.t * 'a ref
+
+let get (t,r) =
+  Time.rollback t;
+  !r
+*)
