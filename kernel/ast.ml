@@ -10,24 +10,25 @@ module M = Map.Make(String)
 module A = Assoc
 
 (** Poll inside terms *)
+type v_ptr = { vadr : int; vlnk : ptr option Timed.tref }
+and  t_ptr = { tadr : int; tlnk : ptr option Timed.tref }
+and  ptr   = V_ptr of v_ptr | T_ptr of t_ptr
+
 (** Module for pointers on a value node of the graph. *)
 module VPtr =
   struct
-    type t = V of int
-    let compare (V i) (V j) = i - j
-    let print ch (V i) = Printf.fprintf ch "%i" i
+    type t = v_ptr
+    let compare i j = i.vadr - j.vadr
+    let print ch i = Printf.fprintf ch "%i" i.vadr
   end
-module VPtrMap = Map.Make(VPtr)
-module VPtrSet = Set.Make(VPtr)
 
 (** Module for pointers on a term node of the graph. *)
 module TPtr =
   struct
-    type t = T of int
-    let compare (T i) (T j) = i - j
-    let print ch (T i) = Printf.fprintf ch "%i" i
+    type t = t_ptr
+    let compare i j = i.tadr - j.tadr
+    let print ch i = Printf.fprintf ch "%i" i.tadr
   end
-module TPtrMap = Map.Make(TPtr)
 
 (** {6 Main abstract syntax tree type} *)
 
@@ -84,7 +85,7 @@ type _ ex =
   (** PML scisors. *)
   | VDef : value                                     -> v  ex
   (** Definition of a value. *)
-  | VPtr : VPtr.t                                    -> v  ex
+  | VPtr : v_ptr                                     -> v  ex
   (** Pointer in the pool. *)
 
   (* Term constructors. *)
@@ -105,7 +106,7 @@ type _ ex =
   (** Fixpoint combinator Y(λx.t, v). *)
   | Prnt : string                                    -> t  ex
   (** Printing instruction. *)
-  | TPtr : TPtr.t                                    -> t  ex
+  | TPtr : t_ptr                                     -> t  ex
   (** Pointer in the pool. *)
   | Repl : t ex loc * t ex loc * t ex loc            -> t  ex
 
