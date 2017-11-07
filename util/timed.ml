@@ -9,11 +9,13 @@ module Time =
 
     let save : unit -> t = fun () -> !current
 
+    exception Bad_time
+
     let rollback : t -> unit = fun t ->
       let rec fn = function
         | Current -> ()
         | Past  t -> fn t.next; t.undo (); t.next <- Invalid
-        | Invalid -> failwith "rollback: invalid time"
+        | Invalid -> raise Bad_time
       in fn t.next; t.next <- Current; current := t
   end
 
@@ -51,10 +53,10 @@ let pure_test : ('a -> bool) -> 'a -> bool = fun f v ->
   with e ->
     Time.rollback t; raise e
 
-(*
-type 'a tref = Time.t * 'a ref
+type 'a tref = 'a ref
 
-let get (t,r) =
-  Time.rollback t;
-  !r
-*)
+let tref x = ref x
+
+let get t r = Time.rollback t; !r
+
+let set r v = r := v; Time.save ()

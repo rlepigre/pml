@@ -16,8 +16,11 @@ module Time :
     (** Save the current execution time. *)
     val save : unit -> t
 
+    exception Bad_time
+
     (** Rollback all the reference updates that were issued since the
-        provided time. *)
+        provided time. Raise the exception [Time.Bad_time] if you
+        rollback to a time that was already undone. *)
     val rollback : t -> unit
   end
 
@@ -49,3 +52,15 @@ val pure_apply : ('a -> 'b) -> 'a -> 'b
 (** Apply the given test function to the given argument and rollback
     possible changes ONLY if the value [false] is returned. *)
 val pure_test : ('a -> bool) -> 'a -> bool
+
+(** A timed ref, this ref needs a time to be accessed. *)
+type 'a tref = 'a ref
+
+(** creation of a tref *)
+val tref : 'a -> 'a tref
+
+(** A access a 'a tref with rollback before *)
+val get : Time.t -> 'a tref -> 'a
+
+(** Update a 'a tref and return the current time *)
+val set : 'a tref -> 'a -> Time.t
