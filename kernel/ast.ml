@@ -14,6 +14,9 @@ type v_ptr = { vadr : int; vlnk : ptr option Timed.tref }
 and  t_ptr = { tadr : int; tlnk : ptr option Timed.tref }
 and  ptr   = V_ptr of v_ptr | T_ptr of t_ptr
 
+(** Second time for uvar *)
+module UTimed = Timed.Make(Timed.Time)
+
 (** Module for pointers on a value node of the graph. *)
 module VPtr =
   struct
