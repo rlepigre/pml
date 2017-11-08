@@ -5,33 +5,12 @@ open Extra
 open Bindlib
 open Sorts
 open Pos
-
-module M = Map.Make(String)
-module A = Assoc
-
-(** Poll inside terms *)
-type v_ptr = { vadr : int; vlnk : ptr option Timed.tref }
-and  t_ptr = { tadr : int; tlnk : ptr option Timed.tref }
-and  ptr   = V_ptr of v_ptr | T_ptr of t_ptr
+open Ptr
 
 (** Second time for uvar *)
 module UTimed = Timed.Make(Timed.Time)
-
-(** Module for pointers on a value node of the graph. *)
-module VPtr =
-  struct
-    type t = v_ptr
-    let compare i j = i.vadr - j.vadr
-    let print ch i = Printf.fprintf ch "%i" i.vadr
-  end
-
-(** Module for pointers on a term node of the graph. *)
-module TPtr =
-  struct
-    type t = t_ptr
-    let compare i j = i.tadr - j.tadr
-    let print ch i = Printf.fprintf ch "%i" i.tadr
-  end
+module M = Map.Make(String)
+module A = Assoc
 
 (** {6 Main abstract syntax tree type} *)
 
