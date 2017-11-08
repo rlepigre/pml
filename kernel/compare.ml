@@ -20,14 +20,14 @@ let uvar_set : type a. a uvar -> a ex loc -> unit = fun u e ->
   match !(u.uvar_val) with
   | Set   _     -> assert false
   | Unset hooks ->
-     Timed.(u.uvar_val := Set e);
+     UTimed.(u.uvar_val := Set e);
      List.iter (fun f -> f ()) hooks
 
 let uvar_hook : type a. a uvar -> (unit -> unit) -> unit = fun u f ->
    match !(u.uvar_val) with
   | Set   _     -> ()
   | Unset hooks ->
-     Timed.(u.uvar_val := Unset (f::hooks))
+     UTimed.(u.uvar_val := Unset (f::hooks))
 
 let full_eq = ref false
 
@@ -369,7 +369,7 @@ let {eq_expr; eq_bndr} =
       log_equ "showing %a === %a (%b)" Print.ex e1 Print.ex e2 is_oracle;
       (*bug_msg "sizes: %i and %i" (binary_size e1) (binary_size e2);*)
       let res = Chrono.add_time compare_chrono
-                  (Timed.pure_test (eq_expr oracle strict e1)) e2 in
+                  (UTimed.pure_test (eq_expr oracle strict e1)) e2 in
       log_equ "we have %a %s %a"
               Print.ex e1 (if res then "=" else "≠") Print.ex e2;
       res
@@ -380,7 +380,7 @@ let {eq_expr; eq_bndr} =
     fun ?(oracle=default_oracle) ?(strict=true) s1 b1 b2 ->
       c := -1; (* Reset. *)
       Chrono.add_time compare_chrono
-        (Timed.pure_test (eq_bndr oracle strict s1 b1)) b2
+        (UTimed.pure_test (eq_bndr oracle strict s1 b1)) b2
   in
 
   {eq_expr; eq_bndr}

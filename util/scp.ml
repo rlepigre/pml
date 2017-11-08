@@ -125,6 +125,8 @@ let create : unit -> t =
   let syms = IMap.singleton (-1) root in
   fun () -> { next_index = ref 0 ; symbols = ref syms ; calls = ref [] }
 
+module Timed = Timed.Make(Timed.Time)
+
 (** Creation of a new symbol. The return value is the key of the created
     symbol, to be used in calls. *)
 let create_symbol : t -> string -> string array -> index =

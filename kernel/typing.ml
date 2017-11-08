@@ -598,7 +598,7 @@ and check_sub : ctxt -> prop -> prop -> check_sub = fun ctx a b ->
             let spe = elim_sub_schema ctx ih in
             let (a0, b0) = spe.sspe_judge in
             (* Check if schema applies. *)
-            if not (Timed.pure_test
+            if not (UTimed.pure_test
                       (fun () -> unif_expr ctx a a0 && unif_expr ctx b b0)
                       ())
             then raise Exit;
@@ -829,7 +829,7 @@ and add_call : ctxt -> (Scp.index * ordi array) -> bool -> unit =
       let caller = fst caller in
       Scp.(add_call ctx.callgraph { callee ; caller ; matrix ; is_rec })
     in
-    Timed.(ctx.add_calls := todo :: !(ctx.add_calls))
+    UTimed.(ctx.add_calls := todo :: !(ctx.add_calls))
 
 (* Build a call-matrix given the caller and the callee. *)
 and build_matrix : Scp.t -> (ordi * ordi) list ->

@@ -69,10 +69,9 @@ let ptr_get : Ptr.t -> Timed.Time.t -> Ptr.t = fun p time ->
      end
 
 let ptr_set : Ptr.t -> Ptr.t -> Timed.Time.t -> Timed.Time.t = fun p q time ->
-  Timed.Time.rollback time;
   match p with
-  | V_ptr vp -> Timed.set vp.vlnk (Some q)
-  | T_ptr tp -> Timed.set tp.tlnk (Some q)
+  | V_ptr vp -> Timed.set time vp.vlnk (Some q)
+  | T_ptr tp -> Timed.set time tp.tlnk (Some q)
 
 type ('a, 'b) funptr = (v ex, (t ex, ('a, 'b) bndr) mbinder) mbinder
 
@@ -1463,7 +1462,7 @@ and eq_val : pool ref -> valu -> valu -> bool = fun pool v1 v2 ->
       let (p2, po) = add_valu true po v2 in
       log2 "eq_val: insertion at %a and %a" VPtr.print p1 VPtr.print p2;
       log2 "eq_val: obtained context:\n%a" (print_pool "        ") po;
-      try pool := (Timed.apply (unif_vptr po p1) p2); true
+      try pool := (UTimed.apply (unif_vptr po p1) p2); true
       with NoUnif -> false
     end
 
@@ -1479,7 +1478,7 @@ and eq_trm : pool ref -> term -> term -> bool = fun pool t1 t2 ->
       let (p2, po) = normalise p2 po in
       log2 "eq_trm: insertion at %a and %a" Ptr.print p1 Ptr.print p2;
       log2 "eq_trm: obtained context:\n%a" (print_pool "        ") po;
-      try pool := (Timed.apply (unif_ptr po p1) p2); true
+      try pool := (UTimed.apply (unif_ptr po p1) p2); true
       with NoUnif -> false
     end
 
@@ -1562,7 +1561,7 @@ let add_inequiv : inequiv -> eq_ctxt -> eq_ctxt = fun (t,u) {pool} ->
   log2 "add_inequiv: normalisation to %a and %a" Ptr.print pt Ptr.print pu;
   log2 "add_inequiv: obtained context:\n%a" (print_pool "        ") pool;
   try
-    ignore (Timed.apply (unif_ptr pool pt) pu);
+    ignore (UTimed.apply (unif_ptr pool pt) pu);
     log2 "add_inequiv: contradiction found";
     bottom ()
   with NoUnif -> {pool} (* TODO #3 store clauses *)
