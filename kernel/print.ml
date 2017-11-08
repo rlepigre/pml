@@ -3,6 +3,7 @@
 open Bindlib
 open Sorts
 open Pos
+open Ptr
 open Ast
 open Output
 open Printf

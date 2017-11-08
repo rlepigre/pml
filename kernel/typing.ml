@@ -570,6 +570,7 @@ and subtype =
     (t, a, b, r)
     with
     | Subtype_error _ as e -> raise e
+    | Out_of_memory as e -> raise e
     | e -> subtype_error t a b e
   in
   fun ctx t a b -> Chrono.add_time sub_chrono (subtype ctx t a) b
@@ -1005,6 +1006,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
   in (Pos.make v.pos (Valu(v)), c, r)
   with
   | Type_error _ as e -> raise e
+  | Out_of_memory as e -> raise e
   | e -> type_error (E(V,v)) c e
 
 and is_typed : type a. a v_or_t -> a ex loc -> bool = fun t e ->
@@ -1176,6 +1178,7 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
   in (t, c, r)
   with
   | Type_error _ as e -> raise e
+  | Out_of_memory as e -> raise e
   | e                 -> type_error (E(T,t)) c e
 
 and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
