@@ -856,9 +856,9 @@ let rec normalise : TPtr.t -> pool -> Ptr.t * pool =
                      let po = { po with ns = TPtrSet.add p po.ns } in
                      let b = subst_closure b in
                      let t = bndr_subst b (VPtr pv) in
-                     let (tp, po) = add_term false po t in
-                     let po = union (Ptr.T_ptr p) (Ptr.T_ptr tp) po in
-                     let (t, po) = normalise tp po in
+                     let (tp2, po) = add_term false po t in
+                     let po = union (Ptr.T_ptr p) (Ptr.T_ptr tp2) po in
+                     let (t, po) = normalise tp2 po in
                      log2 "normalised in %a = TN_Appl Lambda %a %a => %a"
                           TPtr.print p Ptr.print pt Ptr.print pu Ptr.print t;
                      (t,po)
@@ -1049,12 +1049,13 @@ and union : ?no_rec:bool -> Ptr.t -> Ptr.t -> pool -> pool =
             if not no_rec && not (A.equal test m1 m2) then bottom ();
             !po
          (* Prefer real values as equivalence class representatives. *)
+         | (VN_LAbs(_)     , VN_LAbs(_)     ) -> age_join p1 p2 po (* FIXME #22 *)
          | (VN_LAbs(_)     , _              )
-           | (VN_Reco(_)     , _              )
-           | (VN_Cons(_,_)   , _              ) -> join p2 p1 po
+         | (VN_Reco(_)     , _              )
+         | (VN_Cons(_,_)   , _              ) -> join p2 p1 po
          | (_              , VN_LAbs(_)     )
-           | (_              , VN_Reco(_)     )
-           | (_              , VN_Cons(_,_)   ) -> join p1 p2 po
+         | (_              , VN_Reco(_)     )
+         | (_              , VN_Cons(_,_)   ) -> join p1 p2 po
          (* nobox or age_join otherwise. *)
          | (_              , _              ) ->
             match (VPtrSet.mem vp1 po.bs, VPtrSet.mem vp2 po.bs) with
