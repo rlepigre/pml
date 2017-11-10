@@ -1,9 +1,9 @@
 (** Printing functions for expressions. *)
 
 open Bindlib
+open Ptr
 open Sorts
 open Pos
-open Ptr
 open Ast
 open Output
 open Printf

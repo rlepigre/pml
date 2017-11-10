@@ -3,9 +3,9 @@
 
 open Extra
 open Bindlib
+open Ptr
 open Sorts
 open Pos
-open Ptr
 
 (** Second time for uvar *)
 module UTimed = Timed.Make(Timed.Time)
