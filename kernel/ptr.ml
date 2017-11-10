@@ -22,11 +22,15 @@ module Par_key = struct
 end
 module MapKey = Map.Make(Par_key)
 
+type _ ty = ..
+
+type dp = DP : 'a ty * 'a -> dp | Dum
+
 (** Poll inside terms *)
 
 module rec Ptr : sig
-  type v_ptr = { vadr : int; vlnk : lnk Timed.tref }
-  and  t_ptr = { tadr : int; tlnk : lnk Timed.tref }
+  type v_ptr = { vadr : int; vlnk : lnk Timed.tref; vval : dp; bs : bool ref}
+  and  t_ptr = { tadr : int; tlnk : lnk Timed.tref; tval : dp; ns : bool ref}
   and  ptr   = V_ptr of v_ptr | T_ptr of t_ptr
   and lnk = Lnk of ptr | Par of PtrSet.t  MapKey.t
 
@@ -34,8 +38,8 @@ module rec Ptr : sig
   val compare : ptr -> ptr -> int
   val print : out_channel -> ptr -> unit
 end = struct
-  type v_ptr = { vadr : int; vlnk : lnk Timed.tref }
-  and  t_ptr = { tadr : int; tlnk : lnk Timed.tref }
+  type v_ptr = { vadr : int; vlnk : lnk Timed.tref; vval : dp; bs : bool ref }
+  and  t_ptr = { tadr : int; tlnk : lnk Timed.tref; tval : dp; ns : bool ref }
   and  ptr   = V_ptr of v_ptr | T_ptr of t_ptr
   and lnk = Lnk of ptr | Par of PtrSet.t  MapKey.t
 
@@ -80,12 +84,6 @@ and TPtr : sig
     let print ch i = Printf.fprintf ch "%i" i.Ptr.tadr
   end
 
-module VPtrMap = Map.Make(VPtr)
-module VPtrSet = Set.Make(VPtr)
-module TPtrMap = Map.Make(TPtr)
-module PtrMap = Map.Make(Ptr)
-module TPtrSet = Set.Make(TPtr)
-
 include Ptr
 
 let cmp = compare
@@ -95,6 +93,21 @@ let eq_ptr p1 p2 = cmp p1 p2 = 0
 let add_ptr_key k p m =
   let old = try MapKey.find k m with Not_found -> PtrSet.empty in
   MapKey.add k (PtrSet.add p old) m
+
+let not_lnk : Ptr.t -> Timed.Time.t -> bool = fun p time ->
+  match p with
+    | V_ptr vp ->
+     begin
+       match Timed.get time vp.vlnk with
+       | Par _ -> true
+       | Lnk x -> false
+     end
+  | T_ptr tp ->
+     begin
+       match Timed.get time tp.tlnk with
+       | Par _ -> true
+       | Lnk x -> false
+     end
 
 let ptr_get : Ptr.t -> Timed.Time.t -> Ptr.t = fun p time ->
   match p with
