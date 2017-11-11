@@ -392,15 +392,17 @@ let children_v_node : v_node -> (par_key * Ptr.t) list = fun n ->
 let children_t_node : t_node -> (par_key * Ptr.t) list = fun n ->
   match n with
   | TN_Valu(pv)    -> [(KT_Valu, V_ptr pv)]
-  | TN_Appl(pt,pu) -> [(KT_Appl `Left, T_ptr pt); (KT_Appl `Right, T_ptr pu)]
+  | TN_Appl(pt,pu) -> [(KT_Appl `Right, T_ptr pu); (KT_Appl `Left, T_ptr pt)]
   | TN_Name(_,pt)  -> [(KT_Name, T_ptr pt)]
   | TN_Proj(pv,l)  -> [(KT_Proj l.elt, V_ptr pv)]
-  | TN_Case(pv,cs) -> A.fold (fun a b acc ->
-                          let kn n = KT_Case (Some (a, n)) in
-                          snd (children_bndr_closure b kn (0,acc)))
-                             cs [(KT_Case None, V_ptr pv)]
+  | TN_Case(pv,cs) -> (KT_Case None, V_ptr pv) ::
+                        A.fold (fun a b acc ->
+                            let kn n = KT_Case (Some (a, n)) in
+                            snd (children_bndr_closure b kn (0,acc)))
+                               cs []
   | TN_FixY(b,v,_) -> let kn n = KT_FixY (Some n) in
-                      snd (children_bndr_closure b kn (0, [(KT_FixY None, V_ptr v)]))
+                      (KT_FixY None, V_ptr v) ::
+                        snd (children_bndr_closure b kn (0, []))
   | TN_MAbs b      -> let kn n = KT_MAbs n in
                       snd (children_bndr_closure b kn (0, []))
   | TN_HApp c      -> let HO(_,b,c) = c in
@@ -561,10 +563,11 @@ let insert_v_node : v_node -> pool -> VPtr.t * pool = fun nn po ->
        let fn (p, n) = if eq_v_nodes po n nn then raise (FoundV (p,po)) in
        List.iter fn po.vs; raise Not_found
     | (k,n)::l ->
+       let possible = MapKey.find k (parents n po) in
        let possible =
          List.fold_left (fun possible (k, n) ->
                                PtrSet.inter (MapKey.find k (parents n po)) possible)
-                        (MapKey.find k (parents n po)) l
+                        possible l
        in
        let rec fn po n = match n with
          | V_ptr n ->
@@ -598,11 +601,13 @@ let insert_t_node : t_node -> pool -> TPtr.t * pool = fun nn po ->
        List.iter fn po.ts; raise Not_found
     | (k,n)::l ->
        let possible = MapKey.find k (parents n po) in
+(*       if PtrSet.cardinal possible > 200 then
+         Printf.eprintf "%a ==> %d\n%!" print_t_node nn (PtrSet.cardinal possible);
        let possible =
          List.fold_left (fun possible (k, n) ->
                                PtrSet.inter (MapKey.find k (parents n po)) possible)
                         possible l
-       in
+       in*)
        let rec fn po n = match n with
          | V_ptr _ -> ()
          | T_ptr n ->
@@ -950,14 +955,14 @@ and check_eq : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
 
 and check_parents_eq pp1 pp2 po =
   Chrono.add_time pareq_chrono
-                  (MapKey.fold (fun k pp1 po ->
-                       try
-                         let pp2 = MapKey.find k pp2 in
-                         PtrSet.fold (fun p1 po ->
-                             PtrSet.fold (fun p2 po ->
-                                 check_eq p1 p2 po) pp2 po)
-                                     pp1 po
-                       with Not_found -> po) pp1) po
+    (MapKey.fold (fun k pp1 po ->
+         try
+           let pp2 = MapKey.find k pp2 in
+           PtrSet.fold (fun p1 po ->
+               PtrSet.fold (fun p2 po ->
+                   check_eq p1 p2 po) pp2 po)
+                       pp1 po
+         with Not_found -> po) pp1) po
 
 and reinsert : Ptr.t -> pool -> pool = fun p po ->
   match p with
