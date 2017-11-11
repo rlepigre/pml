@@ -1,7 +1,12 @@
 module A = Assoc
 
-(* Part of the code for the pool that is needed in Ast module *)
+(** Part of the code for the pool (equiv.ml) that is needed in Ast module.
+    We need it in ast because we retain pointer in the pool in the ast to
+    avoid going back and forth between Ast and Equiv representation. *)
 
+(** This data type is the key for the parent data structure. For instance,
+    the key [KT_Appl `Left] for a node [n] indexes all the parents that uses
+    [n] as a left son of an application. *)
 type par_key =
   | KV_LAbs of int
   | KV_Cons of A.key
@@ -22,16 +27,26 @@ module Par_key = struct
 end
 module MapKey = Map.Make(Par_key)
 
+(** This is to store a t_node/v_node in the t_ptr/v_ptr record below, but
+    as these are defined in Equiv.ml, we use modern OCaml to solve this issue *)
 type _ ty = ..
 
 type dp = DP : 'a ty * 'a -> dp | Dum
 
-(** Poll inside terms *)
-
+(** Here are the main type definitions *)
 module rec Ptr : sig
-  type v_ptr = { vadr : int; vlnk : lnk Timed.tref; vval : dp; bs : bool ref}
-  and  t_ptr = { tadr : int; tlnk : lnk Timed.tref; tval : dp; ns : bool ref}
+  (** record for values *)
+  type v_ptr = { vadr : int            (** uid *)
+               ; vlnk : lnk Timed.tref (** link in the union find structure *)
+               ; vval : dp             (** contains the v_node (see equiv.ml) *)
+               ; bs : bool ref }       (** true if we know it is not box *)
+  and  t_ptr = { tadr : int            (** uid *)
+               ; tlnk : lnk Timed.tref (** link in the union find structure *)
+               ; tval : dp             (** contains the t_node (see equiv.ml) *)
+               ; ns : bool ref         (** was is normalised *) }
+  (** ptr: a v_ptr or a t_ptr *)
   and  ptr   = V_ptr of v_ptr | T_ptr of t_ptr
+  (** link for the union find, for roots, we store the parent map *)
   and lnk = Lnk of ptr | Par of PtrSet.t  MapKey.t
 
   type t = ptr
@@ -84,17 +99,15 @@ and TPtr : sig
     let print ch i = Printf.fprintf ch "%i" i.Ptr.tadr
   end
 
-include Ptr
-
-let cmp = compare
-
-let eq_ptr p1 p2 = cmp p1 p2 = 0
+let eq_ptr p1 p2 = Ptr.compare p1 p2 = 0
 
 let add_ptr_key k p m =
   let old = try MapKey.find k m with Not_found -> PtrSet.empty in
   MapKey.add k (PtrSet.add p old) m
 
+(** Test is a ptr is a union find root *)
 let not_lnk : Ptr.t -> Timed.Time.t -> bool = fun p time ->
+  let open Ptr in
   match p with
     | V_ptr vp ->
      begin
@@ -109,7 +122,9 @@ let not_lnk : Ptr.t -> Timed.Time.t -> bool = fun p time ->
        | Lnk x -> false
      end
 
+(** get the next element in the union find, raise Not_found if root *)
 let ptr_get : Ptr.t -> Timed.Time.t -> Ptr.t = fun p time ->
+  let open Ptr in
   match p with
   | V_ptr vp ->
      begin
@@ -124,12 +139,16 @@ let ptr_get : Ptr.t -> Timed.Time.t -> Ptr.t = fun p time ->
        | Lnk x -> x
      end
 
+(** set a link in the union find data structure *)
 let ptr_set : Ptr.t -> Ptr.t -> Timed.Time.t -> Timed.Time.t = fun p q time ->
+  let open Ptr in
   match p with
   | V_ptr vp -> Timed.set time vp.vlnk (Lnk q)
   | T_ptr tp -> Timed.set time tp.tlnk (Lnk q)
 
+(** get the parent of a root of the union find data structure *)
 let ptr_par : Ptr.t -> Timed.Time.t -> PtrSet.t MapKey.t = fun p time ->
+  let open Ptr in
    match p with
    | V_ptr vp ->
      begin
@@ -144,18 +163,26 @@ let ptr_par : Ptr.t -> Timed.Time.t -> PtrSet.t MapKey.t = fun p time ->
        | Lnk x -> assert false
      end
 
+(** Adds one parent to a root *)
 let ptr_add_par : par_key -> Ptr.t -> Ptr.t ->  Timed.Time.t -> Timed.Time.t =
   fun k p1 p2 time ->
+    let open Ptr in
     let ps = add_ptr_key k p1 (ptr_par p2 time) in
     match p2 with
     | V_ptr vp -> Timed.set time vp.vlnk (Par ps)
     | T_ptr tp -> Timed.set time tp.tlnk (Par ps)
 
-
+(** Adds multiple parents to a root *)
 let ptr_union_pars : PtrSet.t MapKey.t -> Ptr.t ->  Timed.Time.t -> Timed.Time.t =
   fun ps p2 time ->
+    let open Ptr in
     let f _ x y = Some (PtrSet.union x y) in
     let ps = MapKey.union f ps (ptr_par p2 time) in
     match p2 with
     | V_ptr vp -> Timed.set time vp.vlnk (Par ps)
     | T_ptr tp -> Timed.set time tp.tlnk (Par ps)
+
+(** export types *)
+type v_ptr = Ptr.v_ptr
+type t_ptr = Ptr.t_ptr
+type   ptr = Ptr.ptr
