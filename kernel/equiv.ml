@@ -365,9 +365,13 @@ let get_ns : TPtr.t -> pool -> bool = fun p po ->
   let open Ptr in
   Timed.get po.time p.ns
 
-let set_ts : TPtr.t -> pool -> pool = fun p po ->
+let set_ns : TPtr.t -> pool -> pool = fun p po ->
   let open Ptr in
   { po with time = Timed.set po.time p.ns true }
+
+let unset_ns : TPtr.t -> pool -> pool = fun p po ->
+  let open Ptr in
+  { po with time = Timed.set po.time p.ns false }
 
 let get_fs : TPtr.t -> pool -> bool = fun p po ->
   let open Ptr in
@@ -879,10 +883,10 @@ and normalise : Ptr.t -> pool -> Ptr.t * pool =
          find p0 po
        else
          begin
-           let po = { po with time = Timed.set po.time p.Ptr.ns true } in
+           let po = set_ns p po in
            let (tp, po) = normalise_t_node (find_t_node p po) po in
            let po = union (Ptr.T_ptr p) tp po in
-           let po = { po with time = Timed.set po.time p.Ptr.ns false } in
+           let po = unset_ns p po in
            find tp po
          end
 
