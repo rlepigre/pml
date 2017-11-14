@@ -39,11 +39,12 @@ module rec Ptr : sig
   type v_ptr = { vadr : int            (** uid *)
                ; vlnk : lnk Timed.tref (** link in the union find structure *)
                ; vval : dp             (** contains the v_node (see equiv.ml) *)
-               ; bs : bool ref }       (** true if we know it is not box *)
+               ; bs : bool Timed.tref }(** true if we know it is not box *)
   and  t_ptr = { tadr : int            (** uid *)
                ; tlnk : lnk Timed.tref (** link in the union find structure *)
                ; tval : dp             (** contains the t_node (see equiv.ml) *)
-               ; ns : bool ref         (** was is normalised *) }
+               ; ns : bool Timed.tref  (** was normalised *)
+               ; fs : bool Timed.tref  (** free : occur not under binders *) }
   (** ptr: a v_ptr or a t_ptr *)
   and  ptr   = V_ptr of v_ptr | T_ptr of t_ptr
   (** link for the union find, for roots, we store the parent map *)
@@ -53,8 +54,10 @@ module rec Ptr : sig
   val compare : ptr -> ptr -> int
   val print : out_channel -> ptr -> unit
 end = struct
-  type v_ptr = { vadr : int; vlnk : lnk Timed.tref; vval : dp; bs : bool ref }
-  and  t_ptr = { tadr : int; tlnk : lnk Timed.tref; tval : dp; ns : bool ref }
+  type v_ptr = { vadr : int; vlnk : lnk Timed.tref; vval : dp
+               ; bs : bool Timed.tref }
+  and  t_ptr = { tadr : int; tlnk : lnk Timed.tref; tval : dp
+               ; ns : bool Timed.tref; fs : bool Timed.tref }
   and  ptr   = V_ptr of v_ptr | T_ptr of t_ptr
   and lnk = Lnk of ptr | Par of PtrSet.t  MapKey.t
 
