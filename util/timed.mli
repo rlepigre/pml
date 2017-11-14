@@ -55,7 +55,7 @@ val pure_apply : ('a -> 'b) -> 'a -> 'b
 val pure_test : ('a -> bool) -> 'a -> bool
 
 (** A timed ref, this ref needs a time to be accessed. *)
-type 'a tref = 'a ref
+type 'a tref
 
 (** creation of a tref *)
 val tref : 'a -> 'a tref
@@ -85,7 +85,7 @@ module type Timed = sig
   val apply : ('a -> 'b) -> 'a -> 'b
   val pure_apply : ('a -> 'b) -> 'a -> 'b
   val pure_test : ('a -> bool) -> 'a -> bool
-  type 'a tref = 'a ref
+  type 'a tref
   val tref : 'a -> 'a tref
   val get : Time.t -> 'a tref -> 'a
   val set : Time.t -> 'a tref -> 'a -> Time.t

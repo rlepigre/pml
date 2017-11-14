@@ -613,11 +613,11 @@ let insert_v_node : v_node -> pool -> VPtr.t * pool = fun nn po ->
        List.iter fn po.vs; raise Not_found
     | (k,n)::l ->
        let possible = MapKey.find k (parents n po) in
-       let possible =
+(*       let possible =
          List.fold_left (fun possible (k, n) ->
                                PtrSet.inter (MapKey.find k (parents n po)) possible)
                         possible l
-       in
+       in*)
        let rec fn po n = match n with
          | Ptr.V_ptr n ->
             let node = find_v_node n po in
@@ -652,13 +652,12 @@ let insert_t_node : bool -> t_node -> pool -> TPtr.t * pool =
          List.iter fn po.ts; raise Not_found
       | (k,n)::l ->
          let possible = MapKey.find k (parents n po) in
-(*       if PtrSet.cardinal possible > 200 then
-         Printf.eprintf "%a ==> %d\n%!" print_t_node nn (PtrSet.cardinal possible);
-       let possible =
-         List.fold_left (fun possible (k, n) ->
-                               PtrSet.inter (MapKey.find k (parents n po)) possible)
-                        possible l
-       in*)
+(*         let possible =
+           List.fold_left (fun possible (k, n) ->
+               let par = MapKey.find k (parents n po) in
+               if PtrSet.cardinal par < PtrSet.cardinal possible then par else possible)
+                          possible l
+         in*)
          let rec fn po n = match n with
            | Ptr.V_ptr _ -> ()
            | Ptr.T_ptr n ->
