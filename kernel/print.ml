@@ -175,7 +175,7 @@ let rec ex : type a. a ex loc printer = fun ch e ->
   | UVar(_,u)   -> fprintf ch "?%i" u.uvar_key
   | Goal(_,s)   -> fprintf ch "{- %s -}" s
   | VPtr(p)     -> fprintf ch "VPtr(%a)" VPtr.print p
-  | TPtr(p)     -> fprintf ch "VPtr(%a)" TPtr.print p
+  | TPtr(p)     -> fprintf ch "TPtr(%a)"  Ptr.print p
 
 and rel ch cnd =
   let eq b = if b then "=" else "≠" in

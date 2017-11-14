@@ -88,7 +88,7 @@ type _ ex =
   (** Fixpoint combinator Y(λx.t, v). *)
   | Prnt : string                                    -> t  ex
   (** Printing instruction. *)
-  | TPtr : t_ptr                                     -> t  ex
+  | TPtr : ptr                                       -> t  ex
   (** Pointer in the pool. *)
   | Repl : t ex loc * t ex loc * t ex loc            -> t  ex
 
