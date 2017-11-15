@@ -369,10 +369,6 @@ let set_ns : TPtr.t -> pool -> pool = fun p po ->
   let open Ptr in
   { po with time = Timed.set po.time p.ns true }
 
-let unset_ns : TPtr.t -> pool -> pool = fun p po ->
-  let open Ptr in
-  { po with time = Timed.set po.time p.ns false }
-
 let get_fs : TPtr.t -> pool -> bool = fun p po ->
   let open Ptr in
   Timed.get po.time p.fs
@@ -892,8 +888,8 @@ and normalise_t_node : ?old:TPtr.t -> t_node -> pool -> Ptr.t  * pool =
     let insert node po =
       match old with
       | None   -> let (p, po) = insert_t_node true node po in
-                  (Ptr.T_ptr p, po)
-      | Some p -> (Ptr.T_ptr p, po)
+                  find (Ptr.T_ptr p) po
+      | Some p -> find (Ptr.T_ptr p) po
     in
     let set_ns po =
       match old with
@@ -902,7 +898,7 @@ and normalise_t_node : ?old:TPtr.t -> t_node -> pool -> Ptr.t  * pool =
     in
     let (p, po) = match node with
       | TN_Valu(pv)    -> let po = set_ns po in
-                          (Ptr.V_ptr pv, po)
+                          find (Ptr.V_ptr pv) po
       | TN_Appl(pt,pu) ->
          begin
            log2 "normalise in %a = TN_Appl: %a %a"
@@ -913,9 +909,8 @@ and normalise_t_node : ?old:TPtr.t -> t_node -> pool -> Ptr.t  * pool =
            | (Ptr.V_ptr pf, Ptr.V_ptr pv) ->
               begin
                 match find_v_node pf po, get_bs pv po with
-                | VN_LAbs(b), true ->
+                | VN_LAbs(b), true        ->
                    begin
-                     log2 "normalised in TN_Appl Lambda";
                      let b = subst_closure b in
                      let t = bndr_subst b (VPtr pv) in
                      let po = set_ns po in
@@ -937,7 +932,7 @@ and normalise_t_node : ?old:TPtr.t -> t_node -> pool -> Ptr.t  * pool =
          end
       | TN_MAbs(b)     -> insert node po (* FIXME #7 can do better. *)
       | TN_Name(s,pt)  -> insert node po (* FIXME #7 can do better. *)
-      | TN_Proj(pv0,l)  ->
+      | TN_Proj(pv0,l) ->
          begin
            let (pv, po) = find_valu pv0 po in
            log2 "normalisation in %a = TN_Proj %a" print_t_node node VPtr.print pv0;
@@ -958,29 +953,21 @@ and normalise_t_node : ?old:TPtr.t -> t_node -> pool -> Ptr.t  * pool =
          begin
            let (pv, po) = find_valu pv0 po in
            log2 "normalisation in %a = TN_Case %a" print_t_node node VPtr.print pv0;
-           match find_v_node pv po with
-           | VN_Cons(c,pv) ->
-              begin
-                try
-                  log2 "normalised in %a = TN_Case %a => VNCons(%a)"
-                       print_t_node node VPtr.print pv0 VPtr.print pv;
-                  let b = subst_closure (A.find c.elt m) in
-                  let t = bndr_subst b (VPtr pv) in
-                  let po = set_ns po in
-                  let (tp, po) = add_term true false po t in
-                  log2 "normalised in %a = TN_Case %a => %a"
-                       print_t_node node VPtr.print pv0 Ptr.print tp;
-                  (tp,po)
-                with
-                  Not_found ->
-                  log2 "normalisation no progress (1) %a = TN_Case: %a"
-                       print_t_node node VPtr.print pv0;
-                  insert node po
-              end
-           | _            ->
-              log2 "normalisation no progress (2) %a = TN_Case: %a"
-                   print_t_node node VPtr.print pv0;
-              insert node po
+           try
+             match find_v_node pv po with
+             | VN_Cons(c,pv) ->
+                let b = subst_closure (A.find c.elt m) in
+                let t = bndr_subst b (VPtr pv) in
+                let po = set_ns po in
+                let (tp, po) = add_term true false po t in
+                log2 "normalised in %a = TN_Case %a => %a"
+                     print_t_node node VPtr.print pv0 Ptr.print tp;
+                (tp,po)
+             | _            -> raise Not_found
+           with Not_found ->
+             log2 "normalisation no progress %a = TN_Case: %a"
+                  print_t_node node VPtr.print pv0;
+             insert node po
          end
       | TN_FixY(f,pv,pt) ->
          begin
@@ -991,7 +978,7 @@ and normalise_t_node : ?old:TPtr.t -> t_node -> pool -> Ptr.t  * pool =
                  Ptr.print tp po.next;
            (tp, po)
          end
-      | TN_UVar(v)     ->
+      | TN_UVar(v)   ->
          begin
            match !(v.uvar_val) with
            | Unset _ -> insert node po
@@ -1003,8 +990,8 @@ and normalise_t_node : ?old:TPtr.t -> t_node -> pool -> Ptr.t  * pool =
       | TN_EWit(_)
       | TN_HApp(_)
       | TN_Goal(_)
-      | TN_ITag(_)     -> let po = set_ns po in
-                          insert node po
+      | TN_ITag(_)    -> let po = set_ns po in
+                         insert node po
     in
     find p po
 
@@ -1022,15 +1009,17 @@ and check_eq : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
     | _ -> po
 
 and check_parents_eq pp1 pp2 po =
+  let po = ref po in
+  let fn k pp1 pp2 = match (pp1, pp2) with
+    | (Some pp1, Some pp2) ->
+       po := PtrSet.fold (fun p1 po ->
+                 PtrSet.fold (fun p2 po ->
+                     check_eq p1 p2 po) pp2 po) pp1 !po;
+       None
+    | ( _      , _       ) -> None
+  in
   Chrono.add_time pareq_chrono
-    (MapKey.fold (fun k pp1 po ->
-         try
-           let pp2 = MapKey.find k pp2 in
-           PtrSet.fold (fun p1 po ->
-               PtrSet.fold (fun p2 po ->
-                   check_eq p1 p2 po) pp2 po)
-                       pp1 po
-         with Not_found -> po) pp1) po
+                  (fun () -> ignore (MapKey.merge fn pp1 pp2); !po) ()
 
 and reinsert : Ptr.t -> pool -> pool = fun p po ->
   let (is_free, po) = is_free p po in
@@ -1296,7 +1285,6 @@ and unif_tptr : pool -> TPtr.t -> TPtr.t -> pool = fun po p1 p2 ->
   unif_ptr po (Ptr.T_ptr p1) (Ptr.T_ptr p2)
 
 and unif_ptr : pool -> Ptr.t -> Ptr.t -> pool = fun po p1 p2 ->
-  log2 "unif_ptr %a = %a" Ptr.print p1 Ptr.print p2;
   let (p1, po) = find p1 po in
   let (p2, po) = find p2 po in
   if eq_ptr po p1 p2 then po else
@@ -1365,7 +1353,6 @@ and unif_ho_appl : type a. pool -> a ho_appl -> a ho_appl -> pool =
 (** Equality functions on nodes. *)
 and unif_v_nodes : pool -> VPtr.t -> v_node -> VPtr.t -> v_node -> pool =
   fun po p1 n1 p2 n2 -> if n1 == n2 then po else begin
-    log2 "unif_v_nodes %a = %a" print_v_node n1 print_v_node n2;
     match (n1, n2) with
     | (VN_UVar({uvar_val = {contents = Set v}}), _) ->
        let po = reinsert (Ptr.V_ptr p1) po in
@@ -1433,7 +1420,6 @@ and unif_v_nodes : pool -> VPtr.t -> v_node -> VPtr.t -> v_node -> pool =
 
 and unif_t_nodes : pool -> TPtr.t -> t_node -> TPtr.t -> t_node -> pool =
   fun po p1 n1 p2 n2 -> if n1 == n2 then po else begin
-    log2 "unif_t_nodes %a = %a" print_t_node n1 print_t_node n2;
     match (n1, n2) with
     | (TN_UVar({uvar_val = {contents = Set v}}), _) ->
        let po = reinsert (Ptr.T_ptr p1) po in
