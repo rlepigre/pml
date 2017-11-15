@@ -617,11 +617,11 @@ let insert_v_node : v_node -> pool -> VPtr.t * pool = fun nn po ->
        List.iter fn po.vs; raise Not_found
     | (k,n)::l ->
        let possible = MapKey.find k (parents n po) in
-(*       let possible =
+       let possible =
          List.fold_left (fun possible (k, n) ->
                                PtrSet.inter (MapKey.find k (parents n po)) possible)
                         possible l
-       in*)
+       in
        let rec fn po n = match n with
          | Ptr.V_ptr n ->
             let node = find_v_node n po in
@@ -656,12 +656,11 @@ let insert_t_node : bool -> t_node -> pool -> TPtr.t * pool =
          List.iter fn po.ts; raise Not_found
       | (k,n)::l ->
          let possible = MapKey.find k (parents n po) in
-(*         let possible =
+         let possible =
            List.fold_left (fun possible (k, n) ->
-               let par = MapKey.find k (parents n po) in
-               if PtrSet.cardinal par < PtrSet.cardinal possible then par else possible)
+               PtrSet.inter (MapKey.find k (parents n po)) possible)
                           possible l
-         in*)
+         in
          let rec fn po n = match n with
            | Ptr.V_ptr _ -> ()
            | Ptr.T_ptr n ->
@@ -1037,21 +1036,7 @@ and reinsert : Ptr.t -> pool -> pool = fun p po ->
   let (is_free, po) = is_free p po in
   match p with
   | Ptr.T_ptr tp ->
-     let n1 = find_t_node tp po in
-     if is_free then
-       begin
-         match n1 with
-         | TN_Valu(_) -> po
-         | TN_UVar({uvar_val = {contents = Set t}}) ->
-            let (tp,po) = add_term true true po t in
-            union p tp po
-         | _ ->
-            log2 "normalisation of parent %a" TPtr.print tp;
-            let (p', po) = normalise (Ptr.T_ptr tp) po in
-            log2 "normalised parent %a at %a" TPtr.print tp Ptr.print p';
-            po
-       end
-     else po
+     if is_free then snd (normalise (Ptr.T_ptr tp) po) else po
   | Ptr.V_ptr vp ->
      let n1 = find_v_node vp po in
      begin
@@ -1090,7 +1075,8 @@ and join : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
              end
            else po
   in
-  let po = MapKey.fold (fun k l po -> PtrSet.fold reinsert l po) nps po in
+  let po = MapKey.fold (fun k l po ->
+               if is_head k then PtrSet.fold reinsert l po else po) nps po in
   let po = add_parents p2 nps po in
   po
 
