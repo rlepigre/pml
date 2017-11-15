@@ -405,7 +405,8 @@ let children_v_node : v_node -> (par_key * Ptr.t) list = fun n ->
   match n with
   | VN_HApp c     -> let HO(_,b,c) = c in
                      let kn n = KV_HApp n in
-                     snd (children_closure b kn (children_closure c kn (0, [])))
+                     snd (children_closure b kn
+                         (children_closure c kn (0, [])))
   | VN_LAbs b     -> let kn n = KV_LAbs n in
                      snd (children_bndr_closure b kn (0, []))
   | VN_Cons(a,pv) -> [(KV_Cons a.elt, Ptr.V_ptr pv)]
@@ -436,7 +437,8 @@ let children_t_node : t_node -> (par_key * Ptr.t) list = fun n ->
                       snd (children_bndr_closure b kn (0, []))
   | TN_HApp c      -> let HO(_,b,c) = c in
                       let kn n = KT_HApp n in
-                      snd (children_closure b kn (children_closure c kn (0,[])))
+                      snd (children_closure b kn
+                          (children_closure c kn (0,[])))
   | TN_UWit _
   | TN_EWit _
   | TN_Prnt _
@@ -494,11 +496,11 @@ let add_parent_t_nodes : TPtr.t -> (par_key * Ptr.t) list -> pool -> pool =
   fun tp ps po -> add_parent_nodes (Ptr.T_ptr tp) ps po
 
 (** Obtain the parents of a pointed node. *)
-let parents : Ptr.t -> pool -> PtrSet.t MapKey.t = fun p po ->
+let parents : Ptr.t -> pool -> par_map = fun p po ->
   let (p, po) = find p po in
   ptr_par p po.time
 
-let add_parents : Ptr.t -> PtrSet.t MapKey.t -> pool -> pool = fun p nps po ->
+let add_parents : Ptr.t -> par_map -> pool -> pool = fun p nps po ->
   let (p, po) = find p po in
   let time = ptr_union_pars nps p po.time in
   { po with time }
@@ -612,11 +614,9 @@ let insert_v_node : v_node -> pool -> VPtr.t * pool = fun nn po ->
        let fn (p, n) = if eq_v_nodes po n nn then raise (FoundV (p,po)) in
        List.iter fn po.vs; raise Not_found
     | (k,n)::l ->
-       let possible = MapKey.find k (parents n po) in
+       let f k n = MapKey.find k (parents n po) in
        let possible =
-         List.fold_left (fun possible (k, n) ->
-                               PtrSet.inter (MapKey.find k (parents n po)) possible)
-                        possible l
+         List.fold_left (fun acc (k, n) -> PtrSet.inter (f k n) acc) (f k n) l
        in
        let rec fn po n = match n with
          | Ptr.V_ptr n ->
@@ -651,11 +651,9 @@ let insert_t_node : bool -> t_node -> pool -> TPtr.t * pool =
          let fn (p, n) = if eq_t_nodes po n nn then raise (FoundT (p,po)) in
          List.iter fn po.ts; raise Not_found
       | (k,n)::l ->
-         let possible = MapKey.find k (parents n po) in
+         let f k n = MapKey.find k (parents n po) in
          let possible =
-           List.fold_left (fun possible (k, n) ->
-               PtrSet.inter (MapKey.find k (parents n po)) possible)
-                          possible l
+           List.fold_left (fun acc (k,n) -> PtrSet.inter (f k n) acc) (f k n) l
          in
          let rec fn po n = match n with
            | Ptr.V_ptr _ -> ()
@@ -729,11 +727,13 @@ let rec add_term :  bool -> bool -> pool -> term -> Ptr.t * pool =
                    insert (TN_Case(pv,m)) po
   | FixY(b,v)   -> let (pv, po) = add_valu po v in
                    let (b,  po) = add_bndr_closure po safe V T b in
-                   let dummy_t_node = Ptr.T_ptr Ptr.{ tadr = -1
-                                          ; tlnk = Timed.tref (Par MapKey.empty)
-                                          ; ns   = Timed.tref false
-                                          ; fs   = Timed.tref false
-                                          ; tval = Dum } in
+                   let dummy_t_node =
+                     Ptr.T_ptr Ptr.{ tadr = -1
+                                   ; tlnk = Timed.tref (Par MapKey.empty)
+                                   ; ns   = Timed.tref false
+                                   ; fs   = Timed.tref false
+                                   ; tval = Dum }
+                   in
                    let pt = ref dummy_t_node in
                    let (ty, po) = insert_t_node free (TN_FixY(b,pv,pt)) po in
                    let po =
@@ -752,7 +752,8 @@ let rec add_term :  bool -> bool -> pool -> term -> Ptr.t * pool =
                        end
                      else po
                    in
-                   if free then normalise (Ptr.T_ptr ty) po else find (Ptr.T_ptr ty) po
+                   if free then normalise (Ptr.T_ptr ty) po
+                   else find (Ptr.T_ptr ty) po
   | Prnt(s)     -> insert (TN_Prnt(s)) po
   | Repl(_,u,_) -> add_term po u
   | Coer(_,t,_) -> add_term po t
@@ -916,7 +917,8 @@ and normalise_t_node : ?old:TPtr.t -> t_node -> pool -> Ptr.t  * pool =
                      let po = set_ns po in
                      let (tp, po) = add_term true false po t in
                      log2 "normalised in %a = TN_Appl Lambda %a %a => %a"
-                          print_t_node node Ptr.print pt Ptr.print pu Ptr.print tp;
+                          print_t_node node Ptr.print pt Ptr.print pu
+                          Ptr.print tp;
                      (tp,po)
                    end
                 | _          ->
@@ -935,7 +937,8 @@ and normalise_t_node : ?old:TPtr.t -> t_node -> pool -> Ptr.t  * pool =
       | TN_Proj(pv0,l) ->
          begin
            let (pv, po) = find_valu pv0 po in
-           log2 "normalisation in %a = TN_Proj %a" print_t_node node VPtr.print pv0;
+           log2 "normalisation in %a = TN_Proj %a"
+                print_t_node node VPtr.print pv0;
            match find_v_node pv po with
            | VN_Reco(m) ->
               begin
@@ -952,7 +955,8 @@ and normalise_t_node : ?old:TPtr.t -> t_node -> pool -> Ptr.t  * pool =
       | TN_Case(pv0,m) ->
          begin
            let (pv, po) = find_valu pv0 po in
-           log2 "normalisation in %a = TN_Case %a" print_t_node node VPtr.print pv0;
+           log2 "normalisation in %a = TN_Case %a"
+                print_t_node node VPtr.print pv0;
            try
              match find_v_node pv po with
              | VN_Cons(c,pv) ->
@@ -1109,8 +1113,8 @@ and union : ?no_rec:bool -> Ptr.t -> Ptr.t -> pool -> pool =
             if not no_rec && not (A.equal test m1 m2) then bottom ();
             !po
          (* Prefer real values as equivalence class representatives. *)
-         | (VN_LAbs(_)     , VN_LAbs(_)     ) -> age_join p1 p2 po (* FIXME #22 *)
-         | (VN_LAbs(_)     , _              )
+         | (VN_LAbs(_)     , VN_LAbs(_)     ) -> age_join p1 p2 po
+         | (VN_LAbs(_)     , _              )     (* FIXME #22 *)
            | (VN_Reco(_)     , _              )
            | (VN_Cons(_,_)   , _              ) -> join p2 p1 po
          | (_              , VN_LAbs(_)     )
@@ -1625,7 +1629,8 @@ let find_proj : pool -> Bindlib.ctxt -> valu -> string
            | _ ->
               let (w,names) = proj_eps names v l in
               let (wp,po) = add_valu true po w in
-              let (pt,po) = add_term false true po (Pos.none (Proj(v,Pos.none l))) in
+              let (pt,po) = add_term false true po
+                                     (Pos.none (Proj(v,Pos.none l))) in
               let po = union (Ptr.V_ptr wp) pt po in
               (wp, w, po, names)
          in

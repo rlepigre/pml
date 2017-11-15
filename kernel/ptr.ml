@@ -35,8 +35,8 @@ module Par_key = struct
 end
 module MapKey = Map.Make(Par_key)
 
-(** This is to store a t_node/v_node in the t_ptr/v_ptr record below, but
-    as these are defined in Equiv.ml, we use modern OCaml to solve this issue *)
+(** This is to store a t_node/v_node in the t_ptr/v_ptr record below, but as
+    these are defined in Equiv.ml, we use modern OCaml to solve this issue *)
 type _ ty = ..
 
 type dp = DP : 'a ty * 'a -> dp | Dum
@@ -46,17 +46,19 @@ module rec Ptr : sig
   (** record for values *)
   type v_ptr = { vadr : int            (** uid *)
                ; vlnk : lnk Timed.tref (** link in the union find structure *)
-               ; vval : dp             (** contains the v_node (see equiv.ml) *)
+               ; vval : dp             (** the v_node (see equiv.ml) *)
                ; bs : bool Timed.tref }(** true if we know it is not box *)
   and  t_ptr = { tadr : int            (** uid *)
                ; tlnk : lnk Timed.tref (** link in the union find structure *)
-               ; tval : dp             (** contains the t_node (see equiv.ml) *)
+               ; tval : dp             (** the t_node (see equiv.ml) *)
                ; ns : bool Timed.tref  (** was normalised *)
                ; fs : bool Timed.tref  (** free : occur not under binders *) }
   (** ptr: a v_ptr or a t_ptr *)
   and  ptr   = V_ptr of v_ptr | T_ptr of t_ptr
   (** link for the union find, for roots, we store the parent map *)
-  and lnk = Lnk of ptr | Par of PtrSet.t  MapKey.t
+  and lnk = Lnk of ptr | Par of par_map
+  and par_map = PtrSet.t MapKey.t
+
 
   type t = ptr
   val compare : ptr -> ptr -> int
@@ -67,7 +69,8 @@ end = struct
   and  t_ptr = { tadr : int; tlnk : lnk Timed.tref; tval : dp
                ; ns : bool Timed.tref; fs : bool Timed.tref }
   and  ptr   = V_ptr of v_ptr | T_ptr of t_ptr
-  and lnk = Lnk of ptr | Par of PtrSet.t  MapKey.t
+  and lnk = Lnk of ptr | Par of par_map
+  and par_map = PtrSet.t MapKey.t
 
   type t = ptr
 
@@ -109,6 +112,12 @@ and TPtr : sig
     let compare i j = i.Ptr.tadr - j.Ptr.tadr
     let print ch i = Printf.fprintf ch "%i" i.Ptr.tadr
   end
+
+(** export types *)
+type v_ptr   = Ptr.v_ptr
+type t_ptr   = Ptr.t_ptr
+type   ptr   = Ptr.ptr
+type par_map = Ptr.par_map
 
 let eq_ptr p1 p2 = Ptr.compare p1 p2 = 0
 
@@ -158,7 +167,7 @@ let ptr_set : Ptr.t -> Ptr.t -> Timed.Time.t -> Timed.Time.t = fun p q time ->
   | T_ptr tp -> Timed.set time tp.tlnk (Lnk q)
 
 (** get the parent of a root of the union find data structure *)
-let ptr_par : Ptr.t -> Timed.Time.t -> PtrSet.t MapKey.t = fun p time ->
+let ptr_par : Ptr.t -> Timed.Time.t -> par_map = fun p time ->
   let open Ptr in
    match p with
    | V_ptr vp ->
@@ -184,7 +193,7 @@ let ptr_add_par : par_key -> Ptr.t -> Ptr.t ->  Timed.Time.t -> Timed.Time.t =
     | T_ptr tp -> Timed.set time tp.tlnk (Par ps)
 
 (** Adds multiple parents to a root *)
-let ptr_union_pars : PtrSet.t MapKey.t -> Ptr.t ->  Timed.Time.t -> Timed.Time.t =
+let ptr_union_pars : par_map -> Ptr.t ->  Timed.Time.t -> Timed.Time.t =
   fun ps p2 time ->
     let open Ptr in
     let f _ x y = Some (PtrSet.union x y) in
@@ -192,8 +201,3 @@ let ptr_union_pars : PtrSet.t MapKey.t -> Ptr.t ->  Timed.Time.t -> Timed.Time.t
     match p2 with
     | V_ptr vp -> Timed.set time vp.vlnk (Par ps)
     | T_ptr tp -> Timed.set time tp.tlnk (Par ps)
-
-(** export types *)
-type v_ptr = Ptr.v_ptr
-type t_ptr = Ptr.t_ptr
-type   ptr = Ptr.ptr
