@@ -23,112 +23,114 @@ def mccarthy91_hard =
 
 // NOTE: we do not have [mccarthy91_easy ≡ mccarthy91_hard].
 
+//val test : mccarthy91_hard u0 ≡ u91 = {}
+
 val hard_lemma : ∀n∈nat, gt n u100 ≡ false ⇒ mccarthy91_hard n ≡ u91 =
   fun n hyp {
     {- takes_too_long -}
-    //case n {        Zero → {} // n = 0
-    //S[k] → case k { Zero → {} // n = 1
-    //S[k] → case k { Zero → {} // n = 2
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {} // n = 10
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {} // n = 20
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {} // n = 30
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {} // n = 40
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {} // n = 50
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {} // n = 60
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {} // n = 70
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {} // n = 80
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {} // n = 90
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {}
-    //S[k] → case k { Zero → {} // n = 100
-    //S[_] → ✂ }}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}
-    //}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}
+    // case n {        Zero → {} // n = 0
+    // S[k] → case k { Zero → {} // n = 1
+    // S[k] → case k { Zero → {} // n = 2
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {} // n = 10
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {} // n = 20
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {} // n = 30
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {} // n = 40
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {} // n = 50
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {} // n = 60
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {} // n = 70
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {} // n = 80
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {} // n = 90
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {}
+    // S[k] → case k { Zero → {} // n = 100
+    // S[_] → ✂ }}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}
+    // }}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}
   }
 
 // Equiv
