@@ -1723,11 +1723,11 @@ let prove : eq_ctxt -> rel -> eq_ctxt = fun ctx rel ->
     log "proved   %a" Print.rel rel;
     ctx
 
-let learn ctx rel = Chrono.add_time equiv_chrono (learn ctx) rel
-let prove ctx rel = Chrono.add_time equiv_chrono (prove ctx) rel
-let to_value t eqs = Chrono.add_time equiv_chrono (to_value t) eqs
-let is_value t eqs = Chrono.add_time equiv_chrono (is_value t) eqs
+let learn ctx rel     = Chrono.add_time equiv_chrono (learn ctx) rel
+let prove ctx rel     = Chrono.add_time equiv_chrono (prove ctx) rel
+let to_value t eqs    = Chrono.add_time equiv_chrono (to_value t) eqs
+let is_value t eqs    = Chrono.add_time equiv_chrono (is_value t) eqs
 let check_nobox v eqs = Chrono.add_time equiv_chrono (check_nobox v) eqs
-let add_nobox v eqs = Chrono.add_time equiv_chrono (add_nobox v) eqs
-let find_proj eqs v = Chrono.add_time equiv_chrono (find_proj eqs) v
-let find_sum eqs v = Chrono.add_time equiv_chrono (find_sum eqs) v
+let add_nobox v eqs   = Chrono.add_time equiv_chrono (add_nobox v) eqs
+let find_proj eqs v   = Chrono.add_time equiv_chrono (find_proj eqs) v
+let find_sum eqs v    = Chrono.add_time equiv_chrono (find_sum eqs) v
