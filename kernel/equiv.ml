@@ -15,6 +15,8 @@ open Compare
 open Epsilon
 
 let equiv_chrono = Chrono.create "equiv"
+let pareq_chrono = Chrono.create "pareq"
+let inser_chrono = Chrono.create "inser"
 
 (* Log function registration. *)
 let log_edp1 =
@@ -652,6 +654,9 @@ let insert_t_node : t_node -> pool -> TPtr.t * pool = fun nn po ->
       let po = add_parent_t_nodes ptr children po in
       (ptr, po)
 
+let insert_v_node nn po = Chrono.add_time inser_chrono (insert_v_node nn) po
+let insert_t_node nn po = Chrono.add_time inser_chrono (insert_t_node nn) po
+
 (** Insertion of actual terms and values to the pool. *)
     (* safe means no VPtr/TPtr are in the term *)
 let rec add_term : bool -> pool -> term -> TPtr.t * pool = fun safe po t ->
@@ -966,10 +971,11 @@ and check_eq : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
     | _ -> po
 
 and check_parents_eq pp1 pp2 po =
-  PtrSet.fold (fun p1 po ->
-      PtrSet.fold (fun p2 po ->
-          check_eq p1 p2 po) pp2 po)
-              pp1 po
+  Chrono.add_time pareq_chrono
+                  (PtrSet.fold (fun p1 po ->
+                       PtrSet.fold (fun p2 po ->
+                           check_eq p1 p2 po) pp2 po)
+                               pp1) po
 
 and reinsert : Ptr.t -> pool -> pool = fun p po ->
   match p with
