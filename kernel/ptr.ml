@@ -21,6 +21,14 @@ type par_key =
   | KT_FixY of int option
   | KT_HApp of int
 
+let is_head = function
+  | KT_Appl _
+  | KT_Proj _
+  | KT_Case None
+  | KT_FixY _
+  | KT_Name      -> true
+  | _            -> false
+
 module Par_key = struct
   type t = par_key
   let compare = compare
