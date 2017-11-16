@@ -736,6 +736,11 @@ let rec add_term :  bool -> bool -> pool -> term -> Ptr.t * pool =
                    in
                    let pt = ref dummy_t_node in
                    let (ty, po) = insert_t_node free (TN_FixY(b,pv,pt)) po in
+                   let node = find_t_node ty po in
+                   let pt = match node with
+                     | TN_FixY(_,_,pt) -> pt
+                     | _               -> assert false
+                   in
                    let po =
                      if !pt == dummy_t_node then
                        begin
