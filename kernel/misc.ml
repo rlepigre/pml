@@ -77,12 +77,12 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
 
     | Valu(v)     -> owits acc v
     | Appl(t,u)   -> owits (owits acc t) u
+    | FixY(f)     -> owits acc (bndr_subst f (Dumm T))
     | MAbs(f)     -> owits acc (bndr_subst f (Dumm S))
     | Name(s,t)   -> owits (owits acc s) t
     | Proj(v,_)   -> owits acc v
     | Case(v,m)   -> let fn _ (_,f) acc = owits acc (bndr_subst f (Dumm V)) in
                      A.fold fn m (owits acc v)
-    | FixY(f,v)   -> owits (owits acc (bndr_subst f (Dumm V))) v
     | Prnt(_)     -> acc
     | Repl(t,u,a) -> owits (owits (owits acc t) u) a
 

@@ -18,7 +18,7 @@ type par_key =
   | KT_Name
   | KT_Proj of A.key
   | KT_Case of (A.key * int) option (* None for the main value *)
-  | KT_FixY of int option
+  | KT_FixY of int
   | KT_HApp of int
 
 let is_head = function
