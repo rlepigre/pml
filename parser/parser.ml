@@ -354,9 +354,15 @@ let parser expr @(m : mode) =
       when m <<= Trm A
       -> qed _loc
   (* Term (fixpoint) *)
-  | _fix_ t:term
+  | _fix_ arg:arg '{' t:term '}'
       when m <<= Trm F
-      -> in_pos _loc (EFixY(t))
+      -> let (a,ao) = arg in
+         let t = in_pos _loc (EFixY(a,t)) in
+         let t = match ao with
+           | None -> t
+           | Some ty -> in_pos _loc (ECoer(t,ty))
+         in
+         t
   (* Term (printing) *)
   | _print_ s:str_lit
       when m <<= Trm A
