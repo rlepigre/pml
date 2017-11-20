@@ -1,12 +1,12 @@
 type rec nat = [Zero ; Succ of nat]
 
-def t_add : ι =
-  fix fun add n m {
+def t_add : τ =
+  fix add { fun n m {
     case n {
       Zero    → m
       Succ[k] → Succ[add k m]
     }
-  }
+  }}
 
 val add_basic : nat ⇒ nat ⇒ nat = t_add
 

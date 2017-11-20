@@ -163,7 +163,7 @@ type t_node =
   | TN_Name of s ex loc * Ptr.t
   | TN_Proj of VPtr.t * A.key loc
   | TN_Case of VPtr.t * (v,t) bndr_closure A.t
-  | TN_FixY of (v,t) bndr_closure * VPtr.t * Ptr.t ref
+  | TN_FixY of (t,v) bndr_closure
   | TN_Prnt of string
   | TN_UWit of (t qwit, string) eps
   | TN_EWit of (t qwit, string) eps
@@ -255,8 +255,7 @@ let print_t_node : out_channel -> t_node -> unit = fun ch n ->
                       in
                       let pmap = Print.print_map pelt "|" in
                       prnt ch "TN_Case(%a|%a)" VPtr.print pv pmap m
-  | TN_FixY(b,p,_) -> prnt ch "TN_FixY(%a,%a)" (pbcl V) b
-                        VPtr.print p
+  | TN_FixY(b)     -> prnt ch "TN_FixY(%a)" (pbcl T) b
   | TN_Prnt(s)     -> prnt ch "TN_Prnt(%S)" s
   | TN_UWit(w)     -> prnt ch "TN_UWit(%a)" pex (Pos.none (UWit(w)))
   | TN_EWit(w)     -> prnt ch "TN_EWit(%a)" pex (Pos.none (EWit(w)))
@@ -274,6 +273,7 @@ type pool =
   ; next     : int    (** counter to generate new nodes *)
   ; time     : Timed.Time.t (** Current time for references *)
   ; eq_map   : (ptr * ptr) list (* just for printing and debugging *)
+  ; values   : (value * v_ptr) list
   }
 
 (**
@@ -338,6 +338,7 @@ let empty_pool : pool =
   ; next   = 0
   ; time   = Timed.Time.save ()
   ; eq_map = []
+  ; values = []
   }
 
 (** Node search. *)
@@ -430,9 +431,8 @@ let children_t_node : t_node -> (par_key * Ptr.t) list = fun n ->
                             let kn n = KT_Case (Some (a, n)) in
                             snd (children_bndr_closure b kn (0,acc)))
                                cs []
-  | TN_FixY(b,v,_) -> let kn n = KT_FixY (Some n) in
-                      (KT_FixY None, Ptr.V_ptr v) ::
-                        snd (children_bndr_closure b kn (0, []))
+  | TN_FixY(b)     -> let kn n = KT_FixY n in
+                      snd (children_bndr_closure b kn (0, []))
   | TN_MAbs b      -> let kn n = KT_MAbs n in
                       snd (children_bndr_closure b kn (0, []))
   | TN_HApp c      -> let HO(_,b,c) = c in
@@ -579,8 +579,7 @@ let eq_t_nodes : pool -> t_node -> t_node -> bool =
                                               && l1.elt = l2.elt
     | (TN_Case(p1,m1)  , TN_Case(p2,m2)  ) -> eq_vptr po p1 p2
                                               && A.equal (eq_cl po V) m1 m2
-    | (TN_FixY(b1,p1,_), TN_FixY(b2,p2,_)) -> eq_cl po V b1 b2
-                                              && eq_vptr po p1 p2
+    | (TN_FixY(b1)     , TN_FixY(b2)     ) -> eq_cl po Sorts.T b1 b2
     | (TN_Prnt(s1)     , TN_Prnt(s2)     ) -> s1 = s2
     | (TN_UWit(w1)     , TN_UWit(w2)     ) -> w1.valu == w2.valu
     | (TN_EWit(w1)     , TN_EWit(w2)     ) -> w1.valu == w2.valu
@@ -706,7 +705,7 @@ let rec add_term :  bool -> bool -> pool -> term -> Ptr.t * pool =
     if free then normalise_t_node node po
     else let (p, po) = insert_t_node false node po in find (Ptr.T_ptr p) po
   in
-  (*  log2 "add_term %b %a" free Print.ex t;*)
+  log2 "add_term %b %a" free Print.ex t;
   let t = Norm.whnf t in
   match t.elt with
   | Valu(v)     -> let (pv, po) = add_valu po v in
@@ -725,40 +724,9 @@ let rec add_term :  bool -> bool -> pool -> term -> Ptr.t * pool =
                        (fun _ (_,x) po -> add_bndr_closure po safe V T x) m po
                    in
                    insert (TN_Case(pv,m)) po
-  | FixY(b,v)   -> let (pv, po) = add_valu po v in
-                   let (b,  po) = add_bndr_closure po safe V T b in
-                   let dummy_t_node =
-                     Ptr.T_ptr Ptr.{ tadr = -1
-                                   ; tlnk = Timed.tref (Par MapKey.empty)
-                                   ; ns   = Timed.tref false
-                                   ; fs   = Timed.tref false
-                                   ; tval = Dum }
-                   in
-                   let pt = ref dummy_t_node in
-                   let (ty, po) = insert_t_node free (TN_FixY(b,pv,pt)) po in
-                   let node = find_t_node ty po in
-                   let pt = match node with
-                     | TN_FixY(_,_,pt) -> pt
-                     | _               -> assert false
-                   in
-                   let po =
-                     if !pt == dummy_t_node then
-                       begin
-                         let f = subst_closure b in
-                         let b' = bndr_from_fun "x"
-                                                (fun x -> FixY(f, Pos.none x))
-                         in
-                         let f' = Pos.none (LAbs(None, b')) in
-                         let (pf, po) = add_valu po f' in
-                         let t = bndr_subst f (VPtr pf) in
-                         let (pt', po) = add_term po t in
-                         pt := pt';
-                         po
-                       end
-                     else po
-                   in
-                   if free then normalise (Ptr.T_ptr ty) po
-                   else find (Ptr.T_ptr ty) po
+  | FixY(b)     -> let (cl, po) = add_bndr_closure po safe T V b in
+                   let (pt, po) = insert_t_node false (TN_FixY(cl)) po in
+                   normalise (Ptr.T_ptr pt) po
   | Prnt(s)     -> insert (TN_Prnt(s)) po
   | Repl(_,u,_) -> add_term po u
   | Coer(_,t,_) -> add_term po t
@@ -790,7 +758,17 @@ and     add_valu : bool -> pool -> valu -> VPtr.t * pool = fun safe po v ->
                    let (m, po) = A.fold fn m (A.empty, po) in
                    insert_v_node (VN_Reco(m)) po
   | Scis        -> insert_v_node VN_Scis po
-  | VDef(d)     -> add_valu po d.value_eras
+  | VDef(d)     -> begin
+(*                     try
+                       let pv = List.assq d po.values in
+                       Printf.eprintf "reuse %a\n%!" VPtr.print pv;
+                       (pv, po)
+                     with Not_found ->*)
+                       let (pv,po) = add_valu po d.value_eras in
+                       (*Printf.eprintf "valu create %a\n%!" VPtr.print pv;*)
+                       let po = { po with values = (d,pv)::po.values } in
+                       (pv, po)
+                   end
   | Coer(_,v,_) -> add_valu po v
   | Such(_,_,r) -> add_valu po (bseq_dummy r.binder)
   | VWit(w)     -> insert_v_node (VN_VWit(w)) po
@@ -978,14 +956,15 @@ and normalise_t_node : ?old:TPtr.t -> t_node -> pool -> Ptr.t  * pool =
                   print_t_node node VPtr.print pv0;
              insert node po
          end
-      | TN_FixY(f,pv,pt) ->
+      | TN_FixY(f) ->
          begin
-           log2 "normalisation in TN_FixY: %a" VPtr.print pv;
+           log2 "normalisation in TN_FixY: %a" print_t_node node;
            let po = set_ns po in
-           let (tp, po) = normalise_t_node (TN_Appl(!pt, Ptr.V_ptr pv)) po in
-           log2 "normalised in TN_FixY: %a => %a (%d)" VPtr.print pv
-                 Ptr.print tp po.next;
-           (tp, po)
+           let b = subst_closure f in
+           let (pv, po) = add_valu false po (bndr_subst b (FixY(b))) in
+           log2 "normalised in TN_FixY: %a => %a"  print_t_node node
+                VPtr.print pv;
+           find (Ptr.V_ptr pv) po
          end
       | TN_UVar(v)   ->
          begin
@@ -1164,9 +1143,8 @@ let rec canonical_term : bool -> TPtr.t -> pool -> term * pool
                               ((None, p), po)) m po
                             in
                             (Pos.none (Case(v, m)), po)
-        | TN_FixY(b,pv,_)-> let (v, po) = cv pv po in
-                            let (b, po) = canonical_bndr_closure b po in
-                            (Pos.none (FixY(b,v)), po)
+        | TN_FixY(b)     -> let (b, po) = canonical_bndr_closure b po in
+                            (Pos.none (FixY(b)), po)
         | TN_Prnt(s)     -> (Pos.none (Prnt(s)), po)
         | TN_UWit(w)     -> (Pos.none (UWit(w)), po)
         | TN_EWit(w)     -> (Pos.none (EWit(w)), po)
@@ -1467,9 +1445,8 @@ and unif_t_nodes : pool -> TPtr.t -> t_node -> TPtr.t -> t_node -> pool =
        if A.length m1 <> A.length m2 then raise NoUnif;
        let po = unif_vptr po p1 p2 in
        A.fold2 (fun po -> unif_cl po V) po m1 m2
-    | (TN_FixY(b1,p1,_), TN_FixY(b2,p2,_)) ->
-       let po = unif_cl po V b1 b2 in
-       unif_vptr po p1 p2
+    | (TN_FixY(b1)     , TN_FixY(b2     )) ->
+       unif_cl po T b1 b2
     | (TN_Prnt(s1)     , TN_Prnt(s2)     ) ->
        if s1 <> s2 then raise NoUnif; po
     | (TN_UWit(w1)     , TN_UWit(w2)     ) ->

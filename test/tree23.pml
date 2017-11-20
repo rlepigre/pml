@@ -26,7 +26,7 @@ def cmp_total<f,a:ο> = ∀x y∈a, ∃v:ι, f x y ≡ v
 val mem_total : ∀a:ο, ∀f∈(a⇒a⇒cmp), cmp_total<f,a> ⇒ ∀x∈a, ∀t∈tree23<a>,
       ∃v:ι, mem f x t ≡ v =
   fun f ft z {
-    fix fun mem_total t {
+    fix mem_total { fun t {
       case t {
         E     → {}
         N2[{l; x; r}] →
@@ -39,7 +39,7 @@ val mem_total : ∀a:ο, ∀f∈(a⇒a⇒cmp), cmp_total<f,a> ⇒ ∀x∈a, ∀t
             case f z y { Le → mem_total m | Eq → {} | Ge → mem_total r }
         }
       }
-    }
+    }}
   }
 
 type add23<a:ο> = [
@@ -99,7 +99,7 @@ val add : ∀a:ο, (a⇒a⇒cmp) ⇒ a ⇒ tree23<a> ⇒ tree23<a> =
 val add_aux_total : ∀a:ο, ∀f∈(a⇒a⇒cmp), cmp_total<f,a> ⇒ ∀x∈a,
                     ∀t∈tree23<a>, ∃v:ι, (add_aux f x t) ≡ v =
   fun f ft x {
-    fix fun add_aux_total t {
+    fix add_aux_total { fun t {
       case t {
       | E     → {}
       | N2[c] →
@@ -140,7 +140,7 @@ val add_aux_total : ∀a:ο, ∀f∈(a⇒a⇒cmp), cmp_total<f,a> ⇒ ∀x∈a,
                 | N2[n] → {}
                 }}}
       }
-    }
+    }}
   }
 
 val add_total : ∀a:ο, ∀f∈(a⇒a⇒cmp), cmp_total<f,a> ⇒
@@ -221,7 +221,7 @@ val add_height_aux : ∀a:ο, ∀f∈(a⇒a⇒cmp), cmp_total<f,a> ⇒ ∀x∈a,
                      ∀t∈(tree23<a> | height t n ≡ true),
                      height_aux (add_aux f x t) n ≡ true =
   fun f ft x {
-    fix fun add_height_aux n t {
+    fix add_height_aux { fun n t {
       case t {
       | E     → {}
       | N2[c] →
@@ -290,7 +290,7 @@ val add_height_aux : ∀a:ο, ∀f∈(a⇒a⇒cmp), cmp_total<f,a> ⇒ ∀x∈a,
                 | N2[n] → {}
                 }}}}
       }
-    }
+    }}
   }
 
 val add_height : ∀a:ο, ∀f∈(a⇒a⇒cmp), cmp_total<f,a> ⇒ ∀x∈a, ∀n∈nat,

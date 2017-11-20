@@ -106,7 +106,7 @@ val rec map_total : ∀a b, ∀f∈(a⇒b), total<f,a>
 val map_map : ∀a b c, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c), total<f,a> ⇒ total<g,b> ⇒
   ∀l∈list<a>, map g (map f l) ≡ map cmp<f,g> l =
     fun fn gn {
-      fix fun map_map tf tg ls {
+      fix map_map { fun tf tg ls {
         case ls {
                 | Nil     → {}
                 | Cons[c] →
@@ -116,7 +116,7 @@ val map_map : ∀a b c, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c), total<f,a> ⇒ total
                   let lem = map_total fn tf tl;
                   let ind = map_map tf tg tl; {}
         }
-      }
+      }}
     }
 
 val rec map_map : ∀a b c, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c), total<f,a> ⇒ total<g,b> ⇒

@@ -58,7 +58,7 @@ type _ ex =
   (* Value constructors. *)
 
   | LAbs : p ex loc option * (v, t) bndr             -> v  ex
-  (** Lambda abstraction. *)
+  (** Lambda abstraction. λx.t *)
   | Cons : A.key loc * v ex loc                      -> v  ex
   (** Constructor with exactly one argument. *)
   | Reco : (popt * v ex loc) A.t                     -> v  ex
@@ -76,6 +76,9 @@ type _ ex =
   (** Value as a term. *)
   | Appl : t ex loc * t ex loc                       -> t  ex
   (** Application. *)
+  | FixY : (t,  v) bndr                              -> t  ex
+  (** Fixpoint combinator Y(x.v).
+*)
   | MAbs : (s, t) bndr                               -> t  ex
   (** Mu abstraction. *)
   | Name : s ex loc * t ex loc                       -> t  ex
@@ -84,8 +87,6 @@ type _ ex =
   (** Record projection. *)
   | Case : v ex loc * (popt * (v, t) bndr) A.t       -> t  ex
   (** Case analysis. *)
-  | FixY : (v, t) bndr * v ex loc                    -> t  ex
-  (** Fixpoint combinator Y(λx.t, v). *)
   | Prnt : string                                    -> t  ex
   (** Printing instruction. *)
   | TPtr : ptr                                       -> t  ex
@@ -189,7 +190,7 @@ and value =
 
 and fix_schema =
   { fsch_index : Scp.index (** index of the schema in the call graph *)
-  ; fsch_judge : (v,t) bndr * (o ex, p ex loc) mbinder (** judgement *) }
+  ; fsch_judge : (t,v) bndr * (o ex, p ex loc) mbinder (** judgement *) }
   (* NOTE: [sch_judge = (vb,mob)] represents "λx.Y(λr.t, x) : a" where
      [mob] corresponds to "λr.t" and "mob" corresponds to "a", which is
      the only part of the judgment which can contain parameters. *)
@@ -207,7 +208,7 @@ and schema =
 
 and fix_specialised =
   { fspe_param : o ex loc array
-  ; fspe_judge : (v,t) bndr * p ex loc }
+  ; fspe_judge : (t,v) bndr * p ex loc }
 
 and sub_specialised =
   { sspe_param : o ex loc array
@@ -232,6 +233,7 @@ and 'a var = 'a ex Bindlib.var
 (** Type of a (bindlib) binder with support for positions.
     @see <https://www.lama.univ-savoie.fr/~raffalli/bindlib.html> bindlib *)
 and ('a, 'b) bndr = popt * ('a ex, 'b ex loc) binder
+and ('a, 'b, 'c) bndr2 = strloc * strloc * ('a ex, ('b ex, 'c ex loc) binder) binder
 
 (** Type of an expression in a (bindlib) bindbox.
     @see <https://www.lama.univ-savoie.fr/~raffalli/bindlib.html> bindlib *)
@@ -248,11 +250,11 @@ and  e_term =
   | TVari of e_term Bindlib.var
   | TValu of e_valu
   | TAppl of e_term * e_term
+  | TFixY of (e_term, e_valu) Bindlib.binder
   | TMAbs of (e_stac, e_term) Bindlib.binder
   | TName of e_stac * e_term
   | TProj of e_valu * string
   | TCase of e_valu * (e_valu, e_term) Bindlib.binder A.t
-  | TFixY of (e_valu, e_term) Bindlib.binder * e_valu
   | TPrnt of string
 and  e_stac =
   | SVari of e_stac Bindlib.var
@@ -387,10 +389,10 @@ let case : popt -> vbox -> (popt * strloc * (vvar -> tbox)) A.t -> tbox =
     in
     box_apply2 (fun v m -> Pos.make p (Case(v,m))) v (A.map_box f m)
 
-let fixy : popt -> strloc -> (vvar -> tbox) -> vbox -> tbox =
-  fun p x f v ->
-    let b = vbind (mk_free V) x.elt f in
-    box_apply2 (fun b v -> Pos.make p (FixY((x.pos, b),v))) b v
+let fixy : popt -> strloc -> (tvar -> vbox) -> tbox =
+  fun p x f ->
+    let b = vbind (mk_free T) x.elt f in
+    box_apply (fun b -> Pos.make p (FixY(x.pos, b))) b
 
 let prnt : popt -> string -> tbox =
   fun p s -> box (Pos.make p (Prnt(s)))
@@ -550,12 +552,14 @@ let rec is_scis : type a. a ex loc -> bool =
     | Valu(v) -> is_scis v
     | _       -> false
 
+(*
 let build_v_fixy : (v,t) bndr -> valu = fun b ->
-  let f x = box_apply (fun x -> Pos.none (FixY(b,x))) (v_vari None x) in
+  let f x = box_apply (fun x -> Pos.none (FixY(b,x,None))) (v_vari None x) in
   unbox (labs None None (Pos.none "x") f)
 
 let build_t_fixy : (v,t) bndr -> term = fun b ->
   Pos.none (Valu(build_v_fixy b))
+ *)
 
 let rec bseq_dummy : type a b. (a, prop * b) bseq -> b = fun seq ->
   match seq with

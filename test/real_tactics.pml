@@ -204,7 +204,7 @@ val map_map : ∀a b c:ο, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c),
     total<f,a> ⇒ total<g,b> ⇒
     ∀l∈list<a>, map g (map f l) ≡ map (fun x { g (f x) }) l =
   fun f g ftot gtot {
-    fix fun map_map ls {
+    fix map_map { fun ls {
       case ls {
         Nil     → {}
         Cons[c] → let hd = c.hd; let tl = c.tl;
@@ -213,7 +213,7 @@ val map_map : ∀a b c:ο, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c),
                   let lem = map_total f ftot tl;
                   let ind = map_map tl; {}
       }
-    }
+    }}
   }
 
 type vec<a:ο, s:τ> = ∃l:ι, l∈(list<a> | length l ≡ s)

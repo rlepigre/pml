@@ -46,6 +46,9 @@ let tvalu : e_vbox -> e_tbox =
 let tappl : e_tbox -> e_tbox -> e_tbox =
   box_apply2 (fun t u -> TAppl(t,u))
 
+let tfixy : string -> (e_tvar -> e_vbox) -> e_tbox =
+  fun x f -> box_apply (fun b -> TFixY(b)) (Bindlib.vbind mk_tvari x f)
+
 let tmabs : string -> (e_svar -> e_tbox) -> e_tbox =
   fun x f -> box_apply (fun b -> TMAbs(b)) (vbind mk_svari x f)
 
@@ -59,9 +62,6 @@ let tcase : e_vbox -> (string * (e_vvar -> e_tbox)) A.t -> e_tbox =
   fun v m ->
     let f (x,f) = vbind mk_vvari x f in
     box_apply2 (fun v m -> TCase(v,m)) v (A.map_box f m)
-
-let tfixy : string -> (e_vvar -> e_tbox) -> e_vbox -> e_tbox =
-  fun x f -> box_apply2 (fun b v -> TFixY(b,v)) (vbind mk_vvari x f)
 
 let tprnt : string -> e_tbox =
   fun s -> box (TPrnt(s))
@@ -84,40 +84,36 @@ let runtime_error : type a. string -> a =
   fun msg -> raise (Runtime_error msg)
 
 let rec step : proc -> proc option = function
-  | (TValu(v)          , SEpsi      ) -> None
-  | (TAppl(t,u)        , pi         ) -> Some (u, SFram(t,pi))
-  | (TValu(v)          , SFram(t,pi)) -> Some (t, SPush(v,pi))
-  | (TValu(VVdef(d))   , pi         ) -> step (TValu(d.value_eval), pi)
-  | (TValu(VLAbs(b))   , SPush(v,pi)) -> Some (subst b v, pi)
-  | (TMAbs(b)          , pi         ) -> Some (subst b pi, pi)
-  | (TName(pi,t)       , _          ) -> Some (t, pi)
-  | (TProj(VVdef(d),l) , pi         ) -> step (TProj(d.value_eval,l), pi)
-  | (TProj(VReco(m),l) , pi         ) ->
+  | (TValu(v)            , SEpsi      ) -> None
+  | (TAppl(t,u)          , pi         ) -> Some (u, SFram(t,pi))
+  | (TValu(v)            , SFram(t,pi)) -> Some (t, SPush(v,pi))
+  | (TValu(VVdef(d))     , pi         ) -> step (TValu(d.value_eval), pi)
+  | (TValu(VLAbs(b))     , SPush(v,pi)) -> Some (subst b v, pi)
+  | (TFixY(b) as t       , pi         ) -> Some (TValu(subst b t), pi)
+  | (TMAbs(b)            , pi         ) -> Some (subst b pi, pi)
+  | (TName(pi,t)         , _          ) -> Some (t, pi)
+  | (TProj(VVdef(d),l)   , pi         ) -> step (TProj(d.value_eval,l), pi)
+  | (TProj(VReco(m),l)   , pi         ) ->
       begin
         try Some (TValu(A.find l m), pi)
         with Not_found -> runtime_error "Unknown record field"
       end
-  | (TCase(VVdef(d),m)  , pi        ) -> step (TCase(d.value_eval,m), pi)
-  | (TCase(VCons(c,v),m), pi        ) ->
+  | (TCase(VVdef(d),m)    , pi        ) -> step (TCase(d.value_eval,m), pi)
+  | (TCase(VCons(c,v),m)  , pi        ) ->
       begin
         try Some (subst (A.find c m) v, pi)
         with Not_found -> runtime_error "Unknown constructor"
       end
-  | (TFixY(b,v)        , pi         ) ->
-      begin
-        let f = binder_from_fun "x" (fun x -> TFixY(b,x)) in
-        Some (TValu(VLAbs(b)), SPush(VLAbs(f),SPush(v,pi)))
-      end
-  | (TPrnt(s)          , pi         ) ->
+  | (TPrnt(s)            , pi         ) ->
       begin
         output_string stdout s;
         Some (TValu(VReco(A.empty)), pi)
       end
   (* Runtime errors. *)
-  | (TProj(_)          , _          ) -> runtime_error "invalid projection"
-  | (TCase(_,_)        , _          ) -> runtime_error "invalid case analysis"
-  | (TVari(_)          , _          ) -> runtime_error "free term variable"
-  | (TValu(_)          , _          ) -> runtime_error "free stack variable"
+  | (TProj(_)            , _          ) -> runtime_error "invalid projection"
+  | (TCase(_,_)          , _          ) -> runtime_error "invalid case analysis"
+  | (TVari(_)            , _          ) -> runtime_error "free term variable"
+  | (TValu(_)            , _          ) -> runtime_error "free stack variable"
 
 let rec steps : proc -> proc = fun p ->
   match step p with
