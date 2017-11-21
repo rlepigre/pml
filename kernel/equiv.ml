@@ -309,21 +309,47 @@ let reset_tbls () =
   ClsHash.clear clsptrs;
   FunHash.clear funptrs
 
+let print_parents ch pars =
+  MapKey.iter (fun _ s ->
+      PtrSet.iter (Printf.fprintf ch "%a " Ptr.print) s) pars
+
+(** Find operation (with path contraction). *)
+let find : Ptr.t -> pool -> Ptr.t * pool = fun p po ->
+  let rec follow p time =
+    try
+      let q = ptr_get p time in
+      let (r, time) = follow q time in
+      let time = if q != r then ptr_set p r time else time in
+      (r, time)
+    with Not_found -> (p, time)
+  in
+  let (repr, time) = follow p po.time in
+  (repr, {po with time})
+
+let find_valu : VPtr.t -> pool -> VPtr.t * pool = fun p po ->
+  let (p, po) = find (Ptr.V_ptr p) po in
+  match p with
+  | Ptr.V_ptr p -> (p, po)
+  | Ptr.T_ptr _ -> assert false
+
 (** Printing a pool (useful for debugging. *)
 let print_pool : string -> out_channel -> pool -> unit = fun prefix ch po ->
   let { ts; vs; eq_map } = po in
   Printf.fprintf ch "%s#### Nodes ####\n" prefix;
   let fn (k, n) =
     let b = if Timed.get po.time k.Ptr.bs then "*" else "" in
-    Printf.fprintf ch "%s  %a%s\t→ %a\t\n" prefix VPtr.print k b
-      print_v_node n
+    let pars = let (p, po) = find (Ptr.V_ptr k) po in ptr_par p po.time in
+    Printf.fprintf ch "%s  %a%s\t→ %a [%a]\t\n" prefix VPtr.print k b
+      print_v_node n print_parents pars
   in
   List.iter fn vs;
   Printf.fprintf ch "%s---------------\n" prefix;
   let fn (k, n) =
     let f = if Timed.get po.time k.Ptr.fs then "+" else "" in
-    Printf.fprintf ch "%s  %a%s\t→ %a\t\n" prefix TPtr.print k f
-      print_t_node n
+    let g = if Timed.get po.time k.Ptr.ns then "n" else "" in
+    let pars = let (p, po) = find (Ptr.T_ptr k) po in ptr_par p po.time in
+    Printf.fprintf ch "%s  %a%s%s\t→ %a [%a}\t\n" prefix TPtr.print k f g
+      print_t_node n print_parents pars
   in
   List.iter fn ts;
   Printf.fprintf ch "%s#### Links ####\n" prefix;
@@ -453,25 +479,6 @@ let children_t_node : t_node -> (par_key * Ptr.t) list = fun n ->
   | TN_Goal _
   | TN_UVar _  (* TODO #4 check *)
   | TN_ITag _    -> []
-
-(** Find operation (with path contraction). *)
-let find : Ptr.t -> pool -> Ptr.t * pool = fun p po ->
-  let rec follow p time =
-    try
-      let q = ptr_get p time in
-      let (r, time) = follow q time in
-      let time = if q != r then ptr_set p r time else time in
-      (r, time)
-    with Not_found -> (p, time)
-  in
-  let (repr, time) = follow p po.time in
-  (repr, {po with time})
-
-let find_valu : VPtr.t -> pool -> VPtr.t * pool = fun p po ->
-  let (p, po) = find (Ptr.V_ptr p) po in
-  match p with
-  | Ptr.V_ptr p -> (p, po)
-  | Ptr.T_ptr _ -> assert false
 
 let is_free : Ptr.t -> pool -> bool * pool =
   fun p po ->
@@ -1052,6 +1059,7 @@ and join : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
   assert (not_lnk p2 po.time);
   let nps = parents p1 po in
   let pp2 = parents p2 po in
+  let po = add_parents p2 nps po in
   let po = { po with time = ptr_set p1 p2 po.time
                    ; eq_map = (p1,p2) :: po.eq_map }
   in
@@ -1076,7 +1084,6 @@ and join : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
   in
   let po = MapKey.fold (fun k l po ->
                if is_head k then PtrSet.fold reinsert l po else po) nps po in
-  let po = add_parents p2 nps po in
   po
 
 (* when the join can be arbitrary, better to point to
@@ -1571,7 +1578,8 @@ let add_vptr_nobox : VPtr.t -> pool -> pool = fun vp po ->
        begin
          let po = set_bs vp po in
          let nps = parents (Ptr.V_ptr vp) po in
-         MapKey.fold (fun k l po -> PtrSet.fold reinsert l po) nps po
+         MapKey.fold (fun k l po ->
+               if is_head k then PtrSet.fold reinsert l po else po) nps po
        end
      else po
 
