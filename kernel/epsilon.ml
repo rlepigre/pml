@@ -41,8 +41,8 @@ let vwit : ctxt -> (v,t) bndr -> prop -> prop -> (vwit, string) eps * ctxt =
         if force || exists_set !(w.vars) then
           begin
             let oldvars = !(w.vars) in
-            Timed.(w.vars := VWit.vars valu);
-            Timed.(w.hash := VWit.hash valu);
+            UTimed.(w.vars := VWit.vars valu);
+            UTimed.(w.hash := VWit.hash valu);
             List.iter (fun (U(_,v)) ->
                 let same (U(_,w)) = v.uvar_key = w.uvar_key in
                 if not (List.exists same oldvars)
@@ -50,7 +50,7 @@ let vwit : ctxt -> (v,t) bndr -> prop -> prop -> (vwit, string) eps * ctxt =
             try
               let w' = VWitHash.find vwit_hash valu in
               (*Printf.eprintf "merge vwit\n%!";*)
-              Timed.(w.valu := !(w'.valu))
+              UTimed.(w.valu := !(w'.valu))
             with Not_found ->
               VWitHash.add vwit_hash valu w
           end
@@ -87,8 +87,8 @@ let qwit : type a. ctxt -> a sort -> term -> (a,p) bndr
         if force || exists_set !(w.vars) then
           begin
             let oldvars = !(w.vars) in
-            Timed.(w.vars := QWit.vars key);
-            Timed.(w.hash := QWit.hash key);
+            UTimed.(w.vars := QWit.vars key);
+            UTimed.(w.hash := QWit.hash key);
             List.iter (fun (U(_,v)) ->
                 let same (U(_,w)) = v.uvar_key = w.uvar_key in
                 if not (List.exists same oldvars)
@@ -98,7 +98,7 @@ let qwit : type a. ctxt -> a sort -> term -> (a,p) bndr
               (*Printf.eprintf "merge qwit\n%!";*)
               let (s',_,_) = !(w'.valu) in
               match eq_sort s s' with
-              | Eq.Eq -> Timed.(w.valu := !(w'.valu))
+              | Eq.Eq -> UTimed.(w.valu := !(w'.valu))
               | _ -> assert false
             with Not_found ->
               QWitHash.add qwit_hash key (Q w)
@@ -133,8 +133,8 @@ let owit : ctxt -> ordi -> term -> (o,p) bndr -> (owit, string) eps * ctxt =
         if force || exists_set !(w.vars) then
           begin
             let oldvars = !(w.vars) in
-            Timed.(w.vars := OWit.vars valu);
-            Timed.(w.hash := OWit.hash valu);
+            UTimed.(w.vars := OWit.vars valu);
+            UTimed.(w.hash := OWit.hash valu);
             List.iter (fun (U(_,v)) ->
                 let same (U(_,w)) = v.uvar_key = w.uvar_key in
                 if not (List.exists same oldvars)
@@ -142,7 +142,7 @@ let owit : ctxt -> ordi -> term -> (o,p) bndr -> (owit, string) eps * ctxt =
             try
               let w' = OWitHash.find owit_hash valu in
               (*Printf.eprintf "merge owit\n%!";*)
-              Timed.(w.valu := !(w'.valu))
+              UTimed.(w.valu := !(w'.valu))
             with Not_found ->
               OWitHash.add owit_hash valu w
           end
@@ -176,8 +176,8 @@ let swit : ctxt -> (s,t) bndr -> prop -> (swit, string) eps * ctxt =
         if force || exists_set !(w.vars) then
           begin
             let oldvars = !(w.vars) in
-            Timed.(w.vars := SWit.vars valu);
-            Timed.(w.hash := SWit.hash valu);
+            UTimed.(w.vars := SWit.vars valu);
+            UTimed.(w.hash := SWit.hash valu);
             List.iter (fun (U(_,v)) ->
                 let same (U(_,w)) = v.uvar_key = w.uvar_key in
                 if not (List.exists same oldvars)
@@ -185,7 +185,7 @@ let swit : ctxt -> (s,t) bndr -> prop -> (swit, string) eps * ctxt =
             try
               let w' = SWitHash.find swit_hash valu in
               (*Printf.eprintf "merge owit\n%!";*)
-              Timed.(w.valu := !(w'.valu))
+              UTimed.(w.valu := !(w'.valu))
             with Not_found ->
               SWitHash.add swit_hash valu w
           end
@@ -213,8 +213,8 @@ let cwit : ctxt -> schema -> (schema, string array) eps * ctxt =
         if force || exists_set !(w.vars) then
           begin
             let oldvars = !(w.vars) in
-            Timed.(w.vars := CWit.vars valu);
-            Timed.(w.hash := CWit.hash valu);
+            UTimed.(w.vars := CWit.vars valu);
+            UTimed.(w.hash := CWit.hash valu);
             List.iter (fun (U(_,v)) ->
                 let same (U(_,w)) = v.uvar_key = w.uvar_key in
                 if not (List.exists same oldvars)
@@ -222,7 +222,7 @@ let cwit : ctxt -> schema -> (schema, string array) eps * ctxt =
             try
               let w' = CWitHash.find cwit_hash valu in
               (*Printf.eprintf "merge owit\n%!";*)
-              Timed.(w.valu := !(w'.valu))
+              UTimed.(w.valu := !(w'.valu))
             with Not_found ->
               CWitHash.add cwit_hash valu w
           end

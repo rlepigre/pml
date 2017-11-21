@@ -44,6 +44,10 @@ and     term_erasure : term -> e_tbox = fun t ->
   | HDef(_,d)   -> term_erasure d.expr_def
   | Valu(v)     -> tvalu (valu_erasure v)
   | Appl(t,u)   -> tappl (term_erasure t) (term_erasure u)
+  | FixY(b)     -> let f x =
+                     let x = copy_var x (name_of x) (mk_free T) in
+                     valu_erasure (bndr_subst b (mk_free T x))
+                   in tfixy (binder_name (snd b)) f
   | MAbs(b)     -> let f x =
                      let x = copy_var x (name_of x) (mk_free S) in
                      term_erasure (bndr_subst b (mk_free S x))
@@ -56,10 +60,6 @@ and     term_erasure : term -> e_tbox = fun t ->
                        term_erasure (bndr_subst b (mk_free V x))
                      in (binder_name (snd b), f)
                    in tcase (valu_erasure v) (A.map f m)
-  | FixY(b,v)   -> let f x =
-                     let x = copy_var x (name_of x) (mk_free V) in
-                     term_erasure (bndr_subst b (mk_free V x))
-                   in tfixy (binder_name (snd b)) f (valu_erasure v)
   | Prnt(s)     -> tprnt s
   | Repl(t,_,_) -> term_erasure t
   | Coer(_,t,_) -> term_erasure t
@@ -121,6 +121,11 @@ and to_term : e_term -> tbox = fun t ->
   | TVari(a)   -> vari None (copy_var a (name_of a) (mk_free T))
   | TValu(v)   -> valu None (to_valu v)
   | TAppl(t,u) -> appl None (to_term t) (to_term u)
+  | TFixY(b)   -> let f x =
+                    let x = copy_var x (name_of x) mk_tvari in
+                    to_valu (subst b (mk_tvari x))
+                  in
+                  fixy None (Pos.none (binder_name b)) f
   | TMAbs(b)   -> let f x =
                     let x = copy_var x (name_of x) mk_svari in
                     to_term (subst b (mk_svari x))
@@ -133,11 +138,6 @@ and to_term : e_term -> tbox = fun t ->
                       to_term (subst b (mk_vvari x))
                     in (None, Pos.none (binder_name b), f)
                   in case None (to_valu v) (A.map f m)
-  | TFixY(b,v) -> let f x =
-                    let x = copy_var x (name_of x) mk_vvari in
-                    to_term (subst b (mk_vvari x))
-                  in
-                  fixy None (Pos.none (binder_name b)) f (to_valu v)
   | TPrnt(s)   -> prnt None s
 
 and to_stac : e_stac -> sbox = fun s ->

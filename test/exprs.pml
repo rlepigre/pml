@@ -20,8 +20,6 @@ def test2 : τ =
     | D[w] → C[w]
   }
 
-def fixid : τ = fix (fun x { x })
-
 def lamb_v : ι = fun x { x }
 
 def lamb_t : τ = fun x { x }
