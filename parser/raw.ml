@@ -567,7 +567,9 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
         end
     | (ECase(_,_,_) , SUni(r)  ) -> sort_uvar_set r _st; infer env vars e s
     | (ECase(_,_,_) , _        ) -> sort_clash e s
-    | (EFixY(arg,v) , ST       ) -> let vars = M.add arg.elt (arg.pos, Pos.none ST) vars in
+    | (EFixY(arg,v) , ST       ) -> let vars =
+                                      M.add arg.elt (arg.pos, Pos.none ST) vars
+                                    in
                                     infer env vars v _sv
     | (EFixY(_)     , SUni(r)  ) -> sort_uvar_set r _st; infer env vars e _st
     | (EFixY(_)     , _        ) -> sort_clash e s
@@ -939,9 +941,6 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
           to_valu (unsugar env vars v _sv)
         in
         Box(T, fixy e.pos arg fn)
-(*  | (EFixY(_)     , SV _    ) -> FIXME
-        let v = to_valu (unsugar env vars e _sv) in
-        Box(V, valu e.pos v)*)
     | (EPrnt(s)     , ST       ) ->
         Box(T, prnt e.pos s)
     | (ERepl(t,u,p) , ST       ) ->

@@ -740,7 +740,9 @@ let rec add_term :  bool -> pool -> term -> Ptr.t * pool = fun free po t ->
                    let ptr = Timed.tref Prep in
                    let (pt, po) = insert_t_node false (TN_FixY(cl,ptr)) po in
                    let pt = Ptr.T_ptr pt in
-                   let po = { po with time = Timed.set po.time ptr (Init pt) } in
+                   let po =
+                     { po with time = Timed.set po.time ptr (Init pt) }
+                   in
                    if free then normalise pt po else find pt po
   | Prnt(s)     -> insert (TN_Prnt(s)) po
   | Repl(_,u,_) -> add_term po u
@@ -1641,7 +1643,8 @@ let find_proj : pool -> Bindlib.ctxt -> valu -> string
            | _ ->
               let (w,names) = proj_eps names v l in
               let (wp,po) = add_valu po w in
-              let (pt,po) = add_term false po (Pos.none (Proj(v,Pos.none l))) in
+              let t = Pos.none (Proj(v,Pos.none l)) in
+              let (pt,po) = add_term false po t in
               let po = union (Ptr.V_ptr wp) pt po in
               (wp, w, po, names)
          in
