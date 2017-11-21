@@ -278,6 +278,8 @@ type pool =
   ; time     : Timed.Time.t (** Current time for references *)
   ; eq_map   : (ptr * ptr) list (* just for printing and debugging *)
   ; values   : (value * v_ptr) list
+  ; v_defs   : (v expr * v_ptr) list
+  ; e_defs   : (t expr * Ptr.t) list
   }
 
 (**
@@ -343,6 +345,8 @@ let empty_pool : pool =
   ; time   = Timed.Time.save ()
   ; eq_map = []
   ; values = []
+  ; v_defs = []
+  ; e_defs = []
   }
 
 (** Node search. *)
@@ -739,7 +743,14 @@ let rec add_term :  bool -> pool -> term -> Ptr.t * pool = fun free po t ->
   | EWit(w)     -> insert (TN_EWit(w)) po
   | HApp(s,f,a) -> let (hoa, po) = add_ho_appl po s f a in
                    insert (TN_HApp(hoa)) po
-  | HDef(_,d)   -> add_term po d.expr_def
+  | HDef(_,d)   -> let (pt, po) =
+                     try (List.assq d po.e_defs, po)
+                     with Not_found ->
+                       let (pt,po) = add_term po d.expr_def in
+                       let po = { po with e_defs = (d,pt)::po.e_defs } in
+                       (pt, po)
+                   in
+                   if free then normalise pt po else find pt po
   | UVar(_,v)   -> insert (TN_UVar(v)) po
   | ITag(_,n)   -> insert (TN_ITag(n)) po
   | Goal(_)     -> insert (TN_Goal(t)) po
@@ -764,13 +775,9 @@ and     add_valu : pool -> valu -> VPtr.t * pool = fun po v ->
                    insert_v_node (VN_Reco(m)) po
   | Scis        -> insert_v_node VN_Scis po
   | VDef(d)     -> begin
-                     try
-                       let pv = List.assq d po.values in
-                       (*Printf.eprintf "reuse %a\n%!" VPtr.print pv;*)
-                       (pv, po)
+                     try (List.assq d po.values, po)
                      with Not_found ->
                        let (pv,po) = add_valu po d.value_eras in
-                       (*Printf.eprintf "valu create %a\n%!" VPtr.print pv;*)
                        let po = { po with values = (d,pv)::po.values } in
                        (pv, po)
                    end
@@ -781,7 +788,13 @@ and     add_valu : pool -> valu -> VPtr.t * pool = fun po v ->
   | EWit(w)     -> insert_v_node (VN_EWit(w)) po
   | HApp(s,f,a) -> let (hoa, po) = add_ho_appl po s f a in
                    insert_v_node (VN_HApp(hoa)) po
-  | HDef(_,d)   -> add_valu po d.expr_def
+  | HDef(_,d)   -> begin
+                     try (List.assq d po.v_defs, po)
+                     with Not_found ->
+                       let (pv,po) = add_valu po d.expr_def in
+                       let po = { po with v_defs = (d,pv)::po.v_defs } in
+                       (pv, po)
+                   end
   | UVar(_,v)   -> insert_v_node (VN_UVar(v)) po
   | ITag(_,n)   -> insert_v_node (VN_ITag(n)) po
   | Goal(_)     -> insert_v_node (VN_Goal(v)) po
