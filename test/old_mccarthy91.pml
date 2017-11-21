@@ -17,12 +17,14 @@ val u91  : nat = succ (mul u10 u9)
 val u100 : nat = mul u10 u10
 val u101 : nat = succ u100
 
-def mccarthy91 : ι = fix
-  fun mccarthy91 n {
-    if gt n u100 {
-      minus n u10
-    } else {
-      mccarthy91 (mccarthy91 (add n u11))
+def mccarthy91 : τ =
+  fix mccarthy91 {
+    fun n {
+      if gt n u100 {
+        minus n u10
+      } else {
+        mccarthy91 (mccarthy91 (add n u11))
+      }
     }
   }
 

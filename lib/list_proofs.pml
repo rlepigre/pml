@@ -68,7 +68,7 @@ def cmp<f:ι,g:ι> = fun x { g (f x) }
 val map_map : ∀a b c, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c), ∀l∈list<a>,
                 map g (map f l) ≡ map cmp<f,g> l =
     fun fn gn {
-      fix fun map_map ls {
+      fix map_map { fun ls {
         case ls {
                 | Nil     → {}
                 | Cons[c] →
@@ -77,7 +77,7 @@ val map_map : ∀a b c, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c), ∀l∈list<a>,
                   use map fn c.tl;
                   let ind = map_map c.tl; {}
         }
-      }
+      }}
     }
 
 val rec map_map : ∀a b c, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c), ∀l∈list<a>,

@@ -117,7 +117,7 @@ val add_height_aux : ∀a:ο, ∀f∈(a⇒a⇒cmp), ∀x∈a, ∀n∈nat,
                      ∀t∈(tree23<a> | height t n ≡ true),
                      height_aux (add_aux f x t) n ≡ true =
   fun f x {
-    fix fun add_height_aux n t {
+    fix add_height_aux { fun n t {
       case t {
       | E     → {}
       | N2[c] →
@@ -186,7 +186,7 @@ val add_height_aux : ∀a:ο, ∀f∈(a⇒a⇒cmp), ∀x∈a, ∀n∈nat,
                 | N2[n] → {}
                 }}}}
       }
-    }
+    }}
   }
 
 val add_height : ∀a:ο, ∀f∈(a⇒a⇒cmp), ∀x∈a, ∀n∈nat,

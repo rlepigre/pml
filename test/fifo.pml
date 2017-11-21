@@ -131,7 +131,7 @@ val rec apply_aux : ∀t,∀a, fifo_sig_aux<t> ⇒ t<a> ⇒ list<ope<a>> ⇒ t<a
     case ops {
       []      → f
       op::ops →
-        let f:t<a> = apply_aux fifo f ops;
+        let f:t<a> = apply_aux fifo (f:t<a>) ops;
         case op {
           Push[x] → fifo.push x f
           Pop     → case fifo.pop f {
@@ -141,10 +141,6 @@ val rec apply_aux : ∀t,∀a, fifo_sig_aux<t> ⇒ t<a> ⇒ list<ope<a>> ⇒ t<a
         }
     }
   }
-
-val rec apply_aux_total : ∀t,∀a, ∀fifo∈fifo_sig_aux<t>, ∀f∈t<a>, ∀ops∈list<ope<a>>,
-                            ∃v:ι, apply_aux fifo f ops ≡ v =
-  fun fifo f ops { {-requires to know that push and pop are total-} }
 
 // apply a sequence of operations and performs a last "pop"
 val apply : ∀a, fifo_sig ⇒ list<ope<a>> ⇒ option<a> =

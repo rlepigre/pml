@@ -46,6 +46,9 @@ let tvalu : e_vbox -> e_tbox =
 let tappl : e_tbox -> e_tbox -> e_tbox =
   box_apply2 (fun t u -> TAppl(t,u))
 
+let tfixy : string -> (e_tvar -> e_vbox) -> e_tbox =
+  fun x f -> box_apply (fun b -> TFixY(b)) (Bindlib.vbind mk_tvari x f)
+
 let tmabs : string -> (e_svar -> e_tbox) -> e_tbox =
   fun x f -> box_apply (fun b -> TMAbs(b)) (vbind mk_svari x f)
 
@@ -59,9 +62,6 @@ let tcase : e_vbox -> (string * (e_vvar -> e_tbox)) A.t -> e_tbox =
   fun v m ->
     let f (x,f) = vbind mk_vvari x f in
     box_apply2 (fun v m -> TCase(v,m)) v (A.map_box f m)
-
-let tfixy : string -> (e_vvar -> e_tbox) -> e_vbox -> e_tbox =
-  fun x f -> box_apply2 (fun b v -> TFixY(b,v)) (vbind mk_vvari x f)
 
 let tprnt : string -> e_tbox =
   fun s -> box (TPrnt(s))
@@ -89,6 +89,7 @@ let rec step : proc -> proc option = function
   | (TValu(v)          , SFram(t,pi)) -> Some (t, SPush(v,pi))
   | (TValu(VVdef(d))   , pi         ) -> step (TValu(d.value_eval), pi)
   | (TValu(VLAbs(b))   , SPush(v,pi)) -> Some (subst b v, pi)
+  | (TFixY(b) as t     , pi         ) -> Some (TValu(subst b t), pi)
   | (TMAbs(b)          , pi         ) -> Some (subst b pi, pi)
   | (TName(pi,t)       , _          ) -> Some (t, pi)
   | (TProj(VVdef(d),l) , pi         ) -> step (TProj(d.value_eval,l), pi)
@@ -102,11 +103,6 @@ let rec step : proc -> proc option = function
       begin
         try Some (subst (A.find c m) v, pi)
         with Not_found -> runtime_error "Unknown constructor"
-      end
-  | (TFixY(b,v)        , pi         ) ->
-      begin
-        let f = binder_from_fun "x" (fun x -> TFixY(b,x)) in
-        Some (TValu(VLAbs(b)), SPush(VLAbs(f),SPush(v,pi)))
       end
   | (TPrnt(s)          , pi         ) ->
       begin

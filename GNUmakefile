@@ -103,7 +103,11 @@ _build/pml2/main.native: $(ML_FILES)
 
 _build/pml2/main.byte: $(ML_FILES)
 	@rm -f main.byte
-	$(OCAMLBUILD) pml2/main.byte
+	$(OCAMLBUILD) -cflags -g -lflag -g  pml2/main.byte
+
+_build/pml2/main.p.native: $(ML_FILES)
+	@rm -f main.byte
+	$(OCAMLBUILD) -cflags -ccopt,-no-pie -lflags -ccopt,-no-pie pml2/main.p.native
 
 _build/pml2/main.p.native: $(ML_FILES)
 	@rm -f main.byte

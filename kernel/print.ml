@@ -1,6 +1,7 @@
 (** Printing functions for expressions. *)
 
 open Bindlib
+open Ptr
 open Sorts
 open Pos
 open Ast
@@ -140,9 +141,8 @@ let rec ex : type a. a ex loc printer = fun ch e ->
                    in
                    let pcase = print_map pelt " | " in
                    fprintf ch "[%a | %a]" ex v pcase m
-  | FixY(f,v)   -> let (x,t) = unbind (mk_free V) (snd f) in
-                   fprintf ch "Y(λ%s.%a, %a)" (name_of x)
-                     ex t ex v
+  | FixY(b)     -> let (x,t) = unbind (mk_free T) (snd b) in
+                   fprintf ch "fix %s.%a" (name_of x) ex t
   | Prnt(s)     -> fprintf ch "print(%S)" s
   | Repl(t,u,_) -> fprintf ch "(check %a for %a)" ex t ex u
   | Conv        -> output_string ch "∞"
@@ -179,7 +179,7 @@ let rec ex : type a. a ex loc printer = fun ch e ->
   | UVar(_,u)   -> fprintf ch "?%i" u.uvar_key
   | Goal(_,s)   -> fprintf ch "{- %s -}" s
   | VPtr(p)     -> fprintf ch "VPtr(%a)" VPtr.print p
-  | TPtr(p)     -> fprintf ch "VPtr(%a)" TPtr.print p
+  | TPtr(p)     -> fprintf ch "TPtr(%a)"  Ptr.print p
 
 and rel ch cnd =
   let eq b = if b then "=" else "≠" in
@@ -189,7 +189,7 @@ and rel ch cnd =
     | Posit(o)     -> ex ch o
 
 let print_fix_sch ch sch =
-  let (x,t) = unbind (mk_free V) (snd (fst sch.fsch_judge)) in
+  let (x,t) = unbind (mk_free T) (snd (fst sch.fsch_judge)) in
   let (vars,k) = unmbind (mk_free O) (snd sch.fsch_judge) in
   let vars = Array.map (fun x -> Pos.none (mk_free O x)) vars in
   let print_vars = print_list ex "," in

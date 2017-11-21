@@ -182,7 +182,7 @@ and raw_ex' =
   | EName of raw_ex * raw_ex
   | EProj of raw_ex * flag * strloc
   | ECase of raw_ex * flag * patt_ex list
-  | EFixY of raw_ex
+  | EFixY of strloc * raw_ex
   | EPrnt of string
   | ERepl of raw_ex * raw_ex * raw_ex
   | ECoer of raw_ex * raw_ex
@@ -237,7 +237,7 @@ let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
     | EProj(v,_,l)  -> Printf.fprintf ch "EProj(%a,%S)" print v l.elt
     | ECase(v,_,l)  -> Printf.fprintf ch "ECase(%a,[%a])" print v
                          (print_list aux_patt "; ") l
-    | EFixY(t)      -> Printf.fprintf ch "EFixY(%a)" print t
+    | EFixY(arg,t)  -> Printf.fprintf ch "EFixY(%a,%a)" aux_var arg print t
     | EPrnt(s)      -> Printf.fprintf ch "EPrnt(%S)" s
     | ERepl(t,u,a)  -> Printf.fprintf ch "ERepl(%a,%a,%a)"
                          print t print u print a
@@ -561,9 +561,11 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
         end
     | (ECase(_,_,_) , SUni(r)  ) -> sort_uvar_set r _st; infer env vars e s
     | (ECase(_,_,_) , _        ) -> sort_clash e s
-    | (EFixY(v)     , ST       )
-    | (EFixY(v)     , SV _     ) -> infer env vars v _st
-    | (EFixY(_)     , SUni(r)  ) -> sort_uvar_set r _sv; infer env vars e s
+    | (EFixY(arg,v) , ST       ) -> let vars =
+                                      M.add arg.elt (arg.pos, Pos.none ST) vars
+                                    in
+                                    infer env vars v _sv
+    | (EFixY(_)     , SUni(r)  ) -> sort_uvar_set r _st; infer env vars e _st
     | (EFixY(_)     , _        ) -> sort_clash e s
     | (EPrnt(_)     , ST       ) -> ()
     | (EPrnt(_)     , _        ) -> sort_clash e s
@@ -916,44 +918,13 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
                   let v = to_valu (unsugar env vars v (_sv_store l)) in
                   Box(T, redexes e.pos !l (case e.pos v m))
         end
-    | (EFixY(v)     , SV _     ) ->
-        begin
-          match v.elt with
-          | ELAbs(((x,ao), l), t) ->
-              let t =
-                match l with
-                | []    -> t
-                | y::ys -> Pos.none (ELAbs((y,ys), t))
-              in
-              let fn xx =
-                let xx = (x.pos, Box(V, vari x.pos xx)) in
-                let vars = M.add x.elt xx vars in
-                to_term (unsugar env vars t _st)
-              in
-              let fn xx = fixy e.pos x fn (vari None xx) in
-              let fix = labs e.pos None (Pos.none "x") fn in
-              let fix =
-                match ao with
-                | None -> fix
-                | Some k ->
-                   let k = to_prop (unsugar env vars k _sp) in
-                   coer v.pos VoT_V fix k
-              in
-              Box(V,fix)
-          | _                         ->
-             (* perform eta expansion to force
-                abs under fixpoint *)
-             let x = Pos.none "x" in
-             let fn xx = appl v.pos (to_term (unsugar env vars v _st))
-                              (valu None (vari None xx))
-             in
-             let fn xx = fixy e.pos x fn (vari None xx) in
-             let fix = labs e.pos None x fn in
-             Box(V,fix)
-        end
-    | (EFixY(_)     , ST       ) ->
-        let v = to_valu (unsugar env vars e _sv) in
-        Box(T, valu e.pos v)
+    | (EFixY(arg,v) , ST       ) ->
+        let fn x =
+          let x = (arg.pos, Box(T, vari arg.pos x)) in
+          let vars = M.add arg.elt x vars in
+          to_valu (unsugar env vars v _sv)
+        in
+        Box(T, fixy e.pos arg fn)
     | (EPrnt(s)     , ST       ) ->
         Box(T, prnt e.pos s)
     | (ERepl(t,u,p) , ST       ) ->
@@ -1068,11 +1039,7 @@ let type_def : Pos.pos -> [`Non | `Rec | `CoRec] -> strloc
   expr_def id args (Some (Pos.none SP)) e
 
 let val_def : bool -> strloc -> raw_ex -> raw_ex -> toplevel = fun r id a t ->
-  let t =
-    if r then
-      Pos.make t.pos (EFixY(Pos.make t.pos (ELAbs(((id, None),[]), t))))
-    else t
-  in
+  let t = if r then Pos.make t.pos (EFixY(id, t)) else t in
   Valu_def(id, a, t)
 
 let check_sub : raw_ex -> bool -> raw_ex -> toplevel = fun a r b ->
@@ -1165,12 +1132,8 @@ let if_then_else _loc c t e =
 let let_binding _loc r arg t u =
   match arg with
   | `LetArgVar(id,ao) ->
-      let t =
-        if not r then t else
-        let fix = EFixY(Pos.none (ELAbs(((id, None),[]), t))) in
-        Pos.make t.pos fix
-      in
-      let t =
+     let t = if not r then t else Pos.make t.pos (EFixY(id, t)) in
+     let t =
         match ao with
         | None   -> t
         | Some a -> Pos.make t.pos (ECoer(t,a))

@@ -27,7 +27,7 @@ val exists : ∀a, (a ⇒ bool) ⇒ list<a> ⇒ bool =
     let a such that l : list<a>;
     //FIXME: inferring with a partial arrow ?
     //Because Totality.is_not_tot compares with Tot when typing "pred e".
-    let f:(bool⇒a⇒bool) = fun acc e { if pred e { true } else { acc } };
+    let f:bool⇒a⇒bool = fun acc e { if pred e { true } else { acc } };
     fold_left f false l
   }
 include lib.option

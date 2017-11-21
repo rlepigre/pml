@@ -59,7 +59,7 @@ type ctxt  =
   (* the first of the pair is positive, the second
      is stricly less than the first *)
   ; positives : (ordi * ordi) list
-  ; fix_ihs   : ((v,t) bndr, fix_schema) Buckets.t
+  ; fix_ihs   : ((t,v) bndr, fix_schema) Buckets.t
   ; sub_ihs   : sub_schema list
   ; top_ih    : Scp.index * ordi array
   ; add_calls : (unit -> unit) list ref
@@ -575,6 +575,7 @@ and subtype =
     (t, a, b, r)
     with
     | Subtype_error _ as e -> raise e
+    | Out_of_memory as e -> raise e
     | e -> subtype_error t a b e
   in
   fun ctx t a b -> Chrono.add_time sub_chrono (subtype ctx t a) b
@@ -603,7 +604,7 @@ and check_sub : ctxt -> prop -> prop -> check_sub = fun ctx a b ->
             let spe = elim_sub_schema ctx ih in
             let (a0, b0) = spe.sspe_judge in
             (* Check if schema applies. *)
-            if not (Timed.pure_test
+            if not (UTimed.pure_test
                       (fun () -> unif_expr ctx a a0 && unif_expr ctx b b0)
                       ())
             then raise Exit;
@@ -649,8 +650,8 @@ and check_sub : ctxt -> prop -> prop -> check_sub = fun ctx a b ->
 
   in find_suitable ihs
 
-and check_fix : ctxt -> valu -> (v, t) bndr -> prop -> unit -> typ_proof =
-  fun ctx v b c ->
+and check_fix : ctxt -> term -> (t, v) bndr -> prop -> unit -> typ_proof =
+  fun ctx t b c ->
   (* Looking for potential induction hypotheses. *)
   let ihs = Buckets.find b ctx.fix_ihs in
   log_typ "there are %i potential fixpoint induction hypotheses"
@@ -659,6 +660,7 @@ and check_fix : ctxt -> valu -> (v, t) bndr -> prop -> unit -> typ_proof =
   let rec find_suitable ihs =
     match ihs with
     | ih::ihs ->
+(* FIXME
         begin
           try
             (* An induction hypothesis has been found. *)
@@ -672,15 +674,31 @@ and check_fix : ctxt -> valu -> (v, t) bndr -> prop -> unit -> typ_proof =
             in
             log_typ "it matches\n%!";
             (* Add call to call-graph and build the proof. *)
-            if Totality.is_term ctx.totality then
               add_call ctx (ih.fsch_index, spe.fspe_param) true;
             (build_t_fixy b, c, Typ_Ind(ih,prf))
           with Subtype_error _ | Exit -> find_suitable ihs
         end
+ *)
+       begin
+         try
+           (* An induction hypothesis has been found. *)
+           let spe = elim_fix_schema ctx ih in
+           log_typ "an induction hypothesis has been found, trying";
+           log_typ "   %a\n < %a" Print.ex (snd spe.fspe_judge) Print.ex c;
+           let prf =
+             Chrono.add_time type_chrono (subtype ctx t (snd spe.fspe_judge)) c
+           in
+           log_typ "it matches\n%!";
+           (* Add call to call-graph and build the proof. *)
+           if Totality.is_term ctx.totality then
+             add_call ctx (ih.fsch_index, spe.fspe_param) true;
+           (t, c, Typ_Ind(ih,prf))
+         with Subtype_error _ | Exit -> find_suitable ihs
+       end
     | []      ->
        (* No matching induction hypothesis. *)
        log_typ "no suitable induction hypothesis";
-       type_error (E(V,v)) c (No_typing_IH(bndr_name b))
+       type_error (E(T,t)) c (No_typing_IH(bndr_name b))
   in
   if ihs = [] then
     begin
@@ -698,9 +716,9 @@ and check_fix : ctxt -> valu -> (v, t) bndr -> prop -> unit -> typ_proof =
       let (spe, ctx) = inst_fix_schema ctx sch os in
       let ctx = {ctx with top_ih = (sch.fsch_index, spe.fspe_param)} in
       (* Unrolling of the fixpoint and proof continued. *)
-      let t = bndr_subst b (build_v_fixy b).elt in
+      let v = bndr_subst b t.elt in
       (fun () ->
-        Chrono.add_time type_chrono (type_term ctx t) (snd spe.fspe_judge))
+        Chrono.add_time type_chrono (type_valu ctx v) (snd spe.fspe_judge))
     end
   else
     let res = find_suitable ihs in (fun () -> res)
@@ -749,7 +767,7 @@ and sub_generalise : ctxt -> prop -> prop -> sub_schema * ordi array =
     ({ssch_index ; ssch_relat ; ssch_judge}, os)
 
 (* Generalisation (construction of a fix_schema). *)
-and fix_generalise : ctxt -> (v, t) bndr -> prop -> fix_schema * ordi array =
+and fix_generalise : ctxt -> (t, v) bndr -> prop -> fix_schema * ordi array =
   fun ctx b c ->
     (* Extracting ordinal parameters from the goal type. *)
     let (omb, os) = Misc.bind_spos_ordinals c in
@@ -835,7 +853,7 @@ and add_call : ctxt -> (Scp.index * ordi array) -> bool -> unit =
       let caller = fst caller in
       Scp.(add_call ctx.callgraph { callee ; caller ; matrix ; is_rec })
     in
-    Timed.(ctx.add_calls := todo :: !(ctx.add_calls))
+    UTimed.(ctx.add_calls := todo :: !(ctx.add_calls))
 
 (* Build a call-matrix given the caller and the callee. *)
 and build_matrix : Scp.t -> (ordi * ordi) list ->
@@ -882,50 +900,29 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
         end
     (* λ-abstraction. *)
     | LAbs(ao,f)  ->
-       let (x,tx) = unbind (mk_free V) (snd f) in
+       let a =
+         match ao with
+         | None   -> new_uvar ctx P
+         | Some a -> a
+       in
+       let b = new_uvar ctx P in
+       let tot = Totality.new_tot () in
+       let c' = Pos.none (Func(tot,a,b)) in
+       let p1 = subtype ctx t c' c in
+       log_typ "arrow tot: %a" Print.arrow tot;
+       let (wit,ctx_names) = vwit ctx.ctx_names f a b in
+       let ctx = { ctx with ctx_names; totality = tot } in
+       let twit = Pos.none(Valu wit) in
+       (* Learn the equivalence that are valid in the witness. *)
        begin
-         match tx.elt with
-         (* Fixpoint *)
-         | FixY(b,{elt = Vari(V,y)}) ->
-            assert(eq_vars x y); (* x must not be free in b *)
-            let w = Pos.make v.pos (Valu(v)) in
-            (* NOTE UWit is almost always use with value *)
-            let rec break_univ ctx c =
-              match (Norm.whnf c).elt with
-              | Univ(O,f) -> let (eps, ctx_names) = uwit ctx.ctx_names O w f in
-                             let ctx = { ctx with ctx_names } in
-                             break_univ ctx (bndr_subst f eps.elt)
-              | _         -> (c, ctx)
-            in
-            let (c, ctx) = break_univ ctx c in
-            let p =
-              Chrono.add_time check_fix_chrono (check_fix ctx v b) c ()
-            in
-            Typ_FixY(p)
-         (* General case for typing λ-abstraction *)
-         | _                      ->
-            let a =
-              match ao with
-              | None   -> new_uvar ctx P
-              | Some a -> a
-            in
-            let b = new_uvar ctx P in
-            let tot = Totality.new_tot () in
-            let c' = Pos.none (Func(tot,a,b)) in
-            let p1 = subtype ctx t c' c in
-            let (wit,ctx_names) = vwit ctx.ctx_names f a b in
-            let ctx = { ctx with ctx_names; totality = tot } in
-            let twit = Pos.none(Valu wit) in
-            (* Learn the equivalence that are valid in the witness. *)
-            begin
-              try
-                let ctx = learn_nobox ctx wit in
-                let ctx = learn_equivalences ctx wit a in
-                let ctx = learn_neg_equivalences ctx v (Some twit) c in
-                let p2 = type_term ctx (bndr_subst f wit.elt) b in
-                Typ_Func_i(p1,Some p2)
-              with Contradiction -> Typ_Func_i(p1, None)
-            end
+         try
+           let ctx = learn_nobox ctx wit in
+           let ctx = learn_equivalences ctx wit a in
+           let ctx = learn_neg_equivalences ctx v (Some twit) c in
+           log_typ "arrow tot2: %a" Print.arrow tot;
+           let p2 = type_term ctx (bndr_subst f wit.elt) b in
+           Typ_Func_i(p1,Some p2)
+         with Contradiction -> Typ_Func_i(p1, None)
        end
     (* Constructor. *)
     | Cons(d,w)   ->
@@ -1012,6 +1009,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
   in (Pos.make v.pos (Valu(v)), c, r)
   with
   | Type_error _ as e -> raise e
+  | Out_of_memory as e -> raise e
   | e -> type_error (E(V,v)) c e
 
 and is_typed : type a. a v_or_t -> a ex loc -> bool = fun t e ->
@@ -1027,8 +1025,8 @@ and is_typed : type a. a v_or_t -> a ex loc -> bool = fun t e ->
   | _                  -> false
 
 and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
-  log_typ "proving the term judgment:\n  %a\n  ⊢ %a\n  : %a"
-    print_pos ctx.positives Print.ex t Print.ex c;
+  log_typ "proving the term judgment:\n  %a\n  ⊢(%a) %a\n  : %a"
+    print_pos ctx.positives Print.arrow ctx.totality Print.ex t Print.ex c;
   try
   let r =
     match t.elt with
@@ -1054,6 +1052,7 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
           if is_val || not (Totality.is_not_tot tot) then
             (Pos.none (Memb(u, a)), true) else (a, false)
         in
+        log_typ "strong: %b" strong;
         let (p1,p2) =
           if is_typed VoT_T t && not (is_typed VoT_T u) then
             let p1 = type_term ctx f (Pos.none (Func(tot,ae,c))) in
@@ -1065,6 +1064,19 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
             (p1,p2)
         in
         if is_val then Typ_Func_s(p1,p2) else Typ_Func_e(p1,p2)
+    | FixY(b) ->
+       let rec break_univ ctx c =
+         match (Norm.whnf c).elt with
+         | Univ(O,f) -> let (eps, ctx_names) = uwit ctx.ctx_names O t f in
+                        let ctx = { ctx with ctx_names } in
+                        break_univ ctx (bndr_subst f eps.elt)
+         | _         -> (c, ctx)
+       in
+       let (c, ctx) = break_univ ctx c in
+       let p =
+         Chrono.add_time check_fix_chrono (check_fix ctx t b) c ()
+       in
+       Typ_FixY(p)
     (* μ-abstraction. *)
     | MAbs(b)     ->
         let (eps, ctx_names) = swit ctx.ctx_names b c in
@@ -1178,7 +1190,6 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
         Typ_Repl(p1,p2)
     (* Constructors that cannot appear in user-defined terms. *)
     | TPtr(_)     -> unexpected "TPtr during typing..."
-    | FixY(_,_)   -> unexpected "Fixpoint at the toplevel..."
     | UWit(_)     -> unexpected "∀-witness during typing..."
     | EWit(_)     -> unexpected "∃-witness during typing..."
     | UVar(_)     -> unexpected "unification variable during typing..."
@@ -1188,6 +1199,7 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
   in (t, c, r)
   with
   | Type_error _ as e -> raise e
+  | Out_of_memory as e -> raise e
   | e                 -> type_error (E(T,t)) c e
 
 and check_total : ctxt -> term -> prop -> ctxt =

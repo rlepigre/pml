@@ -25,13 +25,13 @@ val rec app2 : ∀b:ο, list<b> ⇒ list<b> ⇒ list<b> =
     }
   }
 
-def app0 : ι =
-  fix fun app l1 l2 {
+def app0 : τ =
+  fix app { fun l1 l2 {
     case l1 {
       Nil    → l2
       Cns[c] → let r = app c.tl l2; cns c.hd r
     }
-  }
+  }}
 
 val appt : ∀b:ο, list<b> ⇒ list<b> ⇒ ∃w:ι, (w∈list<b>) = app0
 
@@ -84,7 +84,7 @@ val rec map : ∀a b:ο, (a ⇒ b) ⇒ list<a> ⇒ list<b> =
 val map_map : ∀a b c:ο, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c), ∀l∈list<a>,
                         map g (map f l) ≡ map (fun x { g (f x) }) l =
   fun fn gn {
-    fix fun map_map ls {
+    fix map_map { fun ls {
       case ls {
         Nil    → {}
         Cns[c] →
@@ -95,7 +95,7 @@ val map_map : ∀a b c:ο, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c), ∀l∈list<a>,
           let ind = map_map tl; {}
       }
     }
-  }
+  }}
 
 val rec map_map : ∀a b c:ο, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c), ∀l∈list<a>,
                             map g (map f l) ≡ map (fun x { g (f x) }) l =

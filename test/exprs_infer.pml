@@ -19,8 +19,6 @@ def test2 =
     | D[w] → C[w]
   }
 
-def fixid = fix (fun x { x })
-
 def lamb_v = fun x { x }
 
 def lamb_t = fun x { x }

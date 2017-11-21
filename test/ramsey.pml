@@ -18,9 +18,7 @@ type cstream_f<o,f,a> = {hd : col_f<f,a>; tl : stream_f<o,f,a>}
 val total : ∀a b, ∀f∈a⇒b, ∀x∈a, ∃v:ι, v ∈ b | v ≡ f x =
   fun f x { let y = f x; y }
 
-val abort : ∀y, (∀x,x) ⇒ y = λx.x
-
-def to_term<s:σ> = λx.abort (restore s x)
+def to_term<s:σ> = λx.restore s x
 
 val rec aux : ∀o1 o2, ∀a, ∀f∈(a⇒bool),
                    (cstream_t<o1,f,a> → ∀x,x)

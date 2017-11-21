@@ -20,14 +20,14 @@ let uvar_set : type a. a uvar -> a ex loc -> unit = fun u e ->
   match !(u.uvar_val) with
   | Set   _     -> assert false
   | Unset hooks ->
-     Timed.(u.uvar_val := Set e);
+     UTimed.(u.uvar_val := Set e);
      List.iter (fun f -> f ()) hooks
 
 let uvar_hook : type a. a uvar -> (unit -> unit) -> unit = fun u f ->
    match !(u.uvar_val) with
   | Set   _     -> ()
   | Unset hooks ->
-     Timed.(u.uvar_val := Unset (f::hooks))
+     UTimed.(u.uvar_val := Unset (f::hooks))
 
 let full_eq = ref false
 
@@ -67,8 +67,8 @@ let {eq_expr; eq_bndr} =
 
   let rec eq_expr : type a. oracle -> bool -> a ex loc -> a ex loc -> bool =
     fun oracle strict e1 e2 ->
-    let eq_expr e1 e2 = eq_expr oracle strict e1 e2 in
-    let eq_bndr b1 b2 = eq_bndr oracle strict b1 b2 in
+    let eq_expr  e1 e2 = eq_expr oracle strict e1 e2 in
+    let eq_bndr  b1 b2 = eq_bndr oracle strict b1 b2 in
     let eq_fix_schema sch1 sch2 =
       sch1.fsch_index = sch2.fsch_index
     in
@@ -239,7 +239,7 @@ let {eq_expr; eq_bndr} =
     | (Case(v1,m1)   , Case(v2,m2)   ) ->
         let cmp (_,b1) (_,b2) = eq_bndr V b1 b2 in
         eq_expr v1 v2 && A.equal cmp m1 m2
-    | (FixY(f1,v1)   , FixY(f2,v2)   ) -> eq_bndr V f1 f2 && eq_expr v1 v2
+    | (FixY(f1)      , FixY(f2)      ) -> eq_bndr T f1 f2
     | (Prnt(s1)      , Prnt(s2)      ) -> s1 = s2
     | (Conv          , Conv          ) -> true
     | (Succ(o1)      , Succ(o2)      ) -> eq_expr o1 o2
@@ -354,7 +354,6 @@ let {eq_expr; eq_bndr} =
       if b1 == b2 then true else
         let t = new_itag s1 in
         eq_expr oracle strict (bndr_subst b1 t) (bndr_subst b2 t)
-
   in
 
   let compare_chrono = Chrono.create "compare" in
@@ -367,7 +366,7 @@ let {eq_expr; eq_bndr} =
       log_equ "showing %a === %a (%b)" Print.ex e1 Print.ex e2 is_oracle;
       (*bug_msg "sizes: %i and %i" (binary_size e1) (binary_size e2);*)
       let res = Chrono.add_time compare_chrono
-                  (Timed.pure_test (eq_expr oracle strict e1)) e2 in
+                  (UTimed.pure_test (eq_expr oracle strict e1)) e2 in
       log_equ "we have %a %s %a"
               Print.ex e1 (if res then "=" else "≠") Print.ex e2;
       res
@@ -378,7 +377,7 @@ let {eq_expr; eq_bndr} =
     fun ?(oracle=default_oracle) ?(strict=true) s1 b1 b2 ->
       c := -1; (* Reset. *)
       Chrono.add_time compare_chrono
-        (Timed.pure_test (eq_bndr oracle strict s1 b1)) b2
+        (UTimed.pure_test (eq_bndr oracle strict s1 b1)) b2
   in
 
   {eq_expr; eq_bndr}
@@ -444,7 +443,7 @@ let {hash_expr; hash_bndr; hash_ombinder; hash_vwit
     | Proj(v,l)   -> khash2 `Proj (hash l.elt) (hash_expr v)
     | Case(v,m)   -> khash2 `Case (hash_expr v)
                             (A.hash (fun (_,e) -> (hash_bndr V e)) m)
-    | FixY(f,v)   -> hash (`FixY (hash_bndr V f, hash_expr v))
+    | FixY(f)     -> hash (`FixY (hash_bndr T f))
     | Prnt(s1)    -> khash1 `Prnt (hash s1)
     | Repl(t,u,a) -> khash3 `Repl (hash_expr t) (hash_expr u) (hash_expr a)
     | Conv        -> hash `Conv
@@ -582,7 +581,7 @@ module CWit = struct
      | FixSch s ->
         let (b, mb) = s.fsch_judge in
         let (_, mb) = unmbind (mk_free O) mb in
-        bndr_uvars V b @ uvars mb
+        bndr_uvars T b @ uvars mb
      | SubSch s ->
         let mb = s.ssch_judge in
         let (_, (e1,e2)) = unmbind (mk_free O) mb in
