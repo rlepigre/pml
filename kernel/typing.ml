@@ -667,7 +667,7 @@ and check_fix : ctxt -> term -> (t, v) bndr -> prop -> unit -> typ_proof =
             log_typ "it matches\n%!";
             (* Add call to call-graph and build the proof. *)
             add_call ctx (ih.fsch_index, spe.fspe_param) true;
-            (Pos.none (FixY b), c, Typ_Ind(ih,prf))
+            (t, c, Typ_Ind(ih,prf))
           with Subtype_error _ | Exit -> find_suitable ihs
         end
     | []      ->
