@@ -233,7 +233,6 @@ and 'a var = 'a ex Bindlib.var
 (** Type of a (bindlib) binder with support for positions.
     @see <https://www.lama.univ-savoie.fr/~raffalli/bindlib.html> bindlib *)
 and ('a, 'b) bndr = popt * ('a ex, 'b ex loc) binder
-and ('a, 'b, 'c) bndr2 = strloc * strloc * ('a ex, ('b ex, 'c ex loc) binder) binder
 
 (** Type of an expression in a (bindlib) bindbox.
     @see <https://www.lama.univ-savoie.fr/~raffalli/bindlib.html> bindlib *)

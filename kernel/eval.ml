@@ -84,36 +84,36 @@ let runtime_error : type a. string -> a =
   fun msg -> raise (Runtime_error msg)
 
 let rec step : proc -> proc option = function
-  | (TValu(v)            , SEpsi      ) -> None
-  | (TAppl(t,u)          , pi         ) -> Some (u, SFram(t,pi))
-  | (TValu(v)            , SFram(t,pi)) -> Some (t, SPush(v,pi))
-  | (TValu(VVdef(d))     , pi         ) -> step (TValu(d.value_eval), pi)
-  | (TValu(VLAbs(b))     , SPush(v,pi)) -> Some (subst b v, pi)
-  | (TFixY(b) as t       , pi         ) -> Some (TValu(subst b t), pi)
-  | (TMAbs(b)            , pi         ) -> Some (subst b pi, pi)
-  | (TName(pi,t)         , _          ) -> Some (t, pi)
-  | (TProj(VVdef(d),l)   , pi         ) -> step (TProj(d.value_eval,l), pi)
-  | (TProj(VReco(m),l)   , pi         ) ->
+  | (TValu(v)          , SEpsi      ) -> None
+  | (TAppl(t,u)        , pi         ) -> Some (u, SFram(t,pi))
+  | (TValu(v)          , SFram(t,pi)) -> Some (t, SPush(v,pi))
+  | (TValu(VVdef(d))   , pi         ) -> step (TValu(d.value_eval), pi)
+  | (TValu(VLAbs(b))   , SPush(v,pi)) -> Some (subst b v, pi)
+  | (TFixY(b) as t     , pi         ) -> Some (TValu(subst b t), pi)
+  | (TMAbs(b)          , pi         ) -> Some (subst b pi, pi)
+  | (TName(pi,t)       , _          ) -> Some (t, pi)
+  | (TProj(VVdef(d),l) , pi         ) -> step (TProj(d.value_eval,l), pi)
+  | (TProj(VReco(m),l) , pi         ) ->
       begin
         try Some (TValu(A.find l m), pi)
         with Not_found -> runtime_error "Unknown record field"
       end
-  | (TCase(VVdef(d),m)    , pi        ) -> step (TCase(d.value_eval,m), pi)
-  | (TCase(VCons(c,v),m)  , pi        ) ->
+  | (TCase(VVdef(d),m)  , pi        ) -> step (TCase(d.value_eval,m), pi)
+  | (TCase(VCons(c,v),m), pi        ) ->
       begin
         try Some (subst (A.find c m) v, pi)
         with Not_found -> runtime_error "Unknown constructor"
       end
-  | (TPrnt(s)            , pi         ) ->
+  | (TPrnt(s)          , pi         ) ->
       begin
         output_string stdout s;
         Some (TValu(VReco(A.empty)), pi)
       end
   (* Runtime errors. *)
-  | (TProj(_)            , _          ) -> runtime_error "invalid projection"
-  | (TCase(_,_)          , _          ) -> runtime_error "invalid case analysis"
-  | (TVari(_)            , _          ) -> runtime_error "free term variable"
-  | (TValu(_)            , _          ) -> runtime_error "free stack variable"
+  | (TProj(_)          , _          ) -> runtime_error "invalid projection"
+  | (TCase(_,_)        , _          ) -> runtime_error "invalid case analysis"
+  | (TVari(_)          , _          ) -> runtime_error "free term variable"
+  | (TValu(_)          , _          ) -> runtime_error "free stack variable"
 
 let rec steps : proc -> proc = fun p ->
   match step p with
