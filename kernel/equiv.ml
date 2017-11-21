@@ -175,7 +175,6 @@ type t_node =
  and tn_fixy_state =
    | Prep
    | Init of Ptr.t
-   | Norm of Ptr.t
 
 type _ ty += T_Node : t_node ty
            | V_Node : v_node ty
@@ -707,7 +706,7 @@ let rec add_term :  bool -> pool -> term -> Ptr.t * pool = fun free po t ->
     if free then normalise_t_node node po
     else let (p, po) = insert_t_node false node po in find (Ptr.T_ptr p) po
   in
-  log2 "add_term %b %a" free Print.ex t;
+  (*log2 "add_term %b %a" free Print.ex t;*)
   let t = Norm.whnf t in
   match t.elt with
   | Valu(v)     -> let (pv, po) = add_valu po v in
@@ -750,7 +749,7 @@ let rec add_term :  bool -> pool -> term -> Ptr.t * pool = fun free po t ->
 
 and     add_valu : pool -> valu -> VPtr.t * pool = fun po v ->
   let add_valu = add_valu in
-  log2 "add_valu %a" Print.ex v;
+  (*log2 "add_valu %a" Print.ex v;*)
   let v = Norm.whnf v in
   match v.elt with
   | LAbs(_,b)   -> let (b, po) = add_bndr_closure po V T b in
@@ -966,14 +965,12 @@ and normalise_t_node : ?old:TPtr.t -> t_node -> pool -> Ptr.t  * pool =
          begin
            match Timed.get po.time ptr with
            | Prep    -> assert false
-           | Norm pv -> find pv po
            | Init pt ->
               log2 "normalisation in %a = TN_FixY" print_t_node node;
               let f = subst_closure f in
+              let po = set_ns po in
               let (pv, po) = add_valu po (bndr_subst f (TPtr pt)) in
               let pv = Ptr.V_ptr pv in
-              let po = { po with time = Timed.set po.time ptr (Norm pv) } in
-              let po = union pt pv po in
               log2 "normalisation in %a = TN_FixY => %a"
                    print_t_node node Ptr.print pv;
               (pv, po)
