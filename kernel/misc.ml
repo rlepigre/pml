@@ -263,13 +263,8 @@ let make_closure
     (unbox (bind_mvar vv (bind_mvar tv e)), vl, tl)
 
 let make_bndr_closure
-    : type a b. bool -> a sort -> (a, b) bndr -> (a, b) bndr closure
-  = fun safe s b0 ->
-    (* safe means no VPtr/TPtr are in the term *)
-    if safe && binder_closed (snd b0) then
-      let b0 = unbox (bind_mvar [||] (bind_mvar [||] (box b0))) in
-      (b0, [||], [||])
-    else
+    : type a b. a sort -> (a, b) bndr -> (a, b) bndr closure
+  = fun s b0 ->
     let (x,e) = unbind (mk_free s) (snd b0) in
     let (e,tv,vv,tl,vl) = box_closure e in
     let b = bind_var x e in
