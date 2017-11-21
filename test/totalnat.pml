@@ -17,7 +17,7 @@ def add0 =
 
 val add : ∀n m∈nat, ∃v:ι, v∈nat | v ≡ add0 n m = add0
 
-// val test : add ≡ add0 = {} // did not work before 23/3/2017 patch
+val test : add ≡ add0 = {} // did not work before 23/3/2017 patch
 
 // A variant that works
 def add1 =
@@ -25,8 +25,7 @@ def add1 =
     case n {
       Z    → m
       S[p] → let _ = add p m;
-             let pm = add p m;
-             succ pm
+             succ (add p m)
     }
   }}
 
