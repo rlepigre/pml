@@ -109,10 +109,6 @@ _build/pml2/main.p.native: $(ML_FILES)
 	@rm -f main.byte
 	$(OCAMLBUILD) -cflags -ccopt,-no-pie -lflags -ccopt,-no-pie pml2/main.p.native
 
-_build/pml2/main.p.native: $(ML_FILES)
-	@rm -f main.byte
-	$(OCAMLBUILD) -cflags -ccopt,-no-pie -lflags -ccopt,-no-pie pml2/main.p.native
-
 # Checks on the source code.
 check:
 	@f=`grep FIXME */*.ml */*.mli | wc -l`;\
