@@ -429,8 +429,8 @@ and subtype =
       | (Func(t1,a1,b1), Func(t2,a2,b2)) when t_is_val ->
          if not (Totality.sub t1 t2) then subtype_msg a.pos "Arrow clash";
          let fn x = appl None (box t) (valu None (vari None x)) in
-         (** FIXME #9: guess a better name *)
-         let f = (None, unbox (vbind (mk_free V) "x" fn)) in
+         let name = Print.get_lambda_name t in
+         let f = (None, unbox (vbind (mk_free V) name fn)) in
          let (vwit, ctx_names) = vwit ctx.ctx_names f a2 b2 in
          let ctx = { ctx with ctx_names } in
          let ctx = learn_nobox ctx vwit in
@@ -483,8 +483,8 @@ and subtype =
               try snd (A.find c cs2) with Not_found ->
               subtype_msg p ("Sum clash on constructor " ^ c ^ "...")
             in
-            (** FIXME #9: guess a better name *)
-            let f = bndr_from_fun "x" (fun x -> Valu(Pos.none x)) in
+            let name = Print.get_case_name c t in
+            let f = bndr_from_fun name (fun x -> Valu(Pos.none x)) in
             let (wit, ctx_names) = vwit ctx.ctx_names f a a in
             let ctx = { ctx with ctx_names } in
             let equations =
@@ -583,7 +583,6 @@ and subtype =
 and gen_subtype : ctxt -> prop -> prop -> sub_rule =
   fun ctx a b ->
     let f = bndr_from_fun "x" (fun x -> Valu(Pos.none x)) in
-    (** FIXME #9: guess a better name *)
     let (eps, ctx_names) = vwit ctx.ctx_names f a b in
     let ctx = { ctx with ctx_names } in
     let wit = Pos.none (Valu eps) in

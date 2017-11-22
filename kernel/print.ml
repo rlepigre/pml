@@ -216,3 +216,29 @@ let omb ch b =
   let vars = Array.map (fun x -> Pos.none (mk_free O x)) vars in
   let print_vars = print_list ex "," in
   fprintf ch "%a.%a" print_vars (Array.to_list vars) ex k
+
+let rec get_lambda_name : type a. a ex loc -> string =
+  fun e ->
+    let e = Norm.whnf e in
+    match e.elt with
+    | LAbs(_,b) -> (bndr_name b).elt
+    | VDef(d)   -> get_lambda_name (d.value_eras)
+    | HDef(_,d) -> get_lambda_name (d.expr_def)
+    | Valu(v)   -> get_lambda_name v
+    | _         -> "x"
+
+let rec get_case_name : type a. A.key -> a ex loc -> string =
+  fun k e ->
+    let e = Norm.whnf e in
+    match e.elt with
+    | Case(_,c) ->
+       begin
+         try
+           let (_,f) = A.find k c in
+           (bndr_name f).elt
+         with Not_found -> "x"
+       end
+    | VDef(d)   -> get_case_name k (d.value_eras)
+    | HDef(_,d) -> get_case_name k (d.expr_def)
+    | Valu(v)   -> get_case_name k v
+    | _         -> "x"
