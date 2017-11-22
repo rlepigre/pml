@@ -1091,14 +1091,13 @@ let record _loc fs =
   in
   in_pos _loc (EReco(List.map fn fs))
 
-(* TODO #17: keep position in l *)
 let erest a l =
   List.fold_left (fun a x ->
-      none (ERest(Some a,ENoBox(none (EVari(x, [])))))) a l
+      Pos.none (ERest(Some a,ENoBox(Pos.make x.pos (EVari(x, [])))))) a l
 
 let eimpl a l =
   List.fold_left (fun a x ->
-      none (EImpl(ENoBox(none (EVari(x, []))), Some a))) a l
+      Pos.none (EImpl(ENoBox(none (EVari(x, []))), Some a))) a l
 
 let euniv _loc x xs s a =
   let s = match s with Some s -> s | None -> new_sort_uvar (Some x) in
