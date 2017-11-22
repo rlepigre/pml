@@ -625,23 +625,6 @@ let insert_v_node : v_node -> pool -> VPtr.t * pool = fun nn po ->
   try
     match children with
     | [] ->
-(* FIXME
-       let fn p (_,n) = if eq_v_nodes po n nn then raise (FoundV (p,po)) in
-       VPtrMap.iter fn po.vs; raise Not_found
-    | n::l ->
-       let rec fn po n = match n with
-         | Ptr.V_ptr n ->
-            let (_, node) = find_v_node n po in
-            if eq_v_nodes po node nn then raise (FoundV (n,po))
-         | Ptr.T_ptr n -> ()
-       in
-       let (n, po) = find n po in
-       let inter (acc,po) n =
-           let (n, po) = find n po in
-           (PtrSet.inter (parents n po) acc, po)
-       in
-       let (possible, po) = List.fold_left inter (parents n po, po) l in
- *)
        let fn (p, n) = if eq_v_nodes po n nn then raise (FoundV (p,po)) in
        List.iter fn po.vs; raise Not_found
     | (k,n)::l ->
@@ -673,45 +656,6 @@ let insert_v_node : v_node -> pool -> VPtr.t * pool = fun nn po ->
 
 exception FoundT of TPtr.t * pool
 
-(* FIXME
-let insert_t_node : t_node -> pool -> TPtr.t * pool = fun nn po ->
-  let children = children_t_node nn in
-  try
-    match children with
-    | [] ->
-       let fn p (_,n) = if eq_t_nodes po n nn then raise (FoundT (p,po)) in
-       TPtrMap.iter fn po.ts; raise Not_found
-    | n::l ->
-       let rec fn po n = match n with
-         | Ptr.V_ptr _ -> ()
-         | Ptr.T_ptr n ->
-            let (_, node) = find_t_node n po in
-            if eq_t_nodes po node nn then raise (FoundT (n,po));
-       in
-       let (n, po) = find n po in
-       let inter (acc,po) n =
-           let (n, po) = find n po in
-           (PtrSet.inter (parents n po) acc, po)
-       in
-       let (possible, po) = List.fold_left inter (parents n po, po) l in
-       PtrSet.iter (fn po) possible;
-       raise Not_found
-  with
-  | FoundT(p, po) -> (p, po)
-  | Not_found ->
-      let ptr = TPtr.T po.next in
-      let ts = TPtrMap.add ptr (PtrSet.empty, nn) po.ts in
-      let eq_map =
-        match nn with
-        | TN_Valu(pv) ->
-           PtrMap.add (Ptr.T_ptr ptr) (Ptr.V_ptr pv) po.eq_map
-        | _            -> po.eq_map
-      in
-      let next= po.next + 1 in
-      let po = { po with eq_map; ts ; next } in
-      let po = add_parent_t_nodes ptr children po in
-      (ptr, po)
-*)
 let insert_t_node : bool -> t_node -> pool -> TPtr.t * pool =
   fun fs nn po ->
     let children = children_t_node nn in

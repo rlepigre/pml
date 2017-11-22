@@ -659,25 +659,6 @@ and check_fix : ctxt -> term -> (t, v) bndr -> prop -> unit -> typ_proof =
   let rec find_suitable ihs =
     match ihs with
     | ih::ihs ->
-(* FIXME
-        begin
-          try
-            (* An induction hypothesis has been found. *)
-            let spe = elim_fix_schema ctx ih in
-            log_typ "an induction hypothesis has been found, trying";
-            log_typ "   %a\n < %a" Print.ex (snd spe.fspe_judge) Print.ex c;
-            let prf =
-              Chrono.add_time type_chrono
-                              (subtype ctx (build_t_fixy b)
-                                       (snd spe.fspe_judge)) c
-            in
-            log_typ "it matches\n%!";
-            (* Add call to call-graph and build the proof. *)
-              add_call ctx (ih.fsch_index, spe.fspe_param) true;
-            (build_t_fixy b, c, Typ_Ind(ih,prf))
-          with Subtype_error _ | Exit -> find_suitable ihs
-        end
- *)
        begin
          try
            (* An induction hypothesis has been found. *)
