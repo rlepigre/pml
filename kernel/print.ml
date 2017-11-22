@@ -169,13 +169,13 @@ let rec ex : type a. a ex loc printer = fun ch e ->
       in aux r.binder
   | ITag(_,i)   -> fprintf ch "#%i" i
   | Dumm(_)     -> output_string ch "∅"
-  | VWit(w)     -> fprintf ch "%s" w.name
-  | SWit(w)     -> fprintf ch "%s" w.name
-  | UWit(w)     -> fprintf ch "%s" w.name
-  | EWit(w)     -> fprintf ch "%s" w.name
-  | OWMu(w)     -> fprintf ch "%s" w.name
-  | OWNu(w)     -> fprintf ch "%s" w.name
-  | OSch(i,_,w) -> fprintf ch "%s" w.name.(i)
+  | VWit(w)     -> fprintf ch "%s%a" w.name print_vars e
+  | SWit(w)     -> fprintf ch "%s%a" w.name print_vars e
+  | UWit(w)     -> fprintf ch "%s%a" w.name print_vars e
+  | EWit(w)     -> fprintf ch "%s%a" w.name print_vars e
+  | OWMu(w)     -> fprintf ch "%s%a" w.name print_vars e
+  | OWNu(w)     -> fprintf ch "%s%a" w.name print_vars e
+  | OSch(i,_,w) -> fprintf ch "%s%a" w.name.(i) print_vars e
   | UVar(_,u)   -> fprintf ch "?%i" u.uvar_key
   | Goal(_,s)   -> fprintf ch "{- %s -}" s
   | VPtr(p)     -> fprintf ch "VPtr(%a)" VPtr.print p
