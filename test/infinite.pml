@@ -75,6 +75,11 @@ val rec take : ∀a, nat ⇒ stream<a> → list<a> =
 // take2 is rejected (and should be rejected, s is in the context and classical
 // val take2 : ∀a, nat ⇒ stream<a> ⇒ list<a> = fun n s { delim (take n s) }
 
+type istream<a> = ν stream, {} ⇒ {hd : a; tl : stream}
+
+// marche avec le sous typage stream intuitioniste < stream classique
+val take2 : ∀a, nat ⇒ istream<a> ⇒ list<a> = fun n s { delim (take n s) }
+
 val test : nat ⇒ either<list<nat>,list<nat>> =
   fun n {
     delim (case itl naturals {
