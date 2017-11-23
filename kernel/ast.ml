@@ -644,7 +644,3 @@ let vdot : valu -> string -> term = fun v c ->
   let f x = valu None (vari None x) in
   let id = (None, Pos.none "x", f) in
   unbox (case None (box v) (A.singleton c id))
-
-let exists_set l =
-  List.exists (fun (U(_,v)) ->
-      match !(v.uvar_val) with Set _ -> true | _ -> false) l

@@ -13,10 +13,6 @@ let log_uni = Log.(log_uni.p)
 let uvar_eq : type a. a uvar -> a uvar -> bool =
   fun u v -> u.uvar_key == v.uvar_key
 
-let exists_set l =
-  List.exists (fun (U(_,v)) ->
-      match !(v.uvar_val) with Set _ -> true | _ -> false) l
-
 type uvar_fun = { f : 'a. 'a sort -> 'a uvar -> unit }
 
 type b = A : 'a ex -> b
@@ -28,7 +24,7 @@ let uvar_iter : type a. bool -> bool -> uvar_fun -> a ex loc -> unit =
   let not_closed b = not (Bindlib.binder_closed (snd b)) in
   let adone = Ahash.create 67 in
   let todo : type a . a ex loc -> bool =
-  fun e ->
+    fun e ->
       not (ignore_epsilon) &&
         if Ahash.mem adone (A e.elt) then false
         else (
