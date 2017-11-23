@@ -133,14 +133,25 @@ type _ ex =
   (** Unification variable. *)
   | Goal : 'a sort * string                          -> 'a ex
 
-and ('a,'b) eps = { hash : int ref
-                  ; name : 'b
-                  ; vars : s_elt list ref
-                  ; refr : unit -> unit
-                  ; valu : 'a ref
-                  (* purity should be lazy, otherwise we infer total arrows
-                     for arrow which are not total *)
-                  ; pure : bool Lazy.t ref }
+(** This is a structure to represent hash consed epsilon.
+    See epsilon.ml for more comments *)
+and ('a,'b) eps =
+  { hash : int ref         (* hash of this epsilon *)
+  ; name : 'b              (* name, for printing epsilons *)
+  ; vars : s_elt list ref  (* lists of unifiation variables used *)
+  ; refr : unit -> unit    (* function to refresh the epsilon when unificaltion
+                              variables are instanciated *)
+  ; valu : 'a ref          (* value of the epsilon *)
+  ; pure : bool Lazy.t ref (* purity means using only intuitionistic (a.k.a.
+                              total) arrows.
+                              It must be lazy, otherwise we would infer total
+                              arrows for all arrows used in epsilon. We lazy,
+                              we only force the arrow to be total when the
+                              purity of the epsilon is required.
+
+                              It must be a ref, because if should be updated
+                              when unification variables are instanciated. *)
+  }
 
 and vwit = (v, t) bndr * p ex loc * p ex loc
 and 'a qwit = 'a sort * t ex loc * ('a, p) bndr
@@ -212,13 +223,18 @@ and sub_specialised =
 
 (** Type of unification variables. *)
 and 'a uvar =
-  { uvar_key : int
-  ; uvar_val : 'a uvar_val ref
-  ; uvar_pur : bool ref }
+  { uvar_key : int              (* a unique id *)
+  ; uvar_val : 'a uvar_val ref  (* The value of the variable, see below *)
+  ; uvar_pur : bool ref }       (* We set it to true when the value must be pure
+                                   i.e. using only total arrows *)
 
 and 'a uvar_val =
-  | Unset of (unit -> unit) list
-  | Set of 'a ex loc
+  | Unset of (unit -> unit) list (* when the unification variable is not set,
+                                    we can register a list of functions to call
+                                    when we set it. Currently it is used to
+                                    rehash epsilons using the unification
+                                    variables. *)
+  | Set of 'a ex loc  (* The value of the unification variable when set *)
 
 (** {6 Types and functions related to binders and variables.} *)
 

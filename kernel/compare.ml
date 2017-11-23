@@ -540,58 +540,6 @@ let {hash_expr; hash_bndr; hash_ombinder; hash_vwit
   { hash_expr; hash_bndr; hash_ombinder; hash_vwit
   ; hash_qwit; hash_owit; hash_swit; hash_cwit }
 
-module VWit = struct
-  type t = vwit
-  let hash = hash_vwit
-  let equal (f1,a1,b1) (f2,a2,b2) =
-    eq_bndr V f1 f2 && eq_expr a1 a2 && eq_expr b1 b2
-  let vars (f, a, b) = bndr_uvars V f @ uvars a @ uvars b
-end
-
-module QWit = struct
-  type t = Q:'a qwit -> t
-  let hash (Q w) = hash_qwit w
-  let equal (Q (s1,t1,b1)) (Q(s2,t2,b2)) =
-    match eq_sort s1 s2 with
-    | Eq.Eq -> eq_expr t1 t2 && eq_bndr s1 b1 b2
-    | _ -> false
-  let vars (Q(s, t, b)) = bndr_uvars s b @ uvars t
-end
-
-module OWit = struct
-  type t = owit
-  let hash = hash_owit
-  let equal (o1,a1,b1) (o2,a2,b2) =
-    eq_expr o1 o2 && eq_expr a1 a2 && eq_bndr O b1 b2
-  let vars (o, a, b) = uvars o @ uvars a @ bndr_uvars O b
-end
-
-module SWit = struct
-  type t = swit
-  let hash = hash_swit
-  let equal (b1,a1) (b2,a2) = eq_bndr S b1 b2 && eq_expr a1 a2
-  let vars (b, a) = uvars a @ bndr_uvars S b
-end
-
-module CWit = struct
-  type t = schema
-  let hash = hash_cwit
-  let equal s1 s2 =
-    (match (s1, s2) with
-     | (FixSch s1, FixSch s2) -> s1.fsch_index = s2.fsch_index
-     | (SubSch s1, SubSch s2) -> s1.ssch_index = s2.ssch_index
-     | (_        , _        ) -> false)
-  let vars s =
-    (match s with
-     | FixSch s ->
-        let (b, mb) = s.fsch_judge in
-        let (_, mb) = unmbind (mk_free O) mb in
-        bndr_uvars T b @ uvars mb
-     | SubSch s ->
-        let mb = s.ssch_judge in
-        let (_, (e1,e2)) = unmbind (mk_free O) mb in
-        uvars e1 @ uvars e2)
-end
 
 let is_in : type a. a ex loc -> a ex loc list -> bool = fun e1 es ->
   List.exists (fun e2 -> eq_expr e1 e2) es
