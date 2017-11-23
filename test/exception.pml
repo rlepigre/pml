@@ -36,15 +36,15 @@ val find_opt : ∀a:ο, ∀f∈(a ⇒ bool), list<a> ⇒ option<a> =
 val notNone : ∀a:ο, option<a> ⇒ bool =
   fun o { case o { None → false | Some[_] → true } }
 
-val rec find2 : ∀a:ο, ∀f∈(a ⇒ bool), list<list<a>> → option<a> =
+val rec find2 : ∀a:ο, ∀f∈(a ⇒ bool), list<list<a>> ⇒ option<a> =
   fun f ls {
-    case ls {
+    delim (case ls {
       Nil     → none
       Cons[c] →
         save a {
           Some[find f c.hd (fun _ { restore a (find2 f c.tl) })]
         }
-    }
+    })
   }
 
 

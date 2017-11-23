@@ -62,17 +62,17 @@ val itl : stream<nat> ⇒ either<stream<even>, stream<odd>> =
 include test.stream_nat
 
 // Compute the list of the first n elements of a stream.
-val rec take : ∀a, nat ⇒ stream<a> → list<a> =
+val rec take : ∀a, nat ⇒ stream<a> ⇒ list<a> =
   fun n s {
-    case n {
+    delim (case n {
            | Zero → Nil
            | S[k] → let c = s {};
                     let tl = take k c.tl;
                     Cons[{hd = c.hd; tl = tl}]
-    }
+    })
   }
 
-val test : nat → {} =
+val test : nat ⇒ {} =
   fun n {
     case itl naturals {
       InL[s] → let l = take n s; print "InL "; print_nat_list l
