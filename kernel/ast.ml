@@ -91,6 +91,8 @@ type _ ex =
   | TPtr : ptr                                       -> t  ex
   (** Pointer in the pool. *)
   | Repl : t ex loc * t ex loc * t ex loc            -> t  ex
+  (** Triger totality by type rule *)
+  | Delm : t ex loc                                  -> t  ex
 
   (* Ordinal constructors. *)
 
@@ -135,7 +137,8 @@ and ('a,'b) eps = { hash : int ref
                   ; name : 'b
                   ; vars : s_elt list ref
                   ; refr : unit -> unit
-                  ; valu : 'a ref }
+                  ; valu : 'a ref
+                  ; pure : bool ref }
 
 and vwit = (v, t) bndr * p ex loc * p ex loc
 and 'a qwit = 'a sort * t ex loc * ('a, p) bndr
@@ -208,7 +211,8 @@ and sub_specialised =
 (** Type of unification variables. *)
 and 'a uvar =
   { uvar_key : int
-  ; uvar_val : 'a uvar_val ref }
+  ; uvar_val : 'a uvar_val ref
+  ; uvar_pur : bool ref }
 
 and 'a uvar_val =
   | Unset of (unit -> unit) list
@@ -388,6 +392,9 @@ let prnt : popt -> string -> tbox =
 
 let repl : popt -> tbox -> tbox -> tbox -> tbox =
   fun p -> box_apply3 (fun t u pr -> Pos.make p (Repl(t,u,pr)))
+
+let delm : popt -> tbox -> tbox =
+  fun p -> box_apply (fun u -> Pos.make p (Delm(u)))
 
 (** {5 Type annotation constructors} *)
 
@@ -590,6 +597,7 @@ let rec sort : type a b. a ex loc ->  a sort * a ex loc= fun e ->
   | Such(VoT_T,_,_) -> (T,e)
   | TPtr _          -> (T,e)
   | Repl(_,_,_)     -> (T,e)
+  | Delm _          -> (T,e)
 
   | SWit _          -> (S,e)
 

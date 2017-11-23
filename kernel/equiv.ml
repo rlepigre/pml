@@ -746,6 +746,7 @@ let rec add_term :  bool -> pool -> term -> Ptr.t * pool = fun free po t ->
                    if free then normalise pt po else find pt po
   | Prnt(s)     -> insert (TN_Prnt(s)) po
   | Repl(_,u,_) -> add_term po u
+  | Delm(u)     -> add_term po u
   | Coer(_,t,_) -> add_term po t
   | Such(_,_,r) -> add_term po (bseq_dummy r.binder)
   | UWit(w)     -> insert (TN_UWit(w)) po

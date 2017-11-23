@@ -26,11 +26,11 @@ val rec find : ∀a:ο, ∀f∈(a ⇒ bool),
     }
   }
 
-val find_opt : ∀a:ο, ∀f∈(a ⇒ bool), list<a> → option<a> =
+val find_opt : ∀a:ο, ∀f∈(a ⇒ bool), list<a> ⇒ option<a> =
   fun f l {
-    save a {
+    delim (save a {
       Some[find f l (fun _ { restore a none })]
-    }
+    })
   }
 
 val notNone : ∀a:ο, option<a> ⇒ bool =

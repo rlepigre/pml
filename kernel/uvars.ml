@@ -82,6 +82,7 @@ let uvar_iter : type a. bool -> bool -> uvar_fun -> a ex loc -> unit =
     | FixY(f)     -> buvar_iter T f
     | Prnt(_)     -> ()
     | Repl(t,u,a) -> uvar_iter t; uvar_iter u; uvar_iter a
+    | Delm(t)     -> uvar_iter t
     | Conv        -> ()
     | Succ(o)     -> uvar_iter o
     (* NOTE type annotations ignored. *)
@@ -132,6 +133,7 @@ let uvar_occurs : type a b. a uvar -> b ex loc -> bool = fun u e ->
         raise Occurs
       end
   in
+  if !(u.uvar_pur) && not (Pure.pure e) then true else
   try Chrono.add_time occur_chrono (uvar_iter false false {f}) e; false
   with Occurs -> true
 

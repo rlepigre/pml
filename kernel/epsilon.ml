@@ -35,6 +35,7 @@ let reset_epsilons () =
 let vwit : ctxt -> (v,t) bndr -> prop -> prop -> (vwit, string) eps * ctxt =
   fun ctx f a b ->
     let valu = (f,a,b) in
+    let pure = Pure.(pure a && pure b && pure (bndr_subst f (Dumm V))) in
     try (VWitHash.find vwit_hash valu, ctx)
     with Not_found ->
       let rec refr ?(force=false) w =
@@ -50,7 +51,8 @@ let vwit : ctxt -> (v,t) bndr -> prop -> prop -> (vwit, string) eps * ctxt =
             try
               let w' = VWitHash.find vwit_hash valu in
               (*Printf.eprintf "merge vwit\n%!";*)
-              UTimed.(w.valu := !(w'.valu))
+              UTimed.(w.valu := !(w'.valu));
+              UTimed.(w.pure := !(w'.pure))
             with Not_found ->
               VWitHash.add vwit_hash valu w
           end
@@ -60,7 +62,8 @@ let vwit : ctxt -> (v,t) bndr -> prop -> prop -> (vwit, string) eps * ctxt =
                   ; name = name_of v
                   ; hash = ref 0
                   ; refr = (fun () -> refr w)
-                  ; valu = ref valu}
+                  ; valu = ref valu
+                  ; pure = ref pure }
       in
       refr ~force:true w;
       (w, ctx)
@@ -74,6 +77,7 @@ let qwit : type a. ctxt -> a sort -> term -> (a,p) bndr
                 -> (a qwit, string) eps * ctxt =
   fun ctx s t b ->
     let valu = (s,t,b) in
+    let pure = Pure.(pure t && pure (bndr_subst b (Dumm s))) in
     let key = QWit.Q(valu) in
     try
       let Q(w) = QWitHash.find qwit_hash key in
@@ -98,7 +102,8 @@ let qwit : type a. ctxt -> a sort -> term -> (a,p) bndr
               (*Printf.eprintf "merge qwit\n%!";*)
               let (s',_,_) = !(w'.valu) in
               match eq_sort s s' with
-              | Eq.Eq -> UTimed.(w.valu := !(w'.valu))
+              | Eq.Eq -> UTimed.(w.valu := !(w'.valu));
+                         UTimed.(w.pure := !(w'.pure))
               | _ -> assert false
             with Not_found ->
               QWitHash.add qwit_hash key (Q w)
@@ -109,7 +114,8 @@ let qwit : type a. ctxt -> a sort -> term -> (a,p) bndr
                   ; name = name_of v
                   ; hash = ref 0
                   ; refr = (fun () -> refr w)
-                  ; valu = ref valu}
+                  ; valu = ref valu
+                  ; pure = ref pure }
       in
       refr ~force:true w;
       (w, ctx)
@@ -127,6 +133,7 @@ let ewit : type a. ctxt -> a sort -> term -> (a,p) bndr -> a ex loc * ctxt =
 let owit : ctxt -> ordi -> term -> (o,p) bndr -> (owit, string) eps * ctxt =
   fun ctx o a b ->
     let valu = (o,a,b) in
+    let pure = Pure.(pure o && pure a && pure (bndr_subst b (Dumm O))) in
     try (OWitHash.find owit_hash valu, ctx)
     with Not_found ->
       let rec refr ?(force=false) w =
@@ -142,7 +149,8 @@ let owit : ctxt -> ordi -> term -> (o,p) bndr -> (owit, string) eps * ctxt =
             try
               let w' = OWitHash.find owit_hash valu in
               (*Printf.eprintf "merge owit\n%!";*)
-              UTimed.(w.valu := !(w'.valu))
+              UTimed.(w.valu := !(w'.valu));
+              UTimed.(w.pure := !(w'.pure))
             with Not_found ->
               OWitHash.add owit_hash valu w
           end
@@ -152,7 +160,8 @@ let owit : ctxt -> ordi -> term -> (o,p) bndr -> (owit, string) eps * ctxt =
                   ; name = name_of v
                   ; hash = ref 0
                   ; refr = (fun () -> refr w)
-                  ; valu = ref valu}
+                  ; valu = ref valu
+                  ; pure = ref pure }
       in
       refr ~force:true w;
       (w, ctx)
@@ -170,6 +179,7 @@ let ownu : ctxt -> ordi -> term -> (o, p) bndr -> ordi * ctxt =
 let swit : ctxt -> (s,t) bndr -> prop -> (swit, string) eps * ctxt =
   fun ctx b s ->
     let valu = (b,s) in
+    let pure = Pure.(pure (bndr_subst b (Dumm S)) && pure s) in
     try (SWitHash.find swit_hash valu, ctx)
     with Not_found ->
       let rec refr ?(force=false) w =
@@ -185,7 +195,8 @@ let swit : ctxt -> (s,t) bndr -> prop -> (swit, string) eps * ctxt =
             try
               let w' = SWitHash.find swit_hash valu in
               (*Printf.eprintf "merge owit\n%!";*)
-              UTimed.(w.valu := !(w'.valu))
+              UTimed.(w.valu := !(w'.valu));
+              UTimed.(w.pure := !(w'.pure))
             with Not_found ->
               SWitHash.add swit_hash valu w
           end
@@ -195,7 +206,8 @@ let swit : ctxt -> (s,t) bndr -> prop -> (swit, string) eps * ctxt =
                   ; name = name_of v
                   ; hash = ref 0
                   ; refr = (fun () -> refr w)
-                  ; valu = ref valu}
+                  ; valu = ref valu
+                  ; pure = ref pure }
       in
       refr ~force:true w;
       (w, ctx)
@@ -207,6 +219,7 @@ let swit : ctxt -> (s,t) bndr -> prop -> stac * ctxt =
 
 let cwit : ctxt -> schema -> (schema, string array) eps * ctxt =
   fun ctx valu ->
+    let pure = Pure.(pure_schema valu) in
     try (CWitHash.find cwit_hash valu, ctx)
     with Not_found ->
       let rec refr ?(force=false) w =
@@ -222,7 +235,8 @@ let cwit : ctxt -> schema -> (schema, string array) eps * ctxt =
             try
               let w' = CWitHash.find cwit_hash valu in
               (*Printf.eprintf "merge owit\n%!";*)
-              UTimed.(w.valu := !(w'.valu))
+              UTimed.(w.valu := !(w'.valu));
+              UTimed.(w.pure := !(w'.pure))
             with Not_found ->
               CWitHash.add cwit_hash valu w
           end
@@ -236,7 +250,8 @@ let cwit : ctxt -> schema -> (schema, string array) eps * ctxt =
                   ; name = names
                   ; hash = ref 0
                   ; refr = (fun () -> refr w)
-                  ; valu = ref valu}
+                  ; valu = ref valu
+                  ; pure = ref pure }
       in
       refr ~force:true w;
       (w, ctx)

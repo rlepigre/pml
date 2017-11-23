@@ -185,6 +185,7 @@ and raw_ex' =
   | EFixY of strloc * raw_ex
   | EPrnt of string
   | ERepl of raw_ex * raw_ex * raw_ex
+  | EDelm of raw_ex
   | ECoer of raw_ex * raw_ex
   | ESuch of (strloc * raw_sort) ne_list * (strloc option * raw_ex) * raw_ex
 
@@ -241,6 +242,7 @@ let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
     | EPrnt(s)      -> Printf.fprintf ch "EPrnt(%S)" s
     | ERepl(t,u,a)  -> Printf.fprintf ch "ERepl(%a,%a,%a)"
                          print t print u print a
+    | EDelm(u)      -> Printf.fprintf ch "EDelm(%a)" print u
     | ECoer(t,a)    -> Printf.fprintf ch "ECoer(%a,%a)" print t print a
     | ESuch(vs,j,u) -> let x = Option.default (Pos.none "_") (fst j) in
                        Printf.fprintf ch "ESuch(%a,%s,%a,%a)"
@@ -577,6 +579,10 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
                                     infer env vars u _st;
                                     infer env vars p _st
     | (ERepl(_,_,_) , _        ) -> sort_clash e s
+    | (EDelm(u)     , ST       ) -> infer env vars u _st;
+    | (EDelm(u)     , SUni(r)  ) -> sort_uvar_set r _st;
+                                    infer env vars u _st;
+    | (EDelm(_)     , _        ) -> sort_clash e s
     | (ECoer(t,a)   , SV _     )
     | (ECoer(t,a)   , ST       )
     | (ECoer(t,a)   , SUni(_)  ) -> infer env vars t s; infer env vars a _sp
@@ -932,6 +938,9 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
         let u = to_term (unsugar env vars u _st) in
         let p = to_term (unsugar env vars p _st) in
         Box(T, repl e.pos t u p)
+    | (EDelm(u)     , ST       ) ->
+        let u = to_term (unsugar env vars u _st) in
+        Box(T, delm e.pos u)
     (* Type annotations. *)
     | (ECoer(v,a)   , SV _     ) ->
         let v = to_valu (unsugar env vars v s) in

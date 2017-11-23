@@ -57,6 +57,7 @@ let _case_    = Keyword.create "case"
 let _check_   = Keyword.create "check"
 let _corec_   = Keyword.create "corec"
 let _deduce_  = Keyword.create "deduce"
+let _delim_   = Keyword.create "delim"
 let _def_     = Keyword.create "def"
 let _else_    = Keyword.create "else"
 let _false_   = Keyword.create "false"
@@ -335,6 +336,10 @@ let parser expr @(m : mode) =
   | _check_ u:term _for_ t:term _because_ p:(expr (Trm R))
       when m <<= Trm R
       -> in_pos _loc (ERepl(t,u,p))
+  (* Term (totality by purity) *)
+  | _delim_ u:(expr (Trm R))
+      when m <<= Trm R
+      -> in_pos _loc (EDelm(u))
   (* Term ("deduce" tactic) *)
   | _deduce_ a:prop$
       when m <<= Trm A

@@ -82,7 +82,9 @@ let new_uvar : type a. ctxt -> a sort -> a ex loc = fun ctx s ->
   let c = ctx.uvarcount in
   let i = !c in incr c;
   log_uni "?%i : %a" i Print.sort s;
-  Pos.none (UVar(s, {uvar_key = i; uvar_val = ref (Unset [])}))
+  Pos.none (UVar(s, { uvar_key = i
+                    ; uvar_val = ref (Unset [])
+                    ; uvar_pur = ref false}))
 
 let add_positive : ctxt -> ordi -> ordi -> ctxt = fun ctx o oo ->
   let o = Norm.whnf o in
@@ -132,6 +134,7 @@ type typ_rule =
   | Typ_Goal   of string
   | Typ_Prnt   of sub_proof
   | Typ_Repl   of typ_proof * typ_proof
+  | Typ_Delm   of typ_proof
 
 and  stk_rule =
   | Stk_Push   of sub_rule * typ_proof * stk_proof
@@ -1166,8 +1169,14 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
           let un = unbox (strict_prod None A.empty) in
           Pos.none (Rest(un,Equiv(t,true,u)))
         in
-        let p2 = type_term ctx p eq in
+        let p2 = type_term { ctx with totality = Totality.Tot } p eq in
         Typ_Repl(p1,p2)
+    | Delm(t)     ->
+       let pure = Pure.(pure t && pure c) in
+       let ctx =
+         if pure then { ctx with totality = Totality.new_tot () } else ctx
+       in
+       Typ_Delm(type_term ctx t c)
     (* Constructors that cannot appear in user-defined terms. *)
     | TPtr(_)     -> unexpected "TPtr during typing..."
     | UWit(_)     -> unexpected "∀-witness during typing..."

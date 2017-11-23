@@ -246,6 +246,8 @@ let {eq_expr; eq_bndr} =
     (* NOTE type annotations ignored. *)
     | (Repl(_,u1,_)  , _             ) -> eq_expr u1 e2
     | (_             , Repl(_,u2,_)  ) -> eq_expr e1 u2
+    | (Delm(u1)      , _             ) -> eq_expr u1 e2
+    | (_             , Delm(u2)      ) -> eq_expr e1 u2
     | (Coer(_,e1,_)  , _             ) -> eq_expr e1 e2
     | (_             , Coer(_,e2,_)  ) -> eq_expr e1 e2
     | (Such(_,_,r)   , _             ) -> eq_expr (bseq_dummy r.binder) e2
@@ -312,8 +314,10 @@ let {eq_expr; eq_bndr} =
     | (UVar(_,u1)    , UVar(_,u2)    ) ->
        if strict then u1.uvar_key = u2.uvar_key else
          begin
-           if u1.uvar_key <> u2.uvar_key then uvar_set u1 e2; (* arbitrary *)
-           true
+           if u1.uvar_key <> u2.uvar_key then  (* arbitrary *)
+             if not (uvar_occurs u1 e2) then (uvar_set u1 e2; true)
+             else false
+           else true
          end
     | (UVar(_,u1)    , _             ) when not strict ->
        let rec remove_occur_check : type a. a ex loc -> a ex loc = fun b ->
@@ -445,7 +449,8 @@ let {hash_expr; hash_bndr; hash_ombinder; hash_vwit
                             (A.hash (fun (_,e) -> (hash_bndr V e)) m)
     | FixY(f)     -> hash (`FixY (hash_bndr T f))
     | Prnt(s1)    -> khash1 `Prnt (hash s1)
-    | Repl(t,u,a) -> khash3 `Repl (hash_expr t) (hash_expr u) (hash_expr a)
+    | Repl(t,u,a) -> hash_expr u
+    | Delm(u)     -> hash_expr u
     | Conv        -> hash `Conv
     | Succ(o)     -> khash1 `Succ (hash_expr o)
     (* NOTE type annotations ignored. *)

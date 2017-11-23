@@ -97,6 +97,7 @@ let map : type a. ?mapper:mapper -> a ex loc -> a box
                                   (fun x -> map (bndr_subst f (mk_free T x)))
             | Prnt(s)     -> prnt e.pos s
             | Repl(t,u,a) -> repl e.pos (map t) (map u) (map a)
+            | Delm(u)     -> delm e.pos (map u)
 
             | SWit(_)     -> box e
 

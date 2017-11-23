@@ -62,6 +62,7 @@ and     term_erasure : term -> e_tbox = fun t ->
                    in tcase (valu_erasure v) (A.map f m)
   | Prnt(s)     -> tprnt s
   | Repl(t,_,_) -> term_erasure t
+  | Delm(t)     -> term_erasure t
   | Coer(_,t,_) -> term_erasure t
   | Such(_,_,r) -> term_erasure (bseq_dummy r.binder)
   | TPtr(_)     -> erasure_error "a pool pointer cannot be erased (term)"

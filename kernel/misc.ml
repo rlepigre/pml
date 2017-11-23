@@ -85,6 +85,7 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
                      A.fold fn m (owits acc v)
     | Prnt(_)     -> acc
     | Repl(t,u,a) -> owits (owits (owits acc t) u) a
+    | Delm(u)     -> owits acc u
 
     | Coer(_,e,_) -> owits acc e
     | Such(_,_,b) -> owits acc (bseq_dummy b.binder)
