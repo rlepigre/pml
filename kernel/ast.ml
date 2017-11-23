@@ -138,7 +138,9 @@ and ('a,'b) eps = { hash : int ref
                   ; vars : s_elt list ref
                   ; refr : unit -> unit
                   ; valu : 'a ref
-                  ; pure : bool ref }
+                  (* purity should be lazy, otherwise we infer total arrows
+                     for arrow which are not total *)
+                  ; pure : bool Lazy.t ref }
 
 and vwit = (v, t) bndr * p ex loc * p ex loc
 and 'a qwit = 'a sort * t ex loc * ('a, p) bndr

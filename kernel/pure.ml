@@ -28,7 +28,7 @@ let pure : type a. a ex loc -> bool =
     in
     let liter : type a b. (a, b) eps -> unit =
       fun w -> w.refr ();
-               if not !(w.pure) then raise Exit;
+               if not (Lazy.force !(w.pure)) then raise Exit;
                List.iter (fun (U(s,v)) -> iter (Pos.none (UVar(s,v)))) !(w.vars)
     in
     let biter s b = iter (bndr_subst b (Dumm s)) in
@@ -37,8 +37,8 @@ let pure : type a. a ex loc -> bool =
     | Vari(_)     -> ()
     | HFun(s,_,b) -> biter s b
     | HApp(_,a,b) -> iter a; iter b
-    | HDef(_)     -> () (* NOTE no unification variable in definition. *)
-    | Func(t,a,b) -> if not Totality.(sub Tot t) then raise Exit;
+    | HDef(_,d)   -> iter d.expr_def
+    | Func(t,a,b) -> if not Totality.(sub t Tot) then raise Exit;
                      iter a; iter b
     | Prod(m)     -> A.iter (fun _ (_,a) -> iter a) m
     | DSum(m)     -> A.iter (fun _ (_,a) -> iter a) m
@@ -54,7 +54,7 @@ let pure : type a. a ex loc -> bool =
     | Cons(_,v)   -> iter v
     | Reco(m)     -> A.iter (fun _ (_,a) -> iter a) m
     | Scis        -> ()
-    | VDef(_)     -> () (* NOTE no unification variable in definition. *)
+    | VDef(d)     -> () (* no type in value def *)
     | Valu(v)     -> iter v
     | Appl(t,u)   -> iter t; iter u
     (* NOTE type annotation ignored. *)

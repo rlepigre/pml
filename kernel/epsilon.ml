@@ -35,7 +35,10 @@ let reset_epsilons () =
 let vwit : ctxt -> (v,t) bndr -> prop -> prop -> (vwit, string) eps * ctxt =
   fun ctx f a b ->
     let valu = (f,a,b) in
-    let pure = Pure.(pure a && pure b && pure (bndr_subst f (Dumm V))) in
+    let pure =
+      Lazy.from_fun (fun () ->
+          Pure.(pure a && pure b && pure (bndr_subst f (Dumm V))))
+    in
     try (VWitHash.find vwit_hash valu, ctx)
     with Not_found ->
       let rec refr ?(force=false) w =
@@ -77,7 +80,10 @@ let qwit : type a. ctxt -> a sort -> term -> (a,p) bndr
                 -> (a qwit, string) eps * ctxt =
   fun ctx s t b ->
     let valu = (s,t,b) in
-    let pure = Pure.(pure t && pure (bndr_subst b (Dumm s))) in
+    let pure =
+      Lazy.from_fun (fun () ->
+          Pure.(pure t && pure (bndr_subst b (Dumm s))))
+    in
     let key = QWit.Q(valu) in
     try
       let Q(w) = QWitHash.find qwit_hash key in
@@ -133,7 +139,10 @@ let ewit : type a. ctxt -> a sort -> term -> (a,p) bndr -> a ex loc * ctxt =
 let owit : ctxt -> ordi -> term -> (o,p) bndr -> (owit, string) eps * ctxt =
   fun ctx o a b ->
     let valu = (o,a,b) in
-    let pure = Pure.(pure o && pure a && pure (bndr_subst b (Dumm O))) in
+    let pure =
+      Lazy.from_fun (fun () ->
+          Pure.(pure o && pure a && pure (bndr_subst b (Dumm O))))
+    in
     try (OWitHash.find owit_hash valu, ctx)
     with Not_found ->
       let rec refr ?(force=false) w =
@@ -179,7 +188,10 @@ let ownu : ctxt -> ordi -> term -> (o, p) bndr -> ordi * ctxt =
 let swit : ctxt -> (s,t) bndr -> prop -> (swit, string) eps * ctxt =
   fun ctx b s ->
     let valu = (b,s) in
-    let pure = Pure.(pure (bndr_subst b (Dumm S)) && pure s) in
+    let pure =
+      Lazy.from_fun (fun () ->
+          Pure.(pure (bndr_subst b (Dumm S)) && pure s))
+    in
     try (SWitHash.find swit_hash valu, ctx)
     with Not_found ->
       let rec refr ?(force=false) w =
@@ -219,7 +231,7 @@ let swit : ctxt -> (s,t) bndr -> prop -> stac * ctxt =
 
 let cwit : ctxt -> schema -> (schema, string array) eps * ctxt =
   fun ctx valu ->
-    let pure = Pure.(pure_schema valu) in
+    let pure = Lazy.from_fun (fun () -> Pure.(pure_schema valu)) in
     try (CWitHash.find cwit_hash valu, ctx)
     with Not_found ->
       let rec refr ?(force=false) w =

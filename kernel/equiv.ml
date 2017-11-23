@@ -280,7 +280,9 @@ type pool =
   ; values   : (value * v_ptr) list
   ; v_defs   : (v expr * v_ptr) list
   ; e_defs   : (t expr * Ptr.t) list
-  ; pure     : bool
+  (* purity should be lazy, otherwise we infer total arrows
+     for arrow which are not total *)
+  ; pure     : bool Lazy.t
   }
 
 (**
@@ -374,7 +376,7 @@ let empty_pool : pool =
   ; values = []
   ; v_defs = []
   ; e_defs = []
-  ; pure   = true
+  ; pure   = Lazy.from_val true
   }
 
 (** Node search. *)
@@ -635,9 +637,10 @@ let immediate_nobox : v_node -> bool = function
 exception FoundV of VPtr.t * pool
 let insert_v_node : v_node -> pool -> VPtr.t * pool = fun nn po ->
   let children = children_v_node nn in
-    let po = if not (pure_v_node nn) && po.pure then
-               { po with pure = false } else po
-    in
+  let po =
+    { po with
+      pure = Lazy.from_fun (fun () -> pure_v_node nn && Lazy.force po.pure) }
+  in
   try
     match children with
     | [] ->
@@ -675,8 +678,9 @@ exception FoundT of TPtr.t * pool
 let insert_t_node : bool -> t_node -> pool -> TPtr.t * pool =
   fun fs nn po ->
     let children = children_t_node nn in
-    let po = if not (pure_t_node nn) && po.pure then
-               { po with pure = false } else po
+    let po =
+      { po with
+        pure = Lazy.from_fun (fun () -> pure_t_node nn && Lazy.force po.pure) }
     in
     try
       match children with

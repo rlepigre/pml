@@ -62,28 +62,39 @@ val itl : stream<nat> ⇒ either<stream<even>, stream<odd>> =
 include test.stream_nat
 
 // Compute the list of the first n elements of a stream.
-val rec take : ∀a, nat ⇒ stream<a> ⇒ list<a> =
+val rec take : ∀a, nat ⇒ stream<a> → list<a> =
   fun n s {
-    delim (case n {
+    case n {
            | Zero → Nil
            | S[k] → let c = s {};
                     let tl = take k c.tl;
                     Cons[{hd = c.hd; tl = tl}]
-    })
-  }
-
-val test : nat ⇒ {} =
-  fun n {
-    case itl naturals {
-      InL[s] → let l = take n s; print "InL "; print_nat_list l
-      InR[s] → let l = take n s; print "InR "; print_nat_list l
     }
   }
 
-val test0 : {} = test u0
-val test1 : {} = test u1
-val test2 : {} = test u2
-val test3 : {} = test u3
-val test4 : {} = test u4
-val test5 : {} = test u5
-val test6 : {} = test u6
+// take2 is rejected (and should be rejected, s is in the context and classical
+// val take2 : ∀a, nat ⇒ stream<a> ⇒ list<a> = fun n s { delim (take n s) }
+
+val test : nat ⇒ either<list<nat>,list<nat>> =
+  fun n {
+    delim (case itl naturals {
+      InL[s] → InL[take n s]
+      InR[s] → InR[take n s]
+    })
+  }
+
+val print_test : nat ⇒ {} =
+  fun n {
+    case test n {
+      InL[l] → print "InL "; print_nat_list l
+      InR[l] → print "InR "; print_nat_list l
+    }
+  }
+
+val test0 : {} = print_test u0
+val test1 : {} = print_test u1
+val test2 : {} = print_test u2
+val test3 : {} = print_test u3
+val test4 : {} = print_test u4
+val test5 : {} = print_test u5
+val test6 : {} = print_test u6

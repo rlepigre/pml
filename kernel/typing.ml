@@ -1172,7 +1172,9 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
         let p2 = type_term { ctx with totality = Totality.Tot } p eq in
         Typ_Repl(p1,p2)
     | Delm(t)     ->
-       let pure = Pure.(pure t && pure c && ctx.equations.pool.pure) in
+       let pure = Pure.(pure t && pure c
+                        && Lazy.force ctx.equations.pool.pure)
+       in
        let ctx =
          if pure then { ctx with totality = Totality.new_tot () } else ctx
        in
