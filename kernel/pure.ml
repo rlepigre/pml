@@ -7,11 +7,15 @@ open Pos
 open Output
 open Totality
 
+(** type for the hashtbl below *)
 type b = A : 'a ex -> b
 
+(** Iterator testing purity of an expression, that is the fact that
+    it uses only total (a.k.a. intuitionnistic) arrows (=>) *)
 let pure : type a. a ex loc -> bool =
   fun e ->
   let adone = Ahash.create 67 in
+  (** test if epsilon are already done *)
   let todo : type a . a ex loc -> bool =
     fun e ->
       if Ahash.mem adone (A e.elt) then false
@@ -20,17 +24,21 @@ let pure : type a. a ex loc -> bool =
         true)
   in
   let rec iter : type a. a ex loc -> unit = fun e ->
+    (** iteration on conditions *)
     let iter_cond c =
       match c with
       | Equiv(t,_,u) -> iter t; iter u
       | NoBox(v)     -> iter v;
       | Posit(o)     -> iter o
     in
+    (** iterator for epsilon: purity is keps as a lazy bool,
+        but we must set the lazy constraint on variable that appears
+        in the epsilons *)
     let liter : type a b. (a, b) eps -> unit =
-      fun w -> w.refr ();
-               if not (Lazy.force !(w.pure)) then raise Exit;
+      fun w -> if not (Lazy.force !(w.pure)) then raise Exit;
                List.iter (fun (U(s,v)) -> iter (Pos.none (UVar(s,v)))) !(w.vars)
     in
+    (** iteration on binders *)
     let biter s b = iter (bndr_subst b (Dumm s)) in
     let e = Norm.whnf e in
     match e.elt with
@@ -65,7 +73,7 @@ let pure : type a. a ex loc -> bool =
                      iter v; A.iter fn m
     | FixY(f)     -> biter T f
     | Prnt(_)     -> ()
-    | Repl(t,u,a) -> iter t; iter u; iter a
+    | Repl(t,u,a) -> iter u (* Repl(_,u_) = u *)
     | Delm(u)     -> iter u
     | Conv        -> ()
     | Succ(o)     -> iter o
@@ -93,6 +101,7 @@ let pure : type a. a ex loc -> bool =
   in
   try iter e; true with Exit -> false
 
+(** purity test for schemas *)
 let pure_schema = function
   | FixSch s ->
      let (b, mb) = s.fsch_judge in
