@@ -102,7 +102,7 @@ let reset_epsilons () =
   SWitHash.clear swit_hash;
   CWitHash.clear cwit_hash
 
-(** Test if a variable in a list of variables has been set *)
+(** Test if a variable in a list of unification variables has been set *)
 let exists_set l =
   List.exists (fun (U(_,v)) ->
       match !(v.uvar_val) with Set _ -> true | _ -> false) l
