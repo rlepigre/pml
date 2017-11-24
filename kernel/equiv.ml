@@ -31,8 +31,17 @@ let log2 = Log.(log_edp2.p)
 exception Contradiction
 let bottom () = raise Contradiction
 
+(** Managment of closures, a closure is a binder with all closed subterms
+    taken outside. They are necessary because expressions like add e1 e2 are
+    reduced to a case analysis and e1 and e2 are then moved under a case. But
+    one needs to know that e1 = f1 implies add e1 e2 = add f1 e2.  *)
+
+(** funptr are normal closures used by bndr, it is a binder waiting for
+    the arrays of values and terms that were taken outside to give back the
+    initial binder *)
 type ('a, 'b) funptr = (v ex, (t ex, ('a, 'b) bndr) mbinder) mbinder
 
+(** funptr are then hashconsed *)
 let hash_funptr : type a b.a sort -> (a, b) funptr -> int =
   fun s b ->
     let c = ref 0 in
@@ -83,8 +92,11 @@ module Fun =
   end
 module FunHash = Hashtbl.Make(Fun)
 
+(** This is the main type of a binder closure *)
 type ('a,'b) bndr_closure = ('a, 'b) funptr * VPtr.t array * Ptr.t array
 
+(** this second type of closure is used for higher order term in the pool.
+    It is rather similar to the previous one *)
 type 'a clsptr = (v ex, (t ex, 'a ex loc) mbinder) mbinder
 
 let hash_clsptr : type a. a clsptr -> int =
@@ -132,6 +144,7 @@ module ClsHash = Hashtbl.Make(Cls)
 
 type 'a closure = 'a clsptr * VPtr.t array * Ptr.t array
 
+(** Closure substitution *)
 let subst_closure (funptr,vs,ts) =
   let vs = Array.map (fun v -> VPtr v) vs in
   let ts = Array.map (fun t -> TPtr t) ts in
@@ -295,8 +308,6 @@ type pool =
        nodes that have no link in the union-find map (i.e.,
        parents are unused if the node is present in the eq_map).
 
-       TODO #15: this invariant is not enforced by the data structure.
-
    3°) Term in the pool are kept in normal form. Any update that
        could trigger other normalisation has to be propagated.
        This is the role of the parent node.
@@ -392,6 +403,7 @@ let find_t_node : TPtr.t -> pool -> t_node = fun p po ->
   | DP(T_Node, v) -> v
   | _ -> assert false
 
+(** Managment of the boolean fields in the various nodes *)
 let get_bs : VPtr.t -> pool -> bool = fun p po ->
   let open Ptr in
   Timed.get po.time p.bs
@@ -484,6 +496,8 @@ let children_t_node : t_node -> (par_key * Ptr.t) list = fun n ->
   | TN_UVar _  (* TODO #4 check *)
   | TN_ITag _    -> []
 
+(** purity test (having only total arrows). Only epsilon
+    contains type in the pool *)
 let pure_t_node = function
   | TN_UWit(eps) -> Pure.pure (Pos.none (UWit eps))
   | TN_EWit(eps) -> Pure.pure (Pos.none (EWit eps))
@@ -495,6 +509,9 @@ let pure_v_node = function
   | VN_EWit(eps) -> Pure.pure (Pos.none (EWit eps))
   | _            -> false
 
+(** Test if a term is "free", that is occures not only unser binder
+    and therefore should be normalised. This is important for closure,
+    if we normalise all closed subterm under binders, PML loops *)
 let is_free : Ptr.t -> pool -> bool * pool =
   fun p po ->
     let (p, po) = find p po in
@@ -502,12 +519,27 @@ let is_free : Ptr.t -> pool -> bool * pool =
     | Ptr.V_ptr _ -> (true, po)
     | Ptr.T_ptr t -> (get_fs t po, po)
 
+(** Test is a nobox *)
 let is_nobox : Ptr.t -> pool -> bool * pool =
   fun p po ->
     let (p, po) = find p po in
     match p with
     | Ptr.V_ptr t -> (get_bs t po, po)
     | Ptr.T_ptr _ -> (false, po)
+
+(** Test for v_node that are always nobox *)
+let immediate_nobox : v_node -> bool = function
+  | VN_LAbs _
+  | VN_Cons _
+  | VN_Reco _
+  | VN_Scis   -> true (* Check VN_Scis *)
+  | VN_VWit _
+  | VN_UWit _
+  | VN_EWit _
+  | VN_HApp _
+  | VN_UVar _
+  | VN_Goal _
+  | VN_ITag _ -> false
 
 (** Adding a parent to a given node. *)
 let add_parent_nodes : Ptr.t -> (par_key * Ptr.t) list-> pool -> pool =
@@ -530,10 +562,13 @@ let parents : Ptr.t -> pool -> par_map = fun p po ->
   let (p, po) = find p po in
   ptr_par p po.time
 
+(** union of parents (used when joining nodes) *)
 let add_parents : Ptr.t -> par_map -> pool -> pool = fun p nps po ->
   let (p, po) = find p po in
   let time = ptr_union_pars nps p po.time in
   { po with time }
+
+(** Equalities *)
 
 (* NOTE: loose path shortening, not really a problem ? *)
 let eq_vptr : pool -> VPtr.t -> VPtr.t -> bool = fun po p1 p2 ->
@@ -620,19 +655,6 @@ let eq_t_nodes : pool -> t_node -> t_node -> bool =
     | (_               , _               ) -> false
 
 
-let immediate_nobox : v_node -> bool = function
-  | VN_LAbs _
-  | VN_Cons _
-  | VN_Reco _
-  | VN_Scis   -> true (* Check VN_Scis *)
-  | VN_VWit _
-  | VN_UWit _
-  | VN_EWit _
-  | VN_HApp _
-  | VN_UVar _
-  | VN_Goal _
-  | VN_ITag _ -> false
-
 (** Insertion function for nodes. *)
 exception FoundV of VPtr.t * pool
 let insert_v_node : v_node -> pool -> VPtr.t * pool = fun nn po ->
@@ -642,6 +664,7 @@ let insert_v_node : v_node -> pool -> VPtr.t * pool = fun nn po ->
       pure = Lazy.from_fun (fun () -> pure_v_node nn && Lazy.force po.pure) }
   in
   try
+    (** search if the node already exists, using parents if possible *)
     match children with
     | [] ->
        let fn (p, n) = if eq_v_nodes po n nn then raise (FoundV (p,po)) in
@@ -662,6 +685,7 @@ let insert_v_node : v_node -> pool -> VPtr.t * pool = fun nn po ->
   with
   | FoundV(p,po) -> (p, po)
   | Not_found ->
+     (** new node creation *)
      let open Ptr in
      let ptr = { vadr = po.next
                ; vlnk = Timed.tref (Par MapKey.empty)
@@ -683,6 +707,7 @@ let insert_t_node : bool -> t_node -> pool -> TPtr.t * pool =
         pure = Lazy.from_fun (fun () -> pure_t_node nn && Lazy.force po.pure) }
     in
     try
+      (** search if the node already exists, using parents if possible *)
       match children with
       | [] ->
          let fn (p, n) = if eq_t_nodes po n nn then raise (FoundT (p,po)) in
@@ -702,6 +727,8 @@ let insert_t_node : bool -> t_node -> pool -> TPtr.t * pool =
          raise Not_found
     with
     | FoundT(p, po) ->
+       (** if the node is found but was not free (not under binders),
+           then it may become free if the equal added node is free *)
        let po =
          if fs then begin
              let (p', po) = find (Ptr.T_ptr p) po in
@@ -712,6 +739,7 @@ let insert_t_node : bool -> t_node -> pool -> TPtr.t * pool =
          else po
        in (p, po)
     | Not_found ->
+       (** new node creation *)
        let open Ptr in
        let ptr = { tadr = po.next
                  ; tlnk = Timed.tref (Par MapKey.empty)
@@ -733,7 +761,7 @@ let insert_t_node : bool -> t_node -> pool -> TPtr.t * pool =
 let insert_v_node nn po = Chrono.add_time inser_chrono (insert_v_node nn) po
 let insert_t_node nn po = Chrono.add_time inser_chrono (insert_t_node nn) po
 
-(** Insertion of actual terms and values to the pool. *)
+(** Insertion and normalisation of actual terms and values to the pool. *)
 let rec add_term :  bool -> pool -> term -> Ptr.t * pool = fun free po t ->
   let add_term = add_term free in
   let insert node po =
@@ -835,6 +863,7 @@ and     add_valu : pool -> valu -> VPtr.t * pool = fun po v ->
   | Vari(_)     -> invalid_arg "free variable in the pool"
   | Dumm(_)     -> invalid_arg "dummy terms forbidden in the pool"
 
+(** case of closure for binder *)
 and add_bndr_closure : type a b. pool -> a sort -> b sort ->
                        (a, b) bndr -> (a, b) bndr_closure * pool =
   fun po sa sr b ->
@@ -848,7 +877,6 @@ and add_bndr_closure : type a b. pool -> a sort -> b sort ->
     in
     let po = !po in
     let key = T(sa,sr,funptr) in
-    (*print_pool "TEST" stderr po;*)
     try
       let T(sa',sr',funptr') = FunHash.find funptrs key in
       match eq_sort sa sa', eq_sort sr sr' with
@@ -858,6 +886,7 @@ and add_bndr_closure : type a b. pool -> a sort -> b sort ->
       FunHash.add  funptrs key key;
       ((funptr,vs,ts), po)
 
+(** case of closure for hight order terms *)
 and add_ho_appl
     : type a b. pool -> a sort -> (a -> b) ex loc
            -> a ex loc -> b ho_appl * pool
@@ -903,7 +932,7 @@ and add_ho_appl
     in
     (HO(se,(f (),vf,tf),(e (),ve,te)), po)
 
-(** Normalisation function. *)
+(** Normalisation function for pointer *)
 and normalise : Ptr.t -> pool -> Ptr.t * pool =
   fun p0 po ->
     match p0 with
@@ -918,6 +947,7 @@ and normalise : Ptr.t -> pool -> Ptr.t * pool =
            find tp po
          end
 
+(** Normalisation function for nodes *)
 and normalise_t_node : ?old:TPtr.t -> t_node -> pool -> Ptr.t  * pool =
   fun ?old node po ->
     let insert node po =
@@ -1038,6 +1068,7 @@ and normalise_t_node : ?old:TPtr.t -> t_node -> pool -> Ptr.t  * pool =
     in
     find p po
 
+(** test if to pointers just became equal and call union if it is the case *)
 and check_eq : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
   if eq_ptr po p1 p2 then po else
     match (p1, p2) with
@@ -1051,6 +1082,7 @@ and check_eq : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
        if eq_t_nodes po n1 n2 then union p1 p2 po else po
     | _ -> po
 
+(** check all equalities of two parent sets *)
 and check_parents_eq pp1 pp2 po =
   let po = ref po in
   let fn k pp1 pp2 = match (pp1, pp2) with
@@ -1064,6 +1096,7 @@ and check_parents_eq pp1 pp2 po =
   Chrono.add_time pareq_chrono
                   (fun () -> ignore (MapKey.merge fn pp1 pp2); !po) ()
 
+(** reinsert a node that could be normalision *)
 and reinsert : Ptr.t -> pool -> pool = fun p po ->
   let (is_free, po) = is_free p po in
   match p with
@@ -1079,7 +1112,7 @@ and reinsert : Ptr.t -> pool -> pool = fun p po ->
        | _ -> po
      end
 
-(** Union operation. *)
+(** Low level union operation. *)
 and join : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
   assert (not_lnk p1 po.time);
   assert (not_lnk p2 po.time);
@@ -1117,6 +1150,7 @@ and join : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
 and age_join : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
   if p2 < p1 then join p1 p2 po else join p2 p1 po
 
+(** high level union doing all necessary check/cases *)
 and union : ?no_rec:bool -> Ptr.t -> Ptr.t -> pool -> pool =
   fun ?(no_rec=false) p1 p2 po ->
   let (p1, po) = find p1 po in
@@ -1167,7 +1201,8 @@ and union : ?no_rec:bool -> Ptr.t -> Ptr.t -> pool -> pool =
             | (_    , _   ) -> age_join p2 p1 po
        end
 
-(** Obtain the canonical term / value pointed by a pointer. *)
+(** Obtain the canonical term / value pointed by a pointer.
+    Now only use to instanciate a unification variable. *)
 (* NOTE: the "clos" bool is here to not follow the union find map if
     under closure, otherwise if loops, for instance on "exp n" *)
 let rec canonical_term : bool -> TPtr.t -> pool -> term * pool
@@ -1297,11 +1332,11 @@ and canonical : bool -> Ptr.t -> pool -> term * pool = fun clos p po ->
   | Ptr.V_ptr p -> let (v, po) = canonical_valu clos p po in
                    (Pos.none (Valu v), po)
 
-
 let canonical_valu = canonical_valu false
 let canonical_term = canonical_term false
 let canonical      = canonical      false
 
+(** Unification of terms in the pool *)
 exception NoUnif
 
 let rec unif_cl
@@ -1565,6 +1600,7 @@ and oracle pool = {
       Chrono.add_time equiv_chrono (eq_trm pool v1) v2)
   }
 
+(** Here starts the higher level function call from typing *)
 
 (* Equational context type. *)
 type eq_ctxt =
