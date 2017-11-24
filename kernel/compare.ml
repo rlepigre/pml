@@ -23,23 +23,35 @@ let uvar_set : type a. a uvar -> a ex loc -> unit = fun u e ->
      UTimed.(u.uvar_val := Set e);
      List.iter (fun f -> f ()) hooks
 
+(* adds a hook to a unification variables, currently only used for
+   epsilon. May be soon for pool updates *)
 let uvar_hook : type a. a uvar -> (unit -> unit) -> unit = fun u f ->
    match !(u.uvar_val) with
   | Set   _     -> ()
   | Unset hooks ->
      UTimed.(u.uvar_val := Unset (f::hooks))
 
+(* trigger more detailed printing *)
 let full_eq = ref false
 
+(* an oracle allows (optionally) to call the pool to use the equational
+   hypothesis to decide equality, so we share the code between a syntactic
+   and a more semantical equality *)
+
+(* oracle provide code for testing equality on valu and terms and can
+   raise DontKnow *)
 exception DontKnow
 type oracle = { eq_val :v ex loc -> v ex loc -> bool;
                 eq_trm :t ex loc -> t ex loc -> bool }
 
+(* the default oracle *)
 let default_oracle = {
     eq_val = (fun _ _ -> raise DontKnow);
     eq_trm = (fun _ _ -> raise DontKnow)
   }
 
+(* for texhnial reason due to OCaml typing, equalities
+   are in a record *)
 type eq =
   { eq_expr     : 'a. ?oracle:oracle -> ?strict:bool ->
                     'a ex loc -> 'a ex loc -> bool
@@ -47,6 +59,9 @@ type eq =
                     ('a,'b) bndr ->
                     ('a,'b) bndr -> bool }
 
+(* test if the head of higher ordre application is a unification
+   variable. This are called flexible terms when doing higher-order
+   unification *)
 let rec flexible : type a. a ex loc -> bool = fun e ->
   let e = Norm.whnf e in
   match e.elt with
@@ -60,7 +75,8 @@ type 'a args =
   | Cns : 'a sort * 'a var * 'a ex loc * ('b -> 'c) args ->
           (('a -> 'b) -> 'c) args
 
-(* Comparison function with unification variable instantiation. *)
+(* Comparison function with unification variable instantiation,
+   and optionnaly using the pool oracle. *)
 let {eq_expr; eq_bndr} =
   let c = ref (-1) in
   let new_itag : type a. a sort -> a ex = fun s -> incr c; ITag(s,!c) in
@@ -86,7 +102,10 @@ let {eq_expr; eq_bndr} =
       | (SubSch s1, SubSch s2) -> eq_sub_schema s1 s2
       | _ -> false
     in
-    (** bind_args and immitage: two functions for higher-order unification *)
+    (** bind_args and immitate: two functions for higher-order unification *)
+    (** bind_args sa args b, uses our ast mapper to bind all the arguments
+        present in the list args in b. This is the main auxiliary function for
+        immitate *)
     let bind_args : type a b. a sort -> (a -> b) args -> b ex loc -> a ex loc =
       fun sa args b ->
         let b' : b box =
@@ -105,6 +124,7 @@ let {eq_expr; eq_bndr} =
          in
          map ~mapper:{mapper} b
        in
+       (** last we build the lambda (HFun) from the list *)
        let rec blam : type a. a sort -> (a -> b) args -> a box =
          fun sa args ->
            match args with
@@ -120,6 +140,9 @@ let {eq_expr; eq_bndr} =
        in
        unbox (blam sa args)
    in
+   (* immitate a b set the variable at the head of a to immitate b,
+      using whenever possible the argument of the variable (prefers
+      projection *)
    let immitate : type a. a ex loc -> a ex loc -> bool =
     fun a b ->
       let rec fn : type b. b ex loc -> (b -> a) args -> bool =
@@ -138,13 +161,16 @@ let {eq_expr; eq_bndr} =
     in
     let e1 = Norm.whnf e1 in
     let e2 = Norm.whnf e2 in
+    (** first physical equality *)
     if e1.elt == e2.elt then true else (
+    (** second we try the oracle *)
     try
       match (Ast.sort e1, Ast.sort e2) with
       | (V, e1), (V,e2) -> oracle.eq_val e1 e2
       | (T, e1), (T,e2) -> oracle.eq_trm e1 e2
       | _ -> raise DontKnow
     with DontKnow ->
+    (** third we recurse *)
     if !full_eq then log_equ "comparing %a and %a" Print.ex e1 Print.ex e2;
     match (e1.elt, e2.elt) with
     | (Vari(_,x1)    , Vari(_,x2)    ) ->
@@ -156,11 +182,15 @@ let {eq_expr; eq_bndr} =
           | Eq  -> eq_expr f1 f2 && eq_expr a1 a2
           | NEq -> false
         end
+        (** deal with flexible case ... NOTE: the case with
+            two flexible should probably be postponed *)
         || (if not strict && flexible e1 then
               immitate e1 e2 && eq_expr e1 e2
             else if not strict && flexible e2 then
               immitate e2 e1 && eq_expr e1 e2
             else false)
+    (* the other flexible cases. NOTE: we don't trust immitate and
+       call eq_expr anyway.  *)
     | (HApp _        , _             ) when not strict && flexible e1 ->
        immitate e1 e2 && eq_expr e1 e2
     | (_             , HApp _        ) when not strict && flexible e2 ->
@@ -386,6 +416,10 @@ let {eq_expr; eq_bndr} =
 
   {eq_expr; eq_bndr}
 
+(** use eq_expr for a list membershipt test *)
+let is_in : type a. a ex loc -> a ex loc list -> bool = fun e1 es ->
+  List.exists (fun e2 -> eq_expr e1 e2) es
+
 type hash =
   { hash_expr     : 'a. 'a ex loc -> int
   ; hash_bndr     : 'a 'b. 'a sort -> ('a,'b) bndr -> int
@@ -397,7 +431,7 @@ type hash =
   ; hash_cwit     : schema -> int
   }
 
-(* hash function with unification variable instantiation. *)
+(* hash functions *)
 let {hash_expr; hash_bndr; hash_ombinder; hash_vwit
     ; hash_qwit; hash_owit; hash_swit; hash_cwit} =
   let c = ref (-1) in
@@ -449,7 +483,7 @@ let {hash_expr; hash_bndr; hash_ombinder; hash_vwit
                             (A.hash (fun (_,e) -> (hash_bndr V e)) m)
     | FixY(f)     -> hash (`FixY (hash_bndr T f))
     | Prnt(s1)    -> khash1 `Prnt (hash s1)
-    | Repl(t,u,a) -> hash_expr u
+    | Repl(_,u,_) -> hash_expr u
     | Delm(u)     -> hash_expr u
     | Conv        -> hash `Conv
     | Succ(o)     -> khash1 `Succ (hash_expr o)
@@ -539,7 +573,3 @@ let {hash_expr; hash_bndr; hash_ombinder; hash_vwit
   in
   { hash_expr; hash_bndr; hash_ombinder; hash_vwit
   ; hash_qwit; hash_owit; hash_swit; hash_cwit }
-
-
-let is_in : type a. a ex loc -> a ex loc list -> bool = fun e1 es ->
-  List.exists (fun e2 -> eq_expr e1 e2) es

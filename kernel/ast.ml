@@ -225,8 +225,8 @@ and sub_specialised =
 and 'a uvar =
   { uvar_key : int              (* a unique id *)
   ; uvar_val : 'a uvar_val ref  (* The value of the variable, see below *)
-  ; uvar_pur : bool ref }       (* We set it to true when the value must be pure
-                                   i.e. using only total arrows *)
+  ; uvar_pur : bool ref }       (* We set it to true when the value must be
+                                   pure i.e. using only total arrows *)
 
 and 'a uvar_val =
   | Unset of (unit -> unit) list (* when the unification variable is not set,

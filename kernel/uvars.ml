@@ -44,7 +44,7 @@ let uvar_iter : type a. bool -> bool -> uvar_fun -> a ex loc -> unit =
       in
       (** iteration on the list of unif variables used by epsilon *)
       let luvar_iter : type a b. (a, b) eps -> unit =
-        fun w -> w.refr ();
+        fun w ->
           List.iter (fun (U(s,v)) -> f.f s v) !(w.vars)
       in
       (** iteration on binders *)
@@ -62,8 +62,10 @@ let uvar_iter : type a. bool -> bool -> uvar_fun -> a ex loc -> unit =
       | DSum(m)     -> A.iter (fun _ (_,a) -> uvar_iter a) m
       | Univ(s,b)   -> buvar_iter s b
       | Exis(s,b)   -> buvar_iter s b
-      | FixM(o,b)   -> if not ignore_fixpoint then (uvar_iter o; buvar_iter P b)
-      | FixN(o,b)   -> if not ignore_fixpoint then (uvar_iter o; buvar_iter P b)
+      | FixM(o,b)   -> if not ignore_fixpoint then
+                         (uvar_iter o; buvar_iter P b)
+      | FixN(o,b)   -> if not ignore_fixpoint then
+                         (uvar_iter o; buvar_iter P b)
       | Memb(t,a)   -> uvar_iter t; uvar_iter a
       | Rest(a,c)   -> uvar_iter a; uvar_iter_cond c
       | Impl(c,a)   -> uvar_iter_cond c; uvar_iter a

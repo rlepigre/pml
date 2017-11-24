@@ -36,7 +36,7 @@ let pure : type a. a ex loc -> bool =
         in the epsilons *)
     let liter : type a b. (a, b) eps -> unit =
       fun w -> if not (Lazy.force !(w.pure)) then raise Exit;
-               List.iter (fun (U(s,v)) -> iter (Pos.none (UVar(s,v)))) !(w.vars)
+        List.iter (fun (U(s,v)) -> iter (Pos.none (UVar(s,v)))) !(w.vars)
     in
     (** iteration on binders *)
     let biter s b = iter (bndr_subst b (Dumm s)) in
