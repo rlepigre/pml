@@ -286,7 +286,6 @@ let print_t_node : out_channel -> t_node -> unit = fun ch n ->
 type pool =
   { vs       : (VPtr.t * v_node) list
   ; ts       : (TPtr.t * t_node) list
-  ; us       : (TPtr.t * t_node) list
   ; next     : int    (** counter to generate new nodes *)
   ; time     : Timed.Time.t (** Current time for references *)
   ; eq_map   : (ptr * ptr) list (* just for printing and debugging *)
@@ -380,7 +379,6 @@ let print_pool : string -> out_channel -> pool -> unit = fun prefix ch po ->
 let empty_pool : pool =
   { vs     = []
   ; ts     = []
-  ; us     = []
   ; next   = 0
   ; time   = Timed.Time.save ()
   ; eq_map = []
@@ -1796,6 +1794,7 @@ let prove : eq_ctxt -> rel -> eq_ctxt = fun ctx rel ->
          let (b, ctx) = check_nobox v ctx in
          if b then raise Contradiction
     end;
+
     log "failed to prove %a" Print.rel rel;
     equiv_error rel
   with Contradiction ->
