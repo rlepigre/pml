@@ -7,7 +7,6 @@ include lib.nat
 // Associativity of addition (detailed proof).
 val rec add_assoc : ∀m n p∈nat, add m (add n p) ≡ add (add m n) p =
   fun m n p {
-    let _ = add n p;
     case m {
       Zero → deduce add n p ≡ add (add Zero n) p;
              deduce add Zero (add n p) ≡ add (add Zero n) p;
@@ -15,7 +14,6 @@ val rec add_assoc : ∀m n p∈nat, add m (add n p) ≡ add (add m n) p =
       S[k] → show add k (add n p) ≡ add (add k n) p using (add_assoc k n p);
              deduce S[add k (add n p)] ≡ S[add (add k n) p];
              deduce add S[k] (add n p) ≡ S[add (add k n) p];
-             let _ = add k n;
              deduce add S[k] (add n p) ≡ add S[add k n] p;
              deduce add S[k] (add n p) ≡ add (add S[k] n) p;
              qed
@@ -25,11 +23,9 @@ val rec add_assoc : ∀m n p∈nat, add m (add n p) ≡ add (add m n) p =
 // Associativity of addition (shortest proof).
 val rec add_assoc2 : ∀m n p∈nat, add m (add n p) ≡ add (add m n) p =
   fun m n p {
-    let _ = add n p;
     case m {
       Zero → qed
       S[k] → use add_assoc2 k n p;
-             let _ = add k n;
              qed
     }
   }
@@ -53,8 +49,7 @@ val rec add_n_succ : ∀m n∈nat, add m S[n] ≡ S[add m n] =
     case m {
       Zero → deduce add Zero S[n] ≡ S[add Zero n];
              qed
-      S[k] → let _ = add k n; // FIXME: if this line is removed, strange error with no position
-             show add k S[n] ≡ S[add k n] using add_n_succ k n;
+      S[k] → show add k S[n] ≡ S[add k n] using add_n_succ k n;
              deduce S[add k S[n]] ≡ S[S[add k n]];
              deduce add S[k] S[n] ≡ S[S[add k n]];
              deduce add S[k] S[n] ≡ S[add S[k] n];
@@ -100,10 +95,8 @@ val rec mul_n_succ : ∀n m∈nat, mul n S[m] ≡ add n (mul n m) =
              qed
       S[k] → show mul k S[m] ≡ add k (mul k m) using mul_n_succ k m;
              deduce add S[m] (mul k S[m]) ≡ add S[m] (add k (mul k m));
-             use mul k S[m];
              deduce mul S[k] S[m] ≡ add S[m] (add k (mul k m));
              deduce mul S[k] S[m] ≡ S[add m (add k (mul k m))];
-             use mul k m;
              show add m (add k (mul k m)) ≡ add (add m k) (mul k m)
                using add_assoc m k (mul k m);
              show add m k ≡ add k m using add_comm m k;
@@ -111,7 +104,6 @@ val rec mul_n_succ : ∀n m∈nat, mul n S[m] ≡ add n (mul n m) =
                using add_assoc k m (mul k m);
              deduce mul S[k] S[m] ≡ S[add k (add m (mul k m))];
              deduce mul S[k] S[m] ≡ S[add k (mul S[k] m)];
-             use mul S[k] m;
              deduce mul S[k] S[m] ≡ add S[k] (mul S[k] m);
              qed
     }
@@ -138,8 +130,7 @@ val rec mul_comm : ∀n m∈nat, mul n m ≡ mul m n =
 val rec mul_dist_l : ∀m n p∈nat, mul m (add n p) ≡ add (mul m n) (mul m p) =
   fun m n p {
     case m {
-      Zero → use add n p;
-             deduce mul Zero (add n p) ≡ Zero;
+      Zero → deduce mul Zero (add n p) ≡ Zero;
              deduce add (mul Zero n) (mul Zero p) ≡ Zero;
              deduce mul Zero (add n p) ≡ add (mul Zero n) (mul Zero p);
              qed
@@ -147,12 +138,8 @@ val rec mul_dist_l : ∀m n p∈nat, mul m (add n p) ≡ add (mul m n) (mul m p)
              using mul_dist_l k n p;
              deduce add (add n p) (mul k (add n p))
                ≡ add (add n p) (add (mul k n) (mul k p));
-             use add n p;
              deduce mul S[k] (add n p)
                ≡ add (add n p) (add (mul k n) (mul k p));
-             use mul k n;
-             use mul k p;
-             use add (mul k n) (mul k p);
              show add (add n p) (add (mul k n) (mul k p))
                ≡ add n (add p (add (mul k n) (mul k p)))
                using add_assoc n p (add (mul k n) (mul k p));
@@ -170,7 +157,6 @@ val rec mul_dist_l : ∀m n p∈nat, mul m (add n p) ≡ add (mul m n) (mul m p)
                ≡ add n (add (mul k n) (add p (mul k p)));
              deduce add (add n p) (add (mul k n) (mul k p))
                ≡ add n (add (mul k n) (mul S[k] p));
-             use mul S[k] p;
              show add n (add (mul k n) (mul S[k] p))
                ≡ add (add n (mul k n)) (mul S[k] p)
                using add_assoc n (mul k n) (mul S[k] p);
@@ -184,7 +170,6 @@ val rec mul_dist_l : ∀m n p∈nat, mul m (add n p) ≡ add (mul m n) (mul m p)
 val rec mul_dist_r : ∀m n p∈nat, mul (add m n) p ≡ add (mul m p) (mul n p) =
   fun m n p {
     show mul p (add m n) ≡ add (mul p m) (mul p n) using mul_dist_l p m n;
-    use add m n;
     show mul p (add m n) ≡ mul (add m n) p using mul_comm p (add m n);
     deduce mul (add m n) p ≡ add (mul p m) (mul p n);
     show mul p m ≡ mul m p using mul_comm p m;
@@ -198,8 +183,7 @@ val rec mul_dist_r : ∀m n p∈nat, mul (add m n) p ≡ add (mul m p) (mul n p)
 val rec mul_assoc : ∀m n p∈nat, mul m (mul n p) ≡ mul (mul m n) p =
   fun m n p {
     case m {
-      Zero → use mul n p;
-             showing mul Zero (mul n p) ≡ mul (mul Zero n) p;
+      Zero → showing mul Zero (mul n p) ≡ mul (mul Zero n) p;
              deduce mul Zero (mul n p) ≡ Zero;
              showing Zero ≡ mul (mul Zero n) p;
              deduce mul (mul Zero n) p ≡ mul Zero p;
@@ -209,9 +193,7 @@ val rec mul_assoc : ∀m n p∈nat, mul m (mul n p) ≡ mul (mul m n) p =
       S[k] → show mul k (mul n p) ≡ mul (mul k n) p using mul_assoc k n p;
              deduce add (mul n p) (mul k (mul n p))
                ≡ add (mul n p) (mul (mul k n) p);
-             use mul n p;
              deduce mul S[k] (mul n p) ≡ add (mul n p) (mul (mul k n) p);
-             use mul k n;
              show add (mul n p) (mul (mul k n) p) ≡ mul (add n (mul k n)) p
                using mul_dist_r n (mul k n) p;
              deduce mul S[k] (mul n p) ≡ mul (add n (mul k n)) p;
