@@ -256,7 +256,7 @@ let _ =
       err_msg "Unable to unify %a and %a." Print.ex a Print.ex b
   | Typing.Reachable            ->
       err_msg "Reachable scissors"
-  | Equiv.Failed_to_prove(rel)  ->
+  | Equiv.Failed_to_prove(rel,_)  ->
       err_msg "Failed to prove an equational relation.";
       err_msg "  %a" Print.rel rel
   | Check_failed(a,n,b) ->

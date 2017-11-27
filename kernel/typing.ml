@@ -51,6 +51,9 @@ let log_sub = Log.(log_sub.p)
 let log_typ = Log.register 't' (Some "typ") "typing informations"
 let log_typ = Log.(log_typ.p)
 
+let log_aut = Log.register 'a' (Some "aut") "automatic proving informations"
+let log_aut = Log.(log_aut.p)
+
 (* Context. *)
 type ctxt  =
   { uvarcount : int ref
@@ -63,6 +66,7 @@ type ctxt  =
   ; sub_ihs   : sub_schema list
   ; top_ih    : Scp.index * ordi array
   ; add_calls : (unit -> unit) list ref
+  ; auto_lvl  : int
   ; callgraph : Scp.t
   ; totality  : Totality.tot }
 
@@ -75,6 +79,7 @@ let empty_ctxt () =
   ; sub_ihs   = []
   ; top_ih    = (Scp.root, [| |])
   ; add_calls = ref []
+  ; auto_lvl  = 10_000
   ; callgraph = Scp.create ()
   ; totality  = Totality.Ter }
 
@@ -517,8 +522,8 @@ and subtype =
           Sub_Exis_r(subtype ctx t a (bndr_subst f u.elt))
       (* Membership on the right. *)
       | (_          , Memb(u,b)  ) when t_is_val ->
-          let equations = prove ctx.equations (Equiv(t,true,u)) in
-          Sub_Memb_r(subtype {ctx with equations} t a b)
+          auto_prove ctx (Equiv(t,true,u));
+          Sub_Memb_r(subtype ctx t a b)
       (* Restriction on the right. *)
       | (_          , Rest(c,e)  ) ->
          begin
@@ -530,7 +535,7 @@ and subtype =
              with
                Contradiction -> None
            in
-           let _ = prove ctx.equations e in
+           auto_prove ctx e;
            Sub_Rest_r(prf)
           end
       (* Implication on the left. *)
@@ -544,7 +549,7 @@ and subtype =
              with
                Contradiction -> None
            in
-           let _ = prove ctx.equations e in
+           auto_prove ctx e;
            Sub_Impl_l(prf)
           end
       (* Mu right and Nu Left, infinite case. *)
@@ -582,6 +587,52 @@ and subtype =
     | e -> subtype_error t a b e
   in
   fun ctx t a b -> Chrono.add_time sub_chrono (subtype ctx t a) b
+
+and auto_prove : ctxt -> rel -> unit =
+  fun ctx rel ->
+    try
+      prove ctx.equations rel
+    with
+      Failed_to_prove(rel,bls) as exn ->
+        let cmp b1 b2 = match (b1,b2) with
+          | BTot _, BCas _ -> -1
+          | BCas _, BTot _ -> 1
+          | _     , _      -> 0
+        in
+        let bls = List.stable_sort cmp bls in
+        let decrease_lvl ctx n =
+          let l = ctx.auto_lvl in
+          let auto_lvl = (l - 1) / n in
+          if auto_lvl < 0 then raise exn else
+            { ctx with auto_lvl }
+        in
+        let rec fn bls =
+          match bls with
+          | [] -> raise exn
+          | BTot e :: bls ->
+             let ctx = decrease_lvl ctx 1 in
+             let ty = unbox (rest None (prod None A.empty) (box rel)) in
+             let u = valu None (reco None A.empty) in
+             let f = labs None None (Pos.none "x") (fun _ -> u) in
+             let t = unbox (appl None (valu None f) (Bindlib.box e)) in
+             log_aut "totality %08d: %a" ctx.auto_lvl Print.ex t;
+             (try type_term ctx t ty
+              with Type_error _ -> fn bls)
+          | BCas(e,cs) :: bls ->
+             let ctx = decrease_lvl ctx (List.length cs) in
+             let ty = unbox (rest None (prod None A.empty) (box rel)) in
+             let u = valu None (reco None A.empty) in
+             let mk_case c = A.add c (None, Pos.none "x", (fun _ -> u)) in
+             let cases = List.fold_right mk_case cs A.empty in
+             let f = labs None None (Pos.none "x") (fun v ->
+                            case None (vari None v) cases)
+             in
+             let t = unbox (appl None (valu None f) (Bindlib.box e)) in
+             log_aut "cases    %08d: %a" ctx.auto_lvl Print.ex t;
+             (try type_term ctx t ty
+              with Type_error _ -> fn bls)
+
+        in ignore (fn bls)
 
 and gen_subtype : ctxt -> prop -> prop -> sub_rule =
   fun ctx a b ->
@@ -980,12 +1031,27 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
     | Goal(_,str) ->
         wrn_msg "goal %S %a" str Pos.print_short_pos_opt v.pos;
         Typ_Goal(str)
-
+    | UWit(_)     ->
+        begin try
+          let v = to_vwit (Pos.none (Valu v)) ctx.equations in
+          Typ_TSuch(type_valu ctx v c)
+        with Not_found ->
+             unexpected "∀-witness during typing..."
+        end
+    | EWit(_)     ->
+        begin try
+          let v = to_vwit (Pos.none (Valu v)) ctx.equations in
+          Typ_TSuch(type_valu ctx v c)
+        with Not_found ->
+             unexpected "∃-witness during typing..."
+        end
+    | UVar(_,v)   ->
+        begin match !(v.uvar_val) with
+        | Set v -> Typ_TSuch(type_valu ctx v c)
+        | _     -> unexpected "unification variable during typing..."
+        end
     (* Constructors that cannot appear in user-defined terms. *)
     | VPtr(_)     -> unexpected "VPtr during typing..."
-    | UWit(_)     -> unexpected "∀-witness during typing..."
-    | EWit(_)     -> unexpected "∃-witness during typing..."
-    | UVar(_)     -> unexpected "unification variable during typing..."
     | Vari(_)     -> unexpected "Free variable during typing..."
     | Dumm(_)     -> unexpected "Dummy value during typing..."
     | ITag(_)     -> unexpected "ITag during typing..."
@@ -1179,11 +1245,27 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
          if pure then { ctx with totality = Totality.new_tot () } else ctx
        in
        Typ_Delm(type_term ctx t c)
+    | UWit(_)     ->
+        begin try
+          let v = to_vwit t ctx.equations in
+          Typ_TSuch(type_valu ctx v c)
+        with Not_found ->
+             unexpected "∀-witness during typing..."
+        end
+    | EWit(_)     ->
+        begin try
+          let v = to_vwit t ctx.equations in
+          Typ_TSuch(type_valu ctx v c)
+        with Not_found ->
+             unexpected "∃-witness during typing..."
+        end
+    | UVar(_,v)   ->
+        begin match !(v.uvar_val) with
+        | Set t -> Typ_TSuch(type_term ctx t c)
+        | _     -> unexpected "unification variable during typing..."
+        end
     (* Constructors that cannot appear in user-defined terms. *)
     | TPtr(_)     -> unexpected "TPtr during typing..."
-    | UWit(_)     -> unexpected "∀-witness during typing..."
-    | EWit(_)     -> unexpected "∃-witness during typing..."
-    | UVar(_)     -> unexpected "unification variable during typing..."
     | Vari(_)     -> unexpected "Free variable during typing..."
     | Dumm(_)     -> unexpected "Dummy value during typing..."
     | ITag(_)     -> unexpected "ITag during typing..."

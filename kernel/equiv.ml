@@ -1756,10 +1756,6 @@ let find_sum : pool -> valu -> (string * valu * pool) option = fun po v ->
          | _ -> raise Not_found
   with Not_found -> None
 
-exception Failed_to_prove of rel
-let equiv_error : rel -> 'a =
-  fun rel -> raise (Failed_to_prove rel)
-
 (* Adds no box to the bool *)
 let check_nobox : valu -> eq_ctxt -> bool * eq_ctxt = fun v {pool} ->
   log2 "inserting %a not box in context\n%a" Print.ex v
@@ -1794,6 +1790,19 @@ let to_value : term -> eq_ctxt -> valu option * eq_ctxt = fun t {pool} ->
   | Ptr.V_ptr(v) -> Some (Pos.none (VPtr v)), { pool }
   | Ptr.T_ptr(_) -> None, { pool }
 
+let to_vwit : term -> eq_ctxt -> valu = fun t {pool} ->
+  let (pt, po) = add_term true true pool t in
+  let fn (p,t) =
+    eq_ptr po p pt &&
+      match t.elt with
+      | Valu{elt = VWit _} -> true
+      | _                   -> false
+  in
+  let (_,t) = List.find fn po.os in
+  match t.elt with
+  | Valu(v) -> v
+  | _       -> assert false
+
 let learn : eq_ctxt -> rel -> eq_ctxt = fun ctx rel ->
   log "learning %a" Print.rel rel;
   try
@@ -1814,49 +1823,51 @@ type blocked =
   | BTot of term
   | BCas of term * A.key list
 
+let eq_blocked : blocked -> blocked -> bool =
+  fun b1 b2 ->
+    match (b1, b2) with
+    | (BTot e1   , BTot e2   ) -> eq_expr e1 e2
+    | (BCas(e1,_), BCas(e2,_)) -> eq_expr e1 e2
+    | (_         , _         ) -> false
+
+exception Failed_to_prove of rel * blocked list
+let equiv_error : rel -> blocked list -> 'a =
+  fun rel bls -> raise (Failed_to_prove(rel, bls))
+
 let get_blocked : pool -> blocked list = fun po ->
   let adone = ref [] in
+  let add b acc = if List.exists (eq_blocked b) acc then acc else b::acc in
   List.fold_left (fun acc (tp,tn) ->
-      (*Printf.eprintf "testing %a %a\n%!" TPtr.print tp print_t_node tn;*)
-      if not (fst (is_normal (Ptr.T_ptr tp) po)) &&
-           not (List.exists (eq_tptr po tp) !adone) then
-        begin
-          adone := tp :: !adone;
-          match tn with
-          | TN_Appl(u,v) ->
+    (*Printf.eprintf "testing %a %a\n%!" TPtr.print tp print_t_node tn;*)
+    if not (get_ns tp po) && get_fs tp po &&
+         not (List.exists (eq_tptr po tp) !adone) then
+      begin
+        adone := tp :: !adone;
+        try match tn with
+        | TN_Appl(u,v) ->
+           let l = List.find_all (fun (v',_) -> eq_ptr po v v') po.os in
+           List.fold_left (fun acc (tp',e') ->
+               if fst (is_nobox tp' po) then acc else
+                 begin
+                   log "blocked arg %a" Print.ex e';
+                   add (BTot e')acc
+                 end) acc l
+        | TN_Case(v,b) ->
+           let (tp',e') = List.find (fun (v',_) ->
+                              eq_ptr po (Ptr.V_ptr v) v') po.os in
+           if fst (is_normal (Ptr.T_ptr tp) po) then acc else
              begin
-               try
-                 let l = List.find_all (fun (v',_) -> eq_ptr po v v') po.os in
-                 List.fold_left (fun acc (tp',e') ->
-                     if fst (is_nobox tp' po) then acc else
-                       begin
-                         log "blocked arg %a" Print.ex e';
-                         (BTot e')::acc
-                       end) acc l
-               with
-                 Not_found -> acc
+               let cases = List.map fst (A.bindings b) in
+               log "blocked case %a %t" Print.ex e'
+                   (fun ch -> List.iter (Printf.fprintf ch "%s ") cases);
+               add (BCas (e', cases)) acc
              end
-          | TN_Case(v,b) ->
-             begin
-               try
-                 let (tp',e') = List.find (fun (v',_) ->
-                                    eq_ptr po (Ptr.V_ptr v) v') po.os in
-                 if fst (is_normal (Ptr.T_ptr tp) po) then acc else
-                   begin
-                     let cases = List.map fst (A.bindings b) in
-                     log "blocked case %a %t" Print.ex e'
-                       (fun ch -> List.iter (Printf.fprintf ch "%s ") cases);
-                     (BCas (e', cases))::acc
-                   end
-               with
-                 Not_found -> acc
-             end
-          | _ -> acc
-        end
-      else acc
+        | _ -> acc
+        with Not_found -> acc
+      end else acc
     ) [] po.ts
 
- let prove : eq_ctxt -> rel -> eq_ctxt = fun ctx rel ->
+ let prove : eq_ctxt -> rel -> unit = fun ctx rel ->
   log "proving  %a" Print.rel rel;
   try
     let ctx = match rel with
@@ -1868,12 +1879,11 @@ let get_blocked : pool -> blocked list = fun po ->
          if b then raise Contradiction;
          ctx
     in
-    let _  = get_blocked ctx.pool in
+    let bls = get_blocked ctx.pool in
     log "failed to prove %a" Print.rel rel;
-    equiv_error rel
+    equiv_error rel bls
   with Contradiction ->
-    log "proved   %a" Print.rel rel;
-    ctx
+    log "proved   %a" Print.rel rel
 
 let learn ctx rel     = Chrono.add_time equiv_chrono (learn ctx) rel
 let prove ctx rel     = Chrono.add_time equiv_chrono (prove ctx) rel

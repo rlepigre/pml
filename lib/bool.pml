@@ -3,10 +3,11 @@ val tru : bool = true
 val fls : bool = false
 
 // Lazy conditionals.
-def cond<c:τ,t:τ,e:τ> = if c {t } else { e }
+def cond<c:τ,t:τ,e:τ> = if c { t } else { e }
 
 def land<a:τ,b:τ> = cond<a,b,fls>
 def lor <a:τ,b:τ> = cond<a,tru,b>
+def limp<a:τ,b:τ> = cond<a,b,tru>
 
 val not : bool ⇒ bool = fun a { cond<a, fls, tru> }
 
