@@ -79,7 +79,7 @@ let empty_ctxt () =
   ; sub_ihs   = []
   ; top_ih    = (Scp.root, [| |])
   ; add_calls = ref []
-  ; auto_lvl  = (100, 1000)
+  ; auto_lvl  = (1, 100)
   ; callgraph = Scp.create ()
   ; totality  = Totality.Ter }
 
@@ -1011,7 +1011,11 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
             | None   -> ignore(gen_subtype ctx b a)
             | Some t -> ignore(subtype ctx t b a)
           with _ -> cannot_unify b a
-       in Typ_TSuch(type_valu ctx v c)
+        in Typ_TSuch(type_valu ctx v c)
+    (* Set auto lvl *)
+    | Alvl(l,_,v) ->
+        let ctx = { ctx with auto_lvl = l } in
+        Typ_TSuch(type_valu ctx v c)
     (* Witness. *)
     | VWit(w)     ->
         let (_,a,_) = !(w.valu) in
@@ -1115,6 +1119,7 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
             (p1,p2)
         in
         if is_val then Typ_Func_s(p1,p2) else Typ_Func_e(p1,p2)
+    (* Fixpoint *)
     | FixY(b) ->
        let rec break_univ ctx c =
          match (Norm.whnf c).elt with
@@ -1215,6 +1220,10 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
             | Some t -> ignore(subtype ctx t b a)
           with _ -> cannot_unify b a
         in Typ_TSuch(type_term ctx t c)
+    (* Set auto lvl *)
+    | Alvl(l,_,t) ->
+        let ctx = { ctx with auto_lvl = l } in
+        Typ_TSuch(type_term ctx t c)
     (* Definition. *)
     | HDef(_,d)   ->
         begin
@@ -1312,6 +1321,7 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
     (* Constructors that cannot appear in user-defined stacks. *)
     | Coer(_,_,_) -> .
     | Such(_,_,_) -> .
+    | Alvl(_,_,_) -> .
     | UWit(_)     -> unexpected "∀-witness during typing..."
     | EWit(_)     -> unexpected "∃-witness during typing..."
     | UVar(_)     -> unexpected "unification variable during typing..."

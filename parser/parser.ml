@@ -45,12 +45,16 @@ let parser llid = id:lid -> in_pos _loc id
 let parser luid = id:uid -> in_pos _loc id
 let parser lnum = id:num -> in_pos _loc id
 
+(* Int. *)
+let parser int  = s:''[0-9]+'' -> int_of_string s
+
 (* Lowercase identifier or wildcard (located). *)
 let parser llid_wc =
   | id:lid -> in_pos _loc id
   | '_'    -> in_pos _loc "_"
 
 (* Keywords. *)
+let _auto_    = Keyword.create "auto"
 let _because_ = Keyword.create "because"
 let _bool_    = Keyword.create "bool"
 let _case_    = Keyword.create "case"
@@ -378,6 +382,10 @@ let parser expr @(m : mode) =
   | "(" t:term ":" a:prop ")"
       when m <<= Trm A
       -> in_pos _loc (ECoer(t,a))
+  (* Term (auto lvl) *)
+  | _auto_ b:int d:int t:(expr (Trm R))
+      when m <<= Trm R
+      -> in_pos _loc (EAlvl(b,d,t))
   (* Term (let such that) *)
   | _let_ vs:s_lst _st_ x:llid_wc ':' a:prop ';' u:(expr (Trm S))
       when m <<= Trm S

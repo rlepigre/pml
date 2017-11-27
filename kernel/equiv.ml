@@ -811,6 +811,7 @@ let rec add_term :  bool -> bool -> pool -> term -> Ptr.t * pool = fun o free po
     | Delm(u)     -> add_term po u
     | Coer(_,t,_) -> add_term po t
     | Such(_,_,r) -> add_term po (bseq_dummy r.binder)
+    | Alvl(_,_,e) -> add_term po e
     | UWit(w)     -> insert (TN_UWit(w)) po
     | EWit(w)     -> insert (TN_EWit(w)) po
     | HApp(s,f,a) -> let (hoa, po) = add_ho_appl po s f a in
@@ -863,6 +864,7 @@ and     add_valu : bool -> pool -> valu -> VPtr.t * pool = fun o po v0 ->
                      end
     | Coer(_,v,_) -> add_valu po v
     | Such(_,_,r) -> add_valu po (bseq_dummy r.binder)
+    | Alvl(_,_,e) -> add_valu po e
     | VWit(w)     -> insert_v_node (VN_VWit(w)) po
     | UWit(w)     -> insert_v_node (VN_UWit(w)) po
     | EWit(w)     -> insert_v_node (VN_EWit(w)) po

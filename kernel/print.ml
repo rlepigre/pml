@@ -168,6 +168,7 @@ let rec ex : type a. a ex loc printer = fun ch e ->
             fprintf ch "%s:%a, " (name_of x) sort s;
             aux seq
       in aux r.binder
+  | Alvl(l,s,e) -> fprintf ch "auto %d %d (%a)" (fst l) (snd l) ex e
   | ITag(_,i)   -> fprintf ch "#%i" i
   | Dumm(_)     -> output_string ch "∅"
   | VWit(w)     -> fprintf ch "%s%a" w.name print_vars e

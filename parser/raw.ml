@@ -188,6 +188,7 @@ and raw_ex' =
   | EDelm of raw_ex
   | ECoer of raw_ex * raw_ex
   | ESuch of (strloc * raw_sort) ne_list * (strloc option * raw_ex) * raw_ex
+  | EAlvl of int * int * raw_ex
 
   | EConv
   | ESucc of raw_ex
@@ -248,6 +249,7 @@ let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
                        Printf.fprintf ch "ESuch(%a,%s,%a,%a)"
                          (print_list aux_sort ", ") (ne_list_to_list vs)
                          x.elt print (snd j) print u
+    | EAlvl(b,d,u)  -> Printf.fprintf ch "EAlvl(%d,%d,%a)" b d print u
     | EConv         -> Printf.fprintf ch "EConv"
     | ESucc(o)      -> Printf.fprintf ch "ESucc(%a)" print o
     | EGoal(str)    -> Printf.fprintf ch "EGoal(%s)" str
@@ -608,6 +610,10 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
           infer env vars v s
         end
     | (ESuch(_,_,_) , _        ) -> sort_clash e s
+    | (EAlvl(b,d,a) , SV _     )
+    | (EAlvl(b,d,a) , ST       )
+    | (EAlvl(b,d,a) , SUni(_)  ) -> infer env vars a s
+    | (EAlvl(b,d,_) , _        ) -> sort_clash e s
     (* Ordinals. *)
     | (EConv        , SO       ) -> ()
     | (ESucc(o)     , SO       ) -> infer env vars o s
@@ -1000,6 +1006,10 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
           | _    -> assert false (* should not happen *)
         end
     (* Ordinals. *)
+    | (EAlvl(b,d,a) , SV _     ) -> let v = to_valu (unsugar env vars a s) in
+                                    Box(V, alvl e.pos b d VoT_V v)
+    | (EAlvl(b,d,a) , ST       ) -> let t = to_term (unsugar env vars a s) in
+                                    Box(T, alvl e.pos b d VoT_T t)
     | (EConv        , SO       ) -> Box(O, conv e.pos)
     | (ESucc(o)     , SO       ) ->
         let o = to_ordi (unsugar env vars o _so) in

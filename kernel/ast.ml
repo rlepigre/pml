@@ -114,6 +114,8 @@ type _ ex =
   (** Type coercion on a value or a term. *)
   | Such : 'a v_or_t * 'b desc * ('a,'b) such_t      -> 'a ex
   (** Extraction of witness by pattern-matching. *)
+  | Alvl : (int * int) * 'a v_or_t * 'a ex loc       -> 'a ex
+  (** Set auto lvl *)
 
   (* Special constructors. *)
 
@@ -434,6 +436,11 @@ let such : type a b. popt -> a v_or_t -> b desc -> such_var bindbox
     let fn sv b = Pos.make p (Such(t,d,{opt_var = sv; binder = b})) in
     box_apply2 fn sv (aux f)
 
+let alvl : type a. popt -> int -> int -> a v_or_t -> a box -> a box =
+  fun p b d sv t ->
+    let fn t = Pos.make p (Alvl((b,d),sv,t)) in
+    box_apply fn t
+
 let sv_none : such_var bindbox =
   box SV_None
 
@@ -601,6 +608,7 @@ let rec sort : type a b. a ex loc ->  a sort * a ex loc= fun e ->
   | VDef _          -> (V,e)
   | Coer(VoT_V,_,_) -> (V,e)
   | Such(VoT_V,_,_) -> (V,e)
+  | Alvl(_,VoT_V,_)-> (V,e)
   | VPtr _          -> (V,e)
 
   | Valu _          -> (T,e)
@@ -613,6 +621,7 @@ let rec sort : type a b. a ex loc ->  a sort * a ex loc= fun e ->
   | Prnt _          -> (T,e)
   | Coer(VoT_T,_,_) -> (T,e)
   | Such(VoT_T,_,_) -> (T,e)
+  | Alvl(_,VoT_T,_) -> (T,e)
   | TPtr _          -> (T,e)
   | Repl(_,_,_)     -> (T,e)
   | Delm _          -> (T,e)
