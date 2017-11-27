@@ -66,7 +66,7 @@ type ctxt  =
   ; sub_ihs   : sub_schema list
   ; top_ih    : Scp.index * ordi array
   ; add_calls : (unit -> unit) list ref
-  ; auto_lvl  : int
+  ; auto_lvl  : (int * int)
   ; callgraph : Scp.t
   ; totality  : Totality.tot }
 
@@ -79,7 +79,7 @@ let empty_ctxt () =
   ; sub_ihs   = []
   ; top_ih    = (Scp.root, [| |])
   ; add_calls = ref []
-  ; auto_lvl  = 10_000
+  ; auto_lvl  = (100, 1000)
   ; callgraph = Scp.create ()
   ; totality  = Totality.Ter }
 
@@ -601,10 +601,10 @@ and auto_prove : ctxt -> rel -> unit =
         in
         let bls = List.stable_sort cmp bls in
         let decrease_lvl ctx n =
-          let l = ctx.auto_lvl in
-          let auto_lvl = (l - 1) / n in
-          if auto_lvl < 0 then raise exn else
-            { ctx with auto_lvl }
+          let (l1,l2) = ctx.auto_lvl in
+          if l1 <= 0 || l2 <= 0 then raise exn;
+          let auto_lvl = if n = 1 then (l1, l2 - 1) else (l1 - 1, l2) in
+          { ctx with auto_lvl }
         in
         let rec fn bls =
           match bls with
@@ -615,7 +615,8 @@ and auto_prove : ctxt -> rel -> unit =
              let u = valu None (reco None A.empty) in
              let f = labs None None (Pos.none "x") (fun _ -> u) in
              let t = unbox (appl None (valu None f) (Bindlib.box e)) in
-             log_aut "totality %08d: %a" ctx.auto_lvl Print.ex t;
+             let (l1,l2) = ctx.auto_lvl in
+             log_aut "totality (%d,%d): %a" l1 l2 Print.ex t;
              (try type_term ctx t ty
               with Type_error _ -> fn bls)
           | BCas(e,cs) :: bls ->
@@ -628,7 +629,8 @@ and auto_prove : ctxt -> rel -> unit =
                             case None (vari None v) cases)
              in
              let t = unbox (appl None (valu None f) (Bindlib.box e)) in
-             log_aut "cases    %08d: %a" ctx.auto_lvl Print.ex t;
+             let (l1,l2) = ctx.auto_lvl in
+             log_aut "cases    (%d,%d): %a" l1 l2 Print.ex t;
              (try type_term ctx t ty
               with Type_error _ -> fn bls)
 

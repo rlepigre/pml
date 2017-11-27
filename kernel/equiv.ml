@@ -1853,15 +1853,14 @@ let get_blocked : pool -> blocked list = fun po ->
                    add (BTot e')acc
                  end) acc l
         | TN_Case(v,b) ->
-           let (tp',e') = List.find (fun (v',_) ->
+           let l = List.find_all (fun (v',_) ->
                               eq_ptr po (Ptr.V_ptr v) v') po.os in
-           if fst (is_normal (Ptr.T_ptr tp) po) then acc else
-             begin
+           List.fold_left (fun acc (tp',e') ->
                let cases = List.map fst (A.bindings b) in
                log "blocked case %a %t" Print.ex e'
                    (fun ch -> List.iter (Printf.fprintf ch "%s ") cases);
                add (BCas (e', cases)) acc
-             end
+             ) acc l
         | _ -> acc
         with Not_found -> acc
       end else acc
