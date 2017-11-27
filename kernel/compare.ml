@@ -573,3 +573,16 @@ let {hash_expr; hash_bndr; hash_ombinder; hash_vwit
   in
   { hash_expr; hash_bndr; hash_ombinder; hash_vwit
   ; hash_qwit; hash_owit; hash_swit; hash_cwit }
+
+module Expr = struct
+  type t = E : 'a ex loc -> t
+  let equal (E e1) (E e2) =
+    match Ast.sort e1, Ast.sort e2 with
+    | (s1, e1), (s2, e2) ->
+       match eq_sort s1 s2 with
+       | Eq -> eq_expr e1 e2
+       | _  -> false
+  let hash (E e) = hash_expr e
+end
+
+module HExpr = Hashtbl.Make(Expr)
