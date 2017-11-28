@@ -38,7 +38,7 @@ val rec smap : ∀a b, ((a ⇒ b) ⇒ stream<a> ⇒ stream<b>) =
     }
   }
 
-type sstream<a,s> = μ_s stream, {} ⇒ [ Cons of { hd : a; tl : stream}  ]
+type sstream<a,s> = ν_s stream, {} ⇒ [ Cons of { hd : a; tl : stream}  ]
 
 val rec smap_biz : ∀a,∀s, ((a ⇒ a) ⇒ sstream<a,s> ⇒ sstream<a,s>) =
   fun f s _ {
