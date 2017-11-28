@@ -28,6 +28,7 @@ let rec valu_erasure : valu -> e_vbox = fun v ->
   | VDef(d)     -> vvdef d
   | Coer(_,v,_) -> valu_erasure v
   | Such(_,_,r) -> valu_erasure (bseq_dummy r.binder)
+  | Alvl(_,_,v) -> valu_erasure v
   | VPtr(_)     -> erasure_error "a pool pointer cannot be erased (value)"
   | ITag(_)     -> erasure_error "a tag cannot be erased (value)"
   | Dumm(_)     -> erasure_error "a dummy value cannot be erased (value)"
