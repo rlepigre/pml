@@ -90,6 +90,7 @@ and     stac_erasure : stac -> e_sbox = fun s ->
   | UVar(_)   -> erasure_error "unif. variables cannot be erased (stack)"
   | Coer(_)   -> .
   | Such(_)   -> .
+  | Alvl(_)   -> .
 
 
 let valu_erasure : valu -> e_valu =
