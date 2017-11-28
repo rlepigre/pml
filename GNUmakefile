@@ -106,7 +106,7 @@ _build/pml2/main.byte: $(ML_FILES)
 	$(OCAMLBUILD) -cflags -g -lflag -g  pml2/main.byte
 
 _build/pml2/main.p.native: $(ML_FILES)
-	@rm -f main.byte
+	@rm -f main.p.native
 	$(OCAMLBUILD) -cflags -ccopt,-no-pie -lflags -ccopt,-no-pie pml2/main.p.native
 
 # Checks on the source code.
