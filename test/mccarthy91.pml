@@ -1,6 +1,16 @@
 include lib.nat
 include lib.nat_proofs
 
+// Hard version as a non terminating function.
+val rec mccarthy91 : nat ↝ nat =
+  fun n {
+    if gt n u100 {
+      minus n u10
+    } else {
+      mccarthy91 (mccarthy91 (add n u11))
+    }
+  }
+
 // Easy version.
 val mccarthy91_easy : nat ⇒ nat =
   fun n {
@@ -11,138 +21,27 @@ val mccarthy91_easy : nat ⇒ nat =
     }
   }
 
-// Hard version as a non terminating function.
-val rec mccarthy91_hard : nat ↝ nat =
-  fun n {
-    if gt n u100 {
-      minus n u10
-    } else {
-      mccarthy91_hard (mccarthy91_hard (add n u11))
-    }
-  }
 
-// NOTE: we do not have [mccarthy91_easy ≡ mccarthy91_hard].
+// NOTE: we do not have [mccarthy91_easy ≡ mccarthy91].
 
-//val test : mccarthy91_hard u0 ≡ u91 = {}
+//val test : mccarthy91 u0 ≡ u91 = {}
 
-val hard_lemma : ∀n∈nat, gt n u100 ≡ false ⇒ mccarthy91_hard n ≡ u91 =
+val hard_lemma : ∀n∈nat, gt n u100 ≡ false ⇒ mccarthy91 n ≡ u91 =
   fun n hyp {
+    // auto 101 1 {}
     {- takes_too_long -}
-    // case n {        Zero → {} // n = 0
-    // S[k] → case k { Zero → {} // n = 1
-    // S[k] → case k { Zero → {} // n = 2
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {} // n = 10
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {} // n = 20
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {} // n = 30
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {} // n = 40
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {} // n = 50
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {} // n = 60
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {} // n = 70
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {} // n = 80
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {} // n = 90
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {}
-    // S[k] → case k { Zero → {} // n = 100
-    // S[_] → ✂ }}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}
-    // }}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}
   }
 
 // Equiv
-val hard_is_easy : ∀n∈nat, mccarthy91_easy n ≡ mccarthy91_hard n =
+val hard_is_easy : ∀n∈nat, mccarthy91_easy n ≡ mccarthy91 n =
   fun n {
     if gt n u100 { // n > 100
       deduce mccarthy91_easy n ≡ minus n u10;
-      deduce mccarthy91_hard n ≡ minus n u10;
+      deduce mccarthy91 n ≡ minus n u10;
       qed
     } else { // n ≤ 100
       deduce mccarthy91_easy n ≡ u91;
-      show mccarthy91_hard n ≡ u91 using hard_lemma n {};
+      show mccarthy91 n ≡ u91 using hard_lemma n {};
       qed
     }
   }
@@ -150,6 +49,6 @@ val hard_is_easy : ∀n∈nat, mccarthy91_easy n ≡ mccarthy91_hard n =
 // Real function.
 val mccarthy91 : nat ⇒ nat =
   fun n {
-    check mccarthy91_easy n for mccarthy91_hard n
+    check mccarthy91_easy n for mccarthy91 n
       because hard_is_easy n
   }
