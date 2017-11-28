@@ -1840,7 +1840,9 @@ let equiv_error : rel -> blocked list -> 'a =
   fun rel bls -> raise (Failed_to_prove(rel, bls))
 
 (** avoid UWit and EWit, that makes duplicate. However, UWit and EWit
-    can still appear as sub terms. Also excludes unset uvar. *)
+    can still appear as sub terms.
+    - Also excludes unset uvar.
+    - and case with only one case (temporary fix to avoid subtyping witness) *)
 let rec not_uewit : type a. a ex loc -> bool =
   fun e ->
     match e.elt with
@@ -1852,6 +1854,7 @@ let rec not_uewit : type a. a ex loc -> bool =
         | Set v -> not_uewit v
         | _     -> false
         end
+    | Case(_,c) -> A.length c > 1
     | _      -> true
 
 (** get one original term from the pool or their applications.
