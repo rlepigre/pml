@@ -1135,7 +1135,7 @@ and reinsert : Ptr.t -> pool -> pool = fun p po ->
      begin
        match n1 with
        | VN_UVar({uvar_val = {contents = Set v}}) ->
-          let (vp,po) = add_valu true po v in
+          let (vp,po) = add_valu false po v in
           union p (Ptr.V_ptr vp) po
        | _ -> po
      end
@@ -1320,7 +1320,7 @@ and     canonical_valu : bool -> VPtr.t -> pool -> valu * pool
                               match !(v.uvar_val) with
                               | Unset _ -> (Pos.none (UVar(V,v)), po)
                               | Set w   ->
-                                 let (vp, po) = add_valu true po w in
+                                 let (vp, po) = add_valu false po w in
                                  let po = union (Ptr.V_ptr p)
                                                 (Ptr.V_ptr vp) po
                                  in
@@ -1738,7 +1738,7 @@ let find_proj : pool -> Bindlib.ctxt -> valu -> string
          in
          let po = if get_bs vp po then add_vptr_nobox wp po else po in
          (w, po, names)
-  with e -> bug_msg "unexpected exception in find_proj: %s"
+    with e -> bug_msg "unexpected exception in find_proj: %s"
                     (Printexc.to_string e);
             assert false
 
@@ -1746,7 +1746,7 @@ let find_proj : pool -> Bindlib.ctxt -> valu -> string
 (* NOTE: sum with one case should not fail, and be treated as projection *)
 let find_sum : pool -> valu -> (string * valu * pool) option = fun po v ->
   try
-    let (vp, po) = add_valu true po v in
+    let (vp, po) = add_valu false po v in
     let (vp, po) = find (Ptr.V_ptr vp) po in
     match vp with
       | Ptr.T_ptr(_) -> raise Not_found
@@ -1798,7 +1798,7 @@ let to_vwit : term -> eq_ctxt -> valu = fun t {pool} ->
     eq_ptr po p pt &&
       match t.elt with
       | Valu{elt = VWit _} -> true
-      | _                   -> false
+      | _                  -> false
   in
   let (_,t) = List.find fn po.os in
   match t.elt with
@@ -1821,6 +1821,8 @@ let learn : eq_ctxt -> rel -> eq_ctxt = fun ctx rel ->
     log "contradiction in the context";
     raise Contradiction
 
+(** type of blocked evaluations sent back to typing for automatic
+    case analysis and totality in auto_prove *)
 type blocked =
   | BTot of term
   | BCas of term * A.key list
@@ -1832,38 +1834,85 @@ let eq_blocked : blocked -> blocked -> bool =
     | (BCas(e1,_), BCas(e2,_)) -> eq_expr e1 e2
     | (_         , _         ) -> false
 
+(** the exception when failing to prove carry the blocked evaluations *)
 exception Failed_to_prove of rel * blocked list
 let equiv_error : rel -> blocked list -> 'a =
   fun rel bls -> raise (Failed_to_prove(rel, bls))
 
+(** avoid UWit and EWit, that makes duplicate. However, UWit and EWit
+    can still appear as sub terms. Also excludes unset uvar. *)
+let rec not_uewit : type a. a ex loc -> bool =
+  fun e ->
+    match e.elt with
+    | UWit _ -> false
+    | EWit _ -> false
+    | Valu e -> not_uewit e
+    | UVar(_,v)   ->
+        begin match !(v.uvar_val) with
+        | Set v -> not_uewit v
+        | _     -> false
+        end
+    | _      -> true
+
+(** get one original term from the pool or their applications.
+    - argument test is to avoid total term for BTot
+ *)
+let rec get_orig : Ptr.t -> pool -> (Ptr.t -> bool) -> term =
+  fun p po test ->
+    try
+      let (tp', e') = List.find (fun (v',e) ->
+                          test v' && not_uewit e && eq_ptr po p v') po.os in
+      e'
+    with Not_found ->
+      let is_appl = function TN_Appl _ -> true | _ -> false in
+      let (v',nn) = List.find (fun (v',nn) -> test (Ptr.T_ptr v') &&
+                 eq_ptr po (Ptr.T_ptr v') p && is_appl nn) po.ts
+      in
+      match nn with
+      | TN_Appl(u1,u2) ->
+         let test x = true in
+         let u1 = get_orig u1 po test in
+         let u2 = get_orig u2 po test in
+         Pos.none (Appl(u1, u2))
+      | _ -> assert false
+
+(** get all blocked terms in the pool *)
 let get_blocked : pool -> blocked list = fun po ->
   let adone = ref [] in
-  let add b acc = if List.exists (eq_blocked b) acc then acc else b::acc in
+  (*Printf.eprintf "obtained context:\n%a\n\n" (print_pool "        ") po;*)
   List.fold_left (fun acc (tp,tn) ->
     (*Printf.eprintf "testing %a %a\n%!" TPtr.print tp print_t_node tn;*)
     if not (get_ns tp po) && get_fs tp po &&
          not (List.exists (eq_tptr po tp) !adone) then
       begin
         adone := tp :: !adone;
-        try match tn with
-        | TN_Appl(u,v) ->
-           let l = List.find_all (fun (v',_) -> eq_ptr po v v') po.os in
-           List.fold_left (fun acc (tp',e') ->
-               if fst (is_nobox tp' po) then acc else
-                 begin
-                   log "blocked arg %a" Print.ex e';
-                   add (BTot e')acc
-                 end) acc l
-        | TN_Case(v,b) ->
-           let l = List.find_all (fun (v',_) ->
-                              eq_ptr po (Ptr.V_ptr v) v') po.os in
-           List.fold_left (fun acc (tp',e') ->
-               let cases = List.map fst (A.bindings b) in
-               log "blocked case %a %t" Print.ex e'
-                   (fun ch -> List.iter (Printf.fprintf ch "%s ") cases);
-               add (BCas (e', cases)) acc
-             ) acc l
-        | _ -> acc
+        try
+          match tn with
+          | TN_Appl(u,v) ->
+             begin
+               let test p = not (fst (is_nobox p po)) in
+               try
+                 let e = get_orig v po test in
+                 let b = BTot e in
+                 if List.exists (eq_blocked b) acc then acc else
+                   begin
+                     log "blocked arg %a" Print.ex e;
+                     b :: acc
+                   end
+               with Not_found -> acc
+             end
+          | TN_Case(v,b) ->
+             let test p = true in
+             let cases = List.map fst (A.bindings b) in
+             let e = get_orig (Ptr.V_ptr v) po test in
+             let b = BCas (e, cases) in
+             if List.exists (eq_blocked b) acc then acc else
+               begin
+                 log "blocked case %a %t" Print.ex e
+                     (fun ch -> List.iter (Printf.fprintf ch "%s ") cases);
+                 b :: acc
+               end
+          | _ -> acc
         with Not_found -> acc
       end else acc
     ) [] po.ts

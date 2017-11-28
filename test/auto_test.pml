@@ -14,7 +14,7 @@ val rec add_assoc : ∀m n p∈nat, add m (add n p) ≡ add (add m n) p =
   }
 
 val taut1 : ∀a b c∈bool,  eq (imp (and a b) c) (imp a (imp b c)) ≡ true =
-  fun a b c { {} }
+  fun a b c { auto 2 10 {} }
 
 val taut2 : ∀a b c∈bool,  eq (eq (eq a b) c) (eq a (eq b c)) ≡ true =
-  fun a b c { {} }
+  fun a b c { auto 3 10 {} }

@@ -60,14 +60,14 @@ def cmp<f:ι,g:ι> = fun x { g (f x) }
 val map_map : ∀a b c, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c), ∀l∈list<a>,
                 map g (map f l) ≡ map cmp<f,g> l =
     fun fn gn {
-      fix map_map { fun ls {
-        case ls {
-                | []     → {}
-                | hd::tl →
-                  use gn (fn hd); // FIXME: why necessary ?
-                  use map_map tl; {}
+      fix map_map {
+        fun ls {
+          case ls {
+                  | []     → {}
+                  | hd::tl → use map_map tl; {}
+          }
         }
-      }}
+      }
     }
 
 val rec map_map : ∀a b c, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c), ∀l∈list<a>,
@@ -76,7 +76,6 @@ val rec map_map : ∀a b c, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c), ∀l∈list<a>,
       case ls {
               | []     → {}
               | hd::tl →
-                use gn (fn hd); // FIXME: why necessary ?
                 show map gn (map fn tl) ≡ map cmp<fn,gn> tl
                   using map_map fn gn tl;
                 {}
