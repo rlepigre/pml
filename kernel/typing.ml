@@ -16,7 +16,10 @@ type sorted = E : 'a sort * 'a ex loc -> sorted
 (* Exceptions to be used in case of failure. *)
 exception Type_error of sorted * prop * exn
 let type_error : sorted -> prop -> exn -> 'a =
-  fun t p e -> raise (Type_error(t, p, e))
+  fun t p e ->
+    match e with
+    | Out_of_memory -> raise e
+    | _             -> raise (Type_error(t, p, e))
 
 exception Subtype_msg of pos option * string
 let subtype_msg : pos option -> string -> 'a =
@@ -24,7 +27,10 @@ let subtype_msg : pos option -> string -> 'a =
 
 exception Subtype_error of term * prop * prop * exn
 let subtype_error : term -> prop -> prop -> exn -> 'a =
-  fun t a b e -> raise (Subtype_error(t,a,b,e))
+  fun t a b e ->
+    match e with
+    | Out_of_memory -> raise e
+    | _             -> raise (Subtype_error(t,a,b,e))
 
 exception Cannot_unify of prop * prop
 let cannot_unify : prop -> prop -> 'a =
@@ -583,7 +589,6 @@ and subtype =
     (t, a, b, r)
     with
     | Subtype_error _ as e -> raise e
-    | Out_of_memory as e -> raise e
     | e -> subtype_error t a b e
   in
   fun ctx t a b -> Chrono.add_time sub_chrono (subtype ctx t a) b
@@ -1064,7 +1069,6 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
   in (Pos.make v.pos (Valu(v)), c, r)
   with
   | Type_error _ as e -> raise e
-  | Out_of_memory as e -> raise e
   | e -> type_error (E(V,v)) c e
 
 and is_typed : type a. a v_or_t -> a ex loc -> bool = fun t e ->
@@ -1283,7 +1287,6 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
   in (t, c, r)
   with
   | Type_error _ as e -> raise e
-  | Out_of_memory as e -> raise e
   | e                 -> type_error (E(T,t)) c e
 
 and check_total : ctxt -> term -> prop -> ctxt =
