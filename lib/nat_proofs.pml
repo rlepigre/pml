@@ -8,7 +8,8 @@ include lib.nat
 val rec add_assoc : ∀m n p∈nat, add m (add n p) ≡ add (add m n) p =
   fun m n p {
     case m {
-      Zero → deduce add n p ≡ add (add Zero n) p;
+      Zero → showing add Zero (add n p) ≡ add (add Zero n) p;
+             deduce add n p ≡ add (add Zero n) p;
              deduce add Zero (add n p) ≡ add (add Zero n) p;
              qed
       S[k] → show add k (add n p) ≡ add (add k n) p using (add_assoc k n p);
@@ -25,8 +26,7 @@ val rec add_assoc2 : ∀m n p∈nat, add m (add n p) ≡ add (add m n) p =
   fun m n p {
     case m {
       Zero → qed
-      S[k] → use add_assoc2 k n p;
-             qed
+      S[k] → use add_assoc2 k n p;  qed
     }
   }
 
