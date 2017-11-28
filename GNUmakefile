@@ -119,6 +119,14 @@ check:
 	 ft=`grep TODO */*.ml */*.mli | grep -P -v '#[0-9]+' | wc -l`;\
 	 echo TODO: $$ft/$$f '(without ticket/all)'
 	@grep TODO */*.ml */*.mli -n | grep -P -v '#[0-9]+' || true
+	@f=`grep FIXME */*.pml  | wc -l`;\
+	 ft=`grep FIXME */*.pml | grep -P -v '#[0-9]+' | wc -l`;\
+	 echo FIXME IN PML: $$ft/$$f '(without ticket/all)'
+	@grep FIXME */*.pml -n | grep -P -v '#[0-9]+' || true
+	@f=`grep TODO */*.pml | wc -l`;\
+	 ft=`grep TODO */*.pml | grep -P -v '#[0-9]+' | wc -l`;\
+	 echo TODO IN PML: $$ft/$$f '(without ticket/all)'
+	@grep TODO */*.pml -n | grep -P -v '#[0-9]+' || true
 	@echo Lines with TAB:
 	@grep -P "\t" */*.ml */*.mli; true
 	@echo Lines too long:
