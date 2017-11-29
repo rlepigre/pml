@@ -399,9 +399,9 @@ let parser expr @(m : mode) =
       when m <<= Ord
       -> in_pos _loc EConv
   (* Ordinal (successor) *)
-  | o:ordinal "+1"
+  | o:ordinal "+" n:int
       when m <<= Ord
-      -> in_pos _loc (ESucc(o))
+      -> in_pos _loc (ESucc(o,n))
 
   (* Goal (term or stack) *)
   | s:goal
