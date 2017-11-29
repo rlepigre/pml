@@ -436,9 +436,9 @@ let such : type a b. popt -> a v_or_t -> b desc -> such_var bindbox
     let fn sv b = Pos.make p (Such(t,d,{opt_var = sv; binder = b})) in
     box_apply2 fn sv (aux f)
 
-let alvl : type a. popt -> int -> int -> a v_or_t -> a box -> a box =
-  fun p b d sv t ->
-    let fn t = Pos.make p (Alvl((b,d),sv,t)) in
+let alvl : type a. popt -> int * int -> a v_or_t -> a box -> a box =
+  fun p l sv t ->
+    let fn t = Pos.make p (Alvl(l,sv,t)) in
     box_apply fn t
 
 let sv_none : such_var bindbox =
@@ -608,7 +608,7 @@ let rec sort : type a b. a ex loc ->  a sort * a ex loc= fun e ->
   | VDef _          -> (V,e)
   | Coer(VoT_V,_,_) -> (V,e)
   | Such(VoT_V,_,_) -> (V,e)
-  | Alvl(_,VoT_V,_)-> (V,e)
+  | Alvl(_,VoT_V,_) -> (V,e)
   | VPtr _          -> (V,e)
 
   | Valu _          -> (T,e)

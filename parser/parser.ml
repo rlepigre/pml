@@ -371,7 +371,7 @@ let parser expr @(m : mode) =
          let t = in_pos _loc (EFixY(a,t)) in
          let t = match ao with
            | None -> t
-           | Some ty -> in_pos _loc (ECoer(t,ty))
+           | Some ty -> in_pos _loc (ECoer(new_sort_uvar None,t,ty))
          in
          t
   (* Term (printing) *)
@@ -381,11 +381,11 @@ let parser expr @(m : mode) =
   (* Term (type coersion) *)
   | "(" t:term ":" a:prop ")"
       when m <<= Trm A
-      -> in_pos _loc (ECoer(t,a))
+      -> in_pos _loc (ECoer(new_sort_uvar None,t,a))
   (* Term (auto lvl) *)
   | _auto_ b:int d:int t:(expr (Trm R))
       when m <<= Trm R
-      -> in_pos _loc (EAlvl(b,d,t))
+      -> in_pos _loc (EAlvl(new_sort_uvar None,(b,d),t))
   (* Term (let such that) *)
   | _let_ vs:s_lst _st_ x:llid_wc ':' a:prop ';' u:(expr (Trm S))
       when m <<= Trm S

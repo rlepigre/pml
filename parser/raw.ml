@@ -186,9 +186,9 @@ and raw_ex' =
   | EPrnt of string
   | ERepl of raw_ex * raw_ex * raw_ex
   | EDelm of raw_ex
-  | ECoer of raw_ex * raw_ex
-  | ESuch of (strloc * raw_sort) ne_list * (strloc option * raw_ex) * raw_ex
-  | EAlvl of int * int * raw_ex
+  | ECoer of raw_sort * raw_ex * raw_ex
+  | ESuch of raw_sort * (strloc * raw_sort) ne_list * (strloc option * raw_ex) * raw_ex
+  | EAlvl of raw_sort * (int * int) * raw_ex
 
   | EConv
   | ESucc of raw_ex * int
@@ -244,12 +244,12 @@ let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
     | ERepl(t,u,a)  -> Printf.fprintf ch "ERepl(%a,%a,%a)"
                          print t print u print a
     | EDelm(u)      -> Printf.fprintf ch "EDelm(%a)" print u
-    | ECoer(t,a)    -> Printf.fprintf ch "ECoer(%a,%a)" print t print a
-    | ESuch(vs,j,u) -> let x = Option.default (Pos.none "_") (fst j) in
+    | ECoer(_,t,a)  -> Printf.fprintf ch "ECoer(%a,%a)" print t print a
+    | ESuch(_,v,j,u)-> let x = Option.default (Pos.none "_") (fst j) in
                        Printf.fprintf ch "ESuch(%a,%s,%a,%a)"
-                         (print_list aux_sort ", ") (ne_list_to_list vs)
+                         (print_list aux_sort ", ") (ne_list_to_list v)
                          x.elt print (snd j) print u
-    | EAlvl(b,d,u)  -> Printf.fprintf ch "EAlvl(%d,%d,%a)" b d print u
+    | EAlvl(_,l,u)  -> Printf.fprintf ch "EAlvl(%d,%d,%a)" (fst l) (snd l) print u
     | EConv         -> Printf.fprintf ch "EConv"
     | ESucc(o,n)    -> Printf.fprintf ch "ESucc(%a,%d)" print o n
     | EGoal(str)    -> Printf.fprintf ch "EGoal(%s)" str
@@ -292,16 +292,17 @@ exception Already_matched of strloc
 let already_matched : strloc -> 'a =
   fun s -> raise (Already_matched(s))
 
-let rec eq_sort : env -> raw_sort -> raw_sort -> bool = fun env s1 s2 ->
-  log_par "eq_sort %a %a" print_raw_sort s1 print_raw_sort s2;
+let rec leq_sort : env -> raw_sort -> raw_sort -> bool = fun env s1 s2 ->
+  log_par "leq_sort %a %a" print_raw_sort s1 print_raw_sort s2;
   let res =
   match ((sort_repr env s1).elt, (sort_repr env s2).elt) with
   | (SV _       , SV _       ) -> true
   | (ST         , ST         ) -> true
+  | (SV _       , ST         ) -> true
   | (SS         , SS         ) -> true
   | (SP         , SP         ) -> true
   | (SO         , SO         ) -> true
-  | (SFun(s1,s2), SFun(k1,k2)) -> eq_sort env s1 k1 && eq_sort env s2 k2
+  | (SFun(s1,s2), SFun(k1,k2)) -> leq_sort env k1 s1 && leq_sort env s2 k2
   | (SUni(r1)   , SUni(r2)   ) -> if r1 != r2 then sort_uvar_set r1 s2; true
   | (SUni(r)    , _          ) -> sort_uvar_set r s2; true
   | (_          , SUni(r)    ) -> sort_uvar_set r s1; true
@@ -312,6 +313,7 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
   let open Timed in
   let rec infer env vars e s =
     log_par "infer %a : %a" print_raw_expr e print_raw_sort s;
+    let leq u s = if not (leq_sort env u s) then sort_clash e s in
     match (e.elt, (sort_repr env s).elt) with
     | (EVari(x,args), _        ) ->
         begin
@@ -342,18 +344,14 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
               | _                -> assert false
             in
             infer_args args ss;
-            if not (eq_sort env sx s) then
-            let sx_is_v = unsugar_sort env sx = Sort V in
-            let s_is_t  = unsugar_sort env s  = Sort T in
-            if not (sx_is_v && s_is_t) then sort_clash e s
+            leq sx s;
           with Not_found ->
             try
               ignore (find_value x.elt env);
             with Not_found ->
               unbound_var x.elt x.pos
         end
-    | (EHOFn(x,k,f) , SFun(a,b)) -> if not (eq_sort env k a) then
-                                      sort_clash e s;
+    | (EHOFn(x,k,f) , SFun(a,b)) -> leq a k;
                                     let vars = M.add x.elt (x.pos, k) vars in
                                     infer env vars f b
     | (EHOFn(_,_,_) , SUni(r)  ) -> let a = new_sort_uvar None in
@@ -368,7 +366,7 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
     | (EUnit        , SP       )
     | (EUnit        , SV _     )
     | (EUnit        , ST       ) -> ()
-    | (EUnit        , SUni(r)  ) -> sort_uvar_set r _sp; (* arbitrary *)
+    | (EUnit        , SUni(r)  ) -> sort_uvar_set r _sv; (* arbitrary *)
                                     infer env vars e s
     | (EUnit        , _        ) -> sort_clash e s
     | (EDSum(l)     , SP       ) -> let fn (_, a) =
@@ -585,13 +583,14 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
     | (EDelm(u)     , SUni(r)  ) -> sort_uvar_set r _st;
                                     infer env vars u _st;
     | (EDelm(_)     , _        ) -> sort_clash e s
-    | (ECoer(t,a)   , SV _     )
-    | (ECoer(t,a)   , ST       )
-    | (ECoer(t,a)   , SUni(_)  ) -> infer env vars t s; infer env vars a _sp
-    | (ECoer(t,_)   , _        ) -> sort_clash e s
-    | (ESuch(vs,j,v), SV _     )
-    | (ESuch(vs,j,v), ST       )
-    | (ESuch(vs,j,v), SUni(_)  ) ->
+    | (ECoer(u,t,a) , SV _     )
+    | (ECoer(u,t,a) , ST       )
+    | (ECoer(u,t,a) , SUni(_)  ) -> infer env vars t u; leq u s;
+                                    infer env vars a _sp
+    | (ECoer(_,t,_) , _        ) -> sort_clash e s
+    | (ESuch(u,vs,j,v), SV _   )
+    | (ESuch(u,vs,j,v), ST     )
+    | (ESuch(u,vs,j,v), SUni(_)) ->
         begin
           let (xo,a) = j in
           let gn x =
@@ -607,12 +606,13 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
           let fn vars (x,s) = M.add x.elt (x.pos, s) vars in
           let vars = List.fold_left fn vars (ne_list_to_list vs) in
           infer env vars a _sp;
-          infer env vars v s
+          infer env vars v u;
+          leq u s
         end
-    | (ESuch(_,_,_) , _        ) -> sort_clash e s
-    | (EAlvl(b,d,a) , SV _     )
-    | (EAlvl(b,d,a) , ST       )
-    | (EAlvl(b,d,a) , SUni(_)  ) -> infer env vars a s
+    | (ESuch(_)     ,  _       ) -> sort_clash e s
+    | (EAlvl(u,_,a) , SV _     )
+    | (EAlvl(u,_,a) , ST       )
+    | (EAlvl(u,_,a) , SUni(_)  ) -> infer env vars a u; leq u s;
     | (EAlvl(b,d,_) , _        ) -> sort_clash e s
     (* Ordinals. *)
     | (EConv        , SO       ) -> ()
@@ -948,16 +948,16 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
         let u = to_term (unsugar env vars u _st) in
         Box(T, delm e.pos u)
     (* Type annotations. *)
-    | (ECoer(v,a)   , SV _     ) ->
+    | (ECoer(u,v,a) , SV _     ) when leq_sort env u s ->
         let v = to_valu (unsugar env vars v s) in
         let a = to_prop (unsugar env vars a _sp) in
         Box(V, coer e.pos VoT_V v a)
-    | (ECoer(t,a)   , ST       ) ->
+    | (ECoer(u,t,a)   , ST     ) when leq_sort env u s ->
         let t = to_term (unsugar env vars t _st) in
         let a = to_prop (unsugar env vars a _sp) in
         Box(T, coer e.pos VoT_T t a)
-    | (ESuch(vs,j,r), (SV _|ST as s0)) ->
-        let xs = map_ne_list (fun (x,s) -> (x, unsugar_sort env s)) vs in
+    | (ESuch(u,v,j,r), (SV _|ST)) when leq_sort env u s ->
+        let xs = map_ne_list (fun (x,s) -> (x, unsugar_sort env s)) v in
         let (var, a) = j in
         let rec build_desc (x,xs) =
           match xs with
@@ -1000,16 +1000,18 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
               end
         in
         begin
-          match s0 with
+          match s.elt with
           | SV _ -> Box(V, such e.pos VoT_V d sv (build_seq VoT_V vars d))
           | ST   -> Box(T, such e.pos VoT_T d sv (build_seq VoT_T vars d))
           | _    -> assert false (* should not happen *)
         end
     (* Ordinals. *)
-    | (EAlvl(b,d,a) , SV _     ) -> let v = to_valu (unsugar env vars a s) in
-                                    Box(V, alvl e.pos b d VoT_V v)
-    | (EAlvl(b,d,a) , ST       ) -> let t = to_term (unsugar env vars a s) in
-                                    Box(T, alvl e.pos b d VoT_T t)
+    | (EAlvl(u,l,a) , SV _     ) when leq_sort env u s
+                                 -> let v = to_valu (unsugar env vars a s) in
+                                    Box(V, alvl e.pos l VoT_V v)
+    | (EAlvl(u,l,a) , ST       ) when leq_sort env u s
+                                 -> let t = to_term (unsugar env vars a s) in
+                                    Box(T, alvl e.pos l VoT_T t)
     | (EConv        , SO       ) -> Box(O, conv e.pos)
     | (ESucc(o,n)   , SO       ) ->
         assert (n >= 0);
@@ -1136,7 +1138,7 @@ let esuch _loc vs x a u =
   let x = if x.elt = "_" then None else Some x in
   let vs = List.map fn vs in
   let vs = (List.hd vs, List.tl vs) in
-  in_pos _loc (ESuch(vs,(x,a),u))
+  in_pos _loc (ESuch(new_sort_uvar None,vs,(x,a),u))
 
 (* The built it type of booleans. *)
 let p_bool _loc =
@@ -1147,7 +1149,8 @@ let if_then_else _loc c t e =
   let e = match e with Some e -> e | None -> Pos.none EUnit in
   let no_arg c t = ((Pos.none c, None), t) in
   let pats = [ no_arg "true" t ; no_arg "false" e ] in
-  Pos.in_pos _loc (ECase(Pos.none (ECoer(c, p_bool None)), ref `T, pats))
+  let u = new_sort_uvar None in
+  Pos.in_pos _loc (ECase(Pos.none (ECoer(u,c, p_bool None)), ref `T, pats))
 
 (* "let x : a = t in u" := "(fun (x:a) -> u) (t:a)" *)
 let let_binding _loc r arg t u =
@@ -1157,7 +1160,7 @@ let let_binding _loc r arg t u =
      let t =
         match ao with
         | None   -> t
-        | Some a -> Pos.make t.pos (ECoer(t,a))
+        | Some a -> Pos.make t.pos (ECoer(new_sort_uvar None,t,a))
       in
       in_pos _loc (EAppl(Pos.make u.pos (ELAbs(((id, ao), []), u)), t))
   | `LetArgRec(fs)    ->
@@ -1217,7 +1220,7 @@ let pattern_matching _loc t ps =
 (* Boolean values. *)
 let v_bool _loc b =
   let b = ECons(Pos.none (if b then "true" else "false"), None) in
-  Pos.in_pos _loc (ECoer(Pos.in_pos _loc b, p_bool None))
+  Pos.in_pos _loc (ECoer(_sv, Pos.in_pos _loc b, p_bool None))
 
 (* Empty list. *)
 let v_nil _loc =
@@ -1231,11 +1234,11 @@ let v_cons _loc t u =
 
 (* "deduce a" := "{} : a" *)
 let deduce _loc a =
-  Pos.in_pos _loc (ECoer(Pos.none (EReco []), a))
+  Pos.in_pos _loc (ECoer(_sv, Pos.none (EReco []), a))
 
 (* "show a using p" := "p : a" *)
 let show_using _loc a t =
-  Pos.in_pos _loc (ECoer(t, a))
+  Pos.in_pos _loc (ECoer(new_sort_uvar None, t, a))
 
 (* "use a" := "a" *)
 let use _loc t =
@@ -1248,5 +1251,5 @@ let qed _loc =
 (* "from a; p" := "let _ = p : a in {}" *)
 let showing _loc a p =
   let_binding _loc false (`LetArgVar(Pos.none "",None))
-    (Pos.in_pos _loc (ECoer(p,a)))
+    (Pos.in_pos _loc (ECoer(new_sort_uvar None, p,a)))
     (Pos.in_pos _loc (EReco []))
