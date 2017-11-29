@@ -69,7 +69,7 @@ val rec insert_sorted : ∀a:ο, ∀o∈order<a>, ∀x∈a, ∀l∈slist<a,o>,
              | Nil[_]   → {}
              | Cons[c2] →
                 let hd2 = c2.hd; let tl2 = c2.tl;
-                let _ = insert o x tl2; // FIXME: why necessary
+                let _ = insert o x tl2; // FIXME: necessary to instanciate l in slist
                 if cmp hd hd2 {
                    let lem = insert_sorted o x tl;
                    if cmp x hd2 { {} } else {
@@ -95,7 +95,7 @@ val rec isort_sorted : ∀a:ο, ∀o∈order<a>, ∀l∈list<a>,
 
 val isort_full : ∀a:ο, ∀o∈order<a>, list<a> ⇒ slist<a,o> =
   fun o l {
-    let _ = isort o l; // FIXME: why necessary
+    let _ = isort o l; // FIXME:  necessary to instanciate l in slist
     let lem = isort_sorted o l;
     isort o l
   }

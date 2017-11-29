@@ -3,7 +3,6 @@ include lib.list
 
 type ord<a> = ∃cmp,
   { cmp   : cmp ∈ (a ⇒ a ⇒ bool)
-  ; termi : ∀x y∈a, ∃v:ι, cmp x y ≡ v  // Should disappear soon
   ; trans : ∀x y z∈a, (cmp x y ≡ true ⇒ cmp y z ≡ true ⇒ cmp x y ≡ true)
   ; total : ∀x y∈a, or (cmp x y) (cmp y x) ≡ true }
 
@@ -47,7 +46,6 @@ val tl_sorted : ∀a, ∀o∈ord<a>, ∀l∈slist<a,o>, sorted o (tl l) ≡ true
           Nil → {}
           Cons[c2] →
             let hd2 = c2.hd;
-            use o.termi hd1 hd2;
             if o.cmp hd1 hd2 { {} } else { ✂ }
         }
     }

@@ -33,6 +33,8 @@ def icase⟨n⟩ = case n { Z → {} | S[_] → {} | P[_] → {} }
 def ncase⟨n⟩ = case n { Z → {} | S[_] → {} }
 def pcase⟨n⟩ = case n { Z → {} | P[_] → {} }
 
+// FIXME: auto fails because to case are impossible by typing
+// because p is positive below.
 val suc_pre : ∀n∈int, suc (pre n) ≡ n = fun n {
   case n {
     Z → {}
@@ -55,10 +57,10 @@ val p3 : int = suc p2
 val p4 : int = suc p3
 val p5 : int = suc p4
 val n1 : int = pre p0
-val n2 : int = pre p1
-val n3 : int = pre p2
-val n4 : int = pre p3
-val n5 : int = pre p4
+val n2 : int = pre n1
+val n3 : int = pre n2
+val n4 : int = pre n3
+val n5 : int = pre n4
 
 val rec add : int ⇒ int ⇒ int = fun n m {
   case n {
@@ -70,7 +72,7 @@ val rec add : int ⇒ int ⇒ int = fun n m {
 
 val rec sub : int ⇒ int ⇒ int = fun n m {
   case m {
-    Z    → m
+    Z    → n
     S[m] → pre (sub n m)
     P[m] → suc (sub n m)
   }
@@ -89,11 +91,11 @@ val rec mul : int ⇒ int ⇒ int = fun n m {
     P[m] → sub (mul n m) n
   }
 }
-val sgn : int ⇒ int = fun n {
+val sgn : int ⇒ [P;Z;S] = fun n {
   case n {
     Z → Z
-    S[_] → p1
-    P[_] → n1
+    S[_] → S
+    P[_] → P
   }
 }
 val rec even : int ⇒ bool = fun n {
@@ -117,7 +119,9 @@ val rec le : int ⇒ int ⇒ bool = fun n m {
     P[_] → false
   }
 }
+
 val rec ge : int ⇒ int ⇒ bool = fun n m { le m n }
+
 val rec lt : int ⇒ int ⇒ bool = fun n m {
   let d = sub m n;
   case d {

@@ -14,17 +14,8 @@ val rec is_odd : nat ⇒ bool =
     }
   }
 
-val rec odd_total : ∀n∈nat, ∃v:ι, is_odd n ≡ v =
-  fun n {
-    case n {
-      Zero → {}
-      S[p] →
-        case p {
-          Zero → {}
-          S[p] → odd_total p
-        }
-    }
-  }
+val total : ∀a b, ∀f∈a⇒b, ∀x∈a, ∃v:ι, v ∈ b | v ≡ f x =
+  fun f x { let y = f x; y }
 
 type bot = ∀x,x
 val abort : ∀y, bot ⇒ y = fun x { x }
@@ -41,7 +32,7 @@ val rec aux : ∀a b, (csstream<a,even> → bot) ⇒ (csstream<b,odd> → bot)
   fun fe fo s {
     let hd = (s {}).hd;
     let tl = (s {}).tl;
-    use odd_total hd;
+    use total is_odd hd; //FIXME: use is_odd hd loops, should probably fail only
     if is_odd hd {
       fo {hd = hd; tl = fun _ { save o {
         abort (aux fe (fun x { restore o x }) tl) } }}

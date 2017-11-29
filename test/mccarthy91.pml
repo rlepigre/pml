@@ -28,7 +28,7 @@ val mccarthy91_easy : nat ⇒ nat =
 
 val hard_lemma : ∀n∈nat, gt n u100 ≡ false ⇒ mccarthy91 n ≡ u91 =
   fun n hyp {
-    // auto 101 1 {}
+    //auto 101 1 {}
     {- takes_too_long -}
   }
 
