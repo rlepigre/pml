@@ -607,8 +607,12 @@ and auto_prove : ctxt -> rel -> unit =
         let bls = List.stable_sort cmp bls in
         let decrease_lvl ctx n =
           let (l1,l2) = ctx.auto_lvl in
-          if l1 <= 0 || l2 <= 0 then raise exn;
-          let auto_lvl = if n = 1 then (l1, l2 - 1) else (l1 - 1, l2) in
+          let auto_lvl =
+            if n = 1 then
+              if l2 <= 0 then raise exn else (l1, l2 - 1)
+            else
+              if l1 <= 0 then raise exn else (l1 - 1, l2)
+          in
           { ctx with auto_lvl }
         in
         let rec fn bls =

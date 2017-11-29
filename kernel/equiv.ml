@@ -1935,8 +1935,8 @@ let get_blocked : pool -> blocked list = fun po ->
     let bls = get_blocked ctx.pool in
     log "failed to prove %a" Print.rel rel;
     equiv_error rel bls
-  with Contradiction ->
-    log "proved   %a" Print.rel rel
+  with Contradiction -> log "proved   %a" Print.rel rel
+
 
 let learn ctx rel     = Chrono.add_time equiv_chrono (learn ctx) rel
 let prove ctx rel     = Chrono.add_time equiv_chrono (prove ctx) rel
