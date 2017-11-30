@@ -341,7 +341,7 @@ let parser expr @(m : mode) =
       when m <<= Trm R
       -> in_pos _loc (ERepl(t,u,p))
   (* Term (totality by purity) *)
-  | _delim_ u:(expr (Trm R))
+  | _delim_ '{' u:term '}'
       when m <<= Trm R
       -> in_pos _loc (EDelm(u))
   (* Term ("deduce" tactic) *)

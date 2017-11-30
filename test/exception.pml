@@ -28,9 +28,9 @@ val rec find : ∀a:ο, ∀f∈(a ⇒ bool),
 
 val find_opt : ∀a:ο, ∀f∈(a ⇒ bool), list<a> ⇒ option<a> =
   fun f l {
-    delim (save a {
+    delim { save a {
       Some[find f l (fun _ { restore a none })]
-    })
+    }}
   }
 
 val notNone : ∀a:ο, option<a> ⇒ bool =
@@ -38,13 +38,13 @@ val notNone : ∀a:ο, option<a> ⇒ bool =
 
 val rec find2 : ∀a:ο, ∀f∈(a ⇒ bool), list<list<a>> ⇒ option<a> =
   fun f ls {
-    delim (case ls {
+    delim { case ls {
       Nil     → none
       Cons[c] →
         save a {
           Some[find f c.hd (fun _ { restore a (find2 f c.tl) })]
         }
-    })
+    }}
   }
 
 
