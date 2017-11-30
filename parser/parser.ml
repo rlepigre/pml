@@ -54,7 +54,6 @@ let parser llid_wc =
   | '_'    -> in_pos _loc "_"
 
 (* Keywords. *)
-let _auto_    = Keyword.create "auto"
 let _because_ = Keyword.create "because"
 let _bool_    = Keyword.create "bool"
 let _case_    = Keyword.create "case"
@@ -77,6 +76,7 @@ let _qed_     = Keyword.create "qed"
 let _rec_     = Keyword.create "rec"
 let _restore_ = Keyword.create "restore"
 let _save_    = Keyword.create "save"
+let _set_     = Keyword.create "set"
 let _show_    = Keyword.create "show"
 let _showing_ = Keyword.create "showing"
 let _sort_    = Keyword.create "sort"
@@ -383,8 +383,8 @@ let parser expr @(m : mode) =
       when m <<= Trm A
       -> in_pos _loc (ECoer(new_sort_uvar None,t,a))
   (* Term (auto lvl) *)
-  | _auto_ b:int d:int t:(expr (Trm R))
-      when m <<= Trm R
+  | _set_ "auto" b:int d:int ';' t:(expr (Trm S))
+      when m <<= Trm S
       -> in_pos _loc (EAlvl(new_sort_uvar None,(b,d),t))
   (* Term (let such that) *)
   | _let_ vs:s_lst _st_ x:llid_wc ':' a:prop ';' u:(expr (Trm S))
