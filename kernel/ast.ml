@@ -480,6 +480,8 @@ let univ : type a. popt -> strloc -> a sort -> (a var -> pbox) -> pbox =
     let b = vbind (mk_free s) x.elt f in
     box_apply (fun b -> Pos.make p (Univ(s, (x.pos, b)))) b
 
+let bottom : prop = unbox (univ None (Pos.none "x") P (fun x -> p_vari None x))
+
 let exis : type a. popt -> strloc -> a sort -> (a var -> pbox) -> pbox =
   fun p x s f ->
     let b = vbind (mk_free s) x.elt f in

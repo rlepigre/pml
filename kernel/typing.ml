@@ -1288,7 +1288,11 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
         let p2 = type_term { ctx with totality = Totality.Tot } p eq in
         Typ_Repl(p1,p2)
     | Delm(t)     ->
-       let pure = Pure.(pure t && pure c
+       let is_bot  = try ignore(gen_subtype ctx c Ast.bottom); true
+                     with _ -> false
+       in
+       let pure = is_bot ||
+                    Pure.(pure t && pure c
                         && Lazy.force ctx.equations.pool.pure)
        in
        let ctx =
