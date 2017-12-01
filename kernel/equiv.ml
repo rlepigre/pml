@@ -771,7 +771,8 @@ let insert_v_node nn po = Chrono.add_time inser_chrono (insert_v_node nn) po
 let insert_t_node nn po = Chrono.add_time inser_chrono (insert_t_node nn) po
 
 (** Insertion and normalisation of actual terms and values to the pool. *)
-let rec add_term :  bool -> bool -> pool -> term -> Ptr.t * pool = fun o free po t0 ->
+let rec add_term :  bool -> bool -> pool -> term
+                         -> Ptr.t * pool = fun o free po t0 ->
   let add_term = add_term o free in
   let add_valu = add_valu o in
   let insert node po =
@@ -794,8 +795,9 @@ let rec add_term :  bool -> bool -> pool -> term -> Ptr.t * pool = fun o free po
     | Proj(v,l)   -> let (pv, po) = add_valu po v in
                      insert (TN_Proj(pv,l)) po
     | Case(v,m)   -> let (pv, po) = add_valu po v in
-                     let (m,  po) = A.fold_map
-                                      (fun _ (_,x) po -> add_bndr_closure po V T x) m po
+                     let (m,  po) =
+                       A.fold_map (fun _ (_,x) po -> add_bndr_closure po V T x)
+                                  m po
                      in
                      insert (TN_Case(pv,m)) po
     | FixY(b)     -> let (cl, po) = add_bndr_closure po T V b in

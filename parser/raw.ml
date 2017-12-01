@@ -188,7 +188,8 @@ and raw_ex' =
   | ERepl of raw_ex * raw_ex * raw_ex
   | EDelm of raw_ex
   | ECoer of raw_sort * raw_ex * raw_ex
-  | ESuch of raw_sort * (strloc * raw_sort) ne_list * (strloc option * raw_ex) * raw_ex
+  | ESuch of raw_sort * (strloc * raw_sort) ne_list
+                      * (strloc option * raw_ex) * raw_ex
   | EAlvl of raw_sort * (int * int) * raw_ex
 
   | EConv
@@ -251,7 +252,8 @@ let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
                        Printf.fprintf ch "ESuch(%a,%s,%a,%a)"
                          (print_list aux_sort ", ") (ne_list_to_list v)
                          x.elt print (snd j) print u
-    | EAlvl(_,l,u)  -> Printf.fprintf ch "EAlvl(%d,%d,%a)" (fst l) (snd l) print u
+    | EAlvl(_,l,u)  -> Printf.fprintf ch "EAlvl(%d,%d,%a)"
+                         (fst l) (snd l) print u
     | EConv         -> Printf.fprintf ch "EConv"
     | ESucc(o,n)    -> Printf.fprintf ch "ESucc(%a,%d)" print o n
     | EGoal(str)    -> Printf.fprintf ch "EGoal(%s)" str
