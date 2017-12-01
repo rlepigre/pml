@@ -186,17 +186,20 @@ let parser expr @(m : mode) =
   | "(" x:llid ":" s:sort "↦" e:any ")"
       when m <<= Any
       -> in_pos _loc (EHOFn(x,s,e))
-  (* Variable and higher-order application *)
-  | id:llid s:{'^' (expr (Ord E))}? args:ho_args
+  (* Higher-order application *)
+  | e:(expr HO) args:ho_args
       when m <<= HO && m <> Ord E
-      -> let (id, args) = match s with
-           | None   -> (id, args)
-           | Some s -> (Pos.make id.pos (id.elt ^ "#"), s :: args)
-         in
-         in_pos _loc (EVari(id, args))
-  | id:llid
-      when m = Ord E
-      -> in_pos _loc (EVari(id, []))
+      -> in_pos _loc (EHOAp(e, new_sort_uvar None, args))
+  (* Variable *)
+  | id:llid s:{'^' (expr (Ord E))}?
+      when m <<= HO
+      -> begin
+           match s with
+           | None   -> evari (Some _loc) id
+           | Some s -> let id = Pos.make id.pos (id.elt ^ "#") in
+                       let x = evari (Some _loc_id) id in
+                       in_pos _loc (EHOAp(x, new_sort_uvar None, [s]))
+         end
 
   (* Proposition (boolean type) *)
   | _bool_
@@ -423,7 +426,7 @@ let parser expr @(m : mode) =
       -> in_pos _loc (EGoal(s))
 
 (* Higher-order variable arguments. *)
-and parser ho_args = {_:langle (list1 any comma) _:rangle}?[[]]
+and parser ho_args = {_:langle (list1 any comma) _:rangle}
 
 (* Variable with optional type. *)
 and parser arg_t = id:llid ao:{":" a:prop}?

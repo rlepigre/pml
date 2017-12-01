@@ -118,12 +118,14 @@ and handle_file nodep env fn =
         in
         exit 1
       end
-  | Too_many_args(s)        ->
+  | Too_many_args(e)        ->
       begin
         let _ =
-          match s.pos with
-          | None   -> err_msg "Variable %s has too many arguments." s.elt
-          | Some p -> err_msg "Variable %s has too many arguments." s.elt;
+          match e.pos with
+          | None   -> err_msg "Expr %a has too many arguments."
+                        print_raw_expr e
+          | Some p -> err_msg "Expr %a has too many arguments."
+                        print_raw_expr e;
                       Quote.quote_file stderr p
         in
         exit 1

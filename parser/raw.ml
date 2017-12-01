@@ -157,7 +157,8 @@ and raw_cond =
   | ENoBox of raw_ex
 
 and raw_ex' =
-  | EVari of strloc * raw_ex list
+  | EVari of strloc * raw_sort
+  | EHOAp of raw_ex * raw_sort * raw_ex list
   | EHOFn of strloc * raw_sort * raw_ex
 
   | EFunc of Totality.tot * raw_ex * raw_ex
@@ -200,8 +201,9 @@ and patt_ex = (strloc * (strloc * raw_ex option) option) * raw_ex
 let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
   let rec print ch e =
     match e.elt with
-    | EVari(x,args) -> Printf.fprintf ch "EVari(%S,[%a])" x.elt
-                         (print_list print "; ") args
+    | EVari(x,_)    -> Printf.fprintf ch "EVari(%S)" x.elt
+    | EHOAp(e,_,es) -> Printf.fprintf ch "EHOAp(%a,[%a])" print e
+                         (print_list print "; ") es
     | EHOFn(x,s,e)  -> Printf.fprintf ch "EHOFn(%S,%a,%a)" x.elt
                          print_raw_sort s print e
     | EFunc(t,a,b)  -> Printf.fprintf ch "EFunc(%a %a %a)"
@@ -284,8 +286,8 @@ exception Sort_clash of raw_ex * raw_sort
 let sort_clash : raw_ex -> raw_sort -> 'a =
   fun e s -> raise (Sort_clash(e,s))
 
-exception Too_many_args of strloc
-let too_many_args : strloc -> 'a =
+exception Too_many_args of raw_ex
+let too_many_args : raw_ex -> 'a =
   fun s -> raise (Too_many_args(s))
 
 exception Already_matched of strloc
@@ -315,42 +317,46 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
     log_par "infer %a : %a" print_raw_expr e print_raw_sort s;
     let leq u s = if not (leq_sort env u s) then sort_clash e s in
     match (e.elt, (sort_repr env s).elt) with
-    | (EVari(x,args), _        ) ->
+    | (EVari(x,sx)     , _        ) ->
         begin
           try
-            let (p,sx) =
-              try M.find x.elt vars with Not_found ->
-              let Expr(k,d) = find_expr x.elt env in
-              (d.expr_def.pos, sort_from_ast k)
+            let sy =
+              try snd (M.find x.elt vars) with Not_found ->
+                let Expr(k,d) = find_expr x.elt env in
+                sort_from_ast k
             in
-            let nb_args = List.length args in
-            let rec decompose acc nb s =
-              let s = sort_repr env s in
-              match (nb, s.elt) with
-              | (0, _        ) -> (List.rev acc, s)
-              | (n, SFun(a,b)) -> decompose (a::acc) (n-1) b
-              | (n, SUni(r)  ) ->
-                 let a = new_sort_uvar None in
-                 let b = new_sort_uvar None in
-                 sort_uvar_set r (Pos.make s.pos (SFun(a,b)));
-                 decompose (a::acc) (n-1) b
-              | (_, _        ) -> too_many_args x
-            in
-            let (ss, sx) = decompose [] nb_args sx in
-            let rec infer_args args ss =
-              match (args, ss) with
-              | ([]     , []   ) -> ()
-              | (a::args, s::ss) -> infer env vars a s; infer_args args ss
-              | _                -> assert false
-            in
-            infer_args args ss;
-            leq sx s;
+            leq sy sx; leq sx s
           with Not_found ->
             try
               ignore (find_value x.elt env);
+              leq _sv sx; leq sx s
             with Not_found ->
               unbound_var x.elt x.pos
-        end
+         end
+    | (EHOAp(e,sx,es), _        ) ->
+         let nb_args = List.length es in
+         infer env vars e sx;
+         let rec decompose acc nb s =
+           let s = sort_repr env s in
+           match (nb, s.elt) with
+           | (0, _        ) -> (List.rev acc, s)
+           | (n, SFun(a,b)) -> decompose (a::acc) (n-1) b
+           | (n, SUni(r)  ) ->
+              let a = new_sort_uvar None in
+              let b = new_sort_uvar None in
+              sort_uvar_set r (Pos.make s.pos (SFun(a,b)));
+              decompose (a::acc) (n-1) b
+           | (_, _        ) -> too_many_args e
+         in
+         let (ss, sx) = decompose [] nb_args sx in
+         let rec infer_args args ss =
+           match (args, ss) with
+           | ([]     , []   ) -> ()
+           | (a::args, s::ss) -> infer env vars a s; infer_args args ss
+           | _                -> assert false
+         in
+         infer_args es ss;
+         leq sx s
     | (EHOFn(x,k,f) , SFun(a,b)) -> leq a k;
                                     let vars = M.add x.elt (x.pos, k) vars in
                                     infer env vars f b
@@ -598,8 +604,8 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
               let s = sort_repr env (snd (M.find x.elt vars)) in
               match s.elt with
               | SV _ | SS | SUni(_) -> ()
-              | _                 ->
-                  sort_clash (Pos.make x.pos (EVari(x,[]))) s
+              | s'                 ->
+                  sort_clash (Pos.make x.pos (EVari(x,s))) (Pos.none s')
             with Not_found -> unbound_var x.elt x.pos
           in
           Option.iter gn xo;
@@ -636,8 +642,8 @@ let rec sort_filter : type a b. a sort -> boxed -> a box =
         begin
           match Sorts.eq_sort k s with
           | Eq.Eq  -> e
-          | Eq.NEq -> Printf.printf "ERROR: %a ≠ %a\n%!"
-                        Print.sort s Print.sort k;
+          | Eq.NEq -> Printf.printf "ERROR: %a ≠ %a\n  %a\n%!"
+                        Print.sort s Print.sort k Print.ex (Bindlib.unbox e);
                       assert false (* FIXME #11 error management. *)
         end
 
@@ -670,43 +676,46 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
   let rec unsugar env vars e s =
     log_par "unsug %a : %a" print_raw_expr e print_raw_sort s;
     match (e.elt, (sort_repr env s).elt) with
-    | (EVari(x,args), s0       ) ->
+    | (EVari(x,sx)   , s0       ) when leq_sort env sx s ->
         begin
-          try
-            let box =
-              try box_set_pos (snd (M.find x.elt vars)) e.pos
-              with Not_found ->
-                let Expr(sx, d) = find_expr x.elt env in
-                let bx = Box(sx, Bindlib.box (Pos.make x.pos (HDef(sx,d)))) in
-                box_set_pos bx e.pos
-            in
-            let rec build_app (Box(se,ex)) args =
-              match (se, args) with
-              | (F(sa,sb), a::args) ->
-                  let sa' = sort_from_ast sa in
-                  let a = sort_filter sa (unsugar env vars a sa') in
-                  build_app (Box(sb, happ e.pos sa ex a)) args
-              | (_       , []     ) -> Box(se,ex)
-              | (_       , _      ) -> assert false
-            in
-            let Box(se,ex) = build_app box args in
-            let Sort s = unsugar_sort env s in
-            match Sorts.eq_sort s se with
-            | Eq.Eq  -> Box(s, sort_filter s (Box(se,ex)))
-            | Eq.NEq ->
-                begin
-                  match (s, s0, se) with
-                  | (T, _       , V) -> Box(T, valu e.pos ex)
-                  | (V, SV store, T) ->
-                     let v = Bindlib.new_var (mk_free V) "x" in
-                     add_store store v ex;
-                     Box(V,vari e.pos v)
-                  | (_, _       , _) -> assert false
-                end
+          log_par "unsug ici 0";
+          try box_set_pos (snd (M.find x.elt vars)) e.pos
+          with Not_found -> try
+            log_par "unsug ici 1";
+            let Expr(sx, d) = find_expr x.elt env in
+            let bx = Box(sx, Bindlib.box (Pos.make x.pos (HDef(sx,d)))) in
+            box_set_pos bx e.pos
           with Not_found ->
+            log_par "unsug ici 2";
             let d = find_value x.elt env in
-            if args <> [] then assert false; (* FIXME #11 *)
             Box(V, Bindlib.box (Pos.make x.pos (VDef(d))))
+        end
+    | (EHOAp(f,xs,es), s0      ) ->
+        let box = unsugar env vars f xs in
+        let rec build_app (Box(se,ex)) args =
+          match (se, args) with
+          | (F(sa,sb), a::args) ->
+             let sa' = sort_from_ast sa in
+             let a = sort_filter sa (unsugar env vars a sa') in
+             build_app (Box(sb, happ e.pos sa ex a)) args
+          | (_       , []     ) -> Box(se,ex)
+          | (_       , _      ) -> assert false
+        in
+        let Box(se,ex) = build_app box es in
+        let Sort s = unsugar_sort env s in
+        begin
+          match Sorts.eq_sort s se with
+          | Eq.Eq  -> Box(s, sort_filter s (Box(se,ex)))
+          | Eq.NEq ->
+             begin
+               match (s, s0, se) with
+               | (T, _       , V) -> Box(T, valu e.pos ex)
+               | (V, SV store, T) ->
+                  let v = Bindlib.new_var (mk_free V) "x" in
+                  add_store store v ex;
+                  Box(V,vari e.pos v)
+               | (_, _       , _) -> assert false
+             end
         end
     | (EHOFn(x,k,f) , SFun(a,b)) ->
         let Sort sa = unsugar_sort env a in
@@ -1039,6 +1048,8 @@ type toplevel =
   | Include  of string list
   | Def_list of toplevel list
 
+let evari _loc x = Pos.make _loc (EVari(x, new_sort_uvar None))
+
 let sort_def : strloc -> raw_sort -> toplevel = fun id s ->
   Sort_def(id,s)
 
@@ -1065,7 +1076,7 @@ let type_def : Pos.pos -> [`Non | `Rec | `CoRec] -> strloc
   if r = `Non then d1 else
     begin
       let id2 = Pos.make id.pos (id.elt ^ "#") in
-      let s = Pos.none (EVari(Pos.none "s#", [])) in
+      let s = evari None (Pos.none "s#") in
       let e2 =
         match r with
         | `Non   -> assert false
@@ -1100,18 +1111,18 @@ let tuple_term _loc ts =
 
 let record _loc fs =
   let fn (l, ao) =
-    let a = Option.default (Pos.make l.pos (EVari(l, []))) ao in
+    let a = Option.default (evari l.pos l) ao in
     (l, a, ref `T)
   in
   in_pos _loc (EReco(List.map fn fs))
 
 let erest a l =
   List.fold_left (fun a x ->
-      Pos.none (ERest(Some a,ENoBox(Pos.make x.pos (EVari(x, [])))))) a l
+      Pos.none (ERest(Some a,ENoBox(evari x.pos x)))) a l
 
 let eimpl a l =
   List.fold_left (fun a x ->
-      Pos.none (EImpl(ENoBox(none (EVari(x, []))), Some a))) a l
+      Pos.none (EImpl(ENoBox(evari None x), Some a))) a l
 
 let euniv _loc x xs s a =
   let s = match s with Some s -> s | None -> new_sort_uvar (Some x) in
@@ -1127,13 +1138,13 @@ let euniv_in _loc x xs a b =
   let p x = Pos.in_pos _loc x in
   let c = List.fold_right (fun x c ->
     (* FIXME #21: notation for partial dependant product ? *)
-    p (EFunc(Totality.Tot, p (EMemb(p (EVari(x,[])), a)), c))) (x::xs) b
+    p (EFunc(Totality.Tot, p (EMemb(evari (Some _loc) x, a)), c))) (x::xs) b
   in
   p (EUniv((x,xs),p sv,c))
 
 let eexis_in _loc x xs a b =
   let p x = Pos.in_pos _loc x in
-  let l = List.map (fun x -> p (EMemb(p (EVari(x,[])), a))) (x::xs) in
+  let l = List.map (fun x -> p (EMemb(evari (Some _loc) x, a))) (x::xs) in
   let c = tuple_type _loc (l @ [b]) in
   (* Alternatives, only with pair
   let c = List.fold_right (fun x c ->
@@ -1143,7 +1154,7 @@ let eexis_in _loc x xs a b =
   p (EExis((x,xs),p sv,c))
 
 let esett _loc x a =
-  let a = Pos.none (EMemb(Pos.make x.pos (EVari(x,[])), a)) in
+  let a = Pos.none (EMemb(evari x.pos x, a)) in
   in_pos _loc (EExis((x,[]), _sv, a))
 
 (* "let ... such that ..." *)
@@ -1185,7 +1196,7 @@ let let_binding _loc r arg t u =
       let u = Pos.make u.pos (ELAbs((List.hd xs, List.tl xs), u)) in
       let x = Pos.none "$rec$" in
       let fn u (l,_) =
-        let pr = Pos.none (EProj(Pos.none (EVari(x, [])), ref `T,  l)) in
+        let pr = Pos.none (EProj(evari None x, ref `T,  l)) in
         Pos.make u.pos (EAppl(u, pr))
       in
       let u = List.fold_left fn u fs in
@@ -1196,7 +1207,7 @@ let let_binding _loc r arg t u =
       let x = Pos.none "$tup$" in
       let is = List.mapi (fun i _ -> Pos.none (string_of_int (i+1))) fs in
       let fn u l =
-        let pr = Pos.none (EProj(Pos.none (EVari(x, [])), ref `T,  l)) in
+        let pr = Pos.none (EProj(evari None x, ref `T,  l)) in
         Pos.make u.pos (EAppl(u, pr))
       in
       let u = List.fold_left fn u is in
@@ -1213,7 +1224,7 @@ let pattern_matching _loc t ps =
           let t = Pos.make t.pos (ELAbs((List.hd xs, List.tl xs), t)) in
           let x = Pos.none "$rec$" in
           let fn t (l,_) =
-            let pr = Pos.none (EProj(Pos.none (EVari(x, [])), ref `T,  l)) in
+            let pr = Pos.none (EProj(evari None x, ref `T,  l)) in
             Pos.make t.pos (EAppl(t, pr))
           in
           (Some (x, None), List.fold_left fn t fs)
@@ -1222,7 +1233,7 @@ let pattern_matching _loc t ps =
           let x = Pos.none "$tup$" in
           let is = List.mapi (fun i _ -> Pos.none (string_of_int (i+1))) fs in
           let fn t l =
-            let pr = Pos.none (EProj(Pos.none (EVari(x, [])), ref `T,  l)) in
+            let pr = Pos.none (EProj(evari None x, ref `T,  l)) in
             Pos.make t.pos (EAppl(t, pr))
           in
           (Some (x, None), List.fold_left fn t is)
