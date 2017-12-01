@@ -1856,7 +1856,7 @@ let rec not_uewit : type a. a ex loc -> bool =
         | Set v -> not_uewit v
         | _     -> false
         end
-    | Case(_,c) -> A.length c > 1 (* TODO: remove of clean *)
+    | Case(_,c) -> A.length c > 1 (* TODO #29: fix this issue and remove! *)
     | _      -> true
 
 (** get one original term from the pool or their applications.
