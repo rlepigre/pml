@@ -972,7 +972,9 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
            log_typ "arrow tot2: %a" Print.arrow tot;
            let p2 = type_term ctx (bndr_subst f wit.elt) b in
            Typ_Func_i(p1,Some p2)
-         with Contradiction -> Typ_Func_i(p1, None)
+         with Contradiction ->
+           warn_unreachable ctx (bndr_subst f wit.elt);
+           Typ_Func_i(p1, None)
        end
     (* Constructor. *)
     | Cons(d,w)   ->
@@ -1107,6 +1109,15 @@ and is_typed : type a. a v_or_t -> a ex loc -> bool = fun t e ->
   | _, VDef _          -> true
   | _                  -> false
 
+and warn_unreachable ctx t =
+  if not (is_scis t) && not (ctx.in_auto) then
+    begin
+      match t.pos with
+      | None   -> Output.wrn_msg "unreachable code..."
+      | Some p -> Output.wrn_msg "unreachable code %a"
+                                 Pos.print_short_pos p
+    end;
+
 and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
   log_typ "proving the term judgment:\n  %a\n  ⊢(%a) %a\n  : %a"
     print_pos ctx.positives Print.arrow ctx.totality Print.ex t Print.ex c;
@@ -1209,14 +1220,8 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
             let ctx = learn_equivalences ctx wit a in
             (fun () -> type_term ctx t c :: ps)
           with Contradiction ->
-             if not (is_scis t) && not (ctx.in_auto) then
-               begin
-                 match t.pos with
-                 | None   -> Output.wrn_msg "unreachable code..."
-                 | Some p -> Output.wrn_msg "unreachable code %a"
-                                            Pos.print_short_pos p
-               end;
-             (fun () -> (t,c,Typ_Scis)::ps)) ()
+            warn_unreachable ctx t;
+            (fun () -> (t,c,Typ_Scis)::ps)) ()
         in
         let ps = A.fold check m [] in
         Typ_DSum_e(p,List.rev ps)
