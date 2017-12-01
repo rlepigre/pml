@@ -597,6 +597,7 @@ and subtype =
 
 and auto_prove : ctxt -> rel -> unit =
   fun ctx rel ->
+    let ctx = { ctx with in_auto = true } in
     try
       prove ctx.equations rel
     with
@@ -1202,7 +1203,7 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
             let ctx = learn_equivalences ctx wit a in
             (fun () -> type_term ctx t c :: ps)
           with Contradiction ->
-             if not (is_scis t) then
+             if not (is_scis t) && not (ctx.in_auto) then
                begin
                  match t.pos with
                  | None   -> Output.wrn_msg "unreachable code..."
