@@ -92,7 +92,7 @@ let uvar_iter : type a. bool -> bool -> bool -> uvar_fun -> a ex loc -> unit =
       (* NOTE type annotations ignored. *)
       | Coer(_,e,_) -> uvar_iter e
       | Such(_,_,r) -> uvar_iter (bseq_dummy r.binder)
-      | Alvl(_,_,e) -> uvar_iter e
+      | PSet(_,_,e) -> uvar_iter e
       | ITag(_)     -> raise Occurs
       | Dumm(_)     -> ()
       | Goal(_)     -> ()

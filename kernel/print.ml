@@ -168,7 +168,7 @@ let rec ex : type a. a ex loc printer = fun ch e ->
             fprintf ch "%s:%a, " (name_of x) sort s;
             aux seq
       in aux r.binder
-  | Alvl(l,s,e) -> fprintf ch "auto %d %d (%a)" (fst l) (snd l) ex e
+  | PSet(l,s,e) -> fprintf ch "%a; %a" print_set_param l ex e
   | ITag(_,i)   -> fprintf ch "#%i" i
   | Dumm(_)     -> output_string ch "∅"
   | VWit(w)     -> fprintf ch "%s%a" w.name print_vars e
@@ -182,6 +182,9 @@ let rec ex : type a. a ex loc printer = fun ch e ->
   | Goal(_,s)   -> fprintf ch "{- %s -}" s
   | VPtr(p)     -> fprintf ch "VPtr(%a)" VPtr.print p
   | TPtr(p)     -> fprintf ch "TPtr(%a)"  Ptr.print p
+
+and print_set_param ch = function
+  | Alvl(b,d)   -> fprintf ch "auto %d %d" b d
 
 and rel ch cnd =
   let eq b = if b then "=" else "≠" in

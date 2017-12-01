@@ -190,7 +190,7 @@ and raw_ex' =
   | ECoer of raw_sort * raw_ex * raw_ex
   | ESuch of raw_sort * (strloc * raw_sort) ne_list
                       * (strloc option * raw_ex) * raw_ex
-  | EAlvl of raw_sort * (int * int) * raw_ex
+  | EPSet of raw_sort * set_param * raw_ex
 
   | EConv
   | ESucc of raw_ex * int
@@ -252,8 +252,8 @@ let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
                        Printf.fprintf ch "ESuch(%a,%s,%a,%a)"
                          (print_list aux_sort ", ") (ne_list_to_list v)
                          x.elt print (snd j) print u
-    | EAlvl(_,l,u)  -> Printf.fprintf ch "EAlvl(%d,%d,%a)"
-                         (fst l) (snd l) print u
+    | EPSet(_,l,u)  -> Printf.fprintf ch "EPSet(%a,%a)"
+                         Print.print_set_param l print u
     | EConv         -> Printf.fprintf ch "EConv"
     | ESucc(o,n)    -> Printf.fprintf ch "ESucc(%a,%d)" print o n
     | EGoal(str)    -> Printf.fprintf ch "EGoal(%s)" str
@@ -618,10 +618,10 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
           leq u s
         end
     | (ESuch(_)     ,  _       ) -> sort_clash e s
-    | (EAlvl(u,_,a) , SV _     )
-    | (EAlvl(u,_,a) , ST       )
-    | (EAlvl(u,_,a) , SUni(_)  ) -> infer env vars a u; leq u s;
-    | (EAlvl(b,d,_) , _        ) -> sort_clash e s
+    | (EPSet(u,_,a) , SV _     )
+    | (EPSet(u,_,a) , ST       )
+    | (EPSet(u,_,a) , SUni(_)  ) -> infer env vars a u; leq u s;
+    | (EPSet(b,d,_) , _        ) -> sort_clash e s
     (* Ordinals. *)
     | (EConv        , SO       ) -> ()
     | (ESucc(o,_)   , SO       ) -> infer env vars o s
@@ -1017,12 +1017,12 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
           | _    -> assert false (* should not happen *)
         end
     (* Ordinals. *)
-    | (EAlvl(u,l,a) , SV _     ) when leq_sort env u s
+    | (EPSet(u,l,a) , SV _     ) when leq_sort env u s
                                  -> let v = to_valu (unsugar env vars a s) in
-                                    Box(V, alvl e.pos l VoT_V v)
-    | (EAlvl(u,l,a) , ST       ) when leq_sort env u s
+                                    Box(V, pset e.pos l VoT_V v)
+    | (EPSet(u,l,a) , ST       ) when leq_sort env u s
                                  -> let t = to_term (unsugar env vars a s) in
-                                    Box(T, alvl e.pos l VoT_T t)
+                                    Box(T, pset e.pos l VoT_T t)
     | (EConv        , SO       ) -> Box(O, conv e.pos)
     | (ESucc(o,n)   , SO       ) ->
         assert (n >= 0);

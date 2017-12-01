@@ -282,8 +282,8 @@ let {eq_expr; eq_bndr} =
     | (_             , Coer(_,e2,_)  ) -> eq_expr e1 e2
     | (Such(_,_,r)   , _             ) -> eq_expr (bseq_dummy r.binder) e2
     | (_             , Such(_,_,r)   ) -> eq_expr e1 (bseq_dummy r.binder)
-    | (Alvl(_,_,e1)  , _             ) -> eq_expr e1 e2
-    | (_             , Alvl(_,_,e2)  ) -> eq_expr e1 e2
+    | (PSet(_,_,e1)  , _             ) -> eq_expr e1 e2
+    | (_             , PSet(_,_,e2)  ) -> eq_expr e1 e2
     | (ITag(_,i1)    , ITag(_,i2)    ) -> i1 = i2
     (* NOTE should not be compare dummy expressions. *)
     | (Dumm(_)       , Dumm(_)       ) -> false
@@ -458,7 +458,7 @@ let {hash_expr; hash_bndr; hash_ombinder; hash_vwit
     | Valu(v)     -> hash_expr v
     | Coer(_,e,_) -> hash_expr e
     | Such(_,_,r) -> hash_expr (bseq_dummy r.binder)
-    | Alvl(_,_,e) -> hash_expr e
+    | PSet(_,_,e) -> hash_expr e
     | Vari(_,x)   -> khash1 `Vari (Bindlib.hash_var x)
     | HFun(s,_,b) -> khash1 `HFun (hash_bndr s b)
     | HApp(s,f,a) -> khash3 `HApp (hash_sort s) (hash_expr f) (hash_expr a)

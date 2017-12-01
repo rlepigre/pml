@@ -80,7 +80,7 @@ let pure : type a. a ex loc -> bool =
     (* NOTE type annotations ignored. *)
     | Coer(_,e,_) -> iter e
     | Such(_,_,r) -> iter (bseq_dummy r.binder)
-    | Alvl(_,_,e) -> iter e
+    | PSet(_,_,e) -> iter e
     | ITag(_)     -> ()
     | Dumm(_)     -> ()
     | Goal(_)     -> ()

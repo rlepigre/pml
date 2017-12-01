@@ -81,7 +81,7 @@ let map : type a. ?mapper:mapper -> a ex loc -> a box
                                      FMore(s, Pos.none x, f)
                              in
                              such e.pos t d sv (aux r.binder)
-            | Alvl(l,s,t) -> alvl e.pos l s (map t)
+            | PSet(l,s,t) -> pset e.pos l s (map t)
 
             | Valu(v)     -> valu e.pos (map v)
             | Appl(t,u)   -> appl e.pos (map t) (map u)

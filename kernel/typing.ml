@@ -72,7 +72,8 @@ type ctxt  =
   ; sub_ihs   : sub_schema list
   ; top_ih    : Scp.index * ordi array
   ; add_calls : (unit -> unit) list ref
-  ; auto_lvl  : (int * int)
+  ; auto_lvl  : int * int
+  ; in_auto   : bool
   ; callgraph : Scp.t
   ; totality  : Totality.tot }
 
@@ -85,7 +86,8 @@ let empty_ctxt () =
   ; sub_ihs   = []
   ; top_ih    = (Scp.root, [| |])
   ; add_calls = ref []
-  ; auto_lvl  = (1, 100)
+  ; auto_lvl  = (0, 100)
+  ; in_auto   = false
   ; callgraph = Scp.create ()
   ; totality  = Totality.Ter }
 
@@ -1022,9 +1024,15 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
           with _ -> cannot_unify b a
         in Typ_TSuch(type_valu ctx v c)
     (* Set auto lvl *)
-    | Alvl(l,_,v) ->
-        let ctx = { ctx with auto_lvl = l } in
-        Typ_TSuch(type_valu ctx v c)
+    | PSet(l,_,v) ->
+        begin
+          let (ctx, restore) = do_set_param ctx l in
+          try
+            let p = type_valu ctx v c in
+            restore ();
+            Typ_TSuch(p)
+          with e -> restore (); raise e
+        end
     (* Witness. *)
     | VWit(w)     ->
         let (_,a,_) = !(w.valu) in
@@ -1074,6 +1082,11 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
   with
   | Type_error _ as e -> raise e
   | e -> type_error (E(V,v)) c e
+
+and do_set_param ctx = function
+  | Alvl(b,d) ->
+     let ctx = { ctx with auto_lvl = (b,d) } in
+     (ctx, fun () -> ())
 
 and is_typed : type a. a v_or_t -> a ex loc -> bool = fun t e ->
   let e = Norm.whnf e in
@@ -1229,9 +1242,15 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
           with _ -> cannot_unify b a
         in Typ_TSuch(type_term ctx t c)
     (* Set auto lvl *)
-    | Alvl(l,_,t) ->
-        let ctx = { ctx with auto_lvl = l } in
-        Typ_TSuch(type_term ctx t c)
+    | PSet(l,_,t) ->
+        begin
+          let (ctx, restore) = do_set_param ctx l in
+          try
+            let p = type_term ctx t c in
+            restore ();
+            Typ_TSuch(p)
+          with e -> restore (); raise e
+        end
     (* Definition. *)
     | HDef(_,d)   ->
         begin
@@ -1328,7 +1347,7 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
     (* Constructors that cannot appear in user-defined stacks. *)
     | Coer(_,_,_) -> .
     | Such(_,_,_) -> .
-    | Alvl(_,_,_) -> .
+    | PSet(_,_,_) -> .
     | UWit(_)     -> unexpected "∀-witness during typing..."
     | EWit(_)     -> unexpected "∃-witness during typing..."
     | UVar(_)     -> unexpected "unification variable during typing..."

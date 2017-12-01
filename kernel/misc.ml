@@ -89,7 +89,7 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
 
     | Coer(_,e,_) -> owits acc e
     | Such(_,_,b) -> owits acc (bseq_dummy b.binder)
-    | Alvl(_,_,e) -> owits acc e
+    | PSet(_,_,e) -> owits acc e
 
     | SWit(_)     -> acc
 

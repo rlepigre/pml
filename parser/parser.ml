@@ -396,9 +396,9 @@ let parser expr @(m : mode) =
       when m <<= Trm A
       -> in_pos _loc (ECoer(new_sort_uvar None,t,a))
   (* Term (auto lvl) *)
-  | _set_ "auto" b:int d:int ';' t:(expr (Trm S))
+  | _set_ l:set_param ';' t:(expr (Trm S))
       when m <<= Trm S
-      -> in_pos _loc (EAlvl(new_sort_uvar None,(b,d),t))
+      -> in_pos _loc (EPSet(new_sort_uvar None,l,t))
   (* Term (let such that) *)
   | _let_ vs:s_lst _st_ x:llid_wc ':' a:prop ';' u:(expr (Trm S))
       when m <<= Trm S
@@ -466,6 +466,10 @@ and prop    = expr (Prp F)
 and stack   = expr Stk
 and ordinal = expr (Ord F)
 and any     = expr Any
+
+(* Set general parameters *)
+and parser set_param =
+  "auto" b:int d:int -> Ast.Alvl(b,d)
 
 (* Toplevel item. *)
 let parser toplevel =
