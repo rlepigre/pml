@@ -200,6 +200,10 @@ let parser expr @(m : mode) =
                        let x = evari (Some _loc_id) id in
                        in_pos _loc (EHOAp(x, new_sort_uvar None, [s]))
          end
+  (* Parenthesis niveau HO *)
+  | '(' e:(expr Any) ')'
+      when m = HO
+      -> e
 
   (* Proposition (boolean type) *)
   | _bool_
