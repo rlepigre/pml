@@ -19,7 +19,7 @@ highlight link Str Character
 " Keywords
 syntax keyword Keyword fun save restore case of fix let rec corec using use
 syntax keyword Keyword type def val sort if else deduce show qed such that
-syntax keyword Keyword check for because
+syntax keyword Keyword check for because delim set
 syntax match   Keyword "λ"
 syntax match   Keyword "μ"
 syntax match   Keyword "ν"
@@ -41,7 +41,7 @@ syntax match Include "\<include \w*\(\.\w*\)*"
 " Meta-variables
 syntax match Include "{-[ ]*\w*[ ]*-}"
 
-" Sorts 
+" Sorts
 syntax match Type "ι"
 syntax match Type "<iota>"
 syntax match Type "<value>"
