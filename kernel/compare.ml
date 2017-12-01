@@ -230,8 +230,6 @@ let {eq_expr; eq_bndr} =
             match (c1, c2) with
             | (Equiv(t1,b1,u1), Equiv(t2,b2,u2)) ->
                 b1 = b2 && eq_expr t1 t2 && eq_expr u1 u2
-            | (Posit(o1)      , Posit(o2)      ) ->
-               eq_expr o1 o2
             | (NoBox(v1)      , NoBox(v2)      ) ->
                eq_expr v1 v2
             | (_              , _              ) ->
@@ -243,8 +241,6 @@ let {eq_expr; eq_bndr} =
             match (c1, c2) with
             | (Equiv(t1,b1,u1), Equiv(t2,b2,u2)) ->
                 b1 = b2 && eq_expr t1 t2 && eq_expr u1 u2
-            | (Posit(o1)      , Posit(o2)      ) ->
-               eq_expr o1 o2
             | (NoBox(v1)      , NoBox(v2)      ) ->
                eq_expr v1 v2
             | (_              , _              ) ->
@@ -448,7 +444,6 @@ let {hash_expr; hash_bndr; hash_ombinder; hash_vwit
     fun e ->
     let hash_cond = function
       | Equiv(t,b,u) -> khash3 `Equiv (hash_expr t) (hash b) (hash_expr u)
-      | Posit(o)     -> hash (`Posit(hash_expr o))
       | NoBox(v)     -> hash (`NoBox(hash_expr v))
     in
     let e = Norm.whnf e in

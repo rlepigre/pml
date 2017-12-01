@@ -32,7 +32,6 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
     let from_cond acc c =
       match c with
       | Equiv(t,_,u) -> owits (owits acc t) u
-      | Posit(o)     -> owits acc o
       | NoBox(v)     -> owits acc v
     in
     match (Norm.whnf e).elt with

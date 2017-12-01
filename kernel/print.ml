@@ -192,7 +192,6 @@ and rel ch cnd =
     match cnd with
     | Equiv(t,b,u) -> fprintf ch "%a %s %a" ex t (eq b) ex u
     | NoBox(v)     -> fprintf ch "%a↓" ex v
-    | Posit(o)     -> ex ch o
 
 let print_fix_sch ch sch =
   let (x,t) = unbind (mk_free T) (snd (fst sch.fsch_judge)) in

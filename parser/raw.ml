@@ -153,7 +153,6 @@ let map_ne_list : ('a -> 'b) -> 'a ne_list -> 'b ne_list =
 type raw_ex = raw_ex' loc
 and raw_cond =
   | EEquiv of (raw_ex * bool * raw_ex)
-  | EPosit of raw_ex
   | ENoBox of raw_ex
 
 and raw_ex' =
@@ -270,7 +269,6 @@ let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
     | Some(e) -> Printf.fprintf ch "Some(%a)" print e
   and aux_eq ch = function
     | EEquiv(t,b,u) -> Printf.fprintf ch "(%a,%b,%a)" print t b print u
-    | EPosit(o)     -> Printf.fprintf ch "(%a>0)" print o
     | ENoBox(v)     -> Printf.fprintf ch "(%a↓)" print v
   and aux_arg ch (s,ao) = Printf.fprintf ch "(%S,%a)" s.elt aux_opt ao
   and aux_patt ch ((c,argo),t) =
@@ -419,8 +417,6 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
          | EEquiv(t,_,u) ->
             infer env vars t _st;
             infer env vars u _st;
-         | EPosit(o) ->
-            infer env vars o _so;
          | ENoBox(v) ->
             infer env vars v _sv;
        end;
@@ -435,8 +431,6 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
          | EEquiv(t,_,u) ->
             infer env vars t _st;
             infer env vars u _st;
-         | EPosit(o) ->
-            infer env vars o _so;
          | ENoBox(v) ->
             infer env vars v _sv;
        end;
@@ -816,8 +810,6 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
              let t = to_term (unsugar env vars t _st) in
              let u = to_term (unsugar env vars u _st) in
              equiv t b u
-          | EPosit _ ->
-             assert false (* TODO #14 *)
           | ENoBox(v) ->
              let v = to_valu (unsugar env vars v _sv) in
              nobox v
@@ -835,8 +827,6 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
              let t = to_term (unsugar env vars t _st) in
              let u = to_term (unsugar env vars u _st) in
              equiv t b u
-          | EPosit _ ->
-             assert false (* TODO #14 *)
           | ENoBox(v) ->
              let v = to_valu (unsugar env vars v _sv) in
              nobox v

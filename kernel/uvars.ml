@@ -40,7 +40,6 @@ let uvar_iter : type a. bool -> bool -> bool -> uvar_fun -> a ex loc -> unit =
         match c with
         | Equiv(t,_,u) -> uvar_iter t; uvar_iter u
         | NoBox(v)     -> uvar_iter v;
-        | Posit(o)     -> uvar_iter o
       in
       (** iteration on the list of unif variables used by epsilon *)
       let luvar_iter : type a b. (a, b) eps -> unit =
@@ -149,8 +148,7 @@ let uvar_occurs : type a b. a uvar -> b ex loc -> bool = fun u e ->
 let uvar_occurs_rel : type a. a uvar -> rel -> bool = fun u c ->
   match c with
   | Equiv(t,_,s) -> uvar_occurs u t || uvar_occurs u s
-  | NoBox(v)     -> uvar_occurs u v;
-  | Posit(o)     -> uvar_occurs u o
+  | NoBox(v)     -> uvar_occurs u v
 
 (** count "visible" uvars *)
 let nb_vis_uvars a =

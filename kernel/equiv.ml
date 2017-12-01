@@ -1814,7 +1814,6 @@ let learn : eq_ctxt -> rel -> eq_ctxt = fun ctx rel ->
       match rel with
       | Equiv(t,b,u) ->
          (if b then add_equiv else add_inequiv) (t,u) ctx
-      | Posit _ -> assert false (* TODO #14 *)
       | NoBox(v) ->
          {pool = add_nobox v ctx.pool }
     in
@@ -1928,7 +1927,6 @@ let get_blocked : pool -> blocked list = fun po ->
     let ctx = match rel with
       | Equiv(t,b,u) ->
          (if b then add_inequiv else add_equiv) (t,u) ctx
-      | Posit _ -> assert false (* TODO #14 *)
       | NoBox(v) ->
          let (b, ctx) = check_nobox v ctx in
          if b then raise Contradiction;

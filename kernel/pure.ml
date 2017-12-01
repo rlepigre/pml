@@ -29,7 +29,6 @@ let pure : type a. a ex loc -> bool =
       match c with
       | Equiv(t,_,u) -> iter t; iter u
       | NoBox(v)     -> iter v;
-      | Posit(o)     -> iter o
     in
     (** iterator for epsilon: purity is keps as a lazy bool,
         but we must set the lazy constraint on variable that appears

@@ -17,7 +17,6 @@ let map : type a. ?mapper:mapper -> a ex loc -> a box
     let rec map_cond c =
       match c with
       | Equiv(t,b,u) -> equiv (map t) b (map u)
-      | Posit(o)     -> posit (map o)
       | NoBox(v)     -> nobox (map v)
 
     and map : type a. a ex loc -> a box = fun e ->

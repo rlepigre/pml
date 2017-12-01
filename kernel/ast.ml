@@ -165,8 +165,6 @@ and s_elt = U : 'a sort * 'a uvar -> s_elt
 and rel =
   | Equiv of (t ex loc * bool * t ex loc)
   (** Equivalence between terms. *)
-  | Posit of o ex loc
-  (** Positivity of the given ordinal. *)
   | NoBox of v ex loc
   (** Value that are not Box, i.e. real value *)
 
@@ -511,9 +509,6 @@ let impl : popt -> rel bindbox -> pbox -> pbox =
 let equiv : tbox -> bool -> tbox -> rel bindbox =
   fun t b u ->
     box_apply2 (fun t u -> Equiv(t,b,u)) t u
-
-let posit : obox -> rel bindbox =
-  box_apply (fun o -> Posit(o))
 
 let nobox : vbox -> rel bindbox =
   box_apply (fun v -> NoBox(v))
