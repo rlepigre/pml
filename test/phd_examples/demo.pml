@@ -25,8 +25,9 @@ val rec fold_left2 : ∀a b, (a ⇒ b → a) ⇒ a ⇒ list<b> → a =
 val exists : ∀a, (a ⇒ bool) ⇒ list<a> ⇒ bool =
   fun pred l {
     let a such that l : list<a>;
-    //FIXME: inferring with a partial arrow ?
+    //FIXME #21: inferring with a partial arrow ?
     //Because Totality.is_not_tot compares with Tot when typing "pred e".
+    //So we need to give the type of f.
     let f:bool⇒a⇒bool = fun acc e { if pred e { true } else { acc } };
     fold_left f false l
   }
