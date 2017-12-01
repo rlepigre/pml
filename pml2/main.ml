@@ -73,6 +73,8 @@ let rec interpret : Env.env -> Raw.toplevel -> Env.env = fun env top ->
       if !verbose then
         out "include %S\n%!" fn;
       Log.without (handle_file false env) fn
+  | Def_list(tops) ->
+      List.fold_left interpret env tops
 
 (* Handling the files. *)
 and handle_file nodep env fn =

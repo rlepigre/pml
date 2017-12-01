@@ -9,8 +9,6 @@ val rec map : ∀a b, ((a ⇒ b) ⇒ list<a> ⇒ list<b>) =
     }
   }
 
-type list<a> = μlist, [ Nil ; Cons of { hd : a; tl : list}  ]
-
 // val rec map_biz : ∀a, ((a ⇒ a) ⇒ list<a> ⇒ list<a>) =
 //   fun f l {
 //     case l {
@@ -19,9 +17,7 @@ type list<a> = μlist, [ Nil ; Cons of { hd : a; tl : list}  ]
 //     }
 //   }
 
-type slist<a,s> = μ_s list, [ Nil ; Cons of { hd : a; tl : list}  ]
-
-val rec map_biz : ∀a,∀s, ((a ⇒ a) ⇒ slist<a,s> ⇒ slist<a,s>) =
+val rec map_biz : ∀a,∀s, ((a ⇒ a) ⇒ list^s<a> ⇒ list^s<a>) =
   fun f l {
     case l {
       Nil → Nil
@@ -38,9 +34,8 @@ val rec smap : ∀a b, ((a ⇒ b) ⇒ stream<a> ⇒ stream<b>) =
     }
   }
 
-type sstream<a,s> = ν_s stream, {} ⇒ [ Cons of { hd : a; tl : stream}  ]
 
-val rec smap_biz : ∀a,∀s, ((a ⇒ a) ⇒ sstream<a,s> ⇒ sstream<a,s>) =
+val rec smap_biz : ∀a,∀s, ((a ⇒ a) ⇒ stream^s<a> ⇒ stream^s<a>) =
   fun f s _ {
     case s {} {
       x::s → f x :: smap_biz f (smap_biz f s)

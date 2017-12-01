@@ -1037,6 +1037,7 @@ type toplevel =
   | Valu_def of strloc * raw_ex * raw_ex
   | Chck_sub of raw_ex * bool * raw_ex
   | Include  of string list
+  | Def_list of toplevel list
 
 let sort_def : strloc -> raw_sort -> toplevel = fun id s ->
   Sort_def(id,s)
@@ -1054,13 +1055,28 @@ let expr_def : strloc -> (strloc * raw_sort option) list -> raw_sort option
 let type_def : Pos.pos -> [`Non | `Rec | `CoRec] -> strloc
                -> (strloc * raw_sort option) list
                -> raw_ex -> toplevel = fun _loc r id args e ->
-  let e =
+  let e1 =
     match r with
     | `Non   -> e
     | `Rec   -> in_pos _loc (EFixM(Pos.none EConv, id, e))
     | `CoRec -> in_pos _loc (EFixN(Pos.none EConv, id, e))
   in
-  expr_def id args (Some (Pos.none SP)) e
+  let d1 = expr_def id args (Some (Pos.none SP)) e1 in
+  if r = `Non then d1 else
+    begin
+      let id2 = Pos.make id.pos (id.elt ^ "#") in
+      let s = Pos.none (EVari(Pos.none "s#", [])) in
+      let e2 =
+        match r with
+        | `Non   -> assert false
+        | `Rec   -> in_pos _loc (EFixM(s, id, e))
+        | `CoRec -> in_pos _loc (EFixN(s, id, e))
+      in
+      let args = (Pos.none "s#", Some (Pos.none SO)) :: args in
+      let d2 = expr_def id2 args (Some (Pos.none SP)) e2 in
+      Def_list [d1;d2]
+    end
+
 
 let val_def : bool -> strloc -> raw_ex -> raw_ex -> toplevel = fun r id a t ->
   let t = if r then Pos.make t.pos (EFixY(id, t)) else t in

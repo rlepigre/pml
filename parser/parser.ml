@@ -164,8 +164,11 @@ type p_prio = F | P | R | M | A
 (* Priorities for parsing terms (Atom, aPpl, Infix, pRefix, Sequ, Full). *)
 type t_prio = F | S | R | I | P | A
 
+(* Priorities for parsing ordinel (Exponent, Full) *)
+type o_prio = F | E
+
 (* Parsing mode for expressions. *)
-type mode = Any | Prp of p_prio | Trm of t_prio | Stk | Ord | HO
+type mode = Any | Prp of p_prio | Trm of t_prio | Stk | Ord of o_prio | HO
 
 let (<<=) = fun p1 p2 ->
   match p1, p2 with
@@ -174,7 +177,7 @@ let (<<=) = fun p1 p2 ->
   | Prp p1, Prp p2 -> p1 <= p2
   | Trm p1, Trm p2 -> p1 <= p2
   | Stk   , Stk    -> true
-  | Ord   , Ord    -> true
+  | Ord p1, Ord p2 -> p1 <= p2
   | _     , _      -> false
 
 (* Parser for expressions. *)
@@ -184,9 +187,16 @@ let parser expr @(m : mode) =
       when m <<= Any
       -> in_pos _loc (EHOFn(x,s,e))
   (* Variable and higher-order application *)
-  | id:llid args:ho_args
-      when m <<= HO
-      -> in_pos _loc (EVari(id, args))
+  | id:llid s:{'^' (expr (Ord E))}? args:ho_args
+      when m <<= HO && m <> Ord E
+      -> let (id, args) = match s with
+           | None   -> (id, args)
+           | Some s -> (Pos.make id.pos (id.elt ^ "#"), s :: args)
+         in
+         in_pos _loc (EVari(id, args))
+  | id:llid
+      when m = Ord E
+      -> in_pos _loc (EVari(id, []))
 
   (* Proposition (boolean type) *)
   | _bool_
@@ -396,12 +406,16 @@ let parser expr @(m : mode) =
 
   (* Ordinal (infinite) *)
   | infty
-      when m <<= Ord
+      when m <<= Ord E
       -> in_pos _loc EConv
   (* Ordinal (successor) *)
   | o:ordinal "+" n:int
-      when m <<= Ord
+      when m <<= Ord F
       -> in_pos _loc (ESucc(o,n))
+  (* Ordinal (parenthesis) *)
+  | "(" o:ordinal ")"
+      when m <<= Ord E
+      -> o
 
   (* Goal (term or stack) *)
   | s:goal
@@ -447,7 +461,7 @@ and parser patt =
 and term    = expr (Trm F)
 and prop    = expr (Prp F)
 and stack   = expr Stk
-and ordinal = expr Ord
+and ordinal = expr (Ord F)
 and any     = expr Any
 
 (* Toplevel item. *)
