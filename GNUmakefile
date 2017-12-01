@@ -111,24 +111,15 @@ _build/pml2/main.p.native: $(ML_FILES)
 
 # Checks on the source code.
 check:
-	# FIXME/TODO IN .ml .mli
-	@f=`grep FIXME */*.ml */*.mli | wc -l`;\
-	 ft=`grep FIXME */*.ml */*.mli | grep -P -v '#[0-9]+' | wc -l`;\
+	# FIXME/TODO
+	@f=`grep FIXME */*.ml */*.mli */*.pml */*/*.pml  | wc -l`;\
+	 ft=`grep FIXME */*.ml */*.mli */*.pml */*/*.pml | grep -P -v '#[0-9]+' | wc -l`;\
 	 echo FIXME: $$ft/$$f '(without ticket/all)'
-	@grep FIXME */*.ml */*.mli -n | grep -P -v '#[0-9]+' || true
-	@f=`grep TODO */*.ml */*.mli | wc -l`;\
-	 ft=`grep TODO */*.ml */*.mli | grep -P -v '#[0-9]+' | wc -l`;\
+	@grep FIXME */*.ml */*.mli */*.pml */*/*.pml -n | grep -P -v '#[0-9]+' || true
+	@f=`grep TODO */*.ml */*.mli */*.pml */*/*.pml | wc -l`;\
+	 ft=`grep TODO */*.ml */*.mli */*.pml */*/*.pml | grep -P -v '#[0-9]+' | wc -l`;\
 	 echo TODO: $$ft/$$f '(without ticket/all)'
-	@grep TODO */*.ml */*.mli -n | grep -P -v '#[0-9]+' || true
-	# FIXME/TODO IN .pml
-	@f=`grep FIXME */*.pml  | wc -l`;\
-	 ft=`grep FIXME */*.pml | grep -P -v '#[0-9]+' | wc -l`;\
-	 echo FIXME IN PML: $$ft/$$f '(without ticket/all)'
-	@grep FIXME */*.pml -n | grep -P -v '#[0-9]+' || true
-	@f=`grep TODO */*.pml | wc -l`;\
-	 ft=`grep TODO */*.pml | grep -P -v '#[0-9]+' | wc -l`;\
-	 echo TODO IN PML: $$ft/$$f '(without ticket/all)'
-	@grep TODO */*.pml -n | grep -P -v '#[0-9]+' || true
+	@grep TODO */*.ml */*.mli */*.pml */*/*.pml -n | grep -P -v '#[0-9]+' || true
 	# TAB/LINES TOO LONG
 	@echo Lines with TAB:
 	@grep -P "\t" */*.ml */*.mli; true
