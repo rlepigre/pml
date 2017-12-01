@@ -43,10 +43,6 @@ val rec app_asso : ∀a:ο, ∀x1 x2 x3∈list<a>, app x1 (app x2 x3) ≡ app (a
       Cns[c] →
        let hd = c.hd;
        let tl = c.tl;
-       let total = app tl l2;
-       let total = app l2 l3;
-       let total = app tl (app l2 l3); // FIXME: worked without why ?
-       let total = app (app tl l2) l3; // FIXME: worked without why ?
        let ded : app l1 (app l2 l3) ≡ cns hd (app tl (app l2 l3)) = {};
        let ded : app (app l1 l2) l3 ≡ cns hd (app (app tl l2) l3) = {};
        let ind : app tl (app l2 l3) ≡ app (app tl l2) l3 =

@@ -41,16 +41,6 @@ val rec strong_add_total : ∀n∈nat, ∀m∈(∃x,x), ∃v:ι, add n m ≡ v =
     }
   }
 
-// FIXME should work
-// val rec strong_add_total2 : ∀m:ι, ∀n∈nat, ∃v:ι, add n m ≡ v =  Λm:ι. fun n →
-//   case n {
-//     | Z[_] → {}
-//     | S[p] → let ded : add n m ≡ S[add p m] = {} in
-//              let ded : (fun x → {}) m ≡ {} = {} in
-//              let ded : (fun x → {}) p ≡ {} = {} in
-//              let ind_hyp = (strong_add_total2 p : (∃v:ι, add p m ≡ v)) in {}
-//   }
-
 val rec add_total : ∀n m∈nat, ∃v:ι, add n m ≡ v =
   fun n m {
     case n {

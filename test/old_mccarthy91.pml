@@ -64,10 +64,3 @@ val mccarthy91_total : ∀n∈nat, ∃v:ι, v∈nat | mccarthy91 n ≡ v =
   }
 
 val mccarthy91_fun : nat ⇒ nat = mccarthy91_total
-
-// FIXME do we want to be able to call the original function?
-//val mccarthy91_fun : nat ⇒ nat =
-//  fun n {
-//    use mccarthy91_total n;
-//    mccarthy91 n // This is equivalent to a value...
-//  }

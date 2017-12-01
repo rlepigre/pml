@@ -30,23 +30,11 @@ val from_opt : ∀ a:ο, option<a> ⇒ a ⇒ a =
     }
   }
 
-def total<f:ι,a:ο> : ο = ∀x:ι, x∈a ⇒ ∃v:ι, f x ≡ v
-
-val map_map : ∀ a b c:ο, ∀f∈(a⇒b), ∀g∈(b⇒c), ∀o∈option<a>, total<f,a> ⇒
+val map_map : ∀ a b c:ο, ∀f∈(a⇒b), ∀g∈(b⇒c), ∀o∈option<a>,
               map g (map f o) ≡ map (fun x { g (f x) }) o =
-  fun f1 f2 eo h {
+  fun f g eo {
     case eo {
       None[y] → {}
-      Some[e] → let lem = h e; {}
+      Some[e] → let lem = f e; {} // FIXME #28
     }
   }
-
-// FIXME ne peux pas marcher si f (et g ?) n'est pas totale.
-//val map_map : ∀ a b c:ο, ∀ f g o:ι, f∈(a⇒b) ⇒ g∈(b⇒c) ⇒ o∈option<a> ⇒
-//    map g (map f o) ≡ map (fun x { g (f x) }) o =
-//  fun f1 f2 eo {
-//    case eo {
-//      None[y] → {}
-//      Some[e] → {}
-//    }
-//  }

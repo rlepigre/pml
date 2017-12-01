@@ -33,7 +33,7 @@ def icase⟨n⟩ = case n { Z → {} | S[_] → {} | P[_] → {} }
 def ncase⟨n⟩ = case n { Z → {} | S[_] → {} }
 def pcase⟨n⟩ = case n { Z → {} | P[_] → {} }
 
-// FIXME: auto fails because to case are impossible by typing
+// FIXME #30: auto fails because two cases are impossible by typing
 // because p is positive below.
 val suc_pre : ∀n∈int, suc (pre n) ≡ n = fun n {
   case n {

@@ -27,9 +27,9 @@ val rec app : ∀a:ο, ∀n1 n2:ι, vec<a,n1> ⇒ vec<a,n2> ⇒ vec<a,add n1 n2>
     case l1 {
       Nil    → l2
       Cns[c] →
-        use length c.tl;
+        use length c.tl; // FIXME #28
         let r = app c.tl l2;
-        use length r;
+        use length r; // FIXME #28
         vcns c.hd r
     }
   }
@@ -37,6 +37,6 @@ val rec app : ∀a:ο, ∀n1 n2:ι, vec<a,n1> ⇒ vec<a,n2> ⇒ vec<a,add n1 n2>
 val app3 : ∀a:ο, ∀n1 n2 n3:ι, vec<a,n1> ⇒ vec<a,n2> ⇒ vec<a,n3>
            ⇒ vec<a,add n1 (add n2 n3)> =
     fun l1 l2 l3 {
-       use (add (length l2)) (length l3);
+       use (add (length l2)) (length l3); // FIXME #28
        app l1 (app l2 l3)
     }

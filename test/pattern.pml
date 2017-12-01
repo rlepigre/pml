@@ -36,6 +36,6 @@ val rec id : ∀a, list<a> ⇒ list<a> =
   fun l {
     case l {
       []    → []
-      x::xs → x::(id xs) // FIXME should work without parenthesis
+      x::xs → x::id xs
     }
   }

@@ -21,15 +21,14 @@ val fifo_simple : fifo_sig =
 
 type slist<a,s> = μ_s list, [ Nil ; Cons of { hd : a; tl : list}  ]
 
-// FIXME: termination fails if we use a pair of lists. It should not!
+// FIXME #31: termination fails if we use a pair of lists. It should not!
 val rec pop : ∀a, list<a> ⇒ list<a> ⇒ option<a * (list<a> * list<a>)> =
   fun s1 s2 {
     case s2 {
       x::s2 → Some[(x,(s1,s2))]
       []    → case s1 {
         []    → None
-        x::s0 →
-          pop [] (rev s1)
+        x::s0 → pop [] (rev s1)
       }
     }
   }
@@ -104,7 +103,7 @@ val rec equiv_pop :
         deduce translate<f> ≡ app s1 (rev (x::s2'));
         deduce translate_opt<fifo_pair.pop f> ≡ Some[(x,app s1 (rev s2'))];
         deduce fifo_simple.pop translate<f> ≡ take_last (app s1 (rev (x::s2')));
-        // FIXME: why typing annotation on x ?
+        // FIXME #32: why typing annotation on x ?
         use lemma1 (x:a) s1 s2'
       [] →
         case s1 {

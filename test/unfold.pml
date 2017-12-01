@@ -1,6 +1,6 @@
 type rec abc = [A of abc ; B of abc ; C]
 
-// FIXME needs unfolding of fixpoint?
+// FIXME #31 needs unfolding of fixpoint?
 //val rec f : abc ⇒ abc =
 //  fun e {
 //    case e {
