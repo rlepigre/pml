@@ -75,6 +75,14 @@ let rec interpret : Env.env -> Raw.toplevel -> Env.env = fun env top ->
       Log.without (handle_file false env) fn
   | Def_list(tops) ->
       List.fold_left interpret env tops
+  | Glbl_set(l)    ->
+      begin
+        let open Ast in
+        match l with
+        | Alvl(b,d) -> Typing.default_auto_lvl := (b,d)
+        | Logs s    -> Log.set_enabled s
+      end;
+      env
 
 (* Handling the files. *)
 and handle_file nodep env fn =

@@ -469,7 +469,8 @@ and any     = expr Any
 
 (* Set general parameters *)
 and parser set_param =
-  "auto" b:int d:int -> Ast.Alvl(b,d)
+  | "auto" b:int d:int -> Ast.Alvl(b,d)
+  | "log"  s:str_lit   -> Ast.Logs(s)
 
 (* Toplevel item. *)
 let parser toplevel =
@@ -496,6 +497,9 @@ let parser toplevel =
   (* Inclusion of a file. *)
   | _include_ p:path
       -> fun () -> include_file p
+
+  | _set_ l:set_param
+      -> fun () -> Glbl_set l
 
 (* Entry point of the parser. *)
 let parser entry = toplevel*

@@ -240,6 +240,7 @@ and 'a uvar_val =
 
 and set_param =
   | Alvl of int * int
+  | Logs of string
 
 (** {6 Types and functions related to binders and variables.} *)
 

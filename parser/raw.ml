@@ -1049,6 +1049,7 @@ type toplevel =
   | Chck_sub of raw_ex * bool * raw_ex
   | Include  of string list
   | Def_list of toplevel list
+  | Glbl_set of set_param
 
 let evari _loc x = Pos.make _loc (EVari(x, new_sort_uvar None))
 

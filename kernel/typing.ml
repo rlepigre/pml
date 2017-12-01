@@ -77,6 +77,8 @@ type ctxt  =
   ; callgraph : Scp.t
   ; totality  : Totality.tot }
 
+let default_auto_lvl = ref (0, 100)
+
 let empty_ctxt () =
   { uvarcount = ref 0
   ; equations = empty_ctxt
@@ -86,7 +88,7 @@ let empty_ctxt () =
   ; sub_ihs   = []
   ; top_ih    = (Scp.root, [| |])
   ; add_calls = ref []
-  ; auto_lvl  = (0, 100)
+  ; auto_lvl  = !default_auto_lvl
   ; in_auto   = false
   ; callgraph = Scp.create ()
   ; totality  = Totality.Ter }
@@ -1088,6 +1090,10 @@ and do_set_param ctx = function
   | Alvl(b,d) ->
      let ctx = { ctx with auto_lvl = (b,d) } in
      (ctx, fun () -> ())
+  | Logs(s)   ->
+     let save = Log.get_enabled () in
+     Log.set_enabled s;
+     (ctx, fun () -> Log.set_enabled save)
 
 and is_typed : type a. a v_or_t -> a ex loc -> bool = fun t e ->
   let e = Norm.whnf e in

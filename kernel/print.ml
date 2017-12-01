@@ -185,6 +185,7 @@ let rec ex : type a. a ex loc printer = fun ch e ->
 
 and print_set_param ch = function
   | Alvl(b,d)   -> fprintf ch "auto %d %d" b d
+  | Logs(s)     -> fprintf ch "log %s" s
 
 and rel ch cnd =
   let eq b = if b then "=" else "≠" in
