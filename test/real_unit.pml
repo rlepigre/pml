@@ -97,7 +97,7 @@ val id_id2 : ∀ x:ι, x∈real_bool ⇒ id_bool x ≡ x =
     }
   }
 
-val toto : C[{}] ≡ D[{}] ⇒ ∅ = fun x { x }
+val toto : C[{}] ≡ D[{}] ⇒ ∅ = fun x { ✂ }
 
 val or : real_bool ⇒ real_bool ⇒ real_bool =
   fun b1 b2 {
@@ -127,7 +127,7 @@ val test2a : ∀ x:ι, x∈real_bool ⇒ not x ≡ tru ⇒ x ≡ fls =
   fun b {
     case b {
       F[y] → fun e { {} }
-      T[y] → fun e { {} }
+      T[y] → fun e { ✂ }
     }
   }
 
