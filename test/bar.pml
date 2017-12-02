@@ -43,18 +43,37 @@ val rec assoc : ∀k,∀v:τ→ο, eq⟨k⟩ ⇒ ∀x∈k, map⟨k,v⟩ ⇒ opti
 // delim : pour (si on a le droit) passer de classique à inuitionniste,
 //         on a le droit si le but est de type bottom. Mais aussi si
 //         il n'y a aucune implication classique dans le séquant.
-val unsafe bar_aux : ∀k,∀v:τ→ο, ∀m∈map⟨k,v⟩, eq⟨k⟩ ⇒ (∀x, x∈k → v⟨x⟩) → ∀x, x∈k ⇒ v⟨x⟩ =
-  fun m cmp f { save a { fun x {
-        let k such that cmp : eq⟨k⟩;
+val unsafe bar_aux : ∀a,∀v:τ→ο, ∀m∈map⟨a,v⟩, eq⟨a⟩ ⇒ (∀x, x∈a → v⟨x⟩) → ∀x, x∈a ⇒ v⟨x⟩ =
+  fun m cmp f { save st { fun x {
+        let a such that cmp : eq⟨a⟩;
         //let v such that _ : v⟨x⟩; ne marche pas mais devrait !
-        case assoc cmp (x:k) m {
+        case assoc cmp (x:a) m {
           Some[v] → v
           None    → (delim {
               let u = f x;
-              let m = add (x:k) u m;
-              restore a (bar_aux m cmp f) } : ∀x,x)
+              let m = add (x:a) u m;
+              restore st (bar_aux m cmp f) } : ∀x,x)
         }
       }}}
 
-val bar : ∀k,∀v:τ→ο, eq⟨k⟩ ⇒ (∀x, x∈k → v⟨x⟩) → ∀x, x∈k ⇒ v⟨x⟩ =
+val bar : ∀a,∀v:τ→ο, eq⟨a⟩ ⇒ (∀x, x∈a → v⟨x⟩) → ∀x, x∈a ⇒ v⟨x⟩ =
   fun cmp f { bar_aux [] cmp f }
+
+// Axiome du choix intuitionniste
+val aci : ∀a,∀v, (∀x∈a, v⟨x⟩) ⇒ ∃f,∀x∈a, (f x)∈v⟨x⟩ =
+  fun f {
+    let a, v such that f : ∀x∈a, v⟨x⟩;
+    (fun x { let u = (f x : v⟨x⟩); u } : ∀x∈a, (f x)∈v⟨x⟩)
+  }
+
+// La version classique ne marche, fort heureusement,
+// grâce à la value restriction.
+// val acc : ∀a,∀v, (∀x, x∈a → v⟨x⟩) → ∃f,∀x, x∈a → (f x)∈v⟨x⟩ =
+//   fun f {
+//     let a, v such that f : ∀x∈a, v⟨x⟩;
+//     (fun x { let u = (f x : v⟨x⟩); u } : ∀x∈a, (f x)∈v⟨x⟩)
+//   }
+
+// Et l'axiome du choix dénombrable et classique.
+val acc_den : ∀a,∀v:τ→ο, eq⟨a⟩ ⇒ (∀x, x∈a → v⟨x⟩) → ∃f,∀x∈a, (f x)∈v⟨x⟩ =
+  fun cmp f { aci (bar cmp f) }
