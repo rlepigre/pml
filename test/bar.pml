@@ -19,7 +19,7 @@ type map⟨k,v⟩ = list⟨dep_pair⟨k,v⟩⟩
 val add : ∀k,∀v:τ→ο, ∀x∈k, v⟨x⟩ ⇒ map⟨k,v⟩ ⇒ map⟨k,v⟩ = fun k v m { (k,v) :: m }
 
 // type d'une égalité, quand c'est vrai, c'est égal!
-type eq⟨k⟩ = ∀x∈k, ∀y∈k, [ true of x ≡ y ; false ]
+type eq⟨k⟩ = ∀x∈k, ∀y∈k, [ true of x ≡ y ; false of x ≠ y ]
 
 val test3 : ∀k, eq⟨k⟩ ⇒ (k ⇒ k ⇒ bool) = fun x { x }
 
@@ -59,12 +59,16 @@ val unsafe bar_aux : ∀a,∀v:τ→ο, ∀m∈map⟨a,v⟩, eq⟨a⟩ ⇒ (∀x
 val bar : ∀a,∀v:τ→ο, eq⟨a⟩ ⇒ (∀x, x∈a → v⟨x⟩) → ∀x, x∈a ⇒ v⟨x⟩ =
   fun cmp f { bar_aux [] cmp f }
 
-// Axiome du choix intuitionniste
+// Axiome du choix intuitionniste On voudrait
 val aci : ∀a,∀v, (∀x∈a, v⟨x⟩) ⇒ ∃f,∀x∈a, (f x)∈v⟨x⟩ =
   fun f {
     let a, v such that f : ∀x∈a, v⟨x⟩;
     (fun x { let u = (f x : v⟨x⟩); u } : ∀x∈a, (f x)∈v⟨x⟩)
   }
+
+// On voudrait vraiment ça:
+// val aci : ∀a,∀v, (∀x∈a, ∃y, v⟨x,y⟩) ⇒ ∃f,∀x∈a, v⟨x, f⟨x⟩⟩ =
+// Mais il faudrait des liaisons dans les epsilons (au moins les ewit)
 
 // La version classique ne marche, fort heureusement,
 // grâce à la value restriction.
