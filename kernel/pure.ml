@@ -70,7 +70,7 @@ let pure : type a. a ex loc -> bool =
     | Proj(v,_)   -> iter v
     | Case(v,m)   -> let fn _ (_,b) = biter V b in
                      iter v; A.iter fn m
-    | FixY(f)     -> biter T f
+    | FixY(_,f)   -> biter T f
     | Prnt(_)     -> ()
     | Repl(t,u,a) -> iter u (* Repl(_,u_) = u *)
     | Delm(u)     -> iter u

@@ -45,7 +45,7 @@ and     term_erasure : term -> e_tbox = fun t ->
   | HDef(_,d)   -> term_erasure d.expr_def
   | Valu(v)     -> tvalu (valu_erasure v)
   | Appl(t,u)   -> tappl (term_erasure t) (term_erasure u)
-  | FixY(b)     -> let f x =
+  | FixY(_,b)   -> let f x =
                      let x = copy_var x (name_of x) (mk_free T) in
                      valu_erasure (bndr_subst b (mk_free T x))
                    in tfixy (binder_name (snd b)) f
@@ -126,7 +126,7 @@ and to_term : e_term -> tbox = fun t ->
                     let x = copy_var x (name_of x) mk_tvari in
                     to_valu (subst b (mk_tvari x))
                   in
-                  fixy None (Pos.none (binder_name b)) f
+                  fixy None false (Pos.none (binder_name b)) f
   | TMAbs(b)   -> let f x =
                     let x = copy_var x (name_of x) mk_svari in
                     to_term (subst b (mk_svari x))

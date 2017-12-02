@@ -93,7 +93,7 @@ let map : type a. ?mapper:mapper -> a ex loc -> a box
                                (p, bndr_name f, fn)
                              in
                              case e.pos (map v) (A.map fn m)
-            | FixY(f)     -> fixy e.pos (bndr_name f)
+            | FixY(sf,f)  -> fixy e.pos sf (bndr_name f)
                                   (fun x -> map (bndr_subst f (mk_free T x)))
             | Prnt(s)     -> prnt e.pos s
             | Repl(t,u,a) -> repl e.pos (map t) (map u) (map a)

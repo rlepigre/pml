@@ -265,7 +265,7 @@ let {eq_expr; eq_bndr} =
     | (Case(v1,m1)   , Case(v2,m2)   ) ->
         let cmp (_,b1) (_,b2) = eq_bndr V b1 b2 in
         eq_expr v1 v2 && A.equal cmp m1 m2
-    | (FixY(f1)      , FixY(f2)      ) -> eq_bndr T f1 f2
+    | (FixY(_,f1)    , FixY(_,f2)    ) -> eq_bndr T f1 f2
     | (Prnt(s1)      , Prnt(s2)      ) -> s1 = s2
     | (Conv          , Conv          ) -> true
     | (Succ(o1)      , Succ(o2)      ) -> eq_expr o1 o2
@@ -479,7 +479,7 @@ let {hash_expr; hash_bndr; hash_ombinder; hash_vwit
     | Proj(v,l)   -> khash2 `Proj (hash l.elt) (hash_expr v)
     | Case(v,m)   -> khash2 `Case (hash_expr v)
                             (A.hash (fun (_,e) -> (hash_bndr V e)) m)
-    | FixY(f)     -> hash (`FixY (hash_bndr T f))
+    | FixY(_,f)   -> hash (`FixY (hash_bndr T f))
     | Prnt(s1)    -> khash1 `Prnt (hash s1)
     | Repl(_,u,_) -> hash_expr u
     | Delm(u)     -> hash_expr u

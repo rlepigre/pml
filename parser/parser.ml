@@ -35,24 +35,6 @@ let parser path = ps:{path_atom '.'}* f:path_atom -> ps @ [f]
 let parser goal_name = s:''\([^-]\|\(-[^}]\)\)*''
 let parser goal = "{-" str:goal_name "-}" -> String.trim str
 
-(* Identifiers. *)
-let parser lid = id:''[a-z][a-zA-Z0-9_']*'' -> Keyword.check id; id
-let parser uid = id:''[A-Z][a-zA-Z0-9_']*'' -> Keyword.check id; id
-let parser num = id:''[0-9]+''              -> id
-
-(* Located identifiers. *)
-let parser llid = id:lid -> in_pos _loc id
-let parser luid = id:uid -> in_pos _loc id
-let parser lnum = id:num -> in_pos _loc id
-
-(* Int. *)
-let parser int  = s:''[0-9]+'' -> int_of_string s
-
-(* Lowercase identifier or wildcard (located). *)
-let parser llid_wc =
-  | id:lid -> in_pos _loc id
-  | '_'    -> in_pos _loc "_"
-
 (* Keywords. *)
 let _because_ = Keyword.create "because"
 let _bool_    = Keyword.create "bool"
@@ -84,9 +66,30 @@ let _such_    = Keyword.create "such"
 let _that_    = Keyword.create "that"
 let _true_    = Keyword.create "true"
 let _type_    = Keyword.create "type"
+let _unsafe_  = Keyword.create "unsafe"
 let _use_     = Keyword.create "use"
 let _using_   = Keyword.create "using"
 let _val_     = Keyword.create "val"
+
+(* Identifiers. *)
+let parser lid = id:''[a-z][a-zA-Z0-9_']*'' -> Keyword.check id; id
+let parser uid = id:''[A-Z][a-zA-Z0-9_']*'' -> Keyword.check id; id
+let parser num = id:''[0-9]+''              -> id
+
+(* Located identifiers. *)
+let parser llid = id:lid  -> in_pos _loc id
+let parser luid = id:uid  -> in_pos _loc id
+                | _true_  -> in_pos _loc "true"
+                | _false_ -> in_pos _loc "false"
+let parser lnum = id:num  -> in_pos _loc id
+
+(* Int. *)
+let parser int  = s:''[0-9]+'' -> int_of_string s
+
+(* Lowercase identifier or wildcard (located). *)
+let parser llid_wc =
+  | id:lid -> in_pos _loc id
+  | '_'    -> in_pos _loc "_"
 
 (* Some useful tokens. *)
 let parser elipsis = "⋯" | "..."
@@ -118,8 +121,9 @@ let parser neg =
 
 (* Optional "rec" annotation on a value definition. *)
 let parser v_rec =
-  | EMPTY   -> false
-  | _rec_   -> true
+  | EMPTY    -> `Non
+  | _rec_    -> `Rec
+  | _unsafe_ -> `Unsafe
 
 (* Optional "rec" / "corec" annotation on a type definition. *)
 let parser t_rec =
@@ -293,14 +297,6 @@ let parser expr @(m : mode) =
   | c:luid t:{"[" t:term "]"}?
       when m <<= Trm A
       -> in_pos _loc (ECons(c, Option.map (fun t -> (t, ref `T)) t))
-  (* Term (true boolean) *)
-  | _true_
-      when m <<= Trm A
-      -> v_bool _loc true
-  (* Term (true boolean) *)
-  | _false_
-      when m <<= Trm A
-      -> v_bool _loc false
   (* Term (empty list) *)
   | '[' ']'
       when m <<= Trm A
@@ -382,10 +378,10 @@ let parser expr @(m : mode) =
       when m <<= Trm A
       -> qed _loc
   (* Term (fixpoint) *)
-  | _fix_ arg:arg '{' t:term '}'
+  | _fix_ u:_unsafe_? arg:arg '{' t:term '}'
       when m <<= Trm F
       -> let (a,ao) = arg in
-         let t = in_pos _loc (EFixY(a,t)) in
+         let t = in_pos _loc (EFixY(u=None,a,t)) in
          let t = match ao with
            | None -> t
            | Some ty -> in_pos _loc (ECoer(new_sort_uvar None,t,ty))
@@ -461,8 +457,6 @@ and parser patt =
                                      let arg = Some (`LetArgRec [hd; tl]) in
                                      (in_pos _loc "Cons" , arg )
   | c:luid arg:{'[' let_arg ']'}? -> (c                  , arg )
-  | _true_                        -> (in_pos _loc "true" , None)
-  | _false_                       -> (in_pos _loc "false", None)
 
 (* Common entry points. *)
 and term    = expr (Trm F)

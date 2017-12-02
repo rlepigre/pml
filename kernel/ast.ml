@@ -75,9 +75,8 @@ type _ ex =
   (** Value as a term. *)
   | Appl : t ex loc * t ex loc                       -> t  ex
   (** Application. *)
-  | FixY : (t,  v) bndr                              -> t  ex
-  (** Fixpoint combinator Y(x.v).
-*)
+  | FixY : bool * (t,  v) bndr                       -> t  ex
+  (** Fixpoint combinator Y(x.v). bool true: safe *)
   | MAbs : (s, t) bndr                               -> t  ex
   (** Mu abstraction. *)
   | Name : s ex loc * t ex loc                       -> t  ex
@@ -404,10 +403,10 @@ let case : popt -> vbox -> (popt * strloc * (vvar -> tbox)) A.t -> tbox =
     in
     box_apply2 (fun v m -> Pos.make p (Case(v,m))) v (A.map_box f m)
 
-let fixy : popt -> strloc -> (tvar -> vbox) -> tbox =
-  fun p x f ->
+let fixy : popt -> bool -> strloc -> (tvar -> vbox) -> tbox =
+  fun p safe x f ->
     let b = vbind (mk_free T) x.elt f in
-    box_apply (fun b -> Pos.make p (FixY(x.pos, b))) b
+    box_apply (fun b -> Pos.make p (FixY(safe, (x.pos, b)))) b
 
 let prnt : popt -> string -> tbox =
   fun p s -> box (Pos.make p (Prnt(s)))

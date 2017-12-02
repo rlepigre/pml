@@ -32,7 +32,7 @@
                                     "for" "fun" "if" "include" "let" "of"
                                     "print" "qed" "rec" "restore" "save" "set"
                                     "show" "showing" "sort" "such" "that"
-                                    "true" "type" "use" "using" "val"))
+                                    "true" "type" "unsafe" "use" "using" "val"))
                       "\\>")
               'font-lock-keyword-face)
         )

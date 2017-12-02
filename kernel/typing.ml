@@ -523,10 +523,16 @@ and subtype =
           let ps = A.fold check_variant cs1 [] in
           Sub_DSum(ps)
       (* Universal quantification on the left. *)
+      | (Univ(s,f)  , Func _     ) when not t_is_val ->
+          log_sub "general subtyping";
+          gen_subtype ctx a b
       | (Univ(s,f)  , _          ) ->
           let u = new_uvar ctx s in
           Sub_Univ_l(subtype ctx t (bndr_subst f u.elt) b)
       (* Existential quantification on the right. *)
+      | (Func _     , Exis(s,f)  ) when not t_is_val ->
+          log_sub "general subtyping";
+          gen_subtype ctx a b
       | (_          , Exis(s,f)  ) ->
           let u = new_uvar ctx s in
           Sub_Exis_r(subtype ctx t a (bndr_subst f u.elt))
@@ -719,8 +725,8 @@ and check_sub : ctxt -> prop -> prop -> check_sub = fun ctx a b ->
 
   in find_suitable ihs
 
-and check_fix : ctxt -> term -> (t, v) bndr -> prop -> unit -> typ_proof =
-  fun ctx t b c ->
+and check_fix : ctxt -> bool -> term -> (t, v) bndr -> prop -> unit -> typ_proof =
+  fun ctx saf t b c ->
   (* Looking for potential induction hypotheses. *)
   let ihs = Buckets.find b ctx.fix_ihs in
   log_typ "there are %i potential fixpoint induction hypotheses"
@@ -740,7 +746,7 @@ and check_fix : ctxt -> term -> (t, v) bndr -> prop -> unit -> typ_proof =
            in
            log_typ "it matches\n%!";
            (* Add call to call-graph and build the proof. *)
-           if Totality.is_term ctx.totality then
+           if Totality.is_term ctx.totality && saf then
              add_call ctx (ih.fsch_index, spe.fspe_param) true;
            (t, c, Typ_Ind(ih,prf))
          with Subtype_error _ | Exit -> find_suitable ihs
@@ -1159,7 +1165,7 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
         in
         if is_val then Typ_Func_s(p1,p2) else Typ_Func_e(p1,p2)
     (* Fixpoint *)
-    | FixY(b) ->
+    | FixY(saf,b) ->
        let rec break_univ ctx c =
          match (Norm.whnf c).elt with
          | Univ(O,f) -> let (eps, ctx_names) = uwit ctx.ctx_names O t f in
@@ -1169,7 +1175,7 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
        in
        let (c, ctx) = break_univ ctx c in
        let p =
-         Chrono.add_time check_fix_chrono (check_fix ctx t b) c ()
+         Chrono.add_time check_fix_chrono (check_fix ctx saf t b) c ()
        in
        Typ_FixY(p)
     (* μ-abstraction. *)

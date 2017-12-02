@@ -182,7 +182,7 @@ and raw_ex' =
   | EName of raw_ex * raw_ex
   | EProj of raw_ex * flag * strloc
   | ECase of raw_ex * flag * patt_ex list
-  | EFixY of strloc * raw_ex
+  | EFixY of bool * strloc * raw_ex
   | EPrnt of string
   | ERepl of raw_ex * raw_ex * raw_ex
   | EDelm of raw_ex
@@ -241,7 +241,7 @@ let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
     | EProj(v,_,l)  -> Printf.fprintf ch "EProj(%a,%S)" print v l.elt
     | ECase(v,_,l)  -> Printf.fprintf ch "ECase(%a,[%a])" print v
                          (print_list aux_patt "; ") l
-    | EFixY(arg,t)  -> Printf.fprintf ch "EFixY(%a,%a)" aux_var arg print t
+    | EFixY(s,a,t)  -> Printf.fprintf ch "EFixY(%b,%a,%a)" s aux_var a print t
     | EPrnt(s)      -> Printf.fprintf ch "EPrnt(%S)" s
     | ERepl(t,u,a)  -> Printf.fprintf ch "ERepl(%a,%a,%a)"
                          print t print u print a
@@ -565,8 +565,8 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
         end
     | (ECase(_,_,_) , SUni(r)  ) -> sort_uvar_set r _st; infer env vars e s
     | (ECase(_,_,_) , _        ) -> sort_clash e s
-    | (EFixY(arg,v) , ST       ) -> let vars =
-                                      M.add arg.elt (arg.pos, Pos.none ST) vars
+    | (EFixY(s,a,v) , ST       ) -> let vars =
+                                      M.add a.elt (a.pos, Pos.none ST) vars
                                     in
                                     infer env vars v _sv
     | (EFixY(_)     , SUni(r)  ) -> sort_uvar_set r _st; infer env vars e _st
@@ -931,13 +931,13 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
                   let v = to_valu (unsugar env vars v (_sv_store l)) in
                   Box(T, redexes e.pos !l (case e.pos v m))
         end
-    | (EFixY(arg,v) , ST       ) ->
+    | (EFixY(s,a,v) , ST       ) ->
         let fn x =
-          let x = (arg.pos, Box(T, vari arg.pos x)) in
-          let vars = M.add arg.elt x vars in
+          let x = (a.pos, Box(T, vari a.pos x)) in
+          let vars = M.add a.elt x vars in
           to_valu (unsugar env vars v _sv)
         in
-        Box(T, fixy e.pos arg fn)
+        Box(T, fixy e.pos s a fn)
     | (EPrnt(s)     , ST       ) ->
         Box(T, prnt e.pos s)
     | (ERepl(t,u,p) , ST       ) ->
@@ -1081,9 +1081,10 @@ let type_def : Pos.pos -> [`Non | `Rec | `CoRec] -> strloc
       Def_list [d1;d2]
     end
 
+type rec_t = [ `Non | `Rec | `Unsafe ]
 
-let val_def : bool -> strloc -> raw_ex -> raw_ex -> toplevel = fun r id a t ->
-  let t = if r then Pos.make t.pos (EFixY(id, t)) else t in
+let val_def : rec_t -> strloc -> raw_ex -> raw_ex -> toplevel = fun r id a t ->
+  let t = if r = `Non then t else Pos.make t.pos (EFixY(r=`Rec,id, t)) in
   Valu_def(id, a, t)
 
 let check_sub : raw_ex -> bool -> raw_ex -> toplevel = fun a r b ->
@@ -1169,14 +1170,13 @@ let if_then_else _loc c t e =
   let e = match e with Some e -> e | None -> Pos.none EUnit in
   let no_arg c t = ((Pos.none c, None), t) in
   let pats = [ no_arg "true" t ; no_arg "false" e ] in
-  let u = new_sort_uvar None in
-  Pos.in_pos _loc (ECase(Pos.none (ECoer(u,c, p_bool None)), ref `T, pats))
+  Pos.in_pos _loc (ECase(c, ref `T, pats))
 
 (* "let x : a = t in u" := "(fun (x:a) -> u) (t:a)" *)
 let let_binding _loc r arg t u =
   match arg with
   | `LetArgVar(id,ao) ->
-     let t = if not r then t else Pos.make t.pos (EFixY(id, t)) in
+     let t = if r = `Non then t else Pos.make t.pos (EFixY(r=`Rec,id, t)) in
      let t =
         match ao with
         | None   -> t
@@ -1184,7 +1184,7 @@ let let_binding _loc r arg t u =
       in
       in_pos _loc (EAppl(Pos.make u.pos (ELAbs(((id, ao), []), u)), t))
   | `LetArgRec(fs)    ->
-      if r then Earley.give_up (); (* "let rec" is meaningless here. *)
+      if r <> `Non then Earley.give_up (); (* "let rec" is meaningless here. *)
       let xs = List.map snd fs in
       let u = Pos.make u.pos (ELAbs((List.hd xs, List.tl xs), u)) in
       let x = Pos.none "$rec$" in
@@ -1195,7 +1195,7 @@ let let_binding _loc r arg t u =
       let u = List.fold_left fn u fs in
       in_pos _loc (EAppl(Pos.make u.pos (ELAbs(((x, None), []), u)), t))
   | `LetArgTup(fs)    ->
-      if r then Earley.give_up (); (* "let rec" is meaningless here. *)
+      if r <> `Non then Earley.give_up (); (* "let rec" is meaningless here. *)
       let u = Pos.make u.pos (ELAbs((List.hd fs, List.tl fs), u)) in
       let x = Pos.none "$tup$" in
       let is = List.mapi (fun i _ -> Pos.none (string_of_int (i+1))) fs in
@@ -1270,6 +1270,6 @@ let qed _loc =
 
 (* "from a; p" := "let _ = p : a in {}" *)
 let showing _loc a p =
-  let_binding _loc false (`LetArgVar(Pos.none "",None))
+  let_binding _loc `Non (`LetArgVar(Pos.none "",None))
     (Pos.in_pos _loc (ECoer(new_sort_uvar None, p,a)))
     (Pos.in_pos _loc (EReco []))

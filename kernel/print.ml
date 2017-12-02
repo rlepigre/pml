@@ -141,8 +141,9 @@ let rec ex : type a. a ex loc printer = fun ch e ->
                    in
                    let pcase = print_map pelt " | " in
                    fprintf ch "[%a | %a]" ex v pcase m
-  | FixY(b)     -> let (x,t) = unbind (mk_free T) (snd b) in
-                   fprintf ch "fix %s.%a" (name_of x) ex t
+  | FixY(sf,b)  -> let (x,t) = unbind (mk_free T) (snd b) in
+                   let sf = if sf then "" else "unsafe " in
+                   fprintf ch "fix %s%s.%a" sf (name_of x) ex t
   | Prnt(s)     -> fprintf ch "print(%S)" s
   | Repl(t,u,_) -> fprintf ch "(check %a for %a)" ex t ex u
   | Delm(t)     -> fprintf ch "(delim %a)" ex t

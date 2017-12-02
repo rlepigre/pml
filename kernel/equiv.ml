@@ -800,7 +800,7 @@ let rec add_term :  bool -> bool -> pool -> term
                                   m po
                      in
                      insert (TN_Case(pv,m)) po
-    | FixY(b)     -> let (cl, po) = add_bndr_closure po T V b in
+    | FixY(_,b)   -> let (cl, po) = add_bndr_closure po T V b in
                      let ptr = Timed.tref Prep in
                      let (pt, po) = insert_t_node false (TN_FixY(cl,ptr)) po in
                      let pt = Ptr.T_ptr pt in
@@ -1264,7 +1264,7 @@ let rec canonical_term : bool -> TPtr.t -> pool -> term * pool
                             in
                             (Pos.none (Case(v, m)), po)
         | TN_FixY(b,_)   -> let (b, po) = canonical_bndr_closure b po in
-                            (Pos.none (FixY(b)), po)
+                            (Pos.none (FixY(false,b)), po)
         | TN_Prnt(s)     -> (Pos.none (Prnt(s)), po)
         | TN_UWit(w)     -> (Pos.none (UWit(w)), po)
         | TN_EWit(w)     -> (Pos.none (EWit(w)), po)
