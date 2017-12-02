@@ -523,19 +523,17 @@ and subtype =
           let ps = A.fold check_variant cs1 [] in
           Sub_DSum(ps)
       (* Universal quantification on the left. *)
-      | (Univ(s,f)  , Func _     ) when not t_is_val ->
-          log_sub "general subtyping";
-          gen_subtype ctx a b
       | (Univ(s,f)  , _          ) ->
-          let u = new_uvar ctx s in
-          Sub_Univ_l(subtype ctx t (bndr_subst f u.elt) b)
+          if t_is_val then (* avoid creating a witness with a unif var *)
+            let u = new_uvar ctx s in
+            Sub_Univ_l(subtype ctx t (bndr_subst f u.elt) b)
+          else gen_subtype ctx a b
       (* Existential quantification on the right. *)
-      | (Func _     , Exis(s,f)  ) when not t_is_val ->
-          log_sub "general subtyping";
-          gen_subtype ctx a b
       | (_          , Exis(s,f)  ) ->
-          let u = new_uvar ctx s in
-          Sub_Exis_r(subtype ctx t a (bndr_subst f u.elt))
+          if t_is_val then (* avoid creating a witness with a unif var *)
+            let u = new_uvar ctx s in
+            Sub_Exis_r(subtype ctx t a (bndr_subst f u.elt))
+          else gen_subtype ctx a b
       (* Membership on the right. *)
       | (_          , Memb(u,b)  ) when t_is_val ->
           auto_prove ctx (Equiv(t,true,u));
@@ -911,6 +909,26 @@ and add_call : ctxt -> (Scp.index * ordi array) -> bool -> unit =
     in
     UTimed.(ctx.add_calls := todo :: !(ctx.add_calls))
 
+(* application adds a membership, but abs does not remove it.
+   this gives long membership chain and bas instanciation
+   with singleton. We use this function to remove such a membership *)
+and remove_memb : prop -> prop = fun a ->
+  match (Norm.repr a).elt with
+  | Memb(x,a')       ->
+     begin
+       match (Norm.repr x).elt with
+       | UWit _      -> a'
+       | Valu(x)     ->
+          begin
+            match (Norm.repr x).elt with
+            | UWit _ -> a'
+            | _      -> a
+          end
+       | _           -> a
+     end
+  | _                -> a
+
+
 (* Build a call-matrix given the caller and the callee. *)
 and build_matrix : Scp.t -> (ordi * ordi) list ->
                      (Scp.index * ordi array) ->
@@ -966,7 +984,8 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
        let c' = Pos.none (Func(tot,a,b)) in
        let p1 = subtype ctx t c' c in
        log_typ "arrow tot: %a" Print.arrow tot;
-       let (wit,ctx_names) = vwit ctx.ctx_names f a b in
+       let a' = remove_memb a in
+       let (wit,ctx_names) = vwit ctx.ctx_names f a' b in
        let ctx = { ctx with ctx_names; totality = tot } in
        let twit = Pos.none(Valu wit) in
        (* Learn the equivalence that are valid in the witness. *)
