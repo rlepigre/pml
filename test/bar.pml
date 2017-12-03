@@ -25,12 +25,11 @@ val test3 : ∀k, eq⟨k⟩ ⇒ (k ⇒ k ⇒ bool) = fun x { x }
 
 val rec assoc : ∀k,∀v:τ→ο, eq⟨k⟩ ⇒ ∀x∈k, map⟨k,v⟩ ⇒ option⟨v⟨x⟩⟩ =
   fun cmp x l {
-    let k such that cmp : eq⟨k⟩;
     case l {
       []   → None
       c::l → let (y,v) = c;
              if cmp x y { Some[v] } else
-               { assoc cmp (x:k) l }
+               { assoc cmp x l }
     }
   }
 
@@ -45,13 +44,11 @@ val rec assoc : ∀k,∀v:τ→ο, eq⟨k⟩ ⇒ ∀x∈k, map⟨k,v⟩ ⇒ opti
 //         il n'y a aucune implication classique dans le séquant.
 val unsafe bar_aux : ∀a,∀v:τ→ο, ∀m∈map⟨a,v⟩, eq⟨a⟩ ⇒ (∀x, x∈a → v⟨x⟩) → ∀x, x∈a ⇒ v⟨x⟩ =
   fun m cmp f { save st { fun x {
-        let a such that cmp : eq⟨a⟩;
-        //let v such that _ : v⟨x⟩; ne marche pas mais devrait !
-        case assoc cmp (x:a) m {
+        case assoc cmp x m {
           Some[v] → v
           None    → (delim {
               let u = f x;
-              let m = add (x:a) u m;
+              let m = add x u m;
               restore st (bar_aux m cmp f) } : ∀x,x)
         }
       }}}
