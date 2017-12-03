@@ -1273,3 +1273,11 @@ let showing _loc a p =
   let_binding _loc `Non (`LetArgVar(Pos.none "",None))
     (Pos.in_pos _loc (ECoer(new_sort_uvar None, p,a)))
     (Pos.in_pos _loc (EReco []))
+
+let suppose _loc props t =
+  let args = List.map (fun p -> (Pos.none "_", Some p)) props in
+  in_pos _loc (ELAbs((List.hd args, List.tl args),t))
+
+let assume _loc t u =
+  in_pos _loc (ECase(t, ref `T, [((Pos.none "false", None), in_pos _loc EUnit);
+                                 ((Pos.none "true" , None), u)]))

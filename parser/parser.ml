@@ -36,6 +36,7 @@ let parser goal_name = s:''\([^-]\|\(-[^}]\)\)*''
 let parser goal = "{-" str:goal_name "-}" -> String.trim str
 
 (* Keywords. *)
+let _assume_  = Keyword.create "assume"
 let _because_ = Keyword.create "because"
 let _bool_    = Keyword.create "bool"
 let _case_    = Keyword.create "case"
@@ -63,6 +64,8 @@ let _show_    = Keyword.create "show"
 let _showing_ = Keyword.create "showing"
 let _sort_    = Keyword.create "sort"
 let _such_    = Keyword.create "such"
+let _suppose_ = Keyword.create "suppose"
+let _take_    = Keyword.create "take"
 let _that_    = Keyword.create "that"
 let _true_    = Keyword.create "true"
 let _type_    = Keyword.create "type"
@@ -289,6 +292,12 @@ let parser expr @(m : mode) =
   | _fun_ args:arg+ '{' t:term '}'
       when m <<= Trm A
       -> in_pos _loc (ELAbs((List.hd args, List.tl args),t))
+  | _take_ args:arg+ ';' t:(expr (Trm S))
+      when m <<= Trm S
+      -> in_pos _loc (ELAbs((List.hd args, List.tl args),t))
+  | _suppose_ props:(list1 (expr (Prp F)) comma) ';' t:(expr (Trm S))
+      when m <<= Trm S
+      -> suppose _loc props t
   | lambda args:arg+ '.' t:(expr (Trm I))
       when m <<= Trm R
       -> single_line _loc;
@@ -373,6 +382,10 @@ let parser expr @(m : mode) =
   | _showing_   a:(expr (Prp R)) ';' p:(expr (Trm S))
       when m <<= Trm S
       -> showing _loc a p
+  (* Term ("showing" tactic) *)
+  | _assume_   a:(expr (Prp R)) ';' p:(expr (Trm S))
+      when m <<= Trm S
+      -> assume _loc a p
   (* Term ("QED" tactic) *)
   | _qed_
       when m <<= Trm A

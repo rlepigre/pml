@@ -27,14 +27,20 @@
 
 (defconst pml2-font-lock-keywords
   (list (cons (concat "\\<"
-		      (regexp-opt '("because" "bool" "case" "check" "corec"
-                                    "deduce" "def" "delim" "else" "false" "fix"
-                                    "for" "fun" "if" "include" "let" "of"
-                                    "print" "qed" "rec" "restore" "save" "set"
-                                    "show" "showing" "sort" "such" "that"
-                                    "true" "type" "unsafe" "use" "using" "val"))
+		      (regexp-opt
+		      '("assume" "because" "bool" "case" "check" "corec"
+                        "deduce" "def" "delim" "else" "false" "fix"
+                        "for" "fun" "if" "include" "let" "of"
+                        "print" "qed" "rec" "restore" "save" "set"
+                        "show" "showing" "sort" "such" "suppose" "take"
+                        "that" "true" "type" "use" "using" "val"))
                       "\\>")
               'font-lock-keyword-face)
+        (cons (concat "\\<"
+		      (regexp-opt
+		      '("unsafe"))
+                      "\\>")
+              'font-lock-warning-face)
         )
   "Minimal highlighting expressions for pml2 mode.")
 

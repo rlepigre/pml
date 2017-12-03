@@ -10,12 +10,12 @@ val rec print_nat_list : list<nat> ⇒ {} =
     }
   }
 
-val test0 : {} = print_nat_list (take u0 naturals)
-val test1 : {} = print_nat_list (take u1 naturals)
-val test2 : {} = print_nat_list (take u2 naturals)
-val test3 : {} = print_nat_list (take u3 naturals)
-val test4 : {} = print_nat_list (take u4 naturals)
-val test5 : {} = print_nat_list (take u5 naturals)
+val test0 : {} = print_nat_list (takes u0 naturals)
+val test1 : {} = print_nat_list (takes u1 naturals)
+val test2 : {} = print_nat_list (takes u2 naturals)
+val test3 : {} = print_nat_list (takes u3 naturals)
+val test4 : {} = print_nat_list (takes u4 naturals)
+val test5 : {} = print_nat_list (takes u5 naturals)
 
 // Stream of the natural numbers.
 val naturals : stream<nat> =

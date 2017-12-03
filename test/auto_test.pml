@@ -13,6 +13,32 @@ val rec add_assoc : ∀m n p∈nat, add m (add n p) ≡ add (add m n) p =
     }
   }
 
+val taut0a : ∀a∈bool,  imp a a ≡ true =
+  fun a {
+    case a {
+      false → {}
+      true  → {}
+    }
+  }
+
+val taut0b : ∀a∈bool,  imp a a ≡ true =
+  take (a:bool);
+  case a {
+    false → {}
+    true  → {}
+  }
+
+val taut0c : ∀a∈bool,  a ≡ true ⇒  a ≡ true =
+  take (a:bool);
+  suppose a ≡ true;
+  qed
+
+val taut0d : ∀a∈bool,  imp a a ≡ true =
+  take (a:bool);
+  assume a;
+  showing a ≡ true;
+  qed
+
 val taut1 : ∀a b c∈bool,  eq (imp (and a b) c) (imp a (imp b c)) ≡ true =
   fun a b c { set auto 2 10; {} }
 

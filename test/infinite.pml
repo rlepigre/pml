@@ -53,12 +53,12 @@ val itl : stream<nat> ⇒ either<stream<even>, stream<odd>> =
 include test.stream_nat
 
 // Compute the list of the first n elements of a stream.
-val rec take : ∀a, nat ⇒ stream<a> → list<a> =
+val rec takes : ∀a, nat ⇒ stream<a> → list<a> =
   fun n s {
     case n {
            | Zero → Nil
            | S[k] → let c = s {};
-                    let tl = take k c.tl;
+                    let tl = takes k c.tl;
                     Cons[{hd = c.hd; tl = tl}]
     }
   }
@@ -69,13 +69,13 @@ val rec take : ∀a, nat ⇒ stream<a> → list<a> =
 type istream<a> = ν stream, {} ⇒ {hd : a; tl : stream}
 
 // marche avec le sous typage stream intuitioniste < stream classique
-val take2 : ∀a, nat ⇒ istream<a> ⇒ list<a> = fun n s { delim { take n s } }
+val take2 : ∀a, nat ⇒ istream<a> ⇒ list<a> = fun n s { delim { takes n s } }
 
 val test : nat ⇒ either<list<nat>,list<nat>> =
   fun n {
     delim { case itl naturals {
-      InL[s] → InL[take n s]
-      InR[s] → InR[take n s]
+      InL[s] → InL[takes n s]
+      InR[s] → InR[takes n s]
     } }
   }
 

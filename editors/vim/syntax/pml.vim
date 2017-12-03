@@ -19,7 +19,7 @@ highlight link Str Character
 " Keywords
 syntax keyword Keyword fun save restore case of fix let rec corec using use
 syntax keyword Keyword type def val sort if else deduce show qed such that
-syntax keyword Keyword check for because delim set
+syntax keyword Keyword check for because delim set assume suppose take
 syntax match   Keyword "λ"
 syntax match   Keyword "μ"
 syntax match   Keyword "ν"
