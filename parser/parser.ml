@@ -102,7 +102,7 @@ let parser impl    = {"⇒" | "=>"} -> Totality.Tot
                    | {"→" | "->"} -> Totality.Ter
                    | {"↝" | "~>"} -> Totality.Any
 let parser scis    = "✂" | "8<"
-let parser equiv   = "≡" | "="
+let parser equiv   = "≡" | "=="
 let parser nequiv  = "≠"
 let parser neg_sym = "¬"
 let parser prod    = "×" | "*"
@@ -166,7 +166,7 @@ let parser s_lst  = l:(list1 s_arg comma)
 let parser s_args = {_:langle l:s_lst _:rangle}?[[]]
 
 (* Priorities for parsing propositions (Atom, Memb, Rest, Prod, Full). *)
-type p_prio = F | P | R | M | A
+type p_prio = F' | F | P | R | M | A
 
 (* Priorities for parsing terms (Atom, aPpl, Infix, pRefix, Sequ, Full). *)
 type t_prio = F | S | R | I | P | A
@@ -187,6 +187,7 @@ let (<<=) = fun p1 p2 ->
   | Ord p1, Ord p2 -> p1 <= p2
   | _     , _      -> false
 
+let to_full = function
 (* Parser for expressions. *)
 let parser expr @(m : mode) =
   (* Any (higher-order function) *)
@@ -277,17 +278,27 @@ let parser expr @(m : mode) =
       when m <<= Prp M
       -> in_pos _loc (EMemb(t,a))
   (* Proposition (restriction) *)
-  | a:(expr (Prp M)) "|" t:(expr (Trm I)) b:eq u:(expr (Trm I))
+  | a:(expr (Prp M)) "|" t:(expr (Trm I)) bu:{eq (expr (Trm I))}?
       when m <<= Prp R
-      -> in_pos _loc (ERest(Some a,EEquiv(t,b,u)))
+      -> let (b,u) = match bu with
+           | Some(b,u) -> (b,u)
+           | None      -> (true, Pos.none (ECons(Pos.none "true", None)))
+         in in_pos _loc (ERest(Some a,EEquiv(t,b,u)))
   (* Proposition (equivalence) *)
   | t:(expr (Trm I)) b:eq u:(expr (Trm I))
       when m <<= Prp A
       -> in_pos _loc (ERest(None,EEquiv(t,b,u)))
   (* Proposition (parentheses) *)
-  | "(" prop ")"
+  | "(" (expr (Prp F')) ")"
       when m <<= Prp A
-
+  (* Proposition (injection of term) *)
+  | t:(expr (Trm P))
+      when m <<= Prp A && m <> Any && m <> Prp F'
+      -> begin
+          match t.elt with
+            | EVari _ | EHOAp _ | EUnit -> give_up ()
+            | _                         -> t
+         end
   (* Term (lambda abstraction) *)
   | _fun_ args:arg+ '{' t:term '}'
       when m <<= Trm A
@@ -437,6 +448,8 @@ let parser expr @(m : mode) =
   | s:goal
       when m <<= Stk || m <<= Trm A
       -> in_pos _loc (EGoal(s))
+
+and in_par_expr (m:mode) = expr (to_full m)
 
 (* Higher-order variable arguments. *)
 and parser ho_args = {_:langle (list1 any comma) _:rangle}

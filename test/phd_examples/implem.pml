@@ -327,7 +327,7 @@ val rec sorted : ∀a:ο, ∀o∈ord<a>, ∀l∈list<a>, bool =
         case tl {
           Nil      → true
           Cons[c2] → let hd2 = c2.hd;
-                      land<(o.cmp) hd hd2, sorted o tl>
+                      land<o.cmp hd hd2, sorted o tl>
         }
     }
   }

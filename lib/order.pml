@@ -3,8 +3,8 @@ include lib.list
 
 type ord<a> = ∃cmp,
   { cmp   : cmp ∈ (a ⇒ a ⇒ bool)
-  ; trans : ∀x y z∈a, (cmp x y ≡ true ⇒ cmp y z ≡ true ⇒ cmp x y ≡ true)
-  ; total : ∀x y∈a, or (cmp x y) (cmp y x) ≡ true }
+  ; trans : ∀x y z∈a, cmp x y ⇒ cmp y z ⇒ cmp x y
+  ; total : ∀x y∈a, or (cmp x y) (cmp y x) }
 
 val rec sorted : ∀a, ∀o∈ord<a>, ∀l∈list<a>, bool =
   fun o l {
@@ -22,7 +22,7 @@ val rec sorted : ∀a, ∀o∈ord<a>, ∀l∈list<a>, bool =
     }
   }
 
-type slist<a,o> = {l∈list<a> | sorted o l ≡ true}
+type slist<a,o> = {l∈list<a> | sorted o l }
 
 val tl : ∀a, list<a> ⇒ list<a> =
   fun l {
@@ -32,7 +32,7 @@ val tl : ∀a, list<a> ⇒ list<a> =
     }
   }
 
-val tl_sorted : ∀a, ∀o∈ord<a>, ∀l∈slist<a,o>, sorted o (tl l) ≡ true =
+val tl_sorted : ∀a, ∀o∈ord<a>, ∀l∈slist<a,o>, sorted o (tl l) =
   fun o l {
     case l {
       Nil →

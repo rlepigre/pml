@@ -28,7 +28,7 @@ val taut0b : ∀a∈bool,  imp a a ≡ true =
     true  → {}
   }
 
-val taut0c : ∀a∈bool,  a ≡ true ⇒  a ≡ true =
+val taut0c : ∀a∈bool,  a ⇒ a =
   take (a:bool);
   suppose a ≡ true;
   qed

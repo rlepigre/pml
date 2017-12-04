@@ -555,6 +555,13 @@ let strict_prod : popt -> (popt * pbox) A.t -> pbox =
     in
     build [] (List.map fst (A.bindings m))
 
+(** produce t = true *)
+let eq_true : popt -> tbox -> pbox =
+  fun _loc t ->
+    let true_ = cons None (Pos.none "true") (reco None A.empty) in
+    let cond = equiv t true (valu None true_) in
+    rest _loc (strict_prod None A.empty) cond
+
 (** {5 useful functions} *)
 
 let rec is_scis : type a. a ex loc -> bool =

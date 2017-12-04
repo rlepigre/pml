@@ -294,28 +294,32 @@ exception Already_matched of strloc
 let already_matched : strloc -> 'a =
   fun s -> raise (Already_matched(s))
 
-let rec leq_sort : env -> raw_sort -> raw_sort -> bool = fun env s1 s2 ->
-  log_par "leq_sort %a %a" print_raw_sort s1 print_raw_sort s2;
-  let res =
-  match ((sort_repr env s1).elt, (sort_repr env s2).elt) with
-  | (SV _       , SV _       ) -> true
-  | (ST         , ST         ) -> true
-  | (SV _       , ST         ) -> true
-  | (SS         , SS         ) -> true
-  | (SP         , SP         ) -> true
-  | (SO         , SO         ) -> true
-  | (SFun(s1,s2), SFun(k1,k2)) -> leq_sort env k1 s1 && leq_sort env s2 k2
-  | (SUni(r1)   , SUni(r2)   ) -> if r1 != r2 then sort_uvar_set r1 s2; true
-  | (SUni(r)    , _          ) -> sort_uvar_set r s2; true
-  | (_          , SUni(r)    ) -> sort_uvar_set r s1; true
-  | (_          , _          ) -> false
-  in log_par "ok"; res
+let rec leq_sort : ?evar:bool -> env -> raw_sort -> raw_sort -> bool =
+  fun ?(evar=false) env s1 s2 ->
+    log_par "leq_sort %a %a" print_raw_sort s1 print_raw_sort s2;
+    let res =
+      match ((sort_repr env s1).elt, (sort_repr env s2).elt) with
+      | (SV _       , SV _       ) -> true
+      | (ST         , ST         ) -> true
+      | (SV _       , ST         ) -> true
+      | (SS         , SS         ) -> true
+      | (SP         , SP         ) -> true
+      | (SO         , SO         ) -> true
+      | (SV _       , SP         ) when evar -> true
+      | (ST         , SP         ) when evar -> true
+      | (SFun(s1,s2), SFun(k1,k2)) -> leq_sort env k1 s1 && leq_sort env s2 k2
+      | (SUni(r1)   , SUni(r2)   ) -> if r1 != r2 then sort_uvar_set r1 s2; true
+      | (SUni(r)    , _          ) -> sort_uvar_set r s2; true
+      | (_          , SUni(r)    ) -> sort_uvar_set r s1; true
+      | (_          , _          ) -> false
+    in log_par "ok"; res
 
 let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
   let open Timed in
   let rec infer env vars e s =
     log_par "infer %a : %a" print_raw_expr e print_raw_sort s;
-    let leq u s = if not (leq_sort env u s) then sort_clash e s in
+    let leq  u s = if not (leq_sort env u s) then sort_clash e s in
+    let leqv u s = if not (leq_sort ~evar:true env u s) then sort_clash e s in
     match (e.elt, (sort_repr env s).elt) with
     | (EVari(x,sx)     , _        ) ->
         begin
@@ -325,11 +329,11 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
                 let Expr(k,d) = find_expr x.elt env in
                 sort_from_ast k
             in
-            leq sy sx; leq sx s
+            leq sy sx; leqv sx s
           with Not_found ->
             try
               ignore (find_value x.elt env);
-              leq _sv sx; leq sx s
+              leq _sv sx; leqv sx s
             with Not_found ->
               unbound_var x.elt x.pos
          end
@@ -526,6 +530,7 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
     | (EGoal(str)   , SUni(r)  ) -> sort_uvar_set r _sv; infer env vars e s
     | (EGoal(_)     , _        ) -> sort_clash e s
     | (EAppl(t,u)   , ST       ) -> infer env vars t s; infer env vars u s
+    | (EAppl(t,u)   , SP       ) -> infer env vars t _st; infer env vars u _st
     | (EAppl(_,_)   , SUni(r)  ) -> sort_uvar_set r _st; infer env vars e s
     | (EAppl(_,_)   , _        ) -> sort_clash e s
     | (ESequ(t,u)   , ST       ) -> infer env vars t s; infer env vars u s
@@ -672,20 +677,25 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
   let rec unsugar env vars e s =
     log_par "unsug %a : %a" print_raw_expr e print_raw_sort s;
     match (e.elt, (sort_repr env s).elt) with
-    | (EVari(x,sx)   , s0       ) when leq_sort env sx s ->
-        begin
-          log_par "unsug ici 0";
-          try box_set_pos (snd (M.find x.elt vars)) e.pos
-          with Not_found -> try
-            log_par "unsug ici 1";
-            let Expr(sx, d) = find_expr x.elt env in
-            let bx = Box(sx, Bindlib.box (Pos.make x.pos (HDef(sx,d)))) in
-            box_set_pos bx e.pos
-          with Not_found ->
-            log_par "unsug ici 2";
-            let d = find_value x.elt env in
-            Box(V, Bindlib.box (Pos.make x.pos (VDef(d))))
-        end
+    | (EVari(x,sx)   , s0       ) when leq_sort ~evar:true env sx s ->
+       begin
+         let convert t = if leq_sort env sx _st && leq_sort env _sp s
+                         then Box(P,eq_true e.pos (to_term t))
+                         else t
+         in
+         let bx =
+           try box_set_pos (snd (M.find x.elt vars)) e.pos
+           with Not_found -> try
+               let Expr(sx, d) = find_expr x.elt env in
+               let bx = Box(sx, Bindlib.box (Pos.make x.pos (HDef(sx,d)))) in
+               box_set_pos bx e.pos
+             with Not_found ->
+               log_par "unsug ici 2";
+               let d = find_value x.elt env in
+               Box(V, Bindlib.box (Pos.make x.pos (VDef(d))))
+         in
+         convert bx
+       end
     | (EHOAp(f,xs,es), s0      ) ->
         let box = unsugar env vars f xs in
         let rec build_app (Box(se,ex)) args =
@@ -884,6 +894,9 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
         let t = to_term (unsugar env vars t _st) in
         let u = to_term (unsugar env vars u _st) in
         Box(T, appl e.pos t u)
+    | (EAppl(_)     , SP       ) ->
+        let t = to_term (unsugar env vars e _st) in
+        Box(P, eq_true e.pos t)
     | (ESequ(t,u)   , ST       ) ->
         let t = to_term (unsugar env vars t _st) in
         let u = to_term (unsugar env vars u _st) in

@@ -107,9 +107,9 @@ val rec map_map : ∀a b c:ο, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c), ∀l∈list<a
         let lem = map fn tl;
         let ind : map gn (map fn tl) ≡ map gof tl = map_map fn gn tl;
         let ded : gn (fn hd) ≡ gof hd = {};
-        let ded : map gn (map fn ls) =
+        let ded : map gn (map fn ls) ==
           Cns[{ hd = gn (fn hd) ; tl = map gn (map fn tl)}] = {};
-        let ded : map gof ls =
+        let ded : map gof ls ==
           Cns[{ hd = gof hd ; tl = map gof tl }] = {}; {}
     }
   }

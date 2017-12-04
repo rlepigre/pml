@@ -39,7 +39,7 @@ val rec add_perm_assoc : ∀n m p∈nat,
     }
   }
 
-val rec add_perm_add : ∀n m∈nat, add_perm n m = add n m =
+val rec add_perm_add : ∀n m∈nat, add_perm n m == add n m =
   fun n m {
     case n {
       Zero → {}
