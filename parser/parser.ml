@@ -165,7 +165,9 @@ let parser s_arg  = id:llid so:{_:column s:sort}?
 let parser s_lst  = l:(list1 s_arg comma)
 let parser s_args = {_:langle l:s_lst _:rangle}?[[]]
 
-(* Priorities for parsing propositions (Atom, Memb, Rest, Prod, Full). *)
+(* Priorities for parsing propositions (Atom, Memb, Rest, Prod, Full).
+   F' is used to avoid the injection term -> prop inside parenthesis
+   otherwise, it is ambiguous *)
 type p_prio = F' | F | P | R | M | A
 
 (* Priorities for parsing terms (Atom, aPpl, Infix, pRefix, Sequ, Full). *)

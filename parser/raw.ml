@@ -690,7 +690,6 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
                let bx = Box(sx, Bindlib.box (Pos.make x.pos (HDef(sx,d)))) in
                box_set_pos bx e.pos
              with Not_found ->
-               log_par "unsug ici 2";
                let d = find_value x.elt env in
                Box(V, Bindlib.box (Pos.make x.pos (VDef(d))))
          in
