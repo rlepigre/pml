@@ -723,7 +723,8 @@ and check_sub : ctxt -> prop -> prop -> check_sub = fun ctx a b ->
 
   in find_suitable ihs
 
-and check_fix : ctxt -> bool -> term -> (t, v) bndr -> prop -> unit -> typ_proof =
+and check_fix
+    : ctxt -> bool -> term -> (t, v) bndr -> prop -> unit -> typ_proof =
   fun ctx saf t b c ->
   (* Looking for potential induction hypotheses. *)
   let ihs = Buckets.find b ctx.fix_ihs in

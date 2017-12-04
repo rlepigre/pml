@@ -308,7 +308,8 @@ let rec leq_sort : ?evar:bool -> env -> raw_sort -> raw_sort -> bool =
       | (SV _       , SP         ) when evar -> true
       | (ST         , SP         ) when evar -> true
       | (SFun(s1,s2), SFun(k1,k2)) -> leq_sort env k1 s1 && leq_sort env s2 k2
-      | (SUni(r1)   , SUni(r2)   ) -> if r1 != r2 then sort_uvar_set r1 s2; true
+      | (SUni(r1)   , SUni(r2)   ) -> if r1 != r2 then sort_uvar_set r1 s2;
+                                      true
       | (SUni(r)    , _          ) -> sort_uvar_set r s2; true
       | (_          , SUni(r)    ) -> sort_uvar_set r s1; true
       | (_          , _          ) -> false
