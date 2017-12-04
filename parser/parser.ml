@@ -103,7 +103,7 @@ let parser impl    = {"⇒" | "=>"} -> Totality.Tot
                    | {"↝" | "~>"} -> Totality.Any
 let parser scis    = "✂" | "8<"
 let parser equiv   = "≡" | "=="
-let parser nequiv  = "≠"
+let parser nequiv  = "≠" | "!="
 let parser neg_sym = "¬"
 let parser prod    = "×" | "*"
 let parser lambda  = "λ"
