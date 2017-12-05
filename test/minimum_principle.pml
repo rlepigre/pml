@@ -44,12 +44,15 @@ val rec fn : ∀f∈(nat ⇒ nat), ∀n∈nat, ∀q∈(nat | q ≡ f n),
         }} : min<n,f>)
   }
 
-val unsafe gn : ∀f∈(nat ⇒ nat), ∀n∈nat,
-    (∀n∈ nat, min<n,f> → bot) → bot =
+type umin<n,f> = ∀p, p ∈ nat ↝ leq (f n) (f p)
+
+val rec gn : ∀f∈(nat ⇒ nat), ∀n∈nat,
+    (∀n∈ nat, umin<n,f> → bot) ↝ bot =
   fun f n k {
-    k (n:nat) (fun p { gn f p k } : min<n,f>)
+    k (n:nat) (fun p { gn f p k } : umin<n,f>)
   }
 
+// It would be nice to prove fn ≡ gn ⋯
 // val lemma : ∀f∈(nat ⇒ nat), ∀n∈nat, ∀q∈(nat | q ≡ f n),
 //               ∀k∈(∀n∈ nat, min<n,f> → bot), fn f n q k ≡ gn f n k =
 //   fun f n q k {
@@ -76,7 +79,7 @@ val test : ∀f:ι, f∈(nat ⇒ nat) ⇒ ∃n∈nat, leq (f n) (f (succ (mul u2
   fun f {
     delim {
       let (n,p) = minimum_principle f;
-      //println_nat n;
+      //println_nat n; //print intermediate results
       use total (mul u2) n;
       (n, p (succ (mul u2 n)))
     }
@@ -85,4 +88,7 @@ val test : ∀f:ι, f∈(nat ⇒ nat) ⇒ ∃n∈nat, leq (f n) (f (succ (mul u2
 val max : nat ⇒ nat ⇒ nat = fun x y { if leq x y { y } else { x } }
 val abssub : nat ⇒ nat ⇒ nat = fun x y { max (minus x y) (minus y x) }
 val f_alex : nat ⇒ nat = fun n { abssub n u1000 }
-val test1 : {} = println_nat (test f_alex).1
+
+val test1 : ∃n, n∈nat | leq (f_alex n) (f_alex (succ (mul u2 n))) =
+  (test f_alex).1
+val test2 : {} = println_nat test1
