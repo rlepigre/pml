@@ -501,13 +501,13 @@ let children_t_node : t_node -> (par_key * Ptr.t) list = fun n ->
 let pure_t_node = function
   | TN_UWit(eps) -> Pure.pure (Pos.none (UWit eps))
   | TN_EWit(eps) -> Pure.pure (Pos.none (EWit eps))
-  | _            -> false
+  | _            -> true
 
 let pure_v_node = function
   | VN_VWit(eps) -> Pure.pure (Pos.none (VWit eps))
   | VN_UWit(eps) -> Pure.pure (Pos.none (UWit eps))
   | VN_EWit(eps) -> Pure.pure (Pos.none (EWit eps))
-  | _            -> false
+  | _            -> true
 
 (** Test if a term is "free", that is occures not only unser binder
     and therefore should be normalised. This is important for closure,

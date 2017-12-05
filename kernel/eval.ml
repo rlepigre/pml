@@ -106,7 +106,7 @@ let rec step : proc -> proc option = function
       end
   | (TPrnt(s)          , pi         ) ->
       begin
-        output_string stdout s;
+        Printf.printf "%s%!" s;
         Some (TValu(VReco(A.empty)), pi)
       end
   (* Runtime errors. *)

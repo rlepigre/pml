@@ -86,7 +86,7 @@ let pure : type a. a ex loc -> bool =
     | VPtr(_)     -> ()
     | TPtr(_)     -> ()
     | VWit(w)     -> if todo e then liter w
-    | SWit(w)     -> if todo e then liter w
+    | SWit(w)     -> raise Exit
     | UWit(w)     -> if todo e then liter w
     | EWit(w)     -> if todo e then liter w
     | OWMu(w)     -> if todo e then liter w

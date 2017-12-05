@@ -16,10 +16,10 @@ val total : ∀a b, ∀f∈a⇒b, ∀x∈a, ∃v:ι, v ∈ b | v ≡ f x =
   fun f x { let y = f x; y }
 
 val rec find : ∀a:ο, ∀f∈(a ⇒ bool),
-                       ∀l∈list<a>, neg<(exists f l ≡ false)> ⇒ a =
+                       ∀l∈list<a>, neg<(exists f l ≡ false)> → a =
   fun f l exc {
     case l {
-      | Nil[_]  → (delim { exc {} } : bot)
+      | Nil[_]  → exc {}
       | Cons[c] → let hd = c.hd; let tl = c.tl;
                   use total f hd;
                   if f hd { hd } else { find f tl exc }
@@ -28,9 +28,9 @@ val rec find : ∀a:ο, ∀f∈(a ⇒ bool),
 
 val find_opt : ∀a:ο, ∀f∈(a ⇒ bool), list<a> ⇒ option<a> =
   fun f l {
-    save a {
+    delim { save a {
       Some[find f l (fun _ { restore a none })]
-    }
+    }}
   }
 
 val notNone : ∀a:ο, option<a> ⇒ bool =
@@ -41,9 +41,9 @@ val rec find2 : ∀a:ο, ∀f∈(a ⇒ bool), list<list<a>> ⇒ option<a> =
     case ls {
       Nil     → none
       Cons[c] →
-        save a {
-          Some[find f c.hd (fun _ { restore a (find2 f c.tl) })]
-        }
+        delim { save a {
+            Some[find f c.hd (fun _ { restore a (find2 f c.tl) })]
+        }}
     }
   }
 

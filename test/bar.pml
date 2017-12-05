@@ -5,11 +5,6 @@ include lib.list
 // la implication intuitioniste est incluse dans la implication classique
 val test1 : ∀a b, (a ⇒ b) ⇒ (a → b) = fun f { f }
 
-// la implication classique s'envoie sur a ⇒ non non b
-val test2 : ∀a b, (a → b) ⇒ (a ⇒ (b ⇒ ∀x,x) ⇒ ∀x,x) =
-   fun f x g { delim { (g (f x)) } }
-
-
 // paire dependante
 type dep_pair⟨k,v:τ→ο⟩ = ∃x:τ,x∈k * v⟨x⟩
 
@@ -36,24 +31,24 @@ val rec assoc : ∀k,∀v:τ→ο, eq⟨k⟩ ⇒ ∀x∈k, map⟨k,v⟩ ⇒ opti
 // La bar recursion ⋯ qui ne passe pas le test de terminaison.
 // Mais ça type !!!
 
+def neg⟨a⟩ = a ⇒ ∀x,x
+
 // notes
 // → : implication classique
 // ⇒ : implication intuitionniste
-// delim : pour (si on a le droit) passer de classique à inuitionniste,
-//         on a le droit si le but est de type bottom. Mais aussi si
-//         il n'y a aucune implication classique dans le séquant.
-val unsafe bar_aux : ∀a,∀v:τ→ο, ∀m∈map⟨a,v⟩, eq⟨a⟩ ⇒ (∀x, x∈a → v⟨x⟩) → ∀x, x∈a ⇒ v⟨x⟩ =
-  fun m cmp f { save st { fun x {
+val unsafe bar_aux : ∀a,∀v:τ→ο, ∀m∈map⟨a,v⟩, eq⟨a⟩ ⇒ (∀x∈a, neg⟨neg⟨v⟨x⟩⟩⟩) ⇒ neg⟨neg⟨∀x∈a, v⟨x⟩⟩⟩ =
+  fun m cmp f g {
+    let a,v such that m : map⟨a,v⟩;
+    g (fun x {
         case assoc cmp x m {
           Some[v] → v
-          None    → (delim {
-              let u = f x;
-              let m = add x u m;
-              restore st (bar_aux m cmp f) } : ∀x,x)
-        }
-      }}}
+          None    →
+            f x (fun u {
+                let m = add x u m;
+                bar_aux m cmp f g })}
+      } : ∀x∈a, v⟨x⟩)}
 
-val bar : ∀a,∀v:τ→ο, eq⟨a⟩ ⇒ (∀x, x∈a → v⟨x⟩) → ∀x, x∈a ⇒ v⟨x⟩ =
+val bar : ∀a,∀v:τ→ο, eq⟨a⟩ ⇒ (∀x∈a, neg⟨neg⟨v⟨x⟩⟩⟩) ⇒ neg⟨neg⟨∀x∈a, v⟨x⟩⟩⟩ =
   fun cmp f { bar_aux [] cmp f }
 
 // Axiome du choix intuitionniste On voudrait
@@ -67,7 +62,7 @@ val aci : ∀a,∀v, (∀x∈a, v⟨x⟩) ⇒ ∃f,∀x∈a, (f x)∈v⟨x⟩ =
 // val aci : ∀a,∀v, (∀x∈a, ∃y, v⟨x,y⟩) ⇒ ∃f,∀x∈a, v⟨x, f⟨x⟩⟩ =
 // Mais il faudrait des liaisons dans les epsilons (au moins les ewit)
 
-// La version classique ne marche, fort heureusement,
+// La version classique ne marche pas, fort heureusement,
 // grâce à la value restriction.
 // val acc : ∀a,∀v, (∀x, x∈a → v⟨x⟩) → ∃f,∀x, x∈a → (f x)∈v⟨x⟩ =
 //   fun f {
@@ -76,5 +71,5 @@ val aci : ∀a,∀v, (∀x∈a, v⟨x⟩) ⇒ ∃f,∀x∈a, (f x)∈v⟨x⟩ =
 //   }
 
 // Et l'axiome du choix dénombrable et classique.
-val acc_den : ∀a,∀v:τ→ο, eq⟨a⟩ ⇒ (∀x, x∈a → v⟨x⟩) → ∃f,∀x∈a, (f x)∈v⟨x⟩ =
-  fun cmp f { aci (bar cmp f) }
+val acc_den : ∀a,∀v:τ→ο, eq⟨a⟩ ⇒ (∀x∈a, neg⟨neg⟨v⟨x⟩⟩⟩) ⇒ neg⟨neg⟨∃f,∀x∈a, (f x)∈v⟨x⟩⟩⟩ =
+  fun cmp f g { bar cmp f (fun h { g (aci h) }) }

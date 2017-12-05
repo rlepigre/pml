@@ -81,6 +81,7 @@ val u90  : nat = mul u10 u9
 val u91  : nat = succ u90
 val u100 : nat = mul u10 u10
 val u101 : nat = succ u100
+val u1000 : nat = mul u10 u100
 
 //// Comparison and equality /////////////////////////////////////////////////
 

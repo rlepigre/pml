@@ -1168,11 +1168,10 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
         in
         let (is_val, _, ctx) = term_is_value u ctx in
         let tot = ctx.totality in
-        let (ae, strong) =
+        let ae =
           if is_val || not (Totality.is_not_tot tot) then
-            (Pos.none (Memb(u, a)), true) else (a, false)
+            Pos.none (Memb(u, a)) else a
         in
-        log_typ "strong: %b" strong;
         let (p1,p2) =
           if is_typed VoT_T t && not (is_typed VoT_T u) then
             let p1 = type_term ctx f (Pos.none (Func(tot,ae,c))) in
@@ -1314,11 +1313,7 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
         let p2 = type_term { ctx with totality = Totality.Tot } p eq in
         Typ_Repl(p1,p2)
     | Delm(t)     ->
-       let is_bot  = try ignore(gen_subtype ctx c Ast.bottom); true
-                     with _ -> false
-       in
-       let pure = is_bot ||
-                    Pure.(pure t && pure c
+       let pure = Pure.(pure t && pure c
                         && Lazy.force ctx.equations.pool.pure)
        in
        let ctx =
