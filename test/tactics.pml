@@ -46,21 +46,11 @@ val rec add_comm : ∀n m∈nat, add n m ≡ add m n =
     }
   }
 
-val rec add_total : ∀n m∈nat, ∃v:ι, add n m ≡ v =
-  fun n m {
-    case n {
-      Zero    → {}
-      Succ[k] → let ih = add_total k m; {}
-    }
-  }
-
 val rec add_asso : ∀n m p∈nat, add n (add m p) ≡ add (add n m) p =
   fun n m p {
-    let tot_m_p = add_total m p;
     case n {
       Zero    → {}
-      Succ[k] → let tot_k_m = add_total k m;
-                let ih = add_asso k m p; {}
+      Succ[k] → let ih = add_asso k m p; {}
     }
   }
 
@@ -72,25 +62,16 @@ val rec mul_n_zero : ∀n∈nat, mul n Zero ≡ Zero =
     }
   }
 
-val rec mul_total : ∀n m∈nat, ∃v:ι, mul n m ≡ v =
-  fun n m {
-    case n {
-      Zero    → {}
-      Succ[k] → let ih = mul_total k m;
-                let lem = add_total m (mul k m); {}
-    }
-  }
-
 val rec mul_succ : ∀n m∈nat, mul n Succ[m] ≡ add (mul n m) n =
   fun n m {
     case n {
       Zero    → {}
       Succ[k] → let lem = mul_succ k m;
-                let tot = mul_total k m;
-                let tot = add_total m (mul k m);
+                let val _ = mul k m;
+                let val _ = add m (mul k m);
                 let lem = add_succ (add m (mul k m)) k;
                 let lem = add_asso m (mul k m) k;
-                let tot = mul_total k Succ[m]; {}
+                {}
     }
   }
 
@@ -100,7 +81,7 @@ val rec mul_comm : ∀n m∈nat, mul n m ≡ mul m n =
       Zero    → let lem = mul_n_zero m; {}
       Succ[k] → let ih  = mul_comm m k;
                 let lem = mul_succ m k;
-                let tot = mul_total k m;
+                let val _ = mul k m;
                 let lem = add_comm (mul k m) m; {}
     }
   }
@@ -115,7 +96,6 @@ val rec mul_comm : ∀n m∈nat, mul n m ≡ mul m n =
                 let lem : mul m Succ[k] ≡ add (mul m k) m =
                   mul_succ m k
                ;
-                let tot : (∃v:ι, mul k m ≡ v) = mul_total k m;
                 let lem : add (mul k m) m ≡ add m (mul k m) =
                   add_comm (mul k m) m
                ; {}
@@ -133,7 +113,6 @@ val rec mul_comm : ∀n m∈nat, mul n m ≡ mul m n =
       Succ[k] → t_deduce<mul Succ[k] m ≡ add m (mul k m)>;
                 t_show<mul k m ≡ mul m k, mul_comm k m>;
                 t_show<mul m Succ[k] ≡ add (mul m k) m, mul_succ m k>;
-                t_show<(∃v:ι, mul k m ≡ v), mul_total k m>;
                 t_show<add (mul k m) m ≡ add m (mul k m), add_comm (mul k m) m>
     }
   }

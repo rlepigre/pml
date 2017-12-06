@@ -465,10 +465,10 @@ and subtype =
            match is_singleton a1 with
            | Some _ ->
               let p1 = subtype ctx wit a2 a1 in
-              let p2 = subtype ctx (Pos.none (Appl(t, wit))) b1 b2 in
+              let p2 = subtype ctx (Pos.none (Appl(t, wit, false))) b1 b2 in
               (p1,p2)
            | None ->
-              let p2 = subtype ctx (Pos.none (Appl(t, wit))) b1 b2 in
+              let p2 = subtype ctx (Pos.none (Appl(t, wit, false))) b1 b2 in
               let p1 = subtype ctx wit a2 a1 in
               (p1,p2)
          in
@@ -632,7 +632,8 @@ and auto_prove : ctxt -> rel -> unit =
              let ty = unbox (rest None (prod None A.empty) (box rel)) in
              let u = valu None (reco None A.empty) in
              let f = labs None None (Pos.none "x") (fun _ -> u) in
-             let t = unbox (appl None (valu None f) (Bindlib.box e)) in
+             let t = unbox (appl ~strong:true None
+                                 (valu None f) (Bindlib.box e)) in
              let (l1,l2) = ctx.auto_lvl in
              log_aut "totality (%d,%d): %a" l1 l2 Print.ex t;
              (try type_term ctx t ty
@@ -1128,7 +1129,7 @@ and is_typed : type a. a v_or_t -> a ex loc -> bool = fun t e ->
   match (t,e.elt) with
   | _, Coer(_,_,a)     -> uvars a = []
   | _, VWit(w)         -> !(w.vars) = []
-  | _, Appl(t,_)       -> is_typed VoT_T t
+  | _, Appl(t,_,_)     -> is_typed VoT_T t
   | _, Valu(v)         -> is_typed VoT_V v
   | _, Proj(v,_)       -> is_typed VoT_V v
   | _, Cons(_,v)       -> is_typed VoT_V v
@@ -1160,7 +1161,7 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
     | Valu(v)     ->
         let (_, _, r) = type_valu ctx v c in r
     (* Application or strong application. *)
-    | Appl(f,u)   ->
+    | Appl(f,u,s) ->
         (* try to get the type of u. usefull in let syntactic sugar *)
         let a = match (Norm.whnf t).elt with
           | Valu{elt = LAbs(Some a, _)} -> a
@@ -1168,21 +1169,22 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
         in
         let (is_val, _, ctx) = term_is_value u ctx in
         let tot = ctx.totality in
-        let ae =
-          if is_val || not (Totality.is_not_tot tot) then
-            Pos.none (Memb(u, a)) else a
+        let (ae, strong) =
+          if is_val || s || not (Totality.is_not_tot tot) then
+            (Pos.none (Memb(u, a)), true) else (a, false)
         in
+        let ctx_u = if strong then { ctx with totality = Totality.Tot } else ctx in
         let (p1,p2) =
           if is_typed VoT_T t && not (is_typed VoT_T u) then
             let p1 = type_term ctx f (Pos.none (Func(tot,ae,c))) in
-            let p2 = type_term ctx u a in
+            let p2 = type_term ctx_u u a in
             (p1,p2)
           else
-            let p2 = type_term ctx u a in
+            let p2 = type_term ctx_u u a in
             let p1 = type_term ctx f (Pos.none (Func(tot,ae,c))) in
             (p1,p2)
         in
-        if is_val then Typ_Func_s(p1,p2) else Typ_Func_e(p1,p2)
+        if strong then Typ_Func_s(p1,p2) else Typ_Func_e(p1,p2)
     (* Fixpoint *)
     | FixY(saf,b) ->
        let rec break_univ ctx c =

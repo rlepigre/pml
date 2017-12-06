@@ -75,7 +75,7 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
     | VDef(_)     -> acc
 
     | Valu(v)     -> owits acc v
-    | Appl(t,u)   -> owits (owits acc t) u
+    | Appl(t,u,_) -> owits (owits acc t) u
     | FixY(_,f)   -> owits acc (bndr_subst f (Dumm T))
     | MAbs(f)     -> owits acc (bndr_subst f (Dumm S))
     | Name(s,t)   -> owits (owits acc s) t

@@ -83,7 +83,7 @@ let map : type a. ?mapper:mapper -> a ex loc -> a box
             | PSet(l,s,t) -> pset e.pos l s (map t)
 
             | Valu(v)     -> valu e.pos (map v)
-            | Appl(t,u)   -> appl e.pos (map t) (map u)
+            | Appl(t,u,s) -> appl ~strong:s e.pos (map t) (map u)
             | MAbs(f)     -> mabs e.pos (bndr_name f)
                                   (fun x -> map (bndr_subst f (mk_free S x)))
             | Name(s,t)   -> name e.pos (map s) (map t)

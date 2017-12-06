@@ -75,7 +75,7 @@ let uvar_iter : type a. bool -> bool -> bool -> uvar_fun -> a ex loc -> unit =
       | Scis        -> ()
       | VDef(_)     -> () (* NOTE no unification variable in definition. *)
       | Valu(v)     -> uvar_iter v
-      | Appl(t,u)   -> uvar_iter t; uvar_iter u
+      | Appl(t,u,_) -> uvar_iter t; uvar_iter u
       (* NOTE type annotation ignored. *)
       | MAbs(b)     -> buvar_iter S b
       | Name(s,t)   -> uvar_iter s; uvar_iter t

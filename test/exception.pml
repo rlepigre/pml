@@ -12,16 +12,13 @@ val rec exists : ∀a:ο, (a ⇒ bool) ⇒ list<a> ⇒ bool =
     }
   }
 
-val total : ∀a b, ∀f∈a⇒b, ∀x∈a, ∃v:ι, v ∈ b | v ≡ f x =
-  fun f x { let y = f x; y }
-
 val rec find : ∀a:ο, ∀f∈(a ⇒ bool),
                        ∀l∈list<a>, neg<(exists f l ≡ false)> → a =
   fun f l exc {
     case l {
       | Nil[_]  → exc {}
       | Cons[c] → let hd = c.hd; let tl = c.tl;
-                  use total f hd;
+                  let val _ = f hd;
                   if f hd { hd } else { find f tl exc }
     }
   }

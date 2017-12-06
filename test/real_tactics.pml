@@ -286,15 +286,12 @@ val rec exists : ∀a, (a ⇒ bool) ⇒ list<a> ⇒ bool =
 type bot = ∀x, x
 type neg<a> = a → bot
 
-val total : ∀a b, ∀f∈a⇒b, ∀x∈a, ∃v:ι, v ∈ b | v ≡ f x =
-  fun f x { let y = f x; y }
-
 val rec find : ∀a:ο, ∀pred∈(a ⇒ bool),
                ∀l∈list<a>, neg<exists pred l ≡ false> → a =
   fun pred l exc {
     case l {
       Nil[_]  → exc {}
-      Cons[c] → let lem = total pred c.hd;
+      Cons[c] → let val _ = pred c.hd;
                 if pred c.hd { c.hd } else { find pred c.tl exc }
     }
   }

@@ -129,7 +129,7 @@ let rec ex : type a. a ex loc printer = fun ch e ->
   | Scis        -> output_string ch "✂"
   | VDef(d)     -> output_string ch d.value_name.elt
   | Valu(v)     -> ex ch v
-  | Appl(t,u)   -> fprintf ch "(%a) (%a)" ex t ex u
+  | Appl(t,u,_) -> fprintf ch "(%a) (%a)" ex t ex u
   | MAbs(b)     -> let (x,t) = unbind (mk_free S) (snd b) in
                    fprintf ch "μ%s.%a" (name_of x) ex t
   | Name(s,t)   -> fprintf ch "[%a]%a" ex s ex t

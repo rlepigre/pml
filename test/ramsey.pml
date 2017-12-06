@@ -15,9 +15,6 @@ type cstream<o,a> = {hd : a; tl : sstream<o,a>}
 type cstream_t<o,f,a> = {hd : col_t<f,a>; tl : stream_t<o,f,a>}
 type cstream_f<o,f,a> = {hd : col_f<f,a>; tl : stream_f<o,f,a>}
 
-val total : ∀a b, ∀f∈a⇒b, ∀x∈a, ∃v:ι, v ∈ b | v ≡ f x =
-  fun f x { let y = f x; y }
-
 def to_term<s:σ> = λx.restore s x
 
 val rec aux : ∀o1 o2, ∀a, ∀f∈(a⇒bool),
@@ -28,7 +25,7 @@ val rec aux : ∀o1 o2, ∀a, ∀f∈(a⇒bool),
     let c = s {};
     let hd = c.hd;
     let tl = c.tl;
-    use total f hd;
+    let val _ = f hd;
     if f hd {
       ct { hd = hd; tl = fun _ { save ct { aux f to_term<ct> cf c.tl}}}
     } else {

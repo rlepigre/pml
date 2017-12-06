@@ -39,7 +39,7 @@ val rec app_asso : ∀a:ο, ∀x1 x2 x3∈list<a>, app x1 (app x2 x3) ≡ app (a
   fun l1 l2 l3 {
     case l1 {
       Nil    →
-       let total = app l2 l3; {}
+       {}
       Cns[c] →
        let hd = c.hd;
        let tl = c.tl;
@@ -54,12 +54,10 @@ val rec app2_asso : ∀a:ο, ∀x1 x2 x3∈list<a>, app2 x1 (app2 x2 x3) ≡ app
   fun l1 l2 l3 {
     case l1 {
       Nil    →
-       let total = app2 l2 l3; {}
+       {}
       Cns[c] →
        let hd = c.hd;
        let tl = c.tl;
-       let total = app2 tl l2;
-       let total = app2 l2 l3;
        let ded : app2 l1 (app2 l2 l3) ≡ cns hd (app2 tl (app2 l2 l3)) = {};
        let ded : app2 (app2 l1 l2) l3 ≡ cns hd (app2 (app2 tl l2) l3) = {};
        let ind : app2 tl (app2 l2 l3) ≡ app2 (app2 tl l2) l3 =
