@@ -1794,7 +1794,7 @@ let to_value : term -> eq_ctxt -> valu option * eq_ctxt = fun t {pool} ->
   | Ptr.V_ptr(v) -> Some (Pos.none (VPtr v)), { pool }
   | Ptr.T_ptr(_) -> None, { pool }
 
-let to_vwit : term -> eq_ctxt -> valu = fun t {pool} ->
+let to_vwit : term -> eq_ctxt -> term = fun t {pool} ->
   let (pt, po) = add_term true true pool t in
   let fn (p,t) =
     eq_ptr po p pt &&
@@ -1804,7 +1804,7 @@ let to_vwit : term -> eq_ctxt -> valu = fun t {pool} ->
   in
   let (_,t) = List.find fn po.os in
   match t.elt with
-  | Valu(v) -> v
+  | Valu(v) -> t
   | _       -> assert false
 
 let learn : eq_ctxt -> rel -> eq_ctxt = fun ctx rel ->
