@@ -134,10 +134,6 @@ let parser t_rec =
   | _rec_   -> `Rec
   | _corec_ -> `CoRec
 
-let parser strong =
-  | EMPTY    -> false
-  | _val_ -> true
-
 (* Optional elipsis for extensible records. *)
 let parser strict =
   | EMPTY       -> true
@@ -346,11 +342,11 @@ let parser expr @(m : mode) =
   (* Term (application) *)
   | t:(expr (Trm P)) u:(expr (Trm A))
       when m <<= Trm P
-      -> in_pos _loc (EAppl(t,u,false))
+      -> in_pos _loc (EAppl(t,u))
   (* Term (let binding) *)
-  | _let_ s:strong r:v_rec arg:let_arg '=' t:(expr (Trm R)) ';' u:(expr (Trm S))
+  | _let_ r:v_rec arg:let_arg '=' t:(expr (Trm R)) ';' u:(expr (Trm S))
       when m <<= Trm S
-      -> let_binding _loc s r arg t u
+      -> let_binding _loc r arg t u
   (* Term (sequencing). *)
   | t:(expr (Trm R)) ';' u:(expr (Trm S))
       when m <<= Trm S

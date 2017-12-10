@@ -73,7 +73,7 @@ type _ ex =
 
   | Valu : v ex loc                                  -> t  ex
   (** Value as a term. *)
-  | Appl : t ex loc * t ex loc * bool                -> t  ex
+  | Appl : t ex loc * t ex loc                       -> t  ex
   (** Application. *)
   | FixY : bool * (t,  v) bndr                       -> t  ex
   (** Fixpoint combinator Y(x.v). bool true: safe *)
@@ -377,8 +377,8 @@ let t_vari : popt -> tvar -> tbox = vari
 let valu : popt -> vbox -> tbox =
   fun p -> box_apply (fun v -> Pos.make p (Valu v))
 
-let appl : ?strong:bool -> popt -> tbox -> tbox -> tbox =
-  fun ?(strong=false) p -> box_apply2 (fun t u -> Pos.make p (Appl(t,u,strong)))
+let appl : popt -> tbox -> tbox -> tbox =
+  fun p -> box_apply2 (fun t u -> Pos.make p (Appl(t,u)))
 
 let sequ : popt -> tbox -> tbox -> tbox =
   fun p t u ->

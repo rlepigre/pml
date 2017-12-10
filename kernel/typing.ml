@@ -476,10 +476,10 @@ and subtype =
            match is_singleton a1 with
            | Some _ ->
               let p1 = subtype ctx wit a2 a1 in
-              let p2 = subtype ctx (Pos.none (Appl(t, wit, false))) b1 b2 in
+              let p2 = subtype ctx (Pos.none (Appl(t, wit))) b1 b2 in
               (p1,p2)
            | None ->
-              let p2 = subtype ctx (Pos.none (Appl(t, wit, false))) b1 b2 in
+              let p2 = subtype ctx (Pos.none (Appl(t, wit))) b1 b2 in
               let p1 = subtype ctx wit a2 a1 in
               (p1,p2)
          in
@@ -635,8 +635,7 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof * tot  =
              (try
                 let ctx = decrease_lvl ctx 1 in
                 let f = labs None None (Pos.none "x") (fun _ -> box t) in
-                let t = unbox (appl ~strong:true None
-                                    (valu None f) (Bindlib.box e)) in
+                let t = unbox (appl None (valu None f) (Bindlib.box e)) in
                 let (l1,l2) = ctx.auto_lvl in
                 log_aut "totality (%d,%d): %a" l1 l2 Print.ex t;
                 type_term ctx t ty
@@ -646,7 +645,9 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof * tot  =
           | BCas(e,cs) :: bls ->
              (try
                 let ctx = decrease_lvl ctx (List.length cs) in
-                let mk_case c = A.add c (None, Pos.none "x", (fun _ -> box t)) in
+                let mk_case c =
+                  A.add c (None, Pos.none "x", (fun _ -> box t))
+                in
                 let cases = List.fold_right mk_case cs A.empty in
                 let f = labs None None (Pos.none "x") (fun v ->
                                case None (vari None v) cases)
@@ -1131,7 +1132,7 @@ and is_typed : type a. a v_or_t -> a ex loc -> bool = fun t e ->
   match (t,e.elt) with
   | _, Coer(_,_,a)     -> true
   | _, VWit(w)         -> true
-  | _, Appl(t,_,_)     -> is_typed VoT_T t
+  | _, Appl(t,_)       -> is_typed VoT_T t
   | _, Valu(v)         -> is_typed VoT_V v
   | _, Proj(v,_)       -> is_typed VoT_V v
   | _, Cons(_,v)       -> is_typed VoT_V v
@@ -1161,7 +1162,7 @@ and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
     | Valu(v)     ->
         let (_, _, r) = type_valu ctx v c in (r, Tot)
     (* Application or strong application. *)
-    | Appl(f,u,s) ->
+    | Appl(f,u)   ->
         (* try to get the type of u. usefull in let syntactic sugar *)
         let a = match (Norm.whnf t).elt with
           | Valu{elt = LAbs(Some a, _)} -> a

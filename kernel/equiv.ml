@@ -785,7 +785,7 @@ let rec add_term :  bool -> bool -> pool -> term
     match t.elt with
     | Valu(v)     -> let (pv, po) = add_valu po v in
                      insert (TN_Valu(pv)) po
-    | Appl(t,u,_) -> let (pt, po) = add_term po t in
+    | Appl(t,u)   -> let (pt, po) = add_term po t in
                      let (pu, po) = add_term po u in
                      insert (TN_Appl(pt,pu)) po
     | MAbs(b)     -> let (cl, po) = add_bndr_closure po S T b in
@@ -1250,7 +1250,7 @@ let rec canonical_term : bool -> TPtr.t -> pool -> term * pool
                             (Pos.none (Valu(v)), po)
         | TN_Appl(pt,pu) -> let (t, po) = cp pt po in
                             let (u, po) = cp pu po in
-                            (Pos.none (Appl(t,u,false)), po)
+                            (Pos.none (Appl(t,u)), po)
         | TN_MAbs(b)     -> let (b, po) = canonical_bndr_closure b po in
                             (Pos.none (MAbs(b)), po)
         | TN_Name(s,pt)  -> let (t, po) = cp pt po in
@@ -1877,7 +1877,7 @@ let rec get_orig : Ptr.t -> pool -> (Ptr.t -> bool) -> term =
          let test x = true in
          let u1 = get_orig u1 po test in
          let u2 = get_orig u2 po test in
-         Pos.none (Appl(u1, u2, false))
+         Pos.none (Appl(u1, u2))
       | _ -> assert false
 
 (** get all blocked terms in the pool *)

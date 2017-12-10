@@ -25,7 +25,6 @@ val rec aux : ∀o1 o2, ∀a, ∀f∈(a⇒bool),
     let c = s {};
     let hd = c.hd;
     let tl = c.tl;
-    let val _ = f hd;
     if f hd {
       ct { hd = hd; tl = fun _ { save ct { aux f to_term<ct> cf c.tl}}}
     } else {

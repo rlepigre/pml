@@ -34,7 +34,7 @@ val rec fn : ∀f∈(nat ⇒ nat), ∀n∈nat, ∀q∈(nat | q ≡ f n),
   fun f n q k {
     let o such that q : nat^(o+1);
     k (n:nat) (fun p {
-        let val fp = f p;
+        let fp = f p;
         case leq_size (q:nat^(o+1)) fp {
           InL     → {}
           InR[fp] → fn f p fp k
@@ -67,8 +67,7 @@ val minimum_principle : ∀f:ι, f∈(nat ⇒ nat) → ∃n∈nat, min<n,f> =
     save s {
       let k : ∀n∈ nat, min<n,f> → bot =
         fun n mi { restore s (n, mi) };
-      let val fz = f Zero;
-      fn f Zero fz k
+      fn f Zero (f Zero) k
     }
   }
 
@@ -76,9 +75,8 @@ val test : ∀f:ι, f∈(nat ⇒ nat) ⇒ ∃n∈nat, leq (f n) (f (succ (mul u2
   fun f {
     delim {
       let (n,p) = minimum_principle f;
-      let val m = succ (mul u2 n);
       println_nat n; //print intermediate results
-      (n, p m)
+      (n, p (succ (mul u2 n)))
     }
   }
 

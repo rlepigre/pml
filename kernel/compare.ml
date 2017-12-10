@@ -257,7 +257,7 @@ let {eq_expr; eq_bndr} =
     | (VDef(d1)      , _             ) -> eq_expr d1.value_eras e2
     | (_             , VDef(d2)      ) -> eq_expr e1 d2.value_eras
     | (Valu(v1)      , Valu(v2)      ) -> eq_expr v1 v2
-    | (Appl(t1,u1,_) , Appl(t2,u2,_) ) -> eq_expr t1 t2 && eq_expr u1 u2
+    | (Appl(t1,u1)  , Appl(t2,u2)    ) -> eq_expr t1 t2 && eq_expr u1 u2
     (* NOTE type annotation ignored. *)
     | (MAbs(b1)      , MAbs(b2)      ) -> eq_bndr S b1 b2
     | (Name(s1,t1)   , Name(s2,t2)   ) -> eq_expr s1 s2 && eq_expr t1 t2
@@ -472,7 +472,7 @@ let {hash_expr; hash_bndr; hash_ombinder; hash_vwit
     | Cons(c,v)   -> khash2 `Cons (hash c.elt) (hash_expr v)
     | Reco(m)     -> khash1 `Reco (A.hash (fun (_,e) -> hash_expr e) m)
     | Scis        -> hash `Scis
-    | Appl(t,u,_) -> khash2 `Appl (hash_expr t) (hash_expr u)
+    | Appl(t,u)   -> khash2 `Appl (hash_expr t) (hash_expr u)
     (* NOTE type annotation ignored. *)
     | MAbs(b)     -> khash1 `MAbs (hash_bndr S b)
     | Name(s,t)   -> khash2 `Name (hash_expr s) (hash_expr t)

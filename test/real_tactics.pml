@@ -291,8 +291,7 @@ val rec find : ∀a:ο, ∀pred∈(a ⇒ bool),
   fun pred l exc {
     case l {
       Nil[_]  → exc {}
-      Cons[c] → let val _ = pred c.hd;
-                if pred c.hd { c.hd } else { find pred c.tl exc }
+      Cons[c] → if pred c.hd { c.hd } else { find pred c.tl exc }
     }
   }
 

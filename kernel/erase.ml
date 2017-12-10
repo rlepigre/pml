@@ -44,7 +44,7 @@ and     term_erasure : term -> e_tbox = fun t ->
   | HApp(_)     -> erasure_error "not a normalisation value (term)"
   | HDef(_,d)   -> term_erasure d.expr_def
   | Valu(v)     -> tvalu (valu_erasure v)
-  | Appl(t,u,_) -> tappl (term_erasure t) (term_erasure u)
+  | Appl(t,u)   -> tappl (term_erasure t) (term_erasure u)
   | FixY(_,b)   -> let f x =
                      let x = copy_var x (name_of x) (mk_free T) in
                      valu_erasure (bndr_subst b (mk_free T x))
