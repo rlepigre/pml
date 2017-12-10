@@ -1088,16 +1088,19 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
         wrn_msg "goal %S %a" str Pos.print_short_pos_opt v.pos;
         Typ_Goal(str)
     | UWit(_)     ->
-        begin try
-          let v = to_vwit (Pos.none (Valu v)) ctx.equations in
-          Typ_TSuch(type_valu ctx v c)
-        with Not_found ->
-             unexpected "∀-witness during typing..."
+       begin
+         try
+           let t = to_vwit (Pos.none (Valu v)) ctx.equations in
+           let ((_,_,r),tot) = type_term ctx t c in
+           r
+         with Not_found ->
+           unexpected "∀-witness during typing..."
         end
     | EWit(_)     ->
         begin try
-          let v = to_vwit (Pos.none (Valu v)) ctx.equations in
-          Typ_TSuch(type_valu ctx v c)
+          let t = to_vwit (Pos.none (Valu v)) ctx.equations in
+           let ((_,_,r),tot) = type_term ctx t c in
+           r
         with Not_found ->
              unexpected "∃-witness during typing..."
         end
@@ -1338,15 +1341,17 @@ and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
        (Typ_Delm(p), Tot)
     | UWit(_)     ->
         begin try
-          let v = to_vwit t ctx.equations in
-          (Typ_TSuch(type_valu ctx v c), Tot)
+          let t = to_vwit t ctx.equations in
+          let ((_,_,r),tot) = type_term ctx t c in
+          (r, tot)
         with Not_found ->
              unexpected "∀-witness during typing..."
         end
     | EWit(_)     ->
         begin try
-          let v = to_vwit t ctx.equations in
-          (Typ_TSuch(type_valu ctx v c), Tot)
+          let t = to_vwit t ctx.equations in
+          let ((_,_,r),tot) = type_term ctx t c in
+          (r, tot)
         with Not_found ->
              unexpected "∃-witness during typing..."
         end
