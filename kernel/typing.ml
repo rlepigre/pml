@@ -10,6 +10,7 @@ open Equiv
 open Output
 open Uvars
 open Compare
+open Totality
 
 type sorted = E : 'a sort * 'a ex loc -> sorted
 
@@ -75,9 +76,9 @@ type ctxt  =
   ; auto_lvl  : int * int
   ; in_auto   : bool
   ; callgraph : Scp.t
-  ; totality  : Totality.tot }
+  ; totality  : tot }
 
-let default_auto_lvl = ref (0, 100)
+let default_auto_lvl = ref (0, 15)
 
 let empty_ctxt () =
   { uvarcount = ref 0
@@ -91,7 +92,7 @@ let empty_ctxt () =
   ; auto_lvl  = !default_auto_lvl
   ; in_auto   = false
   ; callgraph = Scp.create ()
-  ; totality  = Totality.Ter }
+  ; totality  = Ter }
 
 let new_uvar : type a. ctxt -> a sort -> a ex loc = fun ctx s ->
   let c = ctx.uvarcount in
@@ -185,6 +186,16 @@ and sub_proof = term * prop * prop * sub_rule
 
 let learn_nobox : ctxt -> valu -> ctxt = fun ctx v ->
   { ctx with equations =  { pool = add_nobox v ctx.equations.pool } }
+
+let learn_value : ctxt -> term -> prop -> valu * ctxt = fun ctx t a ->
+  let f = bndr_from_fun "x" (fun x -> Valu(Pos.none x)) in
+  let ae = Pos.none (Memb(t,a)) in
+  let (vwit, ctx_names) = vwit ctx.ctx_names f ae Ast.bottom in
+  let ctx = { ctx with ctx_names } in
+  let ctx = learn_nobox ctx vwit in
+  let twit = Pos.none (Valu vwit) in
+  let equations = learn ctx.equations (Equiv(t,true,twit)) in
+  (vwit, { ctx with equations })
 
 (* Add to the context some conditions.
    A condition c is added if c false implies wit in a is false.
@@ -445,7 +456,7 @@ and subtype =
       match (a.elt, b.elt) with
       (* Arrow types. *)
       | (Func(t1,a1,b1), Func(t2,a2,b2)) when t_is_val ->
-         if not (Totality.sub t1 t2) then subtype_msg a.pos "Arrow clash";
+         if not (sub t1 t2) then subtype_msg a.pos "Arrow clash";
          let fn x = appl None (box t) (valu None (vari None x)) in
          let name = Print.get_lambda_name t in
          let f = (None, unbox (vbind (mk_free V) name fn)) in
@@ -496,19 +507,12 @@ and subtype =
           Sub_Prod(ps)
       (* Disjoint sum types. *)
       | (DSum(cs1)  , DSum(cs2)  ) when t_is_val ->
+         let (wit, ctx) = learn_value ctx t a in
           let check_variant c (_,p,a1) ps =
             let a2 =
               try snd (A.find c cs2) with Not_found ->
               subtype_msg p ("Sum clash on constructor " ^ c ^ "...")
             in
-            let name = Print.get_case_name c t in
-            let f = bndr_from_fun name (fun x -> Valu(Pos.none x)) in
-            let (wit, ctx_names) = vwit ctx.ctx_names f a a in
-            let ctx = { ctx with ctx_names } in
-            let equations =
-              learn ctx.equations (Equiv(t,true,Pos.none (Valu(wit))))
-            in
-            let ctx = { ctx with equations } in
             let p = subtype ctx (vdot wit c) a1 a2 in
             p::ps
           in
@@ -536,7 +540,7 @@ and subtype =
           else gen_subtype ctx a b
       (* Membership on the right. *)
       | (_          , Memb(u,b)  ) when t_is_val ->
-          auto_prove ctx (Equiv(t,true,u));
+          prove ctx.equations (Equiv(t,true,u));
           Sub_Memb_r(subtype ctx t a b)
       (* Restriction on the right. *)
       | (_          , Rest(c,e)  ) ->
@@ -549,7 +553,7 @@ and subtype =
              with
                Contradiction -> None
            in
-           auto_prove ctx e;
+           prove ctx.equations e;
            Sub_Rest_r(prf)
           end
       (* Implication on the left. *)
@@ -563,7 +567,7 @@ and subtype =
              with
                Contradiction -> None
            in
-           auto_prove ctx e;
+           prove ctx.equations e;
            Sub_Impl_l(prf)
           end
       (* Mu right and Nu Left, infinite case. *)
@@ -597,17 +601,17 @@ and subtype =
     (t, a, b, r)
     with
     | Subtype_error _ as e -> raise e
+    | Failed_to_prove _ as e -> raise e
+    | Assert_failure _ as e -> raise e
     | e -> subtype_error t a b e
   in
   fun ctx t a b -> Chrono.add_time sub_chrono (subtype ctx t a) b
 
-and auto_prove : ctxt -> rel -> unit =
-  fun ctx rel ->
+and auto_prove : ctxt -> exn -> term -> prop -> typ_proof * tot  =
+  fun ctx exn t ty ->
     let ctx = { ctx with in_auto = true } in
-    try
-      prove ctx.equations rel
-    with
-      Failed_to_prove(rel,bls) as exn ->
+    match exn with
+      Failed_to_prove(_,bls) as exn ->
         let cmp b1 b2 = match (b1,b2) with
           | BTot _, BCas _ -> -1
           | BCas _, BTot _ -> 1
@@ -626,40 +630,44 @@ and auto_prove : ctxt -> rel -> unit =
         in
         let rec fn bls =
           match bls with
-          | [] -> raise exn
+          | [] -> type_error (E(T,t)) ty exn
           | BTot e :: bls ->
-             let ctx = decrease_lvl ctx 1 in
-             let ty = unbox (rest None (prod None A.empty) (box rel)) in
-             let u = valu None (reco None A.empty) in
-             let f = labs None None (Pos.none "x") (fun _ -> u) in
-             let t = unbox (appl ~strong:true None
-                                 (valu None f) (Bindlib.box e)) in
-             let (l1,l2) = ctx.auto_lvl in
-             log_aut "totality (%d,%d): %a" l1 l2 Print.ex t;
-             (try type_term ctx t ty
-              with Type_error _ -> fn bls)
+             (try
+                let ctx = decrease_lvl ctx 1 in
+                let f = labs None None (Pos.none "x") (fun _ -> box t) in
+                let t = unbox (appl ~strong:true None
+                                    (valu None f) (Bindlib.box e)) in
+                let (l1,l2) = ctx.auto_lvl in
+                log_aut "totality (%d,%d): %a" l1 l2 Print.ex t;
+                type_term ctx t ty
+              with
+              | Failed_to_prove _ -> fn bls
+              | Type_error _ -> fn bls)
           | BCas(e,cs) :: bls ->
-             let ctx = decrease_lvl ctx (List.length cs) in
-             let ty = unbox (rest None (prod None A.empty) (box rel)) in
-             let u = valu None (reco None A.empty) in
-             let mk_case c = A.add c (None, Pos.none "x", (fun _ -> u)) in
-             let cases = List.fold_right mk_case cs A.empty in
-             let f = labs None None (Pos.none "x") (fun v ->
-                            case None (vari None v) cases)
-             in
-             let t = unbox (appl None (valu None f) (Bindlib.box e)) in
-             let (l1,l2) = ctx.auto_lvl in
-             log_aut "cases    (%d,%d): %a" l1 l2 Print.ex t;
-             (try type_term ctx t ty
-              with Type_error _ -> fn bls)
+             (try
+                let ctx = decrease_lvl ctx (List.length cs) in
+                let mk_case c = A.add c (None, Pos.none "x", (fun _ -> box t)) in
+                let cases = List.fold_right mk_case cs A.empty in
+                let f = labs None None (Pos.none "x") (fun v ->
+                               case None (vari None v) cases)
+                in
+                let t = unbox (appl None (valu None f) (Bindlib.box e)) in
+                let (l1,l2) = ctx.auto_lvl in
+                log_aut "cases    (%d,%d): %a" l1 l2 Print.ex t;
+                type_term ctx t ty
+              with
+              | Failed_to_prove _ -> fn bls
+              | Type_error _ -> fn bls)
 
-        in ignore (fn bls)
+        in fn bls
+    | _ -> assert false
 
 and gen_subtype : ctxt -> prop -> prop -> sub_rule =
   fun ctx a b ->
     let f = bndr_from_fun "x" (fun x -> Valu(Pos.none x)) in
     let (eps, ctx_names) = vwit ctx.ctx_names f a b in
     let ctx = { ctx with ctx_names } in
+    let ctx = learn_nobox ctx eps in
     let wit = Pos.none (Valu eps) in
     Sub_Gene(subtype ctx wit a b)
 
@@ -746,7 +754,7 @@ and check_fix
            in
            log_typ "it matches\n%!";
            (* Add call to call-graph and build the proof. *)
-           if Totality.is_term ctx.totality && saf then
+           if is_term ctx.totality && saf then
              add_call ctx (ih.fsch_index, spe.fspe_param) true;
            (t, c, Typ_Ind(ih,prf))
          with Subtype_error _ | Exit -> find_suitable ihs
@@ -970,10 +978,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
     match v.elt with
     (* Higher-order application. *)
     | HApp(_,_,_) ->
-        begin
-          try let (_, _, r) = type_valu ctx (Norm.whnf v) c in r
-          with e -> type_error (E(V,v)) c e
-        end
+       let (_, _, r) = type_valu ctx (Norm.whnf v) c in r
     (* λ-abstraction. *)
     | LAbs(ao,f)  ->
        let a =
@@ -982,10 +987,9 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
          | Some a -> a
        in
        let b = new_uvar ctx P in
-       let tot = Totality.new_tot () in
+       let tot = new_tot () in
        let c' = Pos.none (Func(tot,a,b)) in
        let p1 = subtype ctx t c' c in
-       log_typ "arrow tot: %a" Print.arrow tot;
        let a' = remove_memb a in
        let (wit,ctx_names) = vwit ctx.ctx_names f a' b in
        let ctx = { ctx with ctx_names; totality = tot } in
@@ -997,7 +1001,8 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
            let ctx = learn_equivalences ctx wit a in
            let ctx = learn_neg_equivalences ctx v (Some twit) c in
            log_typ "arrow tot2: %a" Print.arrow tot;
-           let p2 = type_term ctx (bndr_subst f wit.elt) b in
+           let (p2,tot0) = type_term ctx (bndr_subst f wit.elt) b in
+           assert (sub tot0 tot);
            Typ_Func_i(p1,Some p2)
          with Contradiction ->
            warn_unreachable ctx (bndr_subst f wit.elt);
@@ -1068,16 +1073,11 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
     (* Witness. *)
     | VWit(w)     ->
         let (_,a,_) = !(w.valu) in
-        let (b, equations) = check_nobox v ctx.equations in
-        assert b;
-        let p = subtype {ctx with equations} t a c in
+        let p = subtype ctx t a c in
         Typ_VWit(p)
     (* Definition. *)
     | HDef(_,d)   ->
-        begin
-          try let (_, _, r) = type_valu ctx d.expr_def c in r
-          with e -> type_error (E(V,v)) c e
-        end
+        let (_, _, r) = type_valu ctx d.expr_def c in r
     (* Value definition. *)
     | VDef(d)     ->
         let p = subtype ctx t d.value_type c in
@@ -1113,6 +1113,8 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
   in (Pos.make v.pos (Valu(v)), c, r)
   with
   | Type_error _ as e -> raise e
+  | Failed_to_prove _ as e -> fst (auto_prove ctx e (Pos.none (Valu v)) c)
+  | Assert_failure _ as e -> raise e
   | e -> type_error (E(V,v)) c e
 
 and do_set_param ctx = function
@@ -1127,12 +1129,13 @@ and do_set_param ctx = function
 and is_typed : type a. a v_or_t -> a ex loc -> bool = fun t e ->
   let e = Norm.whnf e in
   match (t,e.elt) with
-  | _, Coer(_,_,a)     -> uvars a = []
-  | _, VWit(w)         -> !(w.vars) = []
+  | _, Coer(_,_,a)     -> true
+  | _, VWit(w)         -> true
   | _, Appl(t,_,_)     -> is_typed VoT_T t
   | _, Valu(v)         -> is_typed VoT_V v
   | _, Proj(v,_)       -> is_typed VoT_V v
   | _, Cons(_,v)       -> is_typed VoT_V v
+  | _, Reco(m)         -> A.for_all (fun _ v -> is_typed VoT_V (snd v)) m
   | _, VDef _          -> true
   | _                  -> false
 
@@ -1145,21 +1148,18 @@ and warn_unreachable ctx t =
                                  Pos.print_short_pos p
     end;
 
-and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
+and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
   log_typ "proving the term judgment:\n  %a\n  ⊢(%a) %a\n  : %a"
     print_pos ctx.positives Print.arrow ctx.totality Print.ex t Print.ex c;
   try
-  let r =
+  let (r, tot) =
     match t.elt with
     (* Higher-order application. *)
     | HApp(_,_,_) ->
-        begin
-          try let (_, _, r) = type_term ctx (Norm.whnf t) c in r
-          with e -> type_error (E(T,t)) c e
-        end
+        let ((_,_,r),tot) = type_term ctx (Norm.whnf t) c in (r,tot)
     (* Value. *)
     | Valu(v)     ->
-        let (_, _, r) = type_valu ctx v c in r
+        let (_, _, r) = type_valu ctx v c in (r, Tot)
     (* Application or strong application. *)
     | Appl(f,u,s) ->
         (* try to get the type of u. usefull in let syntactic sugar *)
@@ -1167,24 +1167,33 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
           | Valu{elt = LAbs(Some a, _)} -> a
           | _ -> new_uvar ctx P
         in
-        let (is_val, _, ctx) = term_is_value u ctx in
         let tot = ctx.totality in
-        let (ae, strong) =
-          if is_val || s || not (Totality.is_not_tot tot) then
-            (Pos.none (Memb(u, a)), true) else (a, false)
-        in
-        let ctx_u = if strong then { ctx with totality = Totality.Tot } else ctx in
-        let (p1,p2) =
+        let (p1,p2,tot1,strong) =
           if is_typed VoT_T t && not (is_typed VoT_T u) then
-            let p1 = type_term ctx f (Pos.none (Func(tot,ae,c))) in
-            let p2 = type_term ctx_u u a in
-            (p1,p2)
+            let ae = if know_tot tot then Pos.none (Memb(u,a)) else a in
+            let (p1,tot1) = type_term ctx f (Pos.none (Func(tot,ae,c))) in
+            let strong =
+              match is_singleton ae with
+              | None -> false
+              | Some a -> unif_expr ctx u a
+            in
+            let ctx_u = if strong then { ctx with totality = Tot } else ctx in
+            let (p2,tot2) = type_term ctx_u u a in
+            (p1,p2,max tot1 tot2,strong)
           else
-            let p2 = type_term ctx_u u a in
-            let p1 = type_term ctx f (Pos.none (Func(tot,ae,c))) in
-            (p1,p2)
+            let (p2,tot1) = type_term ctx u a in
+            let strong = is_tot tot1 in
+            let (ctx, ae) =
+              if strong then
+                let ae = Pos.none (Memb(u,a)) in
+                let (_,ctx) = learn_value ctx u a in
+                (ctx, ae)
+              else (ctx, a)
+            in
+            let (p1,tot2) = type_term ctx f (Pos.none (Func(tot,ae,c))) in
+            (p1,p2,max tot1 tot2,strong)
         in
-        if strong then Typ_Func_s(p1,p2) else Typ_Func_e(p1,p2)
+        ((if strong then Typ_Func_s(p1,p2) else Typ_Func_e(p1,p2)),  tot1)
     (* Fixpoint *)
     | FixY(saf,b) ->
        let rec break_univ ctx c =
@@ -1198,13 +1207,14 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
        let p =
          Chrono.add_time check_fix_chrono (check_fix ctx saf t b) c ()
        in
-       Typ_FixY(p)
+       (Typ_FixY(p), Tot)
     (* μ-abstraction. *)
     | MAbs(b)     ->
         let (eps, ctx_names) = swit ctx.ctx_names b c in
         let ctx = { ctx with ctx_names } in
         let t = bndr_subst b eps.elt in
-        Typ_Mu(type_term ctx t c)
+        let (p,tot) = type_term ctx t c in
+        (Typ_Mu(p),tot)
     (* Named term. *)
     | Name(pi,u)  ->
         let ctx = check_total ctx t c in
@@ -1212,12 +1222,12 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
         (* type stack before seems better, generate subtyping
            constraints in the correct direction *)
         let p1 = type_stac ctx pi a in
-        let p2 = type_term ctx u a in
-        Typ_Name(p2,p1)
+        let (p2,tot) = type_term ctx u a in
+        (Typ_Name(p2,p1), max tot Ter)
     (* Projection. *)
     | Proj(v,l)   ->
         let c = Pos.none (Prod(A.singleton l.elt (None, c))) in
-        Typ_Prod_e(type_valu ctx v c)
+        (Typ_Prod_e(type_valu ctx v c), Tot)
     (* Case analysis. *)
     | Case(v,m)   ->
         let a = new_uvar ctx P in
@@ -1248,10 +1258,12 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
             (fun () -> type_term ctx t c :: ps)
           with Contradiction ->
             warn_unreachable ctx t;
-            (fun () -> (t,c,Typ_Scis)::ps)) ()
+            (fun () -> ((t,c,Typ_Scis), Tot)::ps)) ()
         in
         let ps = A.fold check m [] in
-        Typ_DSum_e(p,List.rev ps)
+        let tot = List.fold_left (fun acc (_,t) -> max acc t) Tot ps in
+        let ps = List.map fst ps in
+        (Typ_DSum_e(p,List.rev ps), tot)
     (* Coercion. *)
     | Coer(_,t,a)   ->
         let p1= subtype ctx t a c in
@@ -1262,8 +1274,8 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
              let ctx = { ctx with equations } in
              learn_neg_equivalences ctx v None c
         in
-        let p2 = type_term ctx t a in
-        Typ_TTyp(p1,p2)
+        let (p2,tot) = type_term ctx t a in
+        (Typ_TTyp(p1,p2), tot)
     (* Such that. *)
     | Such(_,_,r) ->
         let (a,t) = instantiate ctx r.binder in
@@ -1279,66 +1291,67 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
             | None   -> ignore(gen_subtype ctx b a)
             | Some t -> ignore(subtype ctx t b a)
           with _ -> cannot_unify b a
-        in Typ_TSuch(type_term ctx t c)
+        in
+        let (p,tot) = type_term ctx t c in
+        (Typ_TSuch(p), tot)
     (* Set auto lvl *)
     | PSet(l,_,t) ->
         begin
           let (ctx, restore) = do_set_param ctx l in
           try
-            let p = type_term ctx t c in
+            let ((_,_,r),tot) = type_term ctx t c in
             restore ();
-            Typ_TSuch(p)
+            (r, tot)
           with e -> restore (); raise e
         end
     (* Definition. *)
     | HDef(_,d)   ->
-        begin
-          try let (_, _, r) = type_term ctx d.expr_def c in r
-          with e -> type_error (E(T,t)) c e
-        end
+       let ((_,_,r),tot) = type_term ctx d.expr_def c in (r, tot)
     (* Goal. *)
     | Goal(_,str) ->
         wrn_msg "goal %S %a" str Pos.print_short_pos_opt t.pos;
-        Typ_Goal(str)
+        (Typ_Goal(str), Tot)
     (* Printing. *)
     | Prnt(_)     ->
         let a = unbox (strict_prod None A.empty) in
         let p = gen_subtype ctx a c in
-        Typ_Prnt((t, a, c, p))
+        (Typ_Prnt(t, a, c, p), Tot)
     (* Replacement. *)
     | Repl(t,u,p) ->
-        let p1 = type_term ctx u c in
+        let (p1,tot) = type_term ctx u c in
         let eq =
           let un = unbox (strict_prod None A.empty) in
           Pos.none (Rest(un,Equiv(t,true,u)))
         in
-        let p2 = type_term { ctx with totality = Totality.Tot } p eq in
-        Typ_Repl(p1,p2)
+        let (p2,_) = type_term { ctx with totality = Tot } p eq in
+        (Typ_Repl(p1,p2), tot)
     | Delm(t)     ->
        let pure = Pure.(pure t && pure c
                         && Lazy.force ctx.equations.pool.pure)
        in
        let ctx =
-         if pure then { ctx with totality = Totality.new_tot () } else ctx
+         if pure then { ctx with totality = new_tot () } else
+           { ctx with totality = Tot } (* FIXME: error ? *)
        in
-       Typ_Delm(type_term ctx t c)
+       let (p, _) = type_term ctx t c in
+       (Typ_Delm(p), Tot)
     | UWit(_)     ->
         begin try
           let v = to_vwit t ctx.equations in
-          Typ_TSuch(type_valu ctx v c)
+          (Typ_TSuch(type_valu ctx v c), Tot)
         with Not_found ->
              unexpected "∀-witness during typing..."
         end
     | EWit(_)     ->
         begin try
           let v = to_vwit t ctx.equations in
-          Typ_TSuch(type_valu ctx v c)
+          (Typ_TSuch(type_valu ctx v c), Tot)
         with Not_found ->
              unexpected "∃-witness during typing..."
         end
     | UVar(_,v)   ->
         begin match !(v.uvar_val) with
-        | Set t -> Typ_TSuch(type_term ctx t c)
+        | Set t -> let ((_,_,r),tot) = type_term ctx t c in (r, tot)
         | _     -> unexpected "unification variable during typing..."
         end
     (* Constructors that cannot appear in user-defined terms. *)
@@ -1346,15 +1359,17 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
     | Vari(_)     -> unexpected "Free variable during typing..."
     | Dumm(_)     -> unexpected "Dummy value during typing..."
     | ITag(_)     -> unexpected "ITag during typing..."
-  in (t, c, r)
+  in ((t, c, r), tot)
   with
   | Type_error _ as e -> raise e
+  | Failed_to_prove _ as e -> auto_prove ctx e t c
+  | Assert_failure _ as e -> raise e
   | e                 -> type_error (E(T,t)) c e
 
 and check_total : ctxt -> term -> prop -> ctxt =
   fun ctx t c ->
     let (is_val, no_box, ctx) = term_is_value t ctx in
-    if (not is_val && not no_box && not (Totality.is_not_tot ctx.totality))
+    if (not is_val && not no_box && not (is_not_tot ctx.totality))
     then type_error (E(T,t)) c Not_total
     else ctx
 
@@ -1366,19 +1381,13 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
     match s.elt with
     (* Higher-order application. *)
     | HApp(_,_,_) ->
-        begin
-          try let (_, _, r) = type_stac ctx (Norm.whnf s) c in r
-          with e -> type_error (E(S,s)) c e
-        end
+        let (_, _, r) = type_stac ctx (Norm.whnf s) c in r
     | SWit(w)   ->
         let (_,a) = !(w.valu) in
         Stk_SWit(gen_subtype ctx c a)
     (* Definition. *)
     | HDef(_,d)   ->
-        begin
-          try let (_, _, r) = type_stac ctx d.expr_def c in r
-          with e -> type_error (E(S,s)) c e
-        end
+        let (_, _, r) = type_stac ctx d.expr_def c in r
     (* Goal *)
     | Goal(_,str) ->
         wrn_msg "goal %S %a" str Pos.print_short_pos_opt s.pos;
@@ -1396,12 +1405,14 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
   in (s, c, r)
   with
   | Type_error _ as e -> raise e
+  | Failed_to_prove _ as e -> raise e
+  | Assert_failure _ as e -> raise e
   | e -> type_error (E(S,s)) c e
 
 let type_check : term -> prop -> prop * typ_proof = fun t a ->
   try
     let ctx = empty_ctxt () in
-    let prf = type_term ctx t a in
+    let (prf, _) = type_term ctx t a in
     List.iter (fun f -> f ()) (List.rev !(ctx.add_calls));
     if not (Scp.scp ctx.callgraph) then loops t;
     let l = uvars a in

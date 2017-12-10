@@ -134,8 +134,9 @@ val rec mul_dist_l : ∀m n p∈nat, mul m (add n p) ≡ add (mul m n) (mul m p)
              deduce add (mul Zero n) (mul Zero p) ≡ Zero;
              deduce mul Zero (add n p) ≡ add (mul Zero n) (mul Zero p);
              qed
-      S[k] → show mul k (add n p) ≡ add (mul k n) (mul k p)
-             using mul_dist_l k n p;
+      S[k] → showing mul m (add n p) ≡ add (mul m n) (mul m p);
+             show mul k (add n p) ≡ add (mul k n) (mul k p)
+               using mul_dist_l k n p;
              deduce add (add n p) (mul k (add n p))
                ≡ add (add n p) (add (mul k n) (mul k p));
              deduce mul S[k] (add n p)

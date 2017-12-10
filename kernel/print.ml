@@ -37,6 +37,7 @@ let arrow ch t =
   | Ter   -> fprintf ch "→"
   | Any   -> fprintf ch "↝"
   | Unk _ -> fprintf ch "?>"
+  | Max _ -> fprintf ch "?>"
 
 let rec ex : type a. a ex loc printer = fun ch e ->
   let rec is_arrow : type a. a ex loc -> bool = fun e ->

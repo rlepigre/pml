@@ -67,8 +67,8 @@ val rec mul_succ : ∀n m∈nat, mul n Succ[m] ≡ add (mul n m) n =
     case n {
       Zero    → {}
       Succ[k] → let lem = mul_succ k m;
-                let val _ = mul k m;
-                let val _ = add m (mul k m);
+                //                let _ = mul k m;
+                //                let _ = add m (mul k m);
                 let lem = add_succ (add m (mul k m)) k;
                 let lem = add_asso m (mul k m) k;
                 {}
@@ -81,7 +81,7 @@ val rec mul_comm : ∀n m∈nat, mul n m ≡ mul m n =
       Zero    → let lem = mul_n_zero m; {}
       Succ[k] → let ih  = mul_comm m k;
                 let lem = mul_succ m k;
-                let val _ = mul k m;
+//                let _ = mul k m;
                 let lem = add_comm (mul k m) m; {}
     }
   }

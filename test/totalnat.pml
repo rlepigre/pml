@@ -9,8 +9,7 @@ def add0 =
   fix add { fun n m {
     case n {
       Z    → m
-      S[p] → let _ = add p m;
-             S[add p m] // succ (add p m) fails ?
+      S[p] → S[add p m] // succ (add p m) fails ?
                         // it should be exactly the same
     }
   }}
@@ -24,8 +23,7 @@ def add1 =
   fix add { fun n m {
     case n {
       Z    → m
-      S[p] → let _ = add p m;
-             succ (add p m)
+      S[p] → succ (add p m)
     }
   }}
 

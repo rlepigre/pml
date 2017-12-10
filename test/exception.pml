@@ -18,7 +18,6 @@ val rec find : ∀a:ο, ∀f∈(a ⇒ bool),
     case l {
       | Nil[_]  → exc {}
       | Cons[c] → let hd = c.hd; let tl = c.tl;
-                  let val _ = f hd;
                   if f hd { hd } else { find f tl exc }
     }
   }
