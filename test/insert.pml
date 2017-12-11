@@ -95,7 +95,7 @@ val rec isort_sorted : ∀a:ο, ∀o∈order<a>, ∀l∈list<a>,
 
 val isort_full : ∀a:ο, ∀o∈order<a>, list<a> ⇒ slist<a,o> =
   fun o l {
-    let _ = isort o l; // FIXME #28: necessary to instanciate l in slist
+    //let _ = isort o l; // FIXME #28: necessary to instanciate l in slist
     let lem = isort_sorted o l;
     isort o l
   }

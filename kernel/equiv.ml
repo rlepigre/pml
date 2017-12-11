@@ -1794,19 +1794,6 @@ let to_value : term -> eq_ctxt -> valu option * eq_ctxt = fun t {pool} ->
   | Ptr.V_ptr(v) -> Some (Pos.none (VPtr v)), { pool }
   | Ptr.T_ptr(_) -> None, { pool }
 
-let to_vwit : term -> eq_ctxt -> term = fun t {pool} ->
-  let (pt, po) = add_term true true pool t in
-  let fn (p,t) =
-    eq_ptr po p pt &&
-      match t.elt with
-      | Valu{elt = VWit _} -> true
-      | _                  -> false
-  in
-  let (_,t) = List.find fn po.os in
-  match t.elt with
-  | Valu(v) -> t
-  | _       -> assert false
-
 let learn : eq_ctxt -> rel -> eq_ctxt = fun ctx rel ->
   log "learning %a" Print.rel rel;
   try
@@ -1858,45 +1845,104 @@ let rec not_uewit : type a. a ex loc -> bool =
     | Case(_,c) -> A.length c > 1 (* TODO #29: fix this issue and remove! *)
     | _      -> true
 
+let to_vwit : term -> eq_ctxt -> term = fun t {pool} ->
+  (*Printf.eprintf "to_vwit: %a\n%!" Print.ex t;*)
+  let (pt, po) = add_term true true pool t in
+  let fn (p,t) =
+    eq_ptr po p pt && not_uewit t
+  in
+  let l = List.find_all fn po.os in
+  if l = [] then raise Not_found;
+  let cmp (_,x) (_,y) = match (x.elt, y.elt) with
+    | Valu{elt=VWit v}, _ -> -1
+    | _, Valu{elt=VWit v} -> 1
+    | Proj _, _           -> -1
+    | _, Proj _           -> 1
+    | _         -> 0
+  in
+  snd (List.hd (List.sort cmp l))
+
+
+let test_value : Ptr.t -> pool -> bool = fun p po ->
+  let (p, po) = find p po in
+  let (no_box, po) = is_nobox p po in
+  let is_val = match p with
+    | Ptr.V_ptr(v) -> true
+    | Ptr.T_ptr(_) -> false
+  in
+  is_val && no_box
+
 (** get one original term from the pool or their applications.
     - argument test is to avoid total term for BTot
  *)
-let rec get_orig : Ptr.t -> pool -> (Ptr.t -> bool) -> term =
-  fun p po test ->
-    try
-      let (tp', e') = List.find (fun (v',e) ->
-                          test v' && not_uewit e && eq_ptr po p v') po.os in
-      e'
-    with Not_found ->
-      let is_appl = function TN_Appl _ -> true | _ -> false in
-      let (v',nn) = List.find (fun (v',nn) -> test (Ptr.T_ptr v') &&
-                 eq_ptr po (Ptr.T_ptr v') p && is_appl nn) po.ts
-      in
-      match nn with
-      | TN_Appl(u1,u2) ->
-         let test x = true in
-         let u1 = get_orig u1 po test in
-         let u2 = get_orig u2 po test in
-         Pos.none (Appl(u1, u2))
-      | _ -> assert false
+let rec get_orig : Ptr.t -> pool -> term =
+  fun p po ->
+    let t =
+      try
+        let l = List.find_all (fun (v',e) ->
+                    eq_ptr po p v' && (
+                                 (*Printf.eprintf "testing %a %a\n%!" Ptr.print v' Print.ex e;*)
+                                 not_uewit e)) po.os in
+        (*Printf.eprintf "coucou 3 %d\n%!" (List.length l);*)
+        if l = [] then raise Not_found;
+        let cmp (_,x) (_,y) = match (x.elt, y.elt) with
+          | Valu{elt=VWit _}, _ -> -1
+          | _, Valu{elt=VWit _} -> 1
+          | _         -> 0
+        in
+        snd (List.hd (List.sort cmp l))
+      with Not_found ->
+        let is_appl = function TN_Appl _ -> true | _ -> false in
+        let (v',nn) = List.find (fun (v',nn) ->
+                          eq_ptr po (Ptr.T_ptr v') p && is_appl nn) po.ts
+        in
+        match nn with
+        | TN_Appl(u1,u2) ->
+           let u1 = get_orig u1 po in
+           let u2 = get_orig u2 po in
+           Pos.none (Appl(u1, u2))
+        | _ -> assert false
+    in
+    let open Mapper in
+    let mapper : type a. recall -> a ex loc -> a box = fun r t ->
+      match t.elt with
+      | UWit _ | EWit _ ->
+         begin
+           match sort t with
+           | (T, t) -> r.recall (to_vwit t {pool=po})
+           | _      -> r.default t
+         end
+      | Valu(v) ->
+         begin
+           match (Norm.whnf v).elt with
+           | UWit _ | EWit _ -> r.recall (to_vwit t {pool=po})
+           | _ -> r.default t
+         end
+      | _      -> r.default t
+    in
+    let t0 = unbox (map ~mapper:{mapper} t) in
+    (*Printf.eprintf "%a ==> %a\n%!" Print.ex t Print.ex t0;*)
+    t0
 
 (** get all blocked terms in the pool *)
 let get_blocked : pool -> blocked list = fun po ->
   let adone = ref [] in
   (*Printf.eprintf "obtained context:\n%a\n\n" (print_pool "        ") po;*)
+  (*Printf.eprintf "coucou 0 %d\n%!" (List.length !adone);*)
   List.fold_left (fun acc (tp,tn) ->
-    (*Printf.eprintf "testing %a %a\n%!" TPtr.print tp print_t_node tn;*)
-    if not (get_ns tp po) && get_fs tp po &&
-         not (List.exists (eq_tptr po tp) !adone) then
+      (*Printf.eprintf "testing %a %a %b %b\n%!" TPtr.print tp print_t_node tn
+                     (get_ns tp po) (get_fs tp po);*)
+    if not (get_ns tp po) && get_fs tp po then
       begin
+        (*Printf.eprintf "coucou 1 %d\n%!" (List.length !adone);*)
         adone := tp :: !adone;
         try
           match tn with
           | TN_Appl(u,v) ->
              begin
-               let test p = not (fst (is_nobox p po)) in
+               (*Printf.eprintf "coucou 2\n%!";*)
                try
-                 let e = get_orig v po test in
+                 let e = get_orig v po in
                  let b = BTot e in
                  if List.exists (eq_blocked b) acc then acc else
                    begin
@@ -1906,9 +1952,8 @@ let get_blocked : pool -> blocked list = fun po ->
                with Not_found -> acc
              end
           | TN_Case(v,b) ->
-             let test p = true in
              let cases = List.map fst (A.bindings b) in
-             let e = get_orig (Ptr.V_ptr v) po test in
+             let e = get_orig (Ptr.V_ptr v) po in
              let b = BCas (e, cases) in
              if List.exists (eq_blocked b) acc then acc else
                begin

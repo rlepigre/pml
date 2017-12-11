@@ -78,7 +78,7 @@ type ctxt  =
   ; callgraph : Scp.t
   ; totality  : tot }
 
-let default_auto_lvl = ref (0, 15)
+let default_auto_lvl = ref (0, 5)
 
 let empty_ctxt () =
   { uvarcount = ref 0
@@ -610,6 +610,7 @@ and subtype =
 and auto_prove : ctxt -> exn -> term -> prop -> typ_proof * tot  =
   fun ctx exn t ty ->
     let ctx = { ctx with in_auto = true } in
+    let st = UTimed.Time.save () in
     match exn with
       Failed_to_prove(_,bls) as exn ->
         let cmp b1 b2 = match (b1,b2) with
@@ -629,6 +630,7 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof * tot  =
           { ctx with auto_lvl }
         in
         let rec fn bls =
+          UTimed.Time.rollback st;
           match bls with
           | [] -> type_error (E(T,t)) ty exn
           | BTot e :: bls ->
@@ -974,6 +976,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
   let t = Pos.make v.pos (Valu(v)) in
   log_typ "proving the value judgment:\n  %a\n  ⊢ %a\n  : %a"
     print_pos ctx.positives Print.ex v Print.ex c;
+  let st = UTimed.Time.save () in
   try
   let r =
     match v.elt with
@@ -1087,37 +1090,19 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
     | Goal(_,str) ->
         wrn_msg "goal %S %a" str Pos.print_short_pos_opt v.pos;
         Typ_Goal(str)
-    | UWit(_)     ->
-       begin
-         try
-           let t = to_vwit (Pos.none (Valu v)) ctx.equations in
-           let ((_,_,r),tot) = type_term ctx t c in
-           r
-         with Not_found ->
-           unexpected "∀-witness during typing..."
-        end
-    | EWit(_)     ->
-        begin try
-          let t = to_vwit (Pos.none (Valu v)) ctx.equations in
-           let ((_,_,r),tot) = type_term ctx t c in
-           r
-        with Not_found ->
-             unexpected "∃-witness during typing..."
-        end
-    | UVar(_,v)   ->
-        begin match !(v.uvar_val) with
-        | Set v -> Typ_TSuch(type_valu ctx v c)
-        | _     -> unexpected "unification variable during typing..."
-        end
     (* Constructors that cannot appear in user-defined terms. *)
+    | UWit(_)     -> unexpected "∀-witness during typing..."
+    | EWit(_)     -> unexpected "∃-witness during typing..."
     | VPtr(_)     -> unexpected "VPtr during typing..."
+    | UVar(_)     -> unexpected "unification variable during typing..."
     | Vari(_)     -> unexpected "Free variable during typing..."
     | Dumm(_)     -> unexpected "Dummy value during typing..."
     | ITag(_)     -> unexpected "ITag during typing..."
   in (Pos.make v.pos (Valu(v)), c, r)
   with
   | Type_error _ as e -> raise e
-  | Failed_to_prove _ as e -> fst (auto_prove ctx e (Pos.none (Valu v)) c)
+  | Failed_to_prove _ as e -> UTimed.Time.rollback st;
+                              fst (auto_prove ctx e (Pos.none (Valu v)) c)
   | Assert_failure _ as e -> raise e
   | e -> type_error (E(V,v)) c e
 
@@ -1154,7 +1139,8 @@ and warn_unreachable ctx t =
 
 and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
   log_typ "proving the term judgment:\n  %a\n  ⊢(%a) %a\n  : %a"
-    print_pos ctx.positives Print.arrow ctx.totality Print.ex t Print.ex c;
+          print_pos ctx.positives Print.arrow ctx.totality Print.ex t Print.ex c;
+  let st = UTimed.Time.save () in
   try
   let (r, tot) =
     match t.elt with
@@ -1339,36 +1325,18 @@ and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
        in
        let (p, _) = type_term ctx t c in
        (Typ_Delm(p), Tot)
-    | UWit(_)     ->
-        begin try
-          let t = to_vwit t ctx.equations in
-          let ((_,_,r),tot) = type_term ctx t c in
-          (r, tot)
-        with Not_found ->
-             unexpected "∀-witness during typing..."
-        end
-    | EWit(_)     ->
-        begin try
-          let t = to_vwit t ctx.equations in
-          let ((_,_,r),tot) = type_term ctx t c in
-          (r, tot)
-        with Not_found ->
-             unexpected "∃-witness during typing..."
-        end
-    | UVar(_,v)   ->
-        begin match !(v.uvar_val) with
-        | Set t -> let ((_,_,r),tot) = type_term ctx t c in (r, tot)
-        | _     -> unexpected "unification variable during typing..."
-        end
     (* Constructors that cannot appear in user-defined terms. *)
+    | UWit(_)     -> unexpected "∀-witness during typing..."
+    | EWit(_)     -> unexpected "∃-witness during typing..."
     | TPtr(_)     -> unexpected "TPtr during typing..."
+    | UVar(_)     -> unexpected "unification variable during typing..."
     | Vari(_)     -> unexpected "Free variable during typing..."
     | Dumm(_)     -> unexpected "Dummy value during typing..."
     | ITag(_)     -> unexpected "ITag during typing..."
   in ((t, c, r), tot)
   with
   | Type_error _ as e -> raise e
-  | Failed_to_prove _ as e -> auto_prove ctx e t c
+  | Failed_to_prove _ as e -> UTimed.Time.rollback st; auto_prove ctx e t c
   | Assert_failure _ as e -> raise e
   | e                 -> type_error (E(T,t)) c e
 

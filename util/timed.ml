@@ -20,7 +20,7 @@ module Make(T:Time) = struct
     struct
       type r = { mutable next : u ; undo : unit -> unit }
 
-       and u = Current | Past of r | Invalid
+       and u = Current | Past of r
 
       type t = r * T.t
 
@@ -32,8 +32,7 @@ module Make(T:Time) = struct
       let rollback : t -> unit = fun (t,ut) ->
         let rec fn = function
           | Current -> ()
-          | Past  t -> fn t.next; t.undo (); t.next <- Invalid
-          | Invalid -> raise Bad_time
+          | Past  t -> fn t.next; t.undo (); t.next <- Current
         in T.rollback ut; fn t.next; t.next <- Current; current := t;
     end
 
