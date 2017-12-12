@@ -202,51 +202,57 @@ let learn_value : ctxt -> term -> prop -> valu * ctxt = fun ctx t a ->
    as wit may be assumed not box, if c false implies a = Box,
    c can be added *)
 let rec learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
-  let twit = Pos.none (Valu wit) in
-  match (Norm.whnf a).elt with
-  | HDef(_,e)  -> learn_equivalences ctx wit e.expr_def
-  | Memb(t,a)  -> let equations = learn ctx.equations (Equiv(twit,true,t)) in
-                  learn_equivalences {ctx with equations} wit a
-  | Rest(a,c)  -> let equations = learn ctx.equations c in
-                  learn_equivalences {ctx with equations} wit a
-  | Exis(s, f) -> let (t, ctx_names) = ewit ctx.ctx_names s twit f in
-                  let ctx = { ctx with ctx_names } in
-                  learn_equivalences ctx wit (bndr_subst f t.elt)
-  | Prod(fs)   ->
-     A.fold (fun lbl (_, b) ctx ->
-         let (v,pool,ctx_names) =
-           find_proj ctx.equations.pool ctx.ctx_names wit lbl
-         in
-         let ctx = { ctx with equations = { pool }; ctx_names } in
-         learn_equivalences ctx v b) fs ctx
-  | DSum(fs)   ->
-     begin
-       match find_sum ctx.equations.pool wit with
-       | None -> ctx
-       | Some(s,v,pool) ->
-          try
-            let (_, b) = A.find s fs in
-            let ctx = { ctx with equations = { pool } } in
-            learn_equivalences ctx v b
-          with Not_found -> assert false (* NOTE check *)
-     end
-  (** Learn positivity of the ordinal *)
-  | FixM(o,f)  ->
-      let (bound, ctx) =
-        match (Norm.whnf o).elt with
-        | Succ(o) -> (o, ctx)
-        | _       ->
-           (** We know that o is positive and wit in a
-               so we can build an eps < o *)
-           let f o = bndr_subst f (FixM(Pos.none o, f)) in
-           let f = binder_from_fun "o" f in
-           let (o', ctx_names) = owmu ctx.ctx_names o twit (None, f) in
-           (o', { ctx with ctx_names })
-      in
-      let ctx = add_positive ctx o bound in
-      (* NOTE: may loop on mu X.X *)
-      learn_equivalences ctx wit (bndr_subst f (FixM(bound,f)))
-  | _          -> ctx
+  let adone = ref [] in
+  let rec fn ctx wit a =
+    let twit = Pos.none (Valu wit) in
+    match (Norm.whnf a).elt with
+    | HDef(_,e)  -> fn ctx wit e.expr_def
+    | Memb(t,a)  -> let equations = learn ctx.equations (Equiv(twit,true,t)) in
+                    fn {ctx with equations} wit a
+    | Rest(a,c)  -> let equations = learn ctx.equations c in
+                    fn {ctx with equations} wit a
+    | Exis(s, f) -> let (t, ctx_names) = ewit ctx.ctx_names s twit f in
+                    let ctx = { ctx with ctx_names } in
+                    fn ctx wit (bndr_subst f t.elt)
+    | Prod(fs)   ->
+       A.fold (fun lbl (_, b) ctx ->
+           let (v,pool,ctx_names) =
+             find_proj ctx.equations.pool ctx.ctx_names wit lbl
+           in
+           let ctx = { ctx with equations = { pool }; ctx_names } in
+           fn ctx v b) fs ctx
+    | DSum(fs)   ->
+       begin
+         match find_sum ctx.equations.pool wit with
+         | None -> ctx
+         | Some(s,v,pool) ->
+            try
+              let (_, b) = A.find s fs in
+              let ctx = { ctx with equations = { pool } } in
+              fn ctx v b
+            with Not_found -> assert false (* NOTE check *)
+       end
+    (** Learn positivity of the ordinal *)
+    | FixM(o,f)  ->
+       if List.memq f !adone then ctx else
+         begin
+           adone := f :: !adone;
+           let (bound, ctx) =
+             match (Norm.whnf o).elt with
+             | Succ(o) -> (o, ctx)
+             | _       ->
+                (** We know that o is positive and wit in a
+               so w              e can build an eps < o *)
+                let f o = bndr_subst f (FixM(Pos.none o, f)) in
+                let f = binder_from_fun "o" f in
+                let (o', ctx_names) = owmu ctx.ctx_names o twit (None, f) in
+                (o', { ctx with ctx_names })
+           in
+           let ctx = add_positive ctx o bound in
+           fn ctx wit (bndr_subst f (FixM(bound,f)))
+         end
+    | _          -> ctx
+  in fn ctx wit a
 
 let rec is_singleton : prop -> term option = fun t ->
   match (Norm.whnf t).elt with
@@ -265,39 +271,46 @@ let rec is_singleton : prop -> term option = fun t ->
    arg could not be a counter example.
 *)
 let rec learn_neg_equivalences : ctxt -> valu -> term option -> prop -> ctxt =
+  let adone = ref [] in
   fun ctx wit arg a ->
-    let twit = Pos.none (Valu wit) in
-    match (Norm.whnf a).elt, arg with
-    | HDef(_,e), _  -> learn_neg_equivalences ctx wit arg e.expr_def
-    | Impl(c,a), _  -> let equations = learn ctx.equations c in
-                       learn_neg_equivalences {ctx with equations} wit arg a
-    | Univ(s, f), _ -> let (t, ctx_names) = uwit ctx.ctx_names s twit f in
-                       let ctx = { ctx with ctx_names } in
-                       learn_neg_equivalences ctx wit arg (bndr_subst f t.elt)
-    | Func(t,a,b), Some arg ->
-       begin
-         match is_singleton a with
-         | Some x -> let equations = learn ctx.equations (Equiv(arg,true,x)) in
-                     {ctx with equations}
-         | None -> ctx
-       end
-  (** Learn positivity of the ordinal *)
-    | FixN(o,f), _ ->
-      let (bound, ctx) =
-        match (Norm.whnf o).elt with
-        | Succ(o) -> (o, ctx)
-        | _       ->
-           (** We know that o is positive and wit in a
-               so we can build an eps < o *)
-           let f o = bndr_subst f (FixN(Pos.none o, f)) in
-           let f = binder_from_fun "o" f in
-           let (o', ctx_names) = ownu ctx.ctx_names o twit (None, f) in
-           (o', { ctx with ctx_names })
-      in
-      let ctx = add_positive ctx o bound in
-      (* NOTE: may loop on nu X.X *)
-      learn_neg_equivalences ctx wit arg (bndr_subst f (FixN(bound,f)))
-    | _          -> ctx
+    let rec fn ctx wit arg a =
+      let twit = Pos.none (Valu wit) in
+      match (Norm.whnf a).elt, arg with
+      | HDef(_,e), _  -> learn_neg_equivalences ctx wit arg e.expr_def
+      | Impl(c,a), _  -> let equations = learn ctx.equations c in
+                         learn_neg_equivalences {ctx with equations} wit arg a
+      | Univ(s, f), _ -> let (t, ctx_names) = uwit ctx.ctx_names s twit f in
+                         let ctx = { ctx with ctx_names } in
+                         learn_neg_equivalences ctx wit arg (bndr_subst f t.elt)
+      | Func(t,a,b), Some arg ->
+         begin
+           match is_singleton a with
+           | Some x ->
+              let equations = learn ctx.equations (Equiv(arg,true,x)) in
+              {ctx with equations}
+           | None -> ctx
+         end
+      (** Learn positivity of the ordinal *)
+      | FixN(o,f), _ ->
+       if List.memq f !adone then ctx else
+         begin
+           adone := f :: !adone;
+           let (bound, ctx) =
+             match (Norm.whnf o).elt with
+             | Succ(o) -> (o, ctx)
+             | _       ->
+                (** We know that o is positive and wit in a
+                    so we can build an eps < o *)
+                let f o = bndr_subst f (FixN(Pos.none o, f)) in
+                let f = binder_from_fun "o" f in
+                let (o', ctx_names) = ownu ctx.ctx_names o twit (None, f) in
+                (o', { ctx with ctx_names })
+           in
+           let ctx = add_positive ctx o bound in
+           learn_neg_equivalences ctx wit arg (bndr_subst f (FixN(bound,f)))
+         end
+      | _          -> ctx
+    in fn ctx wit arg a
 
 let term_is_value : term -> ctxt -> bool * bool * ctxt = fun t ctx ->
   let (is_val, no_box, equations) = is_value t ctx.equations in
