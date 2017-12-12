@@ -176,6 +176,42 @@ let {eq_expr; eq_bndr} =
     | (Vari(_,x1)    , Vari(_,x2)    ) ->
        Bindlib.eq_vars x1 x2
     | (HFun(s1,_,b1) , HFun(_,_,b2)  ) -> eq_bndr s1 b1 b2
+    | (UVar(_,u1)    , UVar(_,u2)    ) ->
+       if strict then u1.uvar_key = u2.uvar_key else
+         begin
+           if u1.uvar_key <> u2.uvar_key then  (* arbitrary *)
+             if not (uvar_occurs u1 e2) then (uvar_set u1 e2; true)
+             else false
+           else true
+         end
+    | (UVar(_,u1)    , _             ) when not strict ->
+       let rec remove_occur_check : type a. a ex loc -> a ex loc = fun b ->
+         let b = Norm.whnf b in
+         match b.elt with
+         | Impl(c,e) when uvar_occurs_rel u1 c
+           -> remove_occur_check e
+         | Func(tot,{elt = Memb(t,a)}, b) when uvar_occurs u1 t
+           -> remove_occur_check (Pos.none (Func(tot,a,b)))
+         | Func(tot,{elt = Rest(a,c)}, b) when uvar_occurs_rel u1 c
+           -> remove_occur_check (Pos.none (Func(tot,a,b)))
+         | _ -> b (* NOTE #48: more cases are possible *)
+       in
+       let e2 = remove_occur_check e2 in
+       if uvar_occurs u1 e2 then false else (uvar_set u1 e2; true)
+    | (_             , UVar(_,u2)    ) when not strict ->
+       let rec remove_occur_check : type a. a ex loc -> a ex loc = fun b ->
+         let b = Norm.whnf b in
+         match b.elt with
+         | Rest(e,c) when uvar_occurs_rel u2 c ->
+             remove_occur_check e
+         | Memb(t,a) when uvar_occurs u2 t     ->
+             remove_occur_check a
+         | Func(tot,{elt = Impl(c,a)}, b) when uvar_occurs_rel u2 c ->
+             remove_occur_check (Pos.none (Func(tot,a,b)))
+         | _ -> b (* NOTE #48: more cases are possible *)
+       in
+       let e1 = remove_occur_check e1 in
+       if uvar_occurs u2 e1 then false else (uvar_set u2 e1; true)
     | (HApp(s1,f1,a1), HApp(s2,f2,a2)) ->
         begin
           match eq_sort s1 s2 with
@@ -339,42 +375,6 @@ let {eq_expr; eq_bndr} =
              else (let s1 = !(w1.valu) in
                    let s2 = !(w2.valu) in
                    eq_schema s1 s2))
-    | (UVar(_,u1)    , UVar(_,u2)    ) ->
-       if strict then u1.uvar_key = u2.uvar_key else
-         begin
-           if u1.uvar_key <> u2.uvar_key then  (* arbitrary *)
-             if not (uvar_occurs u1 e2) then (uvar_set u1 e2; true)
-             else false
-           else true
-         end
-    | (UVar(_,u1)    , _             ) when not strict ->
-       let rec remove_occur_check : type a. a ex loc -> a ex loc = fun b ->
-         let b = Norm.whnf b in
-         match b.elt with
-         | Impl(c,e) when uvar_occurs_rel u1 c
-           -> remove_occur_check e
-         | Func(tot,{elt = Memb(t,a)}, b) when uvar_occurs u1 t
-           -> remove_occur_check (Pos.none (Func(tot,a,b)))
-         | Func(tot,{elt = Rest(a,c)}, b) when uvar_occurs_rel u1 c
-           -> remove_occur_check (Pos.none (Func(tot,a,b)))
-         | _ -> b (* NOTE #48: more cases are possible *)
-       in
-       let e2 = remove_occur_check e2 in
-       if uvar_occurs u1 e2 then false else (uvar_set u1 e2; true)
-    | (_             , UVar(_,u2)    ) when not strict ->
-       let rec remove_occur_check : type a. a ex loc -> a ex loc = fun b ->
-         let b = Norm.whnf b in
-         match b.elt with
-         | Rest(e,c) when uvar_occurs_rel u2 c ->
-             remove_occur_check e
-         | Memb(t,a) when uvar_occurs u2 t     ->
-             remove_occur_check a
-         | Func(tot,{elt = Impl(c,a)}, b) when uvar_occurs_rel u2 c ->
-             remove_occur_check (Pos.none (Func(tot,a,b)))
-         | _ -> b (* NOTE #48: more cases are possible *)
-       in
-       let e1 = remove_occur_check e1 in
-       if uvar_occurs u2 e1 then false else (uvar_set u2 e1; true)
     (* two next cases are automatically stronger with oracle *)
     | (VPtr v1       , VPtr v2       ) -> Ptr.VPtr.compare v1 v2 = 0
     | (TPtr t1       , TPtr t2       ) -> Ptr.Ptr.compare t1 t2 = 0
