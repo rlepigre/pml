@@ -1139,6 +1139,7 @@ and is_typed : type a. a v_or_t -> a ex loc -> bool = fun t e ->
   | _, Cons(_,v)       -> is_typed VoT_V v
   | _, Reco(m)         -> A.for_all (fun _ v -> is_typed VoT_V (snd v)) m
   | _, VDef _          -> true
+  | _, FixY _          -> true
   | _                  -> false
 
 and warn_unreachable ctx t =
