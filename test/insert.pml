@@ -71,20 +71,19 @@ val rec insert_sorted : ∀a:ο, ∀o∈order<a>, ∀x∈a, ∀l∈slist<a,o>,
     }
   }
 
-val rec isort_sorted : ∀a:ο, ∀o∈order<a>, ∀l∈list<a>,
-    sorted o (isort o l) ≡ tru =
+val rec isort_sorted : ∀a:ο, ∀o∈order<a>, ∀l∈list<a>, sorted o (isort o l) =
   fun o l {
     case l {
-      Nil     → {}
-      Cons[c] → let ind = isort_sorted o c.tl;
-                let tls = isort o c.tl;
-                let lem = insert_sorted o c.hd tls; {}
+      []     → qed
+      hd::tl → use isort_sorted o tl;
+               let tls = isort o tl;
+               use insert_sorted o hd tls;
+               qed
     }
   }
 
 val isort_full : ∀a:ο, ∀o∈order<a>, list<a> ⇒ slist<a,o> =
   fun o l {
-    //let _ = isort o l; // FIXME #28: necessary to instanciate l in slist
-    let lem = isort_sorted o l;
+    use isort_sorted o l;
     isort o l
   }
