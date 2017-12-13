@@ -27,6 +27,15 @@ include lib.nat
 include lib.list
 
 // Compute the list of the first n elements of a stream.
+val rec nth : ∀a, nat ⇒ stream<a> ⇒ a =
+  fun n s {
+    case n {
+           | Zero → (s {}).hd
+           | S[k] → nth k (s {}).tl
+    }
+  }
+
+// Compute the list of the first n elements of a stream.
 val rec takes : ∀a, nat ⇒ stream<a> ⇒ list<a> =
   fun n s {
     case n {

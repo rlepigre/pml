@@ -23,7 +23,7 @@ val rec tail_sorted : ∀a:ο, ∀o∈order<a>, ∀x∈a, ∀l∈list<a>,
   fun o x l _ {
     case l {
       []     → qed
-      hd::tl → if o.cmp x hd { qed } else { ✂ }
+      hd::tl → know o.cmp x hd; qed
     }
   }
 
