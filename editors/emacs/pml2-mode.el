@@ -30,7 +30,7 @@
 		      (regexp-opt
 		      '("assume" "because" "bool" "case" "check" "corec"
                         "deduce" "def" "delim" "else" "false" "fix"
-                        "for" "fun" "if" "include" "let" "of"
+                        "for" "fun" "if" "include" "know" "let" "of"
                         "print" "qed" "rec" "restore" "save" "set"
                         "show" "showing" "sort" "such" "suppose" "take"
                         "that" "true" "type" "use" "using" "val"))

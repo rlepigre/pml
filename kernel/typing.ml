@@ -1167,14 +1167,14 @@ and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
     (* Application or strong application. *)
     | Appl(f,u)   ->
         (* try to get the type of u. usefull in let syntactic sugar *)
-        let a = match (Norm.whnf t).elt with
-          | Valu{elt = LAbs(Some a, _)} -> a
-          | _ -> new_uvar ctx P
+        let (a,given) = match (Norm.whnf t).elt with
+          | Valu{elt = LAbs(Some a, _)} -> (a,true)
+          | _ -> (new_uvar ctx P, false)
         in
         let tot = ctx.totality in
         let (p1,p2,tot1,strong) =
           if is_typed VoT_T t && not (is_typed VoT_T u) then
-            let ae = if know_tot tot then Pos.none (Memb(u,a)) else a in
+            let ae = if know_tot tot && not given then Pos.none (Memb(u,a)) else a in
             let (p1,tot1) = type_term ctx f (Pos.none (Func(tot,ae,c))) in
             let strong =
               match is_singleton ae with
@@ -1189,8 +1189,10 @@ and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
             let strong = is_tot tot1 in
             let (ctx, ae) =
               if strong then
-                let ae = Pos.none (Memb(u,a)) in
-                let (_,ctx) = learn_value ctx u a in
+                let ae = if given || is_singleton a <> None then a
+                         else Pos.none (Memb(u,a))
+                in
+                let (v,ctx) = learn_value ctx u a in
                 (ctx, ae)
               else (ctx, a)
             in

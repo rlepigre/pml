@@ -1294,3 +1294,7 @@ let suppose _loc props t =
 let assume _loc t u =
   in_pos _loc (ECase(t, ref `T, [((Pos.none "false", None), in_pos _loc EUnit);
                                  ((Pos.none "true" , None), u)]))
+
+let know _loc t u =
+  in_pos _loc (ECase(t, ref `T, [((Pos.none "false", None), in_pos _loc EScis);
+                                 ((Pos.none "true" , None), u)]))

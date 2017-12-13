@@ -52,6 +52,7 @@ let _for_     = Keyword.create "for"
 let _fun_     = Keyword.create "fun"
 let _if_      = Keyword.create "if"
 let _include_ = Keyword.create "include"
+let _know_    = Keyword.create "know"
 let _let_     = Keyword.create "let"
 let _of_      = Keyword.create "of"
 let _print_   = Keyword.create "print"
@@ -395,10 +396,14 @@ let parser expr @(m : mode) =
   | _showing_   a:(expr (Prp R)) ';' p:(expr (Trm S))
       when m <<= Trm S
       -> showing _loc a p
-  (* Term ("showing" tactic) *)
+  (* Term ("assume" tactic) *)
   | _assume_   a:(expr (Prp R)) ';' p:(expr (Trm S))
       when m <<= Trm S
       -> assume _loc a p
+  (* Term ("know" tactic) *)
+  | _know_   a:(expr (Prp R)) ';' p:(expr (Trm S))
+      when m <<= Trm S
+      -> know _loc a p
   (* Term ("QED" tactic) *)
   | _qed_
       when m <<= Trm A
