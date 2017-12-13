@@ -13,6 +13,7 @@ val ac : ∀a,∀b, (∀n∈nat, ∃m∈b, a<n,m>) ⇒
 
 // Below is a too complicated proof of the intuitionnistic ac using streams.
 // It demonstrates proving properties with streams.
+// and compute g n only once.
 
 val ex : ∀a,∀b, (∀n∈nat, ∃m∈b, a<n,m>) ⇒
            ∃s∈stream<∃n∈nat, ∃m∈b, a<n,m>>, ∀n∈nat, (nth n s).1 ≡ n =
@@ -51,7 +52,16 @@ val ac : ∀a,∀b, (∀n∈nat, ∃m∈b, a<n,m>) ⇒
         })
   }
 
-// Type of streams.
+// Axiome du choix classique ?
+val acc : ∀a,∀b, (∀n, n∈nat → ∃m∈b, a<n,m>) ⇒
+            ∃f∈(nat → b), ∀n, n∈nat→ ∃v:ι,a<n,v>|v≡f n =
+  fun g {
+    let a,b such that g : ∀n, n∈nat → ∃m∈b, a<n,m>;
+    let f : nat → b = fun n { (g n).1 };
+    (f, fun n { (g n).2 })
+  }
+
+// Type of classical streams.
 type corec cstream<a> = {} → {hd : a; tl : cstream}
 
 val exc : ∀a,∀b, (∀n, n∈nat → ∃m∈b, a<n,m>) ⇒
@@ -76,7 +86,7 @@ val exc : ∀a,∀b, (∀n, n∈nat → ∃m∈b, a<n,m>) ⇒
     (fn Zero, lemz)
   }
 
-  // Compute the list of the first n elements of a stream.
+// Compute the list of the first n elements of a stream.
 val rec nthc : ∀a, nat ⇒ cstream<a> → a =
   fun n s {
     case n {
