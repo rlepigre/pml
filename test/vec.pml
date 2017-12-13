@@ -21,8 +21,7 @@ val rec app : ∀a:ο, ∀n1 n2:ι, vec<a,n1> ⇒ vec<a,n2> ⇒ vec<a,add n1 n2>
     case l1 {
       []    → l2
       h::l →
-        let a,n2 such that l2 : vec<a,n2>;
-        let r = (app l l2 : vec<a,add (length l) n2>);
+        let r = app l l2;
         vcns h r
     }
   }

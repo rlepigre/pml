@@ -937,26 +937,6 @@ and add_call : ctxt -> (Scp.index * ordi array) -> bool -> unit =
     in
     UTimed.(ctx.add_calls := todo :: !(ctx.add_calls))
 
-(* application adds a membership, but abs does not remove it.
-   this gives long membership chain and bas instanciation
-   with singleton. We use this function to remove such a membership *)
-and remove_memb : prop -> prop = fun a ->
-  match (Norm.repr a).elt with
-  | Memb(x,a')       ->
-     begin
-       match (Norm.repr x).elt with
-       | UWit _      -> a'
-       | Valu(x)     ->
-          begin
-            match (Norm.repr x).elt with
-            | UWit _ -> a'
-            | _      -> a
-          end
-       | _           -> a
-     end
-  | _                -> a
-
-
 (* Build a call-matrix given the caller and the callee. *)
 and build_matrix : Scp.t -> (ordi * ordi) list ->
                      (Scp.index * ordi array) ->
@@ -1009,8 +989,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
        let tot = new_tot () in
        let c' = Pos.none (Func(tot,a,b)) in
        let p1 = subtype ctx t c' c in
-       let a' = remove_memb a in
-       let (wit,ctx_names) = vwit ctx.ctx_names f a' b in
+       let (wit,ctx_names) = vwit ctx.ctx_names f a b in
        let ctx = { ctx with ctx_names; totality = tot } in
        let twit = Pos.none(Valu wit) in
        (* Learn the equivalence that are valid in the witness. *)
