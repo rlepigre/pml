@@ -615,10 +615,9 @@ and subtype =
     in
     (t, a, b, r)
     with
-    | Subtype_error _ as e -> raise e
+    | Subtype_error _ as e   -> raise e
     | Failed_to_prove _ as e -> raise e
-    | Assert_failure _ as e -> raise e
-    | e -> subtype_error t a b e
+    | e                      -> subtype_error t a b e
   in
   fun ctx t a b -> Chrono.add_time sub_chrono (subtype ctx t a) b
 
@@ -658,7 +657,7 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof * tot  =
                 type_term ctx t ty
               with
               | Failed_to_prove _ -> fn bls
-              | Type_error _ -> fn bls)
+              | Type_error _      -> fn bls)
           | BCas(e,cs) :: bls ->
              (try
                 let ctx = decrease_lvl ctx (List.length cs) in
@@ -675,7 +674,7 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof * tot  =
                 type_term ctx t ty
               with
               | Failed_to_prove _ -> fn bls
-              | Type_error _ -> fn bls)
+              | Type_error _      -> fn bls)
 
         in fn bls
     | _ -> assert false
@@ -1095,8 +1094,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
   with
   | Failed_to_prove _ as e -> UTimed.Time.rollback st;
                               fst (auto_prove ctx e (Pos.none (Valu v)) c)
-  | Assert_failure _ as e -> raise e
-  | e -> type_error (E(V,v)) c e
+  | e                      -> type_error (E(V,v)) c e
 
 and do_set_param ctx = function
   | Alvl(b,d) ->
@@ -1334,8 +1332,7 @@ and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
   in ((t, c, r), tot)
   with
   | Failed_to_prove _ as e -> UTimed.Time.rollback st; auto_prove ctx e t c
-  | Assert_failure _ as e -> raise e
-  | e                 -> type_error (E(T,t)) c e
+  | e                      -> type_error (E(T,t)) c e
 
 and check_total : ctxt -> term -> prop -> ctxt =
   fun ctx t c ->
@@ -1376,8 +1373,7 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
   in (s, c, r)
   with
   | Failed_to_prove _ as e -> raise e
-  | Assert_failure _ as e -> raise e
-  | e -> type_error (E(S,s)) c e
+  | e                      -> type_error (E(S,s)) c e
 
 let type_check : term -> prop -> prop * typ_proof = fun t a ->
   try
