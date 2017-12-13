@@ -19,8 +19,10 @@ exception Type_error of sorted * prop * exn
 let type_error : sorted -> prop -> exn -> 'a =
   fun t p e ->
     match e with
-    | Out_of_memory -> raise e
-    | _             -> raise (Type_error(t, p, e))
+    | Out_of_memory         -> raise e
+    | Type_error(E(_,t),_,_)
+         when t.pos <> None -> raise e
+    | _                     -> raise (Type_error(t, p, e))
 
 exception Subtype_msg of pos option * string
 let subtype_msg : pos option -> string -> 'a =
@@ -1019,7 +1021,6 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
            let ctx = learn_neg_equivalences ctx v (Some twit) c in
            log_typ "arrow tot2: %a" Print.arrow tot;
            let (p2,tot0) = type_term ctx (bndr_subst f wit.elt) b in
-           assert (sub tot0 tot);
            Typ_Func_i(p1,Some p2)
          with Contradiction ->
            warn_unreachable ctx (bndr_subst f wit.elt);
@@ -1113,7 +1114,6 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
     | ITag(_)     -> unexpected "ITag during typing..."
   in (Pos.make v.pos (Valu(v)), c, r)
   with
-  | Type_error _ as e -> raise e
   | Failed_to_prove _ as e -> UTimed.Time.rollback st;
                               fst (auto_prove ctx e (Pos.none (Valu v)) c)
   | Assert_failure _ as e -> raise e
@@ -1185,7 +1185,9 @@ and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
             let (p2,tot2) = type_term ctx_u u a in
             (p1,p2,max tot1 tot2,strong)
           else
-            let (p2,tot1) = type_term ctx u a in
+            let ctx_u = if know_tot tot then ctx else
+                          { ctx with totality = new_tot () } in
+            let (p2,tot1) = type_term ctx_u u a in
             let strong = is_tot tot1 in
             let (ctx, ae) =
               if strong then
@@ -1197,9 +1199,10 @@ and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
               else (ctx, a)
             in
             let (p1,tot2) = type_term ctx f (Pos.none (Func(tot,ae,c))) in
+            if not (sub tot1 tot) then subtype_msg f.pos "Arrow clash";
             (p1,p2,max tot1 tot2,strong)
         in
-        ((if strong then Typ_Func_s(p1,p2) else Typ_Func_e(p1,p2)),  tot1)
+        ((if strong then Typ_Func_s(p1,p2) else Typ_Func_e(p1,p2)), max tot tot1)
     (* Fixpoint *)
     | FixY(saf,b) ->
        let rec break_univ ctx c =
@@ -1351,7 +1354,6 @@ and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
     | ITag(_)     -> unexpected "ITag during typing..."
   in ((t, c, r), tot)
   with
-  | Type_error _ as e -> raise e
   | Failed_to_prove _ as e -> UTimed.Time.rollback st; auto_prove ctx e t c
   | Assert_failure _ as e -> raise e
   | e                 -> type_error (E(T,t)) c e
@@ -1394,7 +1396,6 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
     | ITag(_)     -> unexpected "Tag during typing..."
   in (s, c, r)
   with
-  | Type_error _ as e -> raise e
   | Failed_to_prove _ as e -> raise e
   | Assert_failure _ as e -> raise e
   | e -> type_error (E(S,s)) c e
