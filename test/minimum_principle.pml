@@ -74,6 +74,7 @@ val minimum_principle : ∀f:ι, f∈(nat ⇒ nat) → ∃n∈nat, min<n,f> =
 val test : ∀f:ι, f∈(nat ⇒ nat) ⇒ ∃n∈nat, leq (f n) (f (succ (mul u2 n))) =
   fun f {
     delim {
+      set auto 0 5;
       let (n,p) = minimum_principle f;
       println_nat n; //print intermediate results
       (n, p (succ (mul u2 n)))

@@ -187,7 +187,8 @@ and stk_proof = stac * prop * stk_rule
 and sub_proof = term * prop * prop * sub_rule
 
 let learn_nobox : ctxt -> valu -> ctxt = fun ctx v ->
-  { ctx with equations =  { pool = add_nobox v ctx.equations.pool } }
+  { ctx with equations =  { pool = add_nobox v ctx.equations.pool;
+                            ineq = ctx.equations.ineq } }
 
 let learn_value : ctxt -> term -> prop -> valu * ctxt = fun ctx t a ->
   let f = bndr_from_fun "x" (fun x -> Valu(Pos.none x)) in
@@ -221,7 +222,8 @@ let rec learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
            let (v,pool,ctx_names) =
              find_proj ctx.equations.pool ctx.ctx_names wit lbl
            in
-           let ctx = { ctx with equations = { pool }; ctx_names } in
+           let ctx = { ctx with equations = { ctx.equations with pool };
+                                ctx_names } in
            fn ctx v b) fs ctx
     | DSum(fs)   ->
        begin
@@ -230,7 +232,7 @@ let rec learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
          | Some(s,v,pool) ->
             try
               let (_, b) = A.find s fs in
-              let ctx = { ctx with equations = { pool } } in
+              let ctx = { ctx with equations = { ctx.equations with pool } } in
               fn ctx v b
             with Not_found -> assert false (* NOTE check *)
        end

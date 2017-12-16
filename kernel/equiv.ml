@@ -1634,23 +1634,45 @@ and oracle pool = {
 
 (* Equational context type. *)
 type eq_ctxt =
-  { pool : pool }
+  { pool : pool; ineq : (term * term) list }
 
 let empty_ctxt : eq_ctxt =
-  { pool = empty_pool }
+  { pool = empty_pool; ineq = [] }
 
 type equiv   = term * term
 type inequiv = term * term
 
+(* Adds an inequivalence to a context, producing a bigger context. The
+   exception [Contradiction] is raised when expected. *)
+let add_inequiv : inequiv -> eq_ctxt -> eq_ctxt = fun (t,u) {pool;ineq} ->
+  log2 "add_inequiv: inserting %a ≠ %a in context\n%a" Print.ex t
+    Print.ex u (print_pool "        ") pool;
+  if eq_expr t u then
+    begin
+      log2 "immediate contradiction";
+      bottom ()
+    end;
+  let (pt, pool) = add_term true true pool t in
+  let (pu, pool) = add_term true true pool u in
+  log2 "add_inequiv: insertion at %a and %a" Ptr.print pt Ptr.print pu;
+  log2 "add_inequiv: obtained context:\n%a" (print_pool "        ") pool;
+  try
+    ignore (UTimed.apply (unif_ptr pool pt) pu);
+    log2 "add_inequiv: contradiction found";
+    bottom ()
+  with NoUnif -> {pool;ineq=(t,u)::ineq}
+
+(* Main module interface. *)
+
 (* Adds an equivalence to a context, producing a bigger context. The
    exception [Contradiction] is raised when expected. *)
-let add_equiv : equiv -> eq_ctxt -> eq_ctxt = fun (t,u) {pool} ->
+let add_equiv : equiv -> eq_ctxt -> eq_ctxt = fun (t,u) {pool;ineq} ->
   log2 "add_equiv: inserting %a = %a in context\n%a" Print.ex t
     Print.ex u (print_pool "        ") pool;
   if eq_expr t u then
     begin
       log2 "add_equiv: trivial proof";
-      {pool}
+      {pool; ineq}
     end
   else
   let (pt, pool) = add_term true true pool t in
@@ -1659,7 +1681,7 @@ let add_equiv : equiv -> eq_ctxt -> eq_ctxt = fun (t,u) {pool} ->
   log2 "add_equiv: obtained context (1):\n%a" (print_pool "        ") pool;
   let pool = union pt pu pool in
   log2 "add_equiv: obtained context (2):\n%a" (print_pool "        ") pool;
-  {pool}
+  List.fold_right add_inequiv ineq {pool;ineq=[]}
 
 let add_vptr_nobox : VPtr.t -> pool -> pool = fun vp po ->
   let (vp, po) = find (Ptr.V_ptr vp) po in
@@ -1680,28 +1702,6 @@ let add_nobox : valu -> pool -> pool = fun v po ->
     (print_pool "        ") po;
   let (vp, po) = add_valu true po v in
   add_vptr_nobox vp po
-
-(* Adds an inequivalence to a context, producing a bigger context. The
-   exception [Contradiction] is raised when expected. *)
-let add_inequiv : inequiv -> eq_ctxt -> eq_ctxt = fun (t,u) {pool} ->
-  log2 "add_inequiv: inserting %a ≠ %a in context\n%a" Print.ex t
-    Print.ex u (print_pool "        ") pool;
-  if eq_expr t u then
-    begin
-      log2 "immediate contradiction";
-      bottom ()
-    end;
-  let (pt, pool) = add_term true true pool t in
-  let (pu, pool) = add_term true true pool u in
-  log2 "add_inequiv: insertion at %a and %a" Ptr.print pt Ptr.print pu;
-  log2 "add_inequiv: obtained context:\n%a" (print_pool "        ") pool;
-  try
-    ignore (UTimed.apply (unif_ptr pool pt) pu);
-    log2 "add_inequiv: contradiction found";
-    bottom ()
-  with NoUnif -> {pool} (* TODO #3 store clauses *)
-
-(* Main module interface. *)
 
 (* epsilon for projection:
    proj_eps v l define a value w such v.l = w *)
@@ -1761,17 +1761,17 @@ let find_sum : pool -> valu -> (string * valu * pool) option = fun po v ->
   with Not_found -> None
 
 (* Adds no box to the bool *)
-let check_nobox : valu -> eq_ctxt -> bool * eq_ctxt = fun v {pool} ->
+let check_nobox : valu -> eq_ctxt -> bool * eq_ctxt = fun v {pool;ineq} ->
   log2 "inserting %a not box in context\n%a" Print.ex v
     (print_pool "        ") pool;
   let (vp, pool) = add_valu true pool v in
   let (vp, pool) = find (Ptr.V_ptr vp) pool in
   match vp with
-  | Ptr.T_ptr(_)  -> (false, {pool})
-  | Ptr.V_ptr(vp) -> (get_bs vp pool, { pool })
+  | Ptr.T_ptr(_)  -> (false, {pool;ineq})
+  | Ptr.V_ptr(vp) -> (get_bs vp pool, { pool;ineq })
 
 (* Test whether a term is equivalent to a value or not. *)
-let is_value : term -> eq_ctxt -> bool * bool * eq_ctxt = fun t {pool} ->
+let is_value : term -> eq_ctxt -> bool * bool * eq_ctxt = fun t {pool;ineq} ->
   log2 "inserting %a not box in context\n%a" Print.ex t
     (print_pool "        ") pool;
   let (pt, pool) = add_term true true pool t in
@@ -1785,14 +1785,14 @@ let is_value : term -> eq_ctxt -> bool * bool * eq_ctxt = fun t {pool} ->
   log "%a is%s a value and is%s box" Print.ex t
       (if is_val then "" else " not")
       (if no_box then " not" else "");
-  (is_val, no_box, {pool})
+  (is_val, no_box, {pool;ineq})
 
 (* Test whether a term is equivalent to a value or not. *)
-let to_value : term -> eq_ctxt -> valu option * eq_ctxt = fun t {pool} ->
+let to_value : term -> eq_ctxt -> valu option * eq_ctxt = fun t {pool;ineq} ->
   let (pt, pool) = add_term true true pool t in
   match pt with
-  | Ptr.V_ptr(v) -> Some (Pos.none (VPtr v)), { pool }
-  | Ptr.T_ptr(_) -> None, { pool }
+  | Ptr.V_ptr(v) -> Some (Pos.none (VPtr v)), {pool;ineq}
+  | Ptr.T_ptr(_) -> None, {pool;ineq}
 
 let learn : eq_ctxt -> rel -> eq_ctxt = fun ctx rel ->
   log "learning %a" Print.rel rel;
@@ -1802,7 +1802,7 @@ let learn : eq_ctxt -> rel -> eq_ctxt = fun ctx rel ->
       | Equiv(t,b,u) ->
          (if b then add_equiv else add_inequiv) (t,u) ctx
       | NoBox(v) ->
-         {pool = add_nobox v ctx.pool }
+         {ctx with pool = add_nobox v ctx.pool}
     in
     log "learned  %a" Print.rel rel; ctx
   with Contradiction ->
@@ -1845,9 +1845,9 @@ let rec not_uewit : type a. a ex loc -> bool =
     | Case(_,c) -> A.length c > 1 (* TODO #29: fix this issue and remove! *)
     | _      -> true
 
-let to_vwit : term -> eq_ctxt -> term = fun t {pool} ->
+let to_vwit : term -> pool -> term = fun t po ->
   (*Printf.eprintf "to_vwit: %a\n%!" Print.ex t;*)
-  let (pt, po) = add_term true true pool t in
+  let (pt, po) = add_term true true po t in
   let fn (p,t) =
     eq_ptr po p pt && not_uewit t
   in
@@ -1909,13 +1909,13 @@ let rec get_orig : Ptr.t -> pool -> term =
       | UWit _ | EWit _ ->
          begin
            match sort t with
-           | (T, t) -> r.recall (to_vwit t {pool=po})
+           | (T, t) -> r.recall (to_vwit t po)
            | _      -> r.default t
          end
       | Valu(v) ->
          begin
            match (Norm.whnf v).elt with
-           | UWit _ | EWit _ -> r.recall (to_vwit t {pool=po})
+           | UWit _ | EWit _ -> r.recall (to_vwit t po)
            | _ -> r.default t
          end
       | _      -> r.default t
@@ -1938,7 +1938,7 @@ let get_blocked : pool -> blocked list = fun po ->
         adone := tp :: !adone;
         try
           match tn with
-          | TN_Appl(u,v) ->
+          | TN_Appl(u,v) when not (test_value v po) ->
              begin
                (*Printf.eprintf "coucou 2\n%!";*)
                try

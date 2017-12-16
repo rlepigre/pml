@@ -21,7 +21,9 @@ val rec app : ∀a:ο, ∀n1 n2:ι, vec<a,n1> ⇒ vec<a,n2> ⇒ vec<a,add n1 n2>
     case l1 {
       []    → l2
       h::l →
-        let r = app l l2;
+        let a = length l; // FIXME #28
+        let x = add (length l) (length l2);// FIXME #28
+        let r = app l l2;// FIXME #28
         vcns h r
     }
   }
