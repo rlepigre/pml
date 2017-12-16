@@ -1,8 +1,8 @@
 include lib.nat
 
-type rec natbin = [ Zero of ∃n:ι, n∈(natbin | n ≠ End) ; One of natbin ; End ]
+type rec natbin = [ Zero of {n∈natbin | n ≠ End} ; One of natbin ; End ]
 
-type nonzero = ∃n:ι, n∈(natbin | n ≠ End)
+type nonzero = {n∈natbin | n ≠ End}
 
 val zero_b : natbin = End
 
