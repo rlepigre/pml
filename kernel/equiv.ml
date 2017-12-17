@@ -1740,9 +1740,10 @@ let find_proj : pool -> Bindlib.ctxt -> valu -> string
          in
          let po = if get_bs vp po then add_vptr_nobox wp po else po in
          (w, po, names)
-    with e -> bug_msg "unexpected exception in find_proj: %s"
-                    (Printexc.to_string e);
-            assert false
+    with Contradiction as e -> raise e
+       | e -> bug_msg "unexpected exception in find_proj: %s"
+                      (Printexc.to_string e);
+              assert false
 
 
 (* NOTE: sum with one case should not fail, and be treated as projection *)
