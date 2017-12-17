@@ -254,3 +254,20 @@ val rec succ_eq_r : ∀n m∈nat, compare n m ≡ Eq ⇒ compare n S[m] ≡ Ls =
         }
     }
   }
+
+val rec compare_eq : ∀n m∈nat, compare n m ≡ Eq ⇒ n ≡ m =
+  fun n m h {
+    case n {
+      Zero →
+        case m {
+          Zero → {}
+          S[l] → ✂
+        }
+      S[k] →
+        case m {
+          Zero → ✂
+          S[l] → deduce compare k l ≡ Eq;
+                 use compare_eq k l {}; qed
+        }
+    }
+  }

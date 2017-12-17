@@ -16,3 +16,5 @@ val compose : cmp ⇒ cmp ⇒ cmp' = fun c1 c2 {
     }
   }
 }
+
+type dcmp<a,b> = [Ls ; Eq of a ≡ b ; Gr]

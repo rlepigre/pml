@@ -87,7 +87,7 @@ val u1000 : nat = mul u10 u100
 include lib.comparison
 
 // Comparison function.
-val rec compare : nat ⇒ nat ⇒ cmp =
+val rec compare : ∀n m∈nat, dcmp<n,m> =
   fun n m {
     case n {
       Zero → case m {
