@@ -209,12 +209,25 @@ val test5 : test1 ≡ test4 = qed
 
 val exp : nat ⇒ nat ⇒ nat = exp_ring semi_nat
 
-val test : ∀x y∈nat, exp (add x y) u2 ≡ add (exp x u2) (add (mul u2 (mul x y)) (exp y u2)) =
+val test_binome : ∀x y∈nat, exp (add x y) u2 ≡ add (exp x u2) (add (mul u2 (mul x y)) (exp y u2)) =
   fun a b {
     let x = Var[u0];
     let y = Var[u1];
     let env : nat ⇒ nat = fun v { case v { Zero → a | S[p] → b } };
     use theorem semi_nat Exp[(Add[(x,y)],u2)] env;
     use theorem semi_nat Add[(Exp[(x,u2)],Add[(Mul[(Cst[u2],Mul[(x,y)])],Exp[(y,u2)])])] env;
+    qed
+  }
+
+val test_trinome : ∀x y∈nat, exp (add x y) u3 ≡ add (exp x u3) (add (mul u3 (mul (exp x u2)  y))
+                                                            (add (mul u3 (mul x (exp y u2)))
+                                                                (exp y u3))) =
+  fun a b {
+    let x = Var[u0];
+    let y = Var[u1];
+    let env : nat ⇒ nat = fun v { case v { Zero → a | S[p] → b } };
+    use theorem semi_nat Exp[(Add[(x,y)],u3)] env;
+    use theorem semi_nat Add[(Exp[(x,u3)],Add[(Mul[(Cst[u3],Mul[(Exp[(x,u2)],y)])],
+                         Add[(Mul[(Cst[u3],Mul[(x,Exp[(y,u2)])])],Exp[(y,u3)])])])] env;
     qed
   }
