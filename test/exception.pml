@@ -1,5 +1,6 @@
 include lib.bool
 include lib.list
+include lib.option
 
 type bot = ∀x, x
 type neg<a> = a → bot

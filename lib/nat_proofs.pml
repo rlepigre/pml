@@ -87,6 +87,9 @@ val rec mul_n_zero : ∀n∈nat, mul n Zero ≡ Zero =
     }
   }
 
+val rec mul_neutral : ∀n∈nat, mul u1 n ≡ n =
+  fun n { add_n_zero n }
+
 // Successor on the right can be taken out (detailed proof).
 val rec mul_n_succ : ∀n m∈nat, mul n S[m] ≡ add n (mul n m) =
   fun n m {
@@ -202,6 +205,8 @@ val rec mul_assoc : ∀m n p∈nat, mul m (mul n p) ≡ mul (mul m n) p =
              qed
     }
   }
+
+include lib.comparison
 
 val rec succ_gr : ∀n m∈nat, compare n m ≡ Gr ⇒ compare S[n] m ≡ Gr =
   fun n m h {

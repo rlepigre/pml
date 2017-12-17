@@ -84,9 +84,10 @@ val u101 : nat = succ u100
 val u1000 : nat = mul u10 u100
 
 //// Comparison and equality /////////////////////////////////////////////////
+include lib.comparison
 
 // Comparison function.
-val rec compare : nat ⇒ nat ⇒ [Ls ; Eq ; Gr] =
+val rec compare : nat ⇒ nat ⇒ cmp =
   fun n m {
     case n {
       Zero → case m {
