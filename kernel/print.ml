@@ -146,7 +146,7 @@ let rec ex : type a. a ex loc printer = fun ch e ->
                    let sf = if sf then "" else "unsafe " in
                    fprintf ch "fix %s%s.%a" sf (name_of x) ex t
   | Prnt(s)     -> fprintf ch "print(%S)" s
-  | Repl(t,u,_) -> fprintf ch "(check %a for %a)" ex t ex u
+  | Repl(t,u)   -> fprintf ch "(check %a for %a)" ex t ex u
   | Delm(t)     -> fprintf ch "(delim %a)" ex t
   | Conv        -> output_string ch "∞"
   | Succ(o)     -> fprintf ch "%a+1" ex o

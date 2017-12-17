@@ -89,7 +89,7 @@ type _ ex =
   (** Printing instruction. *)
   | TPtr : ptr                                       -> t  ex
   (** Pointer in the pool. *)
-  | Repl : t ex loc * t ex loc * t ex loc            -> t  ex
+  | Repl : t ex loc * t ex loc                       -> t  ex
   (** Triger totality by type rule *)
   | Delm : t ex loc                                  -> t  ex
 
@@ -411,8 +411,8 @@ let fixy : popt -> bool -> strloc -> (tvar -> vbox) -> tbox =
 let prnt : popt -> string -> tbox =
   fun p s -> box (Pos.make p (Prnt(s)))
 
-let repl : popt -> tbox -> tbox -> tbox -> tbox =
-  fun p -> box_apply3 (fun t u pr -> Pos.make p (Repl(t,u,pr)))
+let repl : popt -> tbox -> tbox -> tbox =
+  fun p -> box_apply2 (fun t u -> Pos.make p (Repl(t,u)))
 
 let delm : popt -> tbox -> tbox =
   fun p -> box_apply (fun u -> Pos.make p (Delm(u)))
@@ -630,7 +630,7 @@ let rec sort : type a b. a ex loc ->  a sort * a ex loc= fun e ->
   | Such(VoT_T,_,_) -> (T,e)
   | PSet(_,VoT_T,_) -> (T,e)
   | TPtr _          -> (T,e)
-  | Repl(_,_,_)     -> (T,e)
+  | Repl(_,_)       -> (T,e)
   | Delm _          -> (T,e)
 
   | SWit _          -> (S,e)

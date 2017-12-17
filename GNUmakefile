@@ -136,7 +136,7 @@ lib: main.native $(LIB_FILES)
 .PHONY: test
 TEST_FILES = $(wildcard examples/*.pml test/*.pml test/phd_examples/*.pml)
 test: main.native lib $(TEST_FILES)
-	@for f in $(TEST_FILES); do ./main.native --quiet $$f || break ; done
+	@for f in $(TEST_FILES); do echo $$f; ./main.native --quiet $$f || break ; done
 
 # target to mesure time
 .PHONY: time

@@ -62,7 +62,7 @@ val ac : ∀a,∀b, (∀n∈nat, ∃m∈b, a<n,m>) ⇒
 //   }
 
 // Type of classical streams.
-type corec cstream<a> = {} → {hd : a; tl : cstream}
+// type corec cstream<a> = {} → {hd : a; tl : cstream}
 
 // val exc : ∀a,∀b, (∀n, n∈nat → ∃m∈b, a<n,m>) ⇒
 //            ∃s∈cstream<∃n∈nat, ∃m∈b, a<n,m>>, ∀n, n∈nat → (nth n s).1 ≡ n =
@@ -75,25 +75,25 @@ type corec cstream<a> = {} → {hd : a; tl : cstream}
 //     let rec lem : ∀n∈nat, ∀k, k∈nat → (nth k (fn n)).1 ≡ add n k = fun n k {
 //       case k {
 //         Zero  → let x = g n; // fails here
-//                 use add_n_zero n; qed
+//                 use add_n_zero n; {-qed-}
 //         S[k'] → let x = g n; // and there
 //                 use add_n_succ n k';
-//                 use lem S[n] k'; qed
+//                 use lem S[n] k'; {-qed-}
 //       }
 //     };
-//     let lemz : ∀n, n∈nat → (nth n (fn Zero)).1 ≡ n = fun k { lem Zero k };
+//     let lemz : ∀n, n∈nat → (nth n (fn Zero)).1 ≡ n = lem Zero;
 //        // FIXME, without eta expansion above pml loops
 //     (fn Zero, lemz)
 //   }
 
-// Compute the list of the first n elements of a stream.
-val rec nthc : ∀a, nat ⇒ cstream<a> → a =
-  fun n s {
-    case n {
-           | Zero → (s {}).hd
-           | S[k] → nthc k (s {}).tl
-    }
-  }
+// // Compute the list of the first n elements of a stream.
+// val rec nthc : ∀a, nat ⇒ cstream<a> → a =
+//   fun n s {
+//     case n {
+//            | Zero → (s {}).hd
+//            | S[k] → nthc k (s {}).tl
+//     }
+//   }
 
 // val acc : ∀a,∀b, (∀n, n∈nat → ∃m∈b, a<n,m>) ⇒
 //             ∃f∈(nat → b), ∀n, n∈nat→ ∃v:ι,a<n,v>|v≡f n =

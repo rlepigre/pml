@@ -1305,14 +1305,10 @@ and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
         let p = gen_subtype ctx a c in
         (Typ_Prnt(t, a, c, p), Tot)
     (* Replacement. *)
-    | Repl(t,u,p) ->
+    | Repl(t,u) ->
+        let c = Pos.none (Memb(t,c)) in
         let (p1,tot) = type_term ctx u c in
-        let eq =
-          let un = unbox (strict_prod None A.empty) in
-          Pos.none (Rest(un,Equiv(t,true,u)))
-        in
-        let (p2,_) = type_term { ctx with totality = Tot } p eq in
-        (Typ_Repl(p1,p2), tot)
+        (Typ_Repl(p1,p1), tot)
     | Delm(t)     ->
        let pure = Pure.(pure t && pure c
                         && Lazy.force ctx.equations.pool.pure)

@@ -84,7 +84,7 @@ let uvar_iter : type a. bool -> bool -> bool -> uvar_fun -> a ex loc -> unit =
                        uvar_iter v; A.iter fn m
       | FixY(_,f)   -> buvar_iter T f
       | Prnt(_)     -> ()
-      | Repl(t,u,a) -> uvar_iter u (* Repl(_,u,_) = u *)
+      | Repl(t,u)   -> uvar_iter u (* Repl(_,u,_) = u *)
       | Delm(t)     -> uvar_iter t
       | Conv        -> ()
       | Succ(o)     -> uvar_iter o

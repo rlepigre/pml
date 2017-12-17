@@ -72,7 +72,7 @@ let pure : type a. a ex loc -> bool =
                      iter v; A.iter fn m
     | FixY(_,f)   -> biter T f
     | Prnt(_)     -> ()
-    | Repl(t,u,a) -> iter u (* Repl(_,u_) = u *)
+    | Repl(t,u)   -> iter u (* Repl(_,_) = u *)
     | Delm(u)     -> iter u
     | Conv        -> ()
     | Succ(o)     -> iter o

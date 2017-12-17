@@ -809,7 +809,7 @@ let rec add_term :  bool -> bool -> pool -> term
                      in
                      if free then normalise pt po else find pt po
     | Prnt(s)     -> insert (TN_Prnt(s)) po
-    | Repl(_,u,_) -> add_term po u
+    | Repl(_,u)   -> add_term po u
     | Delm(u)     -> add_term po u
     | Coer(_,t,_) -> add_term po t
     | Such(_,_,r) -> add_term po (bseq_dummy r.binder)

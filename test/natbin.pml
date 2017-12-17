@@ -1,8 +1,8 @@
 include lib.nat
 
-type rec natbin = [ Zero of ∃n:ι, n∈(natbin | n ≠ End) ; One of natbin ; End ]
+type rec natbin = [ Zero of {n∈natbin | n ≠ End} ; One of natbin ; End ]
 
-type nonzero = ∃n:ι, n∈(natbin | n ≠ End)
+type nonzero = {n∈natbin | n ≠ End}
 
 val b0     : natbin  = End
 val b1     : nonzero = One[End]
@@ -213,28 +213,6 @@ val rec print_nat : natbin ⇒ {} =
 val println_nat : natbin ⇒ {} =
   fun n { print_nat n; print "\n" }
 
-val rec fact1 : ∀m∈nat, ∀n∈(natbin | n ≡ nat_to_natbin m), natbin = fun m n {
-  case n {
-    End     → b1
-    Zero[_] →
-      case m {
-        Zero → ✂
-        S[q] → deduce n ≡ succ_b (nat_to_natbin q);
-               let p = pred_b n;
-               show p ≡ nat_to_natbin q using pred_succ (nat_to_natbin q);
-               mul n (fact1 q p)
-      }
-    One[_] →
-      case m {
-        Zero → ✂
-        S[q] → deduce n ≡ succ_b (nat_to_natbin q);
-               let p = pred_b n;
-               show p ≡ nat_to_natbin q using pred_succ (nat_to_natbin q);
-               mul n (fact1 q p)
-      }
-  }
-}
-
 val rec fact2 : natbin ↝ natbin  = fun n {
   case n {
     End     → b1
@@ -243,32 +221,38 @@ val rec fact2 : natbin ↝ natbin  = fun n {
   }
 }
 
-val rec fact_eq : ∀m∈nat, ∀n∈(natbin | n ≡ nat_to_natbin m), fact1 m n ≡ fact2 n =
-  fun m n {
-    case n {
-      End     → qed
-      Zero[_] →
-        case m {
-          Zero → ✂
-          S[q] → deduce n ≡ succ_b (nat_to_natbin q);
-                 let p = pred_b n;
-                 show p ≡ nat_to_natbin q using pred_succ (nat_to_natbin q);
-                 use (fact_eq q p)
+val rec fact1 : ∀m∈nat, ∀n∈(natbin | n ≡ nat_to_natbin m), (fact2 n)∈natbin = fun m n {
+  case n {
+    End     → b1
+    Zero[_] →
+      case m {
+        Zero → ✂
+        S[q] → deduce n ≡ succ_b (nat_to_natbin q);
+               let p = pred_b n;
+               show p ≡ nat_to_natbin q using pred_succ (nat_to_natbin q);
+               let r = fact1 q p;
+               let r2 = mul n r;
+               deduce r ≡ fact2 p;
+               deduce r2 ≡ fact2 n;
+               r2
       }
-      One[_] →
-        case m {
-          Zero → ✂
-          S[q] → deduce n ≡ succ_b (nat_to_natbin q);
-                 let p = pred_b n;
-                 show p ≡ nat_to_natbin q using pred_succ (nat_to_natbin q);
-                 use (fact_eq q p)
-        }
-    }
+    One[_] →
+      case m {
+        Zero → ✂
+        S[q] → deduce n ≡ succ_b (nat_to_natbin q);
+               let p = pred_b n;
+               show p ≡ nat_to_natbin q using pred_succ (nat_to_natbin q);
+               let r = fact1 q p;
+               let r2 = mul n r;
+               deduce r ≡ fact2 p;
+               deduce r2 ≡ fact2 n;
+               r2
+      }
   }
+}
 
 val rec fact : natbin → natbin = fun n {
-  check use bij2 n; fact1 (natbin_to_nat n) n for fact2 n because
-    (use bij2 n; fact_eq (natbin_to_nat n) n)
+  check use bij2 n; fact1 (natbin_to_nat n) n for fact2 n
 }
 
 val test1 : ∀n∈natbin, fact n ≡ fact2 n = fun n { qed }

@@ -83,7 +83,7 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
     | Case(v,m)   -> let fn _ (_,f) acc = owits acc (bndr_subst f (Dumm V)) in
                      A.fold fn m (owits acc v)
     | Prnt(_)     -> acc
-    | Repl(t,u,a) -> owits (owits (owits acc t) u) a
+    | Repl(t,u)   -> owits acc u
     | Delm(u)     -> owits acc u
 
     | Coer(_,e,_) -> owits acc e
