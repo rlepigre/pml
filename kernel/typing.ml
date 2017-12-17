@@ -151,7 +151,7 @@ type typ_rule =
   | Typ_Ind    of fix_schema * sub_proof
   | Typ_Goal   of string
   | Typ_Prnt   of sub_proof
-  | Typ_Repl   of typ_proof * typ_proof
+  | Typ_Repl   of typ_proof
   | Typ_Delm   of typ_proof
 
 and  stk_rule =
@@ -1308,7 +1308,7 @@ and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
     | Repl(t,u) ->
         let c = Pos.none (Memb(t,c)) in
         let (p1,tot) = type_term ctx u c in
-        (Typ_Repl(p1,p1), tot)
+        (Typ_Repl(p1), tot)
     | Delm(t)     ->
        let pure = Pure.(pure t && pure c
                         && Lazy.force ctx.equations.pool.pure)
