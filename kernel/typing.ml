@@ -1016,18 +1016,40 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
         Typ_DSum_i(p1,p2)
     (* Record. *)
     | Reco(m)     ->
-        let fn l _ m =
+        let has_mem k =
+          let rec fn u = match (Norm.whnf u).elt with
+            | Exis(s,f) -> fn (bndr_subst f (Dumm s))
+            | Univ(s,f) -> fn (bndr_subst f (Dumm s))
+            | Memb(_,t) -> fn t
+            | Rest(t,_) -> fn t
+            | Impl(_,t) -> fn t
+            | Prod(m)   ->
+               begin
+                 try
+                   let (_,t) = A.find k m in
+                   match (Norm.whnf t).elt with Memb _ -> true | _ -> false
+                 with Not_found -> false
+               end
+            | _ -> false
+          in
+          fn c
+        in
+        let fn l t m =
           let a = new_uvar ctx P in
+          let a = if has_mem l then
+                    Pos.none (Memb(Pos.none (Valu (snd t)), a))
+                  else a
+          in
           A.add l (None, a) m
         in
         let pm = A.fold fn m A.empty in
         let c' = Pos.none (Prod(pm)) in
         let p1 = subtype ctx t c' c in
-        let ctx = learn_neg_equivalences ctx v None c in
+        let ctx_a = learn_neg_equivalences ctx v None c in
         let fn l (p, v) ps =
           log_typ "Checking case %s." l;
           let (_,a) = A.find l pm in
-          let p = type_valu ctx v a in
+          let p = type_valu ctx_a v a in
           p::ps
         in
         let p2s = A.fold fn m [] in
