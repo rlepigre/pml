@@ -1390,7 +1390,7 @@ and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
 and check_total : ctxt -> term -> prop -> ctxt =
   fun ctx t c ->
     let (is_val, no_box, ctx) = term_is_value t ctx in
-    if (not is_val && not no_box && not (is_not_tot ctx.totality))
+    if (not is_val && not no_box && is_tot ctx.totality)
     then type_error (E(T,t)) c Not_total
     else ctx
 
