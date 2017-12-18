@@ -992,6 +992,8 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
        let (_, _, r) = type_valu ctx (Norm.whnf v) c in r
     (* λ-abstraction. *)
     | LAbs(ao,f)  ->
+       (* build the function type a => b with totality annotation
+          tot as a fresh totality variable *)
        let a =
          match ao with
          | None   -> new_uvar ctx P
@@ -1000,17 +1002,19 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
        let b = new_uvar ctx P in
        let tot = new_tot () in
        let c' = Pos.none (Func(tot,a,b)) in
+       (* check subtyping *)
        let p1 = subtype ctx t c' c in
+       (* build the witness for typing *)
        let (wit,ctx_names) = vwit ctx.ctx_names f a b in
        let ctx = { ctx with ctx_names; totality = tot } in
        let twit = Pos.none(Valu wit) in
-       (* Learn the equivalence that are valid in the witness. *)
        begin
          try
+           (* Learn the equivalence that are valid in the witness. *)
            let ctx = learn_nobox ctx wit in
            let ctx = learn_equivalences ctx wit a in
            let ctx = learn_neg_equivalences ctx v (Some twit) c in
-           log_typ "arrow tot2: %a" Print.arrow tot;
+           (* call typing *)
            let (p2,tot0) = type_term ctx (bndr_subst f wit.elt) b in
            Typ_Func_i(p1,Some p2)
          with Contradiction ->
