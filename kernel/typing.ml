@@ -489,14 +489,23 @@ and subtype =
            | None ->
               (ctx, wit)
          in
+         let rwit = Pos.none (Appl(t, wit)) in
+         let mk_ctx_f () =
+           if know_tot t1 then
+             let (v,ctx) = learn_value ctx rwit top in
+             (Pos.none (Valu v), ctx)
+           else (rwit, ctx)
+         in
          let p1, p2 =
            match is_singleton a1 with
            | Some _ ->
               let p1 = subtype ctx wit a2 a1 in
-              let p2 = subtype ctx (Pos.none (Appl(t, wit))) b1 b2 in
+              let (rwit,ctx_f) = mk_ctx_f () in
+              let p2 = subtype ctx_f rwit b1 b2 in
               (p1,p2)
            | None ->
-              let p2 = subtype ctx (Pos.none (Appl(t, wit))) b1 b2 in
+              let (rwit,ctx_f) = mk_ctx_f () in
+              let p2 = subtype ctx_f rwit b1 b2 in
               let p1 = subtype ctx wit a2 a1 in
               (p1,p2)
          in
@@ -1289,17 +1298,18 @@ and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
     (* Such that. *)
     | Such(_,_,r) ->
         let (a,t) = instantiate ctx r.binder in
-        let (b,wopt) =
+        let (b,wopt,rev) =
           match r.opt_var with
-          | SV_None    -> (c                  , Some(t))
-          | SV_Valu(v) -> (extract_vwit_type v, Some(Pos.none (Valu v)))
-          | SV_Stac(s) -> (extract_swit_type s, None)
+          | SV_None    -> (c                  , Some(t), true)
+          | SV_Valu(v) -> (extract_vwit_type v, Some(Pos.none (Valu v)), false)
+          | SV_Stac(s) -> (extract_swit_type s, None, false)
         in
         let _ =
           try
-            match wopt with
-            | None   -> ignore(gen_subtype ctx b a)
-            | Some t -> ignore(subtype ctx t b a)
+            match wopt, rev with
+            | None, _       -> ignore(gen_subtype ctx b a)
+            | Some t, false -> ignore(subtype ctx t b a)
+            | Some t, true  -> ignore(subtype ctx t a b)
           with _ -> cannot_unify b a
         in
         let (p,tot) = type_term ctx t c in

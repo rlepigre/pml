@@ -486,6 +486,8 @@ let exis : type a. popt -> strloc -> a sort -> (a var -> pbox) -> pbox =
     let b = vbind (mk_free s) x.elt f in
     box_apply (fun b -> Pos.make p (Exis(s, (x.pos, b)))) b
 
+let top : prop = unbox (exis None (Pos.none "x") P (fun x -> p_vari None x))
+
 let fixm : popt -> obox -> strloc -> (pvar -> pbox) -> pbox =
   fun p o x f ->
     let b = vbind (mk_free P) x.elt f in
