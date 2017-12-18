@@ -174,3 +174,108 @@ val test5 : beta<omega,omega> = []::[]
 val test6 : beta<omega,omega> = []::[]::[]
 
 val test7 : beta<App[(idt,omega)],omega> = []::[]::[]
+
+// reduction parrallel
+
+type rec ptree =
+  [ Idt
+  ; Rdx of ptree × ptree
+  ; App of ptree × ptree
+  ; Lam of ptree
+  ]
+
+val rec par_red_one : ∀v, ptree ⇒ pterm<either<v, pterm<v>>> ⇒ pterm<v> = fun p t {
+  case p {
+    Idt          → lift t
+    Rdx[(p1,p2)] →
+      case t {
+        App[(t1,t2)] →
+          case t1 {
+            Lam[f] → par_red_one p1 (f (InR[par_red_one p2 t2]))
+            App[_] → lift t
+            Var[_] → lift t
+          }
+        Lam[_]       → lift t
+        Var[_]       → lift t
+      }
+    App[(p1,p2)]   →
+      case t {
+        App[(t1,t2)] → App[(par_red_one p1 t1, par_red_one p2 t2)]
+        Lam[_]       → lift t
+        Var[_]       → lift t
+      }
+    Lam[p1]      →
+      case t {
+        Lam[f] → Lam[fun v { par_red_one p1 (f InL[v])}]
+        App[_] → lift t
+        Var[_] → lift t
+      }
+  }
+}
+
+val par_red_one : ptree ⇒ term ⇒ term = par_red_one
+
+// multiple step parallel reduction
+val rec par_red : list<ptree> ⇒ term ⇒ term = fun ps t {
+  case ps {
+    []    → t
+    p::ps → par_red ps (par_red_one p t)
+  }
+}
+
+// type for parallel beta !
+type beta_par<t1,t2> = { ps∈list<ptree> | eq (par_red ps t1) t2 }
+
+// test parallel reduction
+val test8 : beta_par<App[(App[(idt,delta)],App[(idt,delta)])],omega> =
+  App[(Rdx[(Idt,Idt)],Rdx[(Idt,Idt)])]::Rdx[(Idt,Idt)]::[]
+
+val is_idt : ptree ⇒ bool = fun t1 {
+  case t1 {
+    Idt → true
+    App[_] → false
+    Rdx[_] → false
+    Lam[_] → false
+  }
+}
+
+val app : ptree ⇒ ptree ⇒ ptree = fun t1 t2 {
+  if land<is_idt t1, is_idt t2> { Idt } else { App[(t1,t2)] }
+}
+
+val lam : ptree ⇒ ptree = fun t1 {
+  if is_idt t1 { Idt } else { Lam[t1] }
+}
+
+// search all redexes, ensure that we return Idt if no redex
+val rec redexes : pterm<{}> ⇒ ptree = fun t {
+  case t {
+    Var[_]       → Idt
+    Lam[f]       → lam (redexes(f {}))
+    App[(t1,t2)] → case t1 {
+      Lam[f] → Rdx[(redexes(f {}), redexes t2)]
+      Var[_] → app (redexes t1) (redexes t2)
+      App[_] → app (redexes t1) (redexes t2)
+    }
+  }
+}
+
+
+val redexes : term ⇒ ptree = redexes
+
+// using redexes, we can define complete development
+val complete_dev : term ⇒ term = fun t {
+  par_red_one (redexes t) t
+}
+
+// and (non terminating) normalisation
+val rec normalise : term ↝ term = fun t {
+  let p = redexes t;
+  if is_idt p { t } else { normalise (par_red_one p t) }
+}
+
+val test9 : eq (normalise (App[(church u2, church u2)])) (church u4) = {}
+
+val test10 : eq (normalise (App[(church u2, church u3)])) (church u9) = {}
+
+val test11 : eq (normalise (App[(church u3, church u2)])) (church u8) = {}
