@@ -29,6 +29,26 @@ val rec exp_ring : ∀r, semiring<r> ⇒ r ⇒ nat ⇒ r = fun s x n {
   }
 }
 
+val rec exp_add : ∀r, ∀s∈semiring<r>, ∀x∈r, ∀a b∈nat,
+                    exp_ring s x (add a b) ≡ s.mul (exp_ring s x a) (exp_ring s x b) =
+  fun s x a b {
+    let exp = exp_ring s;
+    case a {
+      Zero → deduce exp x (add a b) ≡ exp x b;
+             deduce s.mul (exp x a) (exp x b) ≡ s.mul s.one (exp x b);
+             use s.mul_neutral (exp x b);
+             deduce s.mul (exp x a) (exp x b) ≡ exp x b;
+             qed
+      S[p] → deduce exp x (add a b) ≡ s.mul x (exp x (add p b));
+             deduce s.mul (exp x a) (exp x b) ≡
+               s.mul (s.mul x (exp x p)) (exp x b);
+             show exp x (add a b) ≡
+               s.mul x (s.mul (exp x p) (exp x b)) using exp_add s x p b;
+             show exp x (add a b) ≡ s.mul (s.mul x (exp x p)) (exp x b)
+                 using s.mul_assoc x (exp x p) (exp x b);
+             qed
+    }
+  }
 ///////////////////////////////
 // definition of polynomials //
 ///////////////////////////////
@@ -118,23 +138,24 @@ val rec mul_monom : monom ⇒ monom ⇒ monom = fun m1 m2 {
 }
 
 // multiplication of a polynomial as a coef and a monomial
-val mul_monom_poly : ∀r, semiring<r> ⇒ r ⇒ monom ⇒ list<r×monom> ⇒ list<r×monom> =
-  fun s x m1 l {
-    let r such that x:r;
-    let fn : r×monom ⇒ r×monom =
-      fun c { let (y,m2) = c; (s.mul x y, mul_monom m1 m2) };
-    map fn l
+val rec mul_monom_poly : ∀r, semiring<r> ⇒ r ⇒ monom ⇒ list<r×monom> ⇒ list<r×monom> =
+  fun s x m1 p {
+    case p {
+      []   → []
+      c::q → let (y,m2) = c;
+             (s.mul x y, mul_monom m1 m2) :: mul_monom_poly s x m1 q
+    }
   }
 
 // polynomial multiplication
 val rec mul_poly : ∀r, semiring<r> ⇒ list<r×monom> ⇒ list<r×monom> ⇒ list<r×monom> =
   fun s p1 p2 {
     let r such that _:list<r×monom>;
-    let fn : list<r×monom> ⇒ r×monom ⇒ list<r×monom> = fun p c {
+    let fn : r×monom ⇒ list<r×monom> ⇒ list<r×monom> = fun c p {
       let (x,m) = c;
       add_poly s p (mul_monom_poly s x m p2)
     };
-    fold_left fn [] p1
+    fold_right fn p1 []
   }
 
 // polynomial exponentiation
@@ -361,16 +382,152 @@ val rec eval_add : ∀r, ∀s∈semiring<r>,  ∀p1 p2∈list<r×monom>, ∀env�
      }
   }
 
-val eval_mul : ∀r, ∀s∈semiring<r>,  ∀p1 p2∈list<r×monom>, ∀env∈(nat ⇒ r),
-                  eval s (mul_poly s p1 p2) env ≡ s.mul (eval s p1 env) (eval s p2 env) =
-  fun s p1 p2 env {
-    {--}
+val rec eval_mul_monom : ∀r, ∀s∈semiring<r>,  ∀m1 m2∈monom, ∀env∈(nat ⇒ r), ∀i∈nat,
+                       eval_monom s (mul_monom m1 m2) env i ≡
+                       s.mul (eval_monom s m1 env i) (eval_monom s m2 env i) =
+  fun s m1 m2 env i {
+    case m1 {
+      []     → use s.mul_neutral (eval_monom s m2 env i);
+               qed
+      e1::p1 → case m2 {
+        []     → use s.mul_comm (eval_monom s m1 env i) s.one;
+                 use s.mul_neutral (eval_monom s m1 env i);
+                 qed
+        e2::p2 → let exp = exp_ring s;
+                 deduce mul_monom m1 m2 ≡ add e1 e2 :: mul_monom p1 p2;
+                 deduce eval_monom s (mul_monom m1 m2) env i ≡
+                   s.mul (eval_monom s (mul_monom p1 p2) env S[i])
+                     (exp (env i) (add e1 e2));
+                 let a1 = eval_monom s p1 env S[i];
+                 let a2 = eval_monom s p2 env S[i];
+                 show eval_monom s (mul_monom p1 p2) env S[i] ≡ s.mul a1 a2
+                   using eval_mul_monom s p1 p2 env S[i];
+                 let b1 = exp (env i) e1;
+                 let b2 = exp (env i) e2;
+                 show eval_monom s (mul_monom m1 m2) env i ≡
+                   s.mul (eval_monom s (mul_monom p1 p2) env S[i]) (s.mul b1 b2)
+                   using exp_add s (env i) e1 e2;
+                 showing s.mul (s.mul a1 a2) (s.mul b1 b2) ≡
+                   s.mul (s.mul a1 b1) (s.mul a2 b2);
+                 use s.mul_assoc a1 a2 (s.mul b1 b2);
+                 use s.mul_assoc a1 b1 (s.mul a2 b2);
+                 showing s.mul a2 (s.mul b1 b2) ≡
+                   s.mul b1 (s.mul a2 b2);
+                 use s.mul_assoc a2 b1 b2;
+                 use s.mul_assoc b1 a2 b2;
+                 showing s.mul a2 b1 ≡ s.mul b1 a2;
+                 use s.mul_comm a2 b1;
+                 qed
+      }
+    }
   }
 
-val eval_exp : ∀r, ∀s∈semiring<r>,  ∀p∈list<r×monom>, ∀e∈nat, ∀env∈(nat ⇒ r),
-                  eval s (exp_poly s p e) env ≡ exp_ring s (eval s p env) e =
+val rec eval_mul_monom_poly : ∀r, ∀s∈semiring<r>, ∀x∈r, ∀m1∈monom,
+                              ∀p∈list<r×monom>, ∀env∈(nat ⇒ r),
+                       eval s (mul_monom_poly s x m1 p) env ≡
+                       s.mul (s.mul x (eval_monom s m1 env u0)) (eval s p env) =
+  fun s x m1 p env {
+    case p {
+      []   → deduce mul_monom_poly s x m1 p ≡ [];
+             deduce eval s (mul_monom_poly s x m1 p) env ≡ s.zero;
+             showing s.mul (s.mul x (eval_monom s m1 env u0)) s.zero ≡ s.zero;
+             use s.mul_comm (s.mul x (eval_monom s m1 env u0)) s.zero;
+             use s.mul_abs (s.mul x (eval_monom s m1 env u0));
+             qed
+      c::q → let (y,m2) = c;
+             let m  = mul_monom m1 m2;
+             let z  = s.mul x y;
+             deduce mul_monom_poly s x m1 p ≡
+               (z, m) :: mul_monom_poly s x m1 q;
+             deduce eval s (mul_monom_poly s x m1 p) env ≡
+               s.add (s.mul z (eval_monom s m env u0))
+               (eval s (mul_monom_poly s x m1 q) env);
+             let a1 = eval_monom s m1 env u0;
+             let a2 = eval_monom s m2 env u0;
+             let b  = eval s q env;
+             show eval s (mul_monom_poly s x m1 p) env ≡
+               s.add (s.mul z (s.mul a1 a2))
+                     (eval s (mul_monom_poly s x m1 q) env)
+               using eval_mul_monom s m1 m2 env u0;
+             show eval s (mul_monom_poly s x m1 p) env ≡
+               s.add (s.mul z (s.mul a1 a2)) (s.mul (s.mul x a1) b)
+               using eval_mul_monom_poly s x m1 q env;
+             deduce eval s p env ≡ s.add (s.mul y a2) b;
+             showing s.add (s.mul (s.mul x y) (s.mul a1 a2)) (s.mul (s.mul x a1) b)
+               ≡ s.mul (s.mul x a1) (s.add (s.mul y a2) b);
+             use s.mul_distrib (s.mul x a1) (s.mul y a2) b;
+             showing s.mul (s.mul x y) (s.mul a1 a2)
+               ≡ s.mul (s.mul x a1) (s.mul y a2);
+             use s.mul_assoc x y (s.mul a1 a2);
+             use s.mul_assoc x a1 (s.mul y a2);
+             showing  s.mul y (s.mul a1 a2)
+               ≡ s.mul a1 (s.mul y a2);
+             use s.mul_assoc y a1 a2;
+             use s.mul_assoc a1 y a2;
+             use s.mul_comm y a1;
+             qed
+    }
+  }
+
+val rec eval_mul : ∀r, ∀s∈semiring<r>,  ∀p1 p2∈list<r×monom>, ∀env∈(nat ⇒ r),
+                  eval s (mul_poly s p1 p2) env ≡ s.mul (eval s p1 env) (eval s p2 env) =
   fun s p1 p2 env {
-    {--}
+    case p1 {
+      []    → deduce mul_poly s p1 p2 ≡ [];
+              showing s.zero ≡ s.mul s.zero (eval s p2 env);
+              use s.mul_abs (eval s p2 env);
+              qed
+      c::q1 → let (x,m1) = c;
+              deduce mul_poly s p1 p2 ≡
+                add_poly s (mul_poly s q1 p2) (mul_monom_poly s x m1 p2);
+              let a1 = eval_monom s m1 env u0;
+              let b1 = eval s q1 env;
+              let b = eval s p2 env;
+              show eval s (mul_poly s q1 p2) env ≡ s.mul b1 b
+                using eval_mul s q1 p2 env;
+              show eval s (mul_monom_poly s x m1 p2) env ≡ s.mul (s.mul x a1) b
+                using eval_mul_monom_poly s x m1 p2 env;
+              show eval s (add_poly s (mul_poly s q1 p2) (mul_monom_poly s x m1 p2)) env ≡
+                s.add (s.mul b1 b) (s.mul (s.mul x a1) b)
+                using eval_add s (mul_poly s q1 p2) (mul_monom_poly s x m1 p2) env;
+              showing s.add (s.mul b1 b) (s.mul (s.mul x a1) b) ≡
+                s.mul (s.add (s.mul x a1) b1) b;
+              use s.mul_comm b1 b;
+              use s.mul_comm (s.mul x a1) b;
+              use s.mul_comm (s.add (s.mul x a1) b1) b;
+              showing  s.add (s.mul b b1) (s.mul b (s.mul x a1)) ≡
+                s.mul b (s.add (s.mul x a1) b1);
+              use s.add_comm (s.mul x a1) b1;
+              showing  s.add (s.mul b b1) (s.mul b (s.mul x a1)) ≡
+                s.mul b (s.add b1 (s.mul x a1));
+              use s.mul_distrib b b1 (s.mul x a1);
+              qed
+    }
+  }
+
+val coucou : nat = u0
+
+val rec eval_exp : ∀r, ∀s∈semiring<r>,  ∀p∈list<r×monom>, ∀e∈nat, ∀env∈(nat ⇒ r),
+                  eval s (exp_poly s p e) env ≡ exp_ring s (eval s p env) e =
+  fun s p e env {
+    case e {
+      Zero → deduce exp_poly s p e ≡ (s.one, []) :: [];
+             deduce eval s (exp_poly s p e) env ≡ s.add (s.mul s.one s.one) s.zero;
+             deduce exp_ring s (eval s p env) e ≡ s.one;
+             showing s.add (s.mul s.one s.one) s.zero ≡ s.one;
+             use s.mul_neutral s.one;
+             use s.add_comm s.one s.zero;
+             use s.add_neutral s.one;
+             qed
+      S[f] → deduce exp_poly s p e ≡ mul_poly s p (exp_poly s p f);
+             deduce exp_ring s (eval s p env) e ≡
+               s.mul (eval s p env) (exp_ring s (eval s p env) f);
+             show eval s (exp_poly s p e) env ≡ s.mul
+               (eval s p env) (eval s (exp_poly s p f) env)
+               using eval_mul s p (exp_poly s p f) env;
+             use eval_exp s p f env;
+             qed
+    }
   }
 
 // Main theorem
