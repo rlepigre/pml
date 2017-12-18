@@ -172,3 +172,5 @@ val test4 : eq omega (red_one [] omega) ≡ true = {}
 val test5 : beta<omega,omega> = []::[]
 
 val test6 : beta<omega,omega> = []::[]::[]
+
+val test7 : beta<App[(idt,omega)],omega> = []::[]::[]
