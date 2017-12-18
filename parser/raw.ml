@@ -184,7 +184,7 @@ and raw_ex' =
   | ECase of raw_ex * flag * patt_ex list
   | EFixY of bool * strloc * raw_ex
   | EPrnt of string
-  | ERepl of raw_ex * raw_ex
+  | ERepl of raw_ex * raw_ex * raw_ex option
   | EDelm of raw_ex
   | ECoer of raw_sort * raw_ex * raw_ex
   | ESuch of raw_sort * (strloc * raw_sort) ne_list
@@ -243,8 +243,8 @@ let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
                          (print_list aux_patt "; ") l
     | EFixY(s,a,t)  -> Printf.fprintf ch "EFixY(%b,%a,%a)" s aux_var a print t
     | EPrnt(s)      -> Printf.fprintf ch "EPrnt(%S)" s
-    | ERepl(t,u)    -> Printf.fprintf ch "ERepl(%a,%a)"
-                         print t print u
+    | ERepl(t,u,p)  -> Printf.fprintf ch "ERepl(%a,%a,%a)"
+                         print t print u aux_opt p
     | EDelm(u)      -> Printf.fprintf ch "EDelm(%a)" print u
     | ECoer(_,t,a)  -> Printf.fprintf ch "ECoer(%a,%a)" print t print a
     | ESuch(_,v,j,u)-> let x = Option.default (Pos.none "_") (fst j) in
@@ -579,12 +579,22 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
     | (EFixY(_)     , _        ) -> sort_clash e s
     | (EPrnt(_)     , ST       ) -> ()
     | (EPrnt(_)     , _        ) -> sort_clash e s
-    | (ERepl(t,u)   , ST       ) -> infer env vars t _st;
-                                    infer env vars u _st
-    | (ERepl(t,u)   , SUni(r)  ) -> sort_uvar_set r _st;
+    | (ERepl(t,u,p) , ST       ) -> infer env vars t _st;
+                                    infer env vars u _st;
+                                    begin
+                                      match p with
+                                      | None -> ()
+                                      | Some p ->  infer env vars p _st;
+                                    end
+    | (ERepl(t,u,p) , SUni(r)  ) -> sort_uvar_set r _st;
                                     infer env vars t _st;
-                                    infer env vars u _st
-    | (ERepl(_,_)   , _        ) -> sort_clash e s
+                                    infer env vars u _st;
+                                    begin
+                                      match p with
+                                      | None -> ()
+                                      | Some p ->  infer env vars p _st;
+                                    end
+    | (ERepl(_,_,_) , _        ) -> sort_clash e s
     | (EDelm(u)     , ST       ) -> infer env vars u _st;
     | (EDelm(u)     , SUni(r)  ) -> sort_uvar_set r _st;
                                     infer env vars u _st;
@@ -951,10 +961,15 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
         Box(T, fixy e.pos s a fn)
     | (EPrnt(s)     , ST       ) ->
         Box(T, prnt e.pos s)
-    | (ERepl(t,u)   , ST       ) ->
+    | (ERepl(t,u,p) , ST       ) ->
         let t = to_term (unsugar env vars t _st) in
         let u = to_term (unsugar env vars u _st) in
-        Box(T, repl e.pos t u)
+        let p =
+          match p with
+          | None   -> None
+          | Some p -> Some (to_term (unsugar env vars p _st))
+        in
+        Box(T, repl e.pos t u p)
     | (EDelm(u)     , ST       ) ->
         let u = to_term (unsugar env vars u _st) in
         Box(T, delm e.pos u)

@@ -37,6 +37,7 @@ let parser goal = "{-" str:goal_name "-}" -> String.trim str
 
 (* Keywords. *)
 let _assume_  = Keyword.create "assume"
+let _because_ = Keyword.create "because"
 let _bool_    = Keyword.create "bool"
 let _case_    = Keyword.create "case"
 let _check_   = Keyword.create "check"
@@ -372,9 +373,9 @@ let parser expr @(m : mode) =
       when m <<= Trm A
       -> if_then_else _loc c t e
   (* Term (replacement) *)
-  | _check_ u:term _for_ t:term
+  | _check_ u:term _for_ t:term b:{_:_because_ t:term}?
       when m <<= Trm R
-      -> in_pos _loc (ERepl(t,u))
+      -> in_pos _loc (ERepl(t,u,b))
   (* Term (totality by purity) *)
   | _delim_ '{' u:term '}'
       when m <<= Trm R

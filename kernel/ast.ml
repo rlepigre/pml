@@ -411,8 +411,15 @@ let fixy : popt -> bool -> strloc -> (tvar -> vbox) -> tbox =
 let prnt : popt -> string -> tbox =
   fun p s -> box (Pos.make p (Prnt(s)))
 
-let repl : popt -> tbox -> tbox -> tbox =
-  fun p -> box_apply2 (fun t u -> Pos.make p (Repl(t,u)))
+let repl : popt -> tbox -> tbox -> tbox option -> tbox =
+  fun p t u b ->
+    let u = match b with
+      | None -> u
+      | Some b ->
+         let fn x = sequ None b (valu None (vari None x)) in
+         appl None (valu None (labs None None (Pos.none "res") fn)) u
+    in
+    box_apply2 (fun t u -> Pos.make p (Repl(t,u))) t u
 
 let delm : popt -> tbox -> tbox =
   fun p -> box_apply (fun u -> Pos.make p (Delm(u)))
