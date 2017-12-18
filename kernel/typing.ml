@@ -473,7 +473,9 @@ and subtype =
       match (a.elt, b.elt) with
       (* Arrow types. *)
       | (Func(t1,a1,b1), Func(t2,a2,b2)) when t_is_val ->
+         (* check that totality agree *)
          if not (sub t1 t2) then subtype_msg a.pos "Arrow clash";
+         (* build the nobox value witness *)
          let fn x = appl None (box t) (valu None (vari None x)) in
          let name = Print.get_lambda_name t in
          let f = (None, unbox (vbind (mk_free V) name fn)) in
@@ -481,15 +483,14 @@ and subtype =
          let ctx = { ctx with ctx_names } in
          let ctx = learn_nobox ctx vwit in
          let wit = Pos.none (Valu(vwit)) in
-         let ctx, wit = match is_singleton a2 with
-           | Some x ->
-             let equations = learn ctx.equations (Equiv(x,true,wit)) in
-             let ctx = { ctx with equations } in
-             (ctx, wit)
-           | None ->
-              (ctx, wit)
-         in
+         (* learn the equation from a2. *)
+         let ctx = learn_equivalences ctx vwit a2 in
+         (* the local term for b1 < b2 *)
          let rwit = Pos.none (Appl(t, wit)) in
+         (* if the first function type is total, we can assume that
+            the above witness is a value.
+            NOTE: we can not build ctf_f now, because we need to use
+            ctx first below and is would trigger reset of the pool *)
          let mk_ctx_f () =
            if know_tot t1 then
              let (v,ctx) = learn_value ctx rwit top in
@@ -497,6 +498,7 @@ and subtype =
            else (rwit, ctx)
          in
          let p1, p2 =
+           (* heuristic to choose what to check first *)
            match is_singleton a1 with
            | Some _ ->
               let p1 = subtype ctx wit a2 a1 in
@@ -1183,22 +1185,37 @@ and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
         in
         let tot = ctx.totality in
         let (p1,p2,tot1,strong) =
+          (* when u is not typed and f is, typecheck f first *)
           if is_typed VoT_T t && not (is_typed VoT_T u) then
+            (* f will be of type ae => c, with ae = u∈a if
+                - we know the function will be total (otherwise it is illegal)
+                - a was not given *)
             let ae = if know_tot tot && not given then Pos.none (Memb(u,a)) else a in
+            (* type check f *)
             let (p1,tot1) = type_term ctx f (Pos.none (Func(tot,ae,c))) in
+            (* do will apply strong equality : we do if ae is a singleton type *)
             let strong =
               match is_singleton ae with
               | None -> false
               | Some a -> unif_expr ctx u a
             in
+            (* for check total checking for u is we use strong application *)
             let ctx_u = if strong then { ctx with totality = Tot } else ctx in
+            (* check u *)
             let (p2,tot2) = type_term ctx_u u a in
             (p1,p2,max tot1 tot2,strong)
           else
+            (* it we are not checking for a total application, we
+               check with a fresh totality variable, otherwise, the
+               test is_tot bellow might for ctx.totality to Tot.
+               tot1 < tot is checked at the end *)
             let ctx_u = if know_tot tot then ctx else
                           { ctx with totality = new_tot () } in
             let (p2,tot1) = type_term ctx_u u a in
+            (* If the typing of u was total, we can use strong application *)
             let strong = is_tot tot1 in
+            (* Same trick as above: ae = u∈a is a is not already a singleton
+               type and if the application is strong *)
             let (ctx, ae) =
               if strong then
                 let ae = if given || is_singleton a <> None then a
@@ -1208,7 +1225,9 @@ and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
                 (ctx, ae)
               else (ctx, a)
             in
+            (* checking f *)
             let (p1,tot2) = type_term ctx f (Pos.none (Func(tot,ae,c))) in
+            (* check tot1, as late as possible to avoid instanciating tot *)
             if not (sub tot1 tot) then subtype_msg f.pos "Arrow clash";
             (p1,p2,max tot1 tot2,strong)
         in
