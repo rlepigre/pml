@@ -63,6 +63,18 @@ let log_typ = Log.(log_typ.p)
 let log_aut = Log.register 'a' (Some "aut") "automatic proving informations"
 let log_aut = Log.(log_aut.p)
 
+type auto_ctxt =
+  { level : int * int
+  ; doing : bool
+  ; tsted : blocked list }
+
+let default_auto_lvl = ref (0, 5)
+
+let auto_empty () =
+  { level = !default_auto_lvl
+  ; doing = false
+  ; tsted = [] }
+
 (* Context. *)
 type ctxt  =
   { uvarcount : int ref
@@ -75,12 +87,9 @@ type ctxt  =
   ; sub_ihs   : sub_schema list
   ; top_ih    : Scp.index * ordi array
   ; add_calls : (unit -> unit) list ref
-  ; auto_lvl  : int * int
-  ; in_auto   : bool
+  ; auto      : auto_ctxt
   ; callgraph : Scp.t
   ; totality  : tot }
-
-let default_auto_lvl = ref (0, 5)
 
 let empty_ctxt () =
   { uvarcount = ref 0
@@ -91,8 +100,7 @@ let empty_ctxt () =
   ; sub_ihs   = []
   ; top_ih    = (Scp.root, [| |])
   ; add_calls = ref []
-  ; auto_lvl  = !default_auto_lvl
-  ; in_auto   = false
+  ; auto      = auto_empty ()
   ; callgraph = Scp.create ()
   ; totality  = Ter }
 
@@ -636,61 +644,74 @@ and subtype =
 
 and auto_prove : ctxt -> exn -> term -> prop -> typ_proof * tot  =
   fun ctx exn t ty ->
-    let ctx = { ctx with in_auto = true } in
+    (* Save utime to backtrack even on unification *)
     let st = UTimed.Time.save () in
-    match exn with
-      Failed_to_prove(_,bls) as exn ->
-        let cmp b1 b2 = match (b1,b2) with
-          | BTot _, BCas _ -> -1
-          | BCas _, BTot _ -> 1
-          | _     , _      -> 0
-        in
-        let bls = List.stable_sort cmp bls in
-        let decrease_lvl ctx n =
-          let (l1,l2) = ctx.auto_lvl in
-          let auto_lvl =
-            if n = 1 then
-              if l2 <= 0 then raise exn else (l1, l2 - 1)
-            else
-              if l1 <= 0 then raise exn else (l1 - 1, l2)
-          in
-          { ctx with auto_lvl }
-        in
-        let rec fn bls =
-          UTimed.Time.rollback st;
-          match bls with
-          | [] -> type_error (E(T,t)) ty exn
-          | BTot e :: bls ->
-             (try
-                let ctx = decrease_lvl ctx 1 in
-                let f = labs None None (Pos.none "x") (fun _ -> box t) in
-                let t = unbox (appl None (valu None f) (Bindlib.box e)) in
-                let (l1,l2) = ctx.auto_lvl in
-                log_aut "totality (%d,%d): %a" l1 l2 Print.ex t;
-                type_term ctx t ty
-              with
-              | Failed_to_prove _ -> fn bls
-              | Type_error _      -> fn bls)
-          | BCas(e,cs) :: bls ->
-             (try
-                let ctx = decrease_lvl ctx (List.length cs) in
-                let mk_case c =
-                  A.add c (None, Pos.none "x", (fun _ -> box t))
-                in
-                let cases = List.fold_right mk_case cs A.empty in
-                let f = labs None None (Pos.none "x") (fun v ->
-                               case None (vari None v) cases)
-                in
-                let t = unbox (appl None (valu None f) (Bindlib.box e)) in
-                let (l1,l2) = ctx.auto_lvl in
-                log_aut "cases    (%d,%d): %a" l1 l2 Print.ex t;
-                type_term ctx t ty
-              with
-              | Failed_to_prove _ -> fn bls
-              | Type_error _      -> fn bls)
-
-        in fn bls
-    | _ -> assert false
+    (* Tell we are in auto *)
+    let ctx = { ctx with auto = { ctx.auto with doing = true } } in
+    (* Get the blocked case/eval from the exception *)
+    let bls =
+      match exn with Failed_to_prove(_,bls) -> bls
+                   | _ -> assert false
+    in
+    (* Do not try what was already tried *)
+    let is_new b = not (List.exists (eq_blocked b) ctx.auto.tsted) in
+    let bls = List.filter is_new bls in
+    (* Sort the terms : totality first *)
+    let cmp b1 b2 = match (b1,b2) with
+      | BTot _, BCas _ -> -1
+      | BCas _, BTot _ ->  1
+      | _     , _      ->  0
+    in
+    let bls = List.stable_sort cmp bls in
+    (* Helper that decreade the level and add the case being
+       tested to avoid repetition *)
+    let update_auto : ctxt -> int -> blocked -> ctxt = fun ctx n b ->
+      let (l1,l2) = ctx.auto.level in
+      let level =
+        if n = 1 then
+          if l2 <= 0 then raise exn else (l1, l2 - 1)
+        else
+          if l1 <= 0 then raise exn else (l1 - 1, l2)
+      in
+      { ctx with auto = { ctx.auto with level;
+                                        tsted = b :: ctx.auto.tsted } }
+    in
+    (* main recursive function trying all elements *)
+    let rec fn bls =
+      UTimed.Time.rollback st;
+      match bls with
+      | [] -> type_error (E(T,t)) ty exn
+      | BTot e as b :: bls ->
+         (* for a totality, we add a let to the term and typecheck *)
+         (try
+            let ctx = update_auto ctx 1 b in
+            let f = labs None None (Pos.none "x") (fun _ -> box t) in
+            let t = unbox (appl None (valu None f) (Bindlib.box e)) in
+            let (l1,l2) = ctx.auto.level in
+            log_aut "totality (%d,%d): %a" l1 l2 Print.ex t;
+            type_term ctx t ty
+          with
+          | Failed_to_prove _ -> fn bls
+          | Type_error _      -> fn bls)
+      | BCas(e,cs) as b :: bls ->
+         (* for a blocked case analysis, we add a case! *)
+         (try
+            let ctx = update_auto ctx (List.length cs) b in
+            let mk_case c =
+              A.add c (None, Pos.none "x", (fun _ -> box t))
+            in
+            let cases = List.fold_right mk_case cs A.empty in
+            let f = labs None None (Pos.none "x") (fun v ->
+                           case None (vari None v) cases)
+            in
+            let t = unbox (appl None (valu None f) (Bindlib.box e)) in
+            let (l1,l2) = ctx.auto.level in
+            log_aut "cases    (%d,%d): %a" l1 l2 Print.ex t;
+            type_term ctx t ty
+          with
+          | Failed_to_prove _ -> fn bls
+          | Type_error _      -> fn bls)
+    in fn bls
 
 and gen_subtype : ctxt -> prop -> prop -> sub_rule =
   fun ctx a b ->
@@ -1137,7 +1158,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
 
 and do_set_param ctx = function
   | Alvl(b,d) ->
-     let ctx = { ctx with auto_lvl = (b,d) } in
+     let ctx = { ctx with auto = { ctx.auto with level = (b,d) } } in
      (ctx, fun () -> ())
   | Logs(s)   ->
      let save = Log.get_enabled () in
@@ -1159,7 +1180,7 @@ and is_typed : type a. a v_or_t -> a ex loc -> bool = fun t e ->
   | _                  -> false
 
 and warn_unreachable ctx t =
-  if not (is_scis t) && not (ctx.in_auto) then
+  if not (is_scis t) && not ctx.auto.doing then
     begin
       match t.pos with
       | None   -> Output.wrn_msg "unreachable code..."

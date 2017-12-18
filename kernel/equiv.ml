@@ -1832,20 +1832,17 @@ let equiv_error : rel -> blocked list -> 'a =
     can still appear as sub terms.
     - Also excludes unset uvar.
     - and case with only one case (temporary fix to avoid subtyping witness) *)
-let rec not_uewit : type a. a ex loc -> bool =
-  fun e ->
-    match e.elt with
-    | UWit _ -> false
-    | EWit _ -> false
-    | Valu e -> not_uewit e
-    | UVar(_,v)   ->
-        begin match !(v.uvar_val) with
-        | Set v -> not_uewit v
-        | _     -> false
-        end
+let rec not_uewit : type a. ?vwit:bool -> a ex loc -> bool =
+  fun ?(vwit=true) e ->
+    match (Norm.whnf e).elt with
+    | UWit _    -> false
+    | EWit _    -> false
+    | VWit _    -> vwit
+    | Valu e    -> not_uewit ~vwit e
     | Case(_,c) -> A.length c > 1 (* TODO #29: fix this issue and remove! *)
-    | _      -> true
+    | _         -> true
 
+(* Search a vwit or a projection equal to a given term in the pool *)
 let to_vwit : term -> pool -> term = fun t po ->
   (*Printf.eprintf "to_vwit: %a\n%!" Print.ex t;*)
   let (pt, po) = add_term true true po t in
@@ -1855,15 +1852,15 @@ let to_vwit : term -> pool -> term = fun t po ->
   let l = List.find_all fn po.os in
   if l = [] then raise Not_found;
   let cmp (_,x) (_,y) = match (x.elt, y.elt) with
-    | Valu{elt=VWit v}, _ -> -1
-    | _, Valu{elt=VWit v} -> 1
-    | Proj _, _           -> -1
-    | _, Proj _           -> 1
-    | _         -> 0
+    | (Valu{elt=VWit v}, _               ) -> -1
+    | (_               , Valu{elt=VWit v}) ->  1
+    | (Proj _          , _               ) -> -1
+    | (_               , Proj _          ) ->  1
+    | (_               , _               ) ->  0
   in
   snd (List.hd (List.sort cmp l))
 
-
+(** test is a node is a nobox value *)
 let test_value : Ptr.t -> pool -> bool = fun p po ->
   let (p, po) = find p po in
   let (no_box, po) = is_nobox p po in
@@ -1873,17 +1870,13 @@ let test_value : Ptr.t -> pool -> bool = fun p po ->
   in
   is_val && no_box
 
-(** get one original term from the pool or their applications.
-    - argument test is to avoid total term for BTot
- *)
-let rec get_orig : Ptr.t -> pool -> term =
-  fun p po ->
+(** get one original term from the pool or their applications. *)
+let rec get_orig : ?vwit:bool -> Ptr.t -> pool -> term =
+  fun ?(vwit=true) p po ->
     let t =
       try
         let l = List.find_all (fun (v',e) ->
-                    eq_ptr po p v' && (
-                                 (*Printf.eprintf "testing %a %a\n%!" Ptr.print v' Print.ex e;*)
-                                 not_uewit e)) po.os in
+                    eq_ptr po p v' && not_uewit ~vwit e) po.os in
         (*Printf.eprintf "coucou 3 %d\n%!" (List.length l);*)
         if l = [] then raise Not_found;
         let cmp (_,x) (_,y) = match (x.elt, y.elt) with
@@ -1943,7 +1936,7 @@ let get_blocked : pool -> blocked list = fun po ->
              begin
                (*Printf.eprintf "coucou 2\n%!";*)
                try
-                 let e = get_orig v po in
+                 let e = get_orig ~vwit:false v po in
                  let b = BTot e in
                  if List.exists (eq_blocked b) acc then acc else
                    begin
