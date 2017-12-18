@@ -47,6 +47,15 @@ val rec fold_left : ∀a b, (a ⇒ b ⇒ a) ⇒ a ⇒ list<b> ⇒ a =
     }
   }
 
+val rec fold_right : ∀a b, (b ⇒ a ⇒ a) ⇒ list<b> ⇒ a ⇒ a =
+  fun fn l acc {
+    case l {
+      []       → acc
+      hd :: tl → let fr = fold_right fn; // FIXME
+                 fn hd (fr tl acc)
+    }
+  }
+
 val sum : list<nat> ⇒ nat = fold_left add zero
 
 val rec app : ∀b, list<b> ⇒ list<b> ⇒ list<b> =

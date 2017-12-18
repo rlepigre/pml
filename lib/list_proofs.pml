@@ -57,6 +57,10 @@ val rev_rev : ∀a, ∀x∈list<a>, rev (rev x) ≡ x =
 
 def cmp<f:ι,g:ι> = fun x { g (f x) }
 
+val map_def : ∀a b, ∀f∈(a ⇒ b), ∀x∈a, ∀l∈list<a>,
+                map f (x::l) ≡ f x :: map f l =
+  fun f x l { qed }
+
 val map_map : ∀a b c, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c), ∀l∈list<a>,
                 map g (map f l) ≡ map cmp<f,g> l =
     fun fn gn {
