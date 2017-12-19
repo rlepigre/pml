@@ -20,6 +20,7 @@ let type_error : sorted -> prop -> exn -> 'a =
   fun t p e ->
     match e with
     | Out_of_memory         -> raise e
+    | Sys.Break             -> raise e
     | Type_error(E(_,t),_,_)
          when t.pos <> None -> raise e
     | _                     -> raise (Type_error(t, p, e))
@@ -32,8 +33,11 @@ exception Subtype_error of term * prop * prop * exn
 let subtype_error : term -> prop -> prop -> exn -> 'a =
   fun t a b e ->
     match e with
-    | Out_of_memory -> raise e
-    | _             -> raise (Subtype_error(t,a,b,e))
+    | Out_of_memory     -> raise e
+    | Subtype_error _   -> raise e
+    | Failed_to_prove _ -> raise e
+    | Sys.Break         -> raise e
+    | _                 -> raise (Subtype_error(t,a,b,e))
 
 exception Cannot_unify of prop * prop
 let cannot_unify : prop -> prop -> 'a =
@@ -636,8 +640,6 @@ and subtype =
     in
     (t, a, b, r)
     with
-    | Subtype_error _ as e   -> raise e
-    | Failed_to_prove _ as e -> raise e
     | e                      -> subtype_error t a b e
   in
   fun ctx t a b -> Chrono.add_time sub_chrono (subtype ctx t a) b
@@ -1114,7 +1116,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
             match wopt with
             | None   -> ignore(gen_subtype ctx b a)
             | Some t -> ignore(subtype ctx t b a)
-          with _ -> cannot_unify b a
+          with Subtype_error _ -> cannot_unify b a
         in Typ_TSuch(type_valu ctx v c)
     (* Set auto lvl *)
     | PSet(l,_,v) ->
@@ -1350,7 +1352,7 @@ and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
             | None, _       -> ignore(gen_subtype ctx b a)
             | Some t, false -> ignore(subtype ctx t b a)
             | Some t, true  -> ignore(subtype ctx t a b)
-          with _ -> cannot_unify b a
+          with Subtype_error _ -> cannot_unify b a
         in
         let (p,tot) = type_term ctx t c in
         (Typ_TSuch(p), tot)

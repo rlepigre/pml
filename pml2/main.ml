@@ -9,6 +9,7 @@ open Eval
 open Config
 
 let _ = Printexc.record_backtrace true
+let _ = Sys.catch_break true
 
 let verbose   = ref true
 let timed     = ref false
