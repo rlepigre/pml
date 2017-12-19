@@ -1208,7 +1208,7 @@ and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
         let tot = ctx.totality in
         let (p1,p2,tot1,strong) =
           (* when u is not typed and f is, typecheck f first *)
-          if is_typed VoT_T t && not (is_typed VoT_T u) then
+          if is_typed VoT_T f && not (is_typed VoT_T u) then
             (* f will be of type ae => c, with ae = u∈a if
                 - we know the function will be total (otherwise it is illegal) *)
             let ae = if know_tot tot then Pos.none (Memb(u,a)) else a in
