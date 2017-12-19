@@ -1214,21 +1214,21 @@ and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
             let ae = if know_tot tot then Pos.none (Memb(u,a)) else a in
             (* type check f *)
             let (p1,tot1) = type_term ctx f (Pos.none (Func(tot,ae,c))) in
-            (* do will apply strong equality : we do if ae is a singleton type *)
+            (* we apply strong application rule if ae is a singleton type *)
             let strong =
               match is_singleton ae with
               | None -> false
               | Some a -> unif_expr ctx u a
             in
-            (* for check total checking for u is we use strong application *)
+            (* total checking for u if we use strong application *)
             let ctx_u = if strong then { ctx with totality = Tot } else ctx in
             (* check u *)
             let (p2,tot2) = type_term ctx_u u a in
             (p1,p2,max tot1 tot2,strong)
           else
             (* it we are not checking for a total application, we
-               check with a fresh totality variable, otherwise, the
-               test is_tot bellow might for ctx.totality to Tot.
+               check with a fresh totality variable. Otherwise, the
+               test is_tot bellow might force ctx.totality to Tot.
                tot1 < tot is checked at the end *)
             let ctx_u = if know_tot tot then ctx else
                           { ctx with totality = new_tot () } in
