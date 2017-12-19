@@ -82,7 +82,6 @@ val ac : ∀a,∀b, (∀n∈nat, ∃m∈b, a<n,m>) ⇒
 //       }
 //     };
 //     let lemz : ∀n, n∈nat → (nth n (fn Zero)).1 ≡ n = lem Zero;
-//        // FIXME, without eta expansion above pml loops
 //     (fn Zero, lemz)
 //   }
 
