@@ -1204,7 +1204,7 @@ and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
     (* Application or strong application. *)
     | Appl(f,u)   ->
         (* try to get the type of u from a lambda in f,
-           This is not to loose the type in "let x:a = t;".
+           This is not to loose the type in "let x:a = f x;".
            NOTE: more cases could be added. *)
         let (a,given) = match (Norm.whnf t).elt with
           | Valu{elt = LAbs(Some a, _)} -> (a,true)
