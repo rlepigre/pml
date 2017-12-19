@@ -1203,21 +1203,15 @@ and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
         let (_, _, r) = type_valu ctx v c in (r, Tot)
     (* Application or strong application. *)
     | Appl(f,u)   ->
-        (* try to get the type of u from a lambda in f,
-           This is not to loose the type in "let x:a = u; f x".
-           NOTE: more cases could be added. *)
-        let (a,given) = match (Norm.whnf t).elt with
-          | Valu{elt = LAbs(Some a, _)} -> (a,true)
-          | _ -> (new_uvar ctx P, false)
-        in
+        (* a fresh unif var for the type of u *)
+        let a = new_uvar ctx P in
         let tot = ctx.totality in
         let (p1,p2,tot1,strong) =
           (* when u is not typed and f is, typecheck f first *)
           if is_typed VoT_T t && not (is_typed VoT_T u) then
             (* f will be of type ae => c, with ae = u∈a if
-                - we know the function will be total (otherwise it is illegal)
-                - a was not given *)
-            let ae = if know_tot tot && not given then Pos.none (Memb(u,a)) else a in
+                - we know the function will be total (otherwise it is illegal) *)
+            let ae = if know_tot tot then Pos.none (Memb(u,a)) else a in
             (* type check f *)
             let (p1,tot1) = type_term ctx f (Pos.none (Func(tot,ae,c))) in
             (* do will apply strong equality : we do if ae is a singleton type *)
@@ -1245,8 +1239,8 @@ and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
                type and if the application is strong *)
             let (ctx, ae) =
               if strong then
-                let ae = if given || is_singleton a <> None then a
-                         else Pos.none (Memb(u,a))
+                let ae =
+                  if is_singleton a <> None then a else Pos.none (Memb(u,a))
                 in
                 let (v,ctx) = learn_value ctx u a in
                 (ctx, ae)
