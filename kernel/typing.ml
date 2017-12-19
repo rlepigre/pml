@@ -1203,7 +1203,9 @@ and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
         let (_, _, r) = type_valu ctx v c in (r, Tot)
     (* Application or strong application. *)
     | Appl(f,u)   ->
-        (* try to get the type of u. usefull in let syntactic sugar *)
+        (* try to get the type of u from a lambda in f,
+           This is not to loose the type in "let x:a = t;".
+           NOTE: more cases could be added. *)
         let (a,given) = match (Norm.whnf t).elt with
           | Valu{elt = LAbs(Some a, _)} -> (a,true)
           | _ -> (new_uvar ctx P, false)
