@@ -95,8 +95,8 @@ let uvar_iter : type a. bool -> bool -> bool -> uvar_fun -> a ex loc -> unit =
       | ITag(_)     -> raise Occurs
       | Dumm(_)     -> ()
       | Goal(_)     -> ()
-      | VPtr(_)     -> ()
-      | TPtr(_)     -> ()
+      | VPtr(_)     -> if occur then assert false
+      | TPtr(_)     -> if occur then assert false
       | VWit(w)     -> if todo e then luvar_iter w
       | SWit(w)     -> if todo e then luvar_iter w
       | UWit(w)     -> if todo e then luvar_iter w
