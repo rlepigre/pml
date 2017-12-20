@@ -562,6 +562,7 @@ and parser patt =
                                      let arg = Some (`LetArgRec [hd; tl]) in
                                      (in_pos _loc "Cons" , arg )
   | c:luid arg:{'[' let_arg ']'}? -> (c                  , arg )
+  | "0"                           -> (in_pos _loc "Zero" , None)
 
 (* Common entry points. *)
 and term    = expr (Trm F)

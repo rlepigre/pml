@@ -82,9 +82,9 @@ val test : ∀f:ι, f∈(nat ⇒ nat) ⇒ ∃n∈nat, leq (f n) (f (succ (mul 2 
   }
 
 val max : nat ⇒ nat ⇒ nat = fun x y { if leq x y { y } else { x } }
-val abssub : nat ⇒ nat ⇒ nat = fun x y { max (minus x y) (minus y x) }
+val abssub : nat ⇒ nat ⇒ nat = fun x y { max (x - y) (y - x) }
 val f_alex : nat ⇒ nat = fun n { abssub n 1000 }
 
-val test1 : ∃n, n∈nat | leq (f_alex n) (f_alex (succ (mul 2 n))) =
+val test1 : ∃n, n∈nat | leq (f_alex n) (f_alex (succ (2 * n))) =
   (test f_alex).1
 val test2 : {} = println_nat test1

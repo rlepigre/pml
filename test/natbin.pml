@@ -1,28 +1,28 @@
 include lib.nat
 
-type rec natbin = [ Zero of {n∈natbin | n ≠ End} ; One of natbin ; End ]
+type rec natbin = [ B0 of {n∈natbin | n ≠ Zero} ; B1 of natbin ; Zero ]
 
-type nonzero = {n∈natbin | n ≠ End}
+type nonzero = {n∈natbin | n ≠ Zero}
 
-val b0 : natbin  = End
-val b1  : nonzero = One[End]
+val b0 : natbin  = Zero
+val b1 : nonzero = B1[Zero]
 
 val rec succ_b : natbin ⇒ nonzero = fun n {
   case n {
-    End     → b1
-    Zero[p] → One[p]
-    One[p]  → Zero[succ_b p]
+    0     → b1
+    B0[p] → B1[p]
+    B1[p] → B0[succ_b p]
   }
 }
 
 val rec pred_b : nonzero ⇒ natbin = fun n {
   case n {
-    End     → ✂
-    Zero[p] → One[pred_b p]
-    One[p]  → case p {
-      End     → End
-      Zero[_] → Zero[p]
-      One[_]  → Zero[p]
+    0     → ✂
+    B0[p] → B1[pred_b p]
+    B1[p] → case p {
+      0     → Zero
+      B0[_] → B0[p]
+      B1[_] → B0[p]
     }
   }
 }
@@ -30,41 +30,41 @@ val rec pred_b : nonzero ⇒ natbin = fun n {
 val rec pred_succ : ∀n∈natbin, pred_b (succ_b n) ≡ n =
   take n;
   case n {
-    End     → qed
-    Zero[p] → set auto 1 0; qed
-    One[p]  → use pred_succ p; qed
+    0     → qed
+    B0[p] → set auto 1 0; qed
+    B1[p] → use pred_succ p; qed
   }
 
 val rec nat_to_natbin : nat ⇒ natbin = fun n {
   case n {
-    Zero → b0
+    0    → b0
     S[p] → succ_b (nat_to_natbin p)
   }
 }
 
 val rec natbin_to_nat : natbin ⇒ nat = fun n {
    case n {
-     End     → zero
-     Zero[p] → mul (natbin_to_nat p) 2
-     One[p]  → succ (mul (natbin_to_nat p) 2)
+     0     → zero
+     B0[p] → mul (natbin_to_nat p) 2
+     B1[p] → succ (mul (natbin_to_nat p) 2)
    }
 }
 
 val rec lemma1 : ∀n∈natbin, natbin_to_nat (succ_b n) ≡ succ (natbin_to_nat n) =
   take n;
   case n {
-    End     → qed
-    Zero[p] → qed
-    One[p]  → show natbin_to_nat (succ_b p) ≡ succ (natbin_to_nat p) using lemma1 p;
-              deduce natbin_to_nat (succ_b n) ≡ mul (succ (natbin_to_nat p)) 2;
-              deduce succ (natbin_to_nat n)   ≡ succ (succ (mul (natbin_to_nat p) 2));
-              qed
+    0     → qed
+    B0[p] → qed
+    B1[p] → show natbin_to_nat (succ_b p) ≡ succ (natbin_to_nat p) using lemma1 p;
+            deduce natbin_to_nat (succ_b n) ≡ mul (succ (natbin_to_nat p)) 2;
+            deduce succ (natbin_to_nat n)   ≡ succ (succ (mul (natbin_to_nat p) 2));
+            qed
   }
 
 val rec bij1 : ∀n∈nat, natbin_to_nat (nat_to_natbin n) ≡ n =
   take n;
   case n {
-    Zero → qed
+    0    → qed
     S[p] → show natbin_to_nat (nat_to_natbin p) ≡ p using bij1 p;
            use lemma1 (nat_to_natbin p);
            qed
@@ -72,24 +72,24 @@ val rec bij1 : ∀n∈nat, natbin_to_nat (nat_to_natbin n) ≡ n =
 
 val double : natbin ⇒ natbin = fun n {
   case n {
-    End     → End
-    Zero[p] → Zero[Zero[p]]
-    One[p]  → Zero[One[p]]
+    0     → Zero
+    B0[p] → B0[B0[p]]
+    B1[p]  → B0[B1[p]]
   }
 }
 
 val rec lemma2b : ∀n∈natbin,  double (succ_b n) ≡ succ_b (succ_b (double n)) =
   take n;
   case n {
-    End     → qed
-    Zero[p] → use lemma2b p; qed
-    One[p]  → use lemma2b p; qed
+    0     → qed
+    B0[p] → use lemma2b p; qed
+    B1[p] → use lemma2b p; qed
   }
 
 val rec lemma2 : ∀n∈nat, nat_to_natbin (mul n 2) ≡ double(nat_to_natbin n) =
   take n;
   case n {
-    Zero → qed
+    0    → qed
     S[p] → deduce nat_to_natbin (mul n 2) ≡ nat_to_natbin (succ (succ (mul p 2)));
            deduce nat_to_natbin (mul n 2) ≡ succ_b (succ_b (nat_to_natbin (mul p 2)));
            show nat_to_natbin (mul n 2) ≡ succ_b (succ_b (double (nat_to_natbin p)))
@@ -102,29 +102,29 @@ val rec lemma2 : ∀n∈nat, nat_to_natbin (mul n 2) ≡ double(nat_to_natbin n)
 val rec lemma3 : ∀n∈nonzero, natbin_to_nat n ≠ Zero =
   take n;
   case n {
-    End     → ✂
-    Zero[p] → deduce natbin_to_nat n ≡ mul (natbin_to_nat p) 2;
+    0     → ✂
+    B0[p] → deduce natbin_to_nat n ≡ mul (natbin_to_nat p) 2;
               use lemma3 p;
               case natbin_to_nat p {
-                Zero → ✂
+                0 → ✂
                 S[q] → deduce natbin_to_nat n ≡ S[S[mul q 2]];
                        qed
               }
-    One[p] → deduce natbin_to_nat n ≡ succ (mul (natbin_to_nat p) 2);
+    B1[p] → deduce natbin_to_nat n ≡ succ (mul (natbin_to_nat p) 2);
              qed
   }
 
 val rec bij2 : ∀n∈natbin, nat_to_natbin (natbin_to_nat n) ≡ n =
   take n;
   case n {
-    End     → qed
-    Zero[p] → deduce natbin_to_nat n ≡ mul (natbin_to_nat p) 2;
+    0     → qed
+    B0[p] → deduce natbin_to_nat n ≡ mul (natbin_to_nat p) 2;
               use lemma2 (natbin_to_nat p);
               use bij2 p;
               use lemma3 p;
               set auto 1 2;
               qed
-    One[p]  → deduce natbin_to_nat n ≡ succ (mul (natbin_to_nat p) 2);
+    B1[p]  → deduce natbin_to_nat n ≡ succ (mul (natbin_to_nat p) 2);
               use lemma2 (natbin_to_nat p);
               use bij2 p;
               set auto 1 2;
@@ -136,36 +136,36 @@ type carry = [ Zero ; One ]
 val rec add_aux : carry ⇒ natbin ⇒ natbin ⇒ natbin =
   fun carry n m {
     case carry {
-      Zero →
+      0    →
         case n {
-          End     → m
-          Zero[p] →
+          0     → m
+          B0[p] →
             case m {
-              End     → n
-              Zero[q] → double(add_aux Zero p q)
-              One[q]  → One [add_aux Zero p q]
+              0     → n
+              B0[q] → double(add_aux Zero p q)
+              B1[q] → B1[add_aux Zero p q]
             }
-          One[p]  →
+          B1[p]  →
             case m {
-              End     → n
-              Zero[q] → One [add_aux Zero p q]
-              One[q]  → double(add_aux One  p q)
+              0     → n
+              B0[q] → B1[add_aux Zero p q]
+              B1[q] → double(add_aux One  p q)
             }
         }
       One  →
         case n {
-          End     → succ_b m
-          Zero[p] →
+          0     → succ_b m
+          B0[p] →
             case m {
-              End     → succ_b n
-              Zero[q] → One [add_aux Zero p q]
-              One[q]  → double(add_aux One  p q)
+              0     → succ_b n
+              B0[q] → B1[add_aux Zero p q]
+              B1[q] → double(add_aux One  p q)
             }
-          One[p]  →
+          B1[p] →
             case m {
-              End     → succ_b n
-              Zero[q] → double(add_aux One  p q)
-              One[q]  → One [add_aux One  p q]
+              0  → succ_b n
+              B0[q] → double(add_aux One  p q)
+              B1[q] → B1[add_aux One  p q]
             }
         }
     }
@@ -175,9 +175,9 @@ val rec add : natbin ⇒ natbin ⇒ natbin = fun n m { add_aux Zero n m }
 
 val rec mul : natbin ⇒ natbin ⇒ natbin = fun n m {
   case n {
-    End     → End
-    Zero[p] → double (mul p m)
-    One[p]  → add m (double (mul p m))
+    0     → Zero
+    B0[p] → double (mul p m)
+    B1[p] → add m (double (mul p m))
   }
 }
 
@@ -190,9 +190,9 @@ val dble : natbin ⇒ natbin = double
 val rec print_nat : natbin ⇒ {} =
   fun n {
     case n {
-      End     → {}
-      Zero[p] → print_nat p; print "0"
-      One[p]  → print_nat p; print "1"
+      0     → {}
+      B0[p] → print_nat p; print "0"
+      B1[p] → print_nat p; print "1"
     }
   }
 
@@ -202,18 +202,18 @@ val println_nat : natbin ⇒ {} =
 
 val rec fact2 : natbin ↝ natbin  = fun n {
   case n {
-    End     → b1
-    Zero[_] → mul n (fact2 (pred_b n))
-    One[_]  → mul n (fact2 (pred_b n))
+    0     → b1
+    B0[_] → mul n (fact2 (pred_b n))
+    B1[_] → mul n (fact2 (pred_b n))
   }
 }
 
 val rec fact1 : ∀m∈nat, ∀n∈(natbin | n ≡ nat_to_natbin m), (fact2 n)∈natbin = fun m n {
   case n {
-    End     → b1
-    Zero[_] →
+    0     → b1
+    B0[_] →
       case m {
-        Zero → ✂
+        0    → ✂
         S[q] → deduce n ≡ succ_b (nat_to_natbin q);
                let p = pred_b n;
                show p ≡ nat_to_natbin q using pred_succ (nat_to_natbin q);
@@ -223,9 +223,9 @@ val rec fact1 : ∀m∈nat, ∀n∈(natbin | n ≡ nat_to_natbin m), (fact2 n)�
                deduce r2 ≡ fact2 n;
                r2
       }
-    One[_] →
+    B1[_] →
       case m {
-        Zero → ✂
+        0    → ✂
         S[q] → deduce n ≡ succ_b (nat_to_natbin q);
                let p = pred_b n;
                show p ≡ nat_to_natbin q using pred_succ (nat_to_natbin q);

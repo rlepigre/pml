@@ -33,7 +33,7 @@ val rec map : ∀o, ∀a b, (a ⇒ b) ⇒ sstream<o,a> ⇒ sstream<o,b> =
   }
 
 
-val cons : ∀o, ∀a, a ⇒ sstream<o+1,a> ⇒ sstream<o,a> =
+val cons : ∀o, ∀a, a ⇒ sstream<o,a> ⇒ sstream<o+1,a> =
   fun a s _ {
     { hd = a; tl = s }
   }

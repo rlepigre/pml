@@ -3,14 +3,14 @@ include test.polynomials
 
 val rec sum_odd : nat ⇒ nat = fun n {
   case n {
-    Zero → 0
+    0    → 0
     S[p] → sum_odd p + 1 + 2 * p
   }
 }
 
 val rec theorem : ∀n∈nat, sum_odd n ≡ n ** 2 = fun n {
   case n {
-    Zero → eqns sum_odd 0 ≡ 0 ≡ 0 ** 2
+    0    → eqns sum_odd 0 ≡ 0 ≡ 0 ** 2
     S[p] → eqns
            sum_odd n ≡ sum_odd p + 1 + 2 * p
                      ≡ p ** 2 + 1 + 2 * p    by theorem p

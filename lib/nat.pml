@@ -8,7 +8,7 @@ val zero : nat = Zero
 val succ : nat ⇒ nat = fun n { S[n] }
 
 // With dble can use natural numbers!
-val rec dble : nat ⇒ nat = fun n { case n { Zero → Zero | S[p] → S[S[dble p]] }}
+val rec dble : nat ⇒ nat = fun n { case n { 0 → 0 | S[p] → S[S[dble p]] }}
 
 // Usual numbers.
 val one : nat = 1
@@ -21,11 +21,11 @@ val pred : [S of nat] ⇒ nat = fun n { case n { S[p] → p } }
 
 // Predecessor function with value zero in zero.
 val full_pred : nat ⇒ nat =
-  fun n { case n { Zero → zero | S[n] → n } }
+  fun n { case n { 0 → 0 | S[n] → n } }
 
 // Test to zero.
 val is_zero : nat ⇒ bool =
-  fun n { case n { Zero → true | S[_] → false } }
+  fun n { case n { 0 → true | S[_] → false } }
 
 // Addition function.
 infix (+) = add priority 3 left associative
@@ -33,7 +33,7 @@ infix (+) = add priority 3 left associative
 val rec (+) : nat ⇒ nat ⇒ nat =
   fun n m {
     case n {
-      Zero → m
+      0    → m
       S[k] → succ (k + m)
     }
   }
@@ -44,7 +44,7 @@ infix (*) = mul priority 2 left associative
 val rec ( * ) : nat ⇒ nat ⇒ nat =
   fun n m {
     case n {
-      Zero → 0
+      0    → 0
       S[k] → m + (k * m)
     }
   }
@@ -55,7 +55,7 @@ infix (**) = exp priority 1 right associative
 val rec ( ** ) : nat ⇒ nat ⇒ nat =
   fun n m {
     case m {
-      Zero → 1
+      0    → 1
       S[k] → n * (n ** k)
     }
   }
@@ -66,9 +66,9 @@ infix (-) = minus priority 3 right associative
 val rec (-) : nat ⇒ nat ⇒ nat =
   fun n m {
     case n {
-      Zero → zero
+      0    → zero
       S[p] → case m {
-        Zero → n
+        0    → n
         S[q] → p - q
       }
     }
@@ -81,12 +81,12 @@ include lib.comparison
 val rec compare : ∀n m∈nat, dcmp<n,m> =
   fun n m {
     case n {
-      Zero → case m {
-        Zero → Eq
+      0    → case m {
+        0    → Eq
         S[_] → Ls
       }
       S[n] → case m {
-        Zero → Gr
+        0    → Gr
         S[m] → compare n m
       }
     }
@@ -118,9 +118,9 @@ val gt : nat ⇒ nat ⇒ bool =
 val rec ack : nat ⇒ nat ⇒ nat =
   fun m n {
     case m {
-      Zero → succ n
+      0    → succ n
       S[p] → case n {
-        Zero → ack p 1
+        0    → ack p 1
         S[q] → ack p (ack m q)
       }
     }
@@ -130,9 +130,9 @@ val rec ack : nat ⇒ nat ⇒ nat =
 val rec fact : nat ⇒ nat =
   fun n {
     case n {
-      Zero → zero
+      0    → zero
       S[k] → case k {
-        Zero → 1
+        0    → 1
         S[_] → n * (fact k)
       }
     }
@@ -142,7 +142,7 @@ val rec fact : nat ⇒ nat =
 val rec print_nat : nat ⇒ {} =
   fun n {
     case n {
-      Zero → print "0"
+      0    → print "0"
       S[k] → print "S"; print_nat k
     }
   }
