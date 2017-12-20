@@ -57,6 +57,7 @@ let parser goal = "{-" str:goal_name "-}" -> String.trim str
 let _assume_  = Keyword.create "assume"
 let _because_ = Keyword.create "because"
 let _bool_    = Keyword.create "bool"
+let _by_      = Keyword.create "by"
 let _case_    = Keyword.create "case"
 let _check_   = Keyword.create "check"
 let _corec_   = Keyword.create "corec"
@@ -64,6 +65,7 @@ let _deduce_  = Keyword.create "deduce"
 let _delim_   = Keyword.create "delim"
 let _def_     = Keyword.create "def"
 let _else_    = Keyword.create "else"
+let _eqns_    = Keyword.create "eqns"
 let _false_   = Keyword.create "false"
 let _fix_     = Keyword.create "fix"
 let _for_     = Keyword.create "for"
@@ -380,7 +382,8 @@ let parser expr @(m : mode) =
       -> v_nil _loc
   (* Term (infix symbol) *)
   | t:(expr (Trm I)) (s,_,p,pl,pr):infix when m <<= Trm I ->>
-      let pl' = match t.elt with EInfx(_,p) -> p | _ -> 0.0 in                                                  let _ = if pl' > pl then give_up () in
+      let pl' = match t.elt with EInfx(_,p) -> p | _ -> 0.0 in
+      let _ = if pl' > pl then give_up () in
       u:(expr (Trm I))
       -> let pr' = match u.elt with EInfx(_,p) -> p | _ -> 0.0 in
          if pr' > pr then give_up ();
@@ -431,7 +434,7 @@ let parser expr @(m : mode) =
       when m <<= Trm A
       -> if_then_else _loc c t e
   (* Term (replacement) *)
-  | _check_ u:term _for_ t:term b:{_:_because_ t:term}?
+  | _check_ u:term _for_ t:term b:{_:_because_ t:(expr (Trm R))}?
       when m <<= Trm R
       -> in_pos _loc (ERepl(t,u,b))
   (* Term (totality by purity) *)
@@ -445,7 +448,11 @@ let parser expr @(m : mode) =
   (* Term ("show" tactic) *)
   | _show_ a:prop _using_ t:(expr (Trm R))
       when m <<= Trm R
-      -> show_using _loc a t
+           -> show_using _loc a t
+  | _eqns_ a:term eqns:{ _:equiv b:term { _:_by_ p:(expr (Trm R))
+                                        | _:_using_ '{' p:term '}'}?}*
+      when m <<= Trm R
+           -> equations _loc a eqns
   (* Term ("use" tactic) *)
   | _use_ t:(expr (Trm R))
       when m <<= Trm R

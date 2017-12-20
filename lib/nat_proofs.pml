@@ -8,16 +8,16 @@ include lib.nat
 val rec add_assoc : ∀m n p∈nat, m + (n + p) ≡ (m + n) + p =
   fun m n p {
     case m {
-      Zero → showing u0 + (n + p) ≡ u0 + n + p;
-             deduce n + p ≡ u0 + n + p;
-             deduce u0 + (n + p) ≡ (u0 + n + p);
-             qed
-      S[k] → show k + (n + p) ≡ (k + n) + p using add_assoc k n p;
-             deduce S[k + (n + p)] ≡ S[(k + n) + p];
-             deduce S[k] + (n + p) ≡ S[(k + n) + p];
-             deduce S[k] + (n + p) ≡ S[k + n] + p;
-             deduce S[k] + (n + p) ≡ (S[k] + n) + p;
-             qed
+      Zero → eqns u0 + (n + p)
+                     ≡ n + p
+                     ≡ (u0 + n) + p
+      S[k] → eqns m + (n + p)
+                    ≡ S[k] + (n + p)
+                    ≡ S[k + (n + p)]
+                    ≡ S[(k + n) + p] by add_assoc k n p
+                    ≡ S[k + n] + p
+                    ≡ (S[k] + n) + p
+                    ≡ (m + n) + p
     }
   }
 
@@ -34,12 +34,9 @@ val rec add_assoc2 : ∀m n p∈nat, m + (n + p) ≡ (m + n) + p =
 val rec add_n_zero : ∀n∈nat, n + u0 ≡ n =
   fun n {
     case n {
-      Zero → deduce u0 + u0 ≡ u0;
-             qed
-      S[k] → show k + u0 ≡ k using add_n_zero k;
-             deduce S[k + u0] ≡ S[k];
-             deduce S[k] + u0 ≡ S[k];
-             qed
+      Zero → qed
+      S[k] → eqns n + u0 ≡ S[k] + u0 ≡ S[k + u0]
+                         ≡ S[k] by add_n_zero k ≡ n
     }
   }
 
@@ -47,14 +44,10 @@ val rec add_n_zero : ∀n∈nat, n + u0 ≡ n =
 val rec add_n_succ : ∀m n∈nat, m + S[n] ≡ S[m + n] =
   fun m n {
     case m {
-      Zero → deduce add u0 S[n] ≡ S[u0 + n];
-             qed
-      S[k] → show k + S[n] ≡ S[k + n] using add_n_succ k n;
-             deduce S[k + S[n]] ≡ S[S[k + n]];
-             deduce S[k] + S[n] ≡ S[S[k + n]];
-             deduce S[k] + S[n] ≡ S[S[k] + n];
-             deduce S[k] + S[n] ≡ S[S[k + n]];
-             qed
+      Zero → qed
+      S[k] → eqns m + S[n] ≡ S[k + S[n]]
+                           ≡ S[S[k + n]] by add_n_succ k n
+                           ≡ S[m + n]
     }
   }
 
@@ -62,14 +55,10 @@ val rec add_n_succ : ∀m n∈nat, m + S[n] ≡ S[m + n] =
 val rec add_comm : ∀m n∈nat, m + n ≡ n + m =
   fun m n {
     case m {
-      Zero → show n + u0 ≡ add u0 n using add_n_zero n;
-             deduce u0 + n ≡ n + u0;
-             qed
-      S[k] → show k + n ≡ n + k using add_comm k n;
-             deduce S[k + n] ≡ S[n + k];
-             show S[k + n] ≡ n + S[k] using add_n_succ n k;
-             deduce S[k] + n ≡ n + S[k];
-             qed
+      Zero → eqns u0 + n ≡ n ≡ n + u0 by add_n_zero n
+      S[k] → eqns m + n ≡ S[k + n]
+                        ≡ S[n + k]    by add_comm k n
+                        ≡ n + m       by add_n_succ n k
     }
   }
 

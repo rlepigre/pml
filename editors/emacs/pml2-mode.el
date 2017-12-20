@@ -28,9 +28,9 @@
 (defconst pml2-font-lock-keywords
   (list (cons (concat "\\<"
 		      (regexp-opt
-		      '("assume" "because" "bool" "case" "check" "corec"
-                        "deduce" "def" "delim" "else" "false" "fix"
-                        "for" "fun" "if" "include" "know" "let" "of"
+		      '("assume" "because" "bool" "by" "case" "check" "corec"
+                        "deduce" "def" "delim" "else" "eqns" "false" "fix"
+                        "for" "fun" "if" "infix" "include" "know" "let" "of"
                         "print" "qed" "rec" "restore" "save" "set"
                         "show" "showing" "sort" "such" "suppose" "take"
                         "that" "true" "type" "use" "using" "val"))
