@@ -193,6 +193,7 @@ and  sub_rule =
   | Sub_FixM_l of bool * sub_proof (* boolean true if infinite rule *)
   | Sub_FixN_r of bool * sub_proof (* boolean true if infinite rule *)
   | Sub_Ind    of sub_schema
+  | Sub_Scis
 
 and typ_proof = term * prop * typ_rule
 and stk_proof = stac * prop * stk_rule
@@ -547,14 +548,23 @@ and subtype =
           Sub_Prod(ps)
       (* Disjoint sum types. *)
       | (DSum(cs1)  , DSum(cs2)  ) when t_is_val ->
-         let (wit, ctx) = learn_value ctx t a in
+          let (wit, ctx) = learn_value ctx t a in
           let check_variant c (_,p,a1) ps =
-            let a2 =
-              try snd (A.find c cs2) with Not_found ->
-              subtype_msg p ("Sum clash on constructor " ^ c ^ "...")
-            in
-            let p = subtype ctx (vdot wit c) a1 a2 in
-            p::ps
+            try
+              let cwit = vdot wit c in
+              let (vwit, ctx) = learn_value ctx cwit a1 in
+              let equations =
+                let t1 = Pos.none (Valu(Pos.none (Cons(Pos.none c, vwit)))) in
+                learn ctx.equations (Equiv(t1,true,t))
+              in
+              let ctx = { ctx with equations } in
+              let a2 =
+                try snd (A.find c cs2) with Not_found ->
+                  subtype_msg p ("Sum clash on constructor " ^ c ^ "...")
+              in
+              let p = subtype ctx (Pos.none (Valu vwit)) a1 a2 in
+              p::ps
+            with Contradiction -> (t,a1,a1,Sub_Scis)::ps
           in
           (** NOTE: subtype fields with unification variables not under
               fixpoint first to allow for inductive proof *)
