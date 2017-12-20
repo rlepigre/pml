@@ -1295,10 +1295,10 @@ let equations _loc _loc_a a eqns =
          | None -> Pos.none (EReco [])
          | Some t -> t
        in
-       let a = none (ERest(None, EEquiv(x,true,y))) in
-       let u = in_pos (Pos.merge _loc_x _loc_y)
+       let a = none (ERest(None, EEquiv(a,true,y))) in
+       let u = in_pos (Pos.merge _loc _loc_y)
                       (ECoer(new_sort_uvar None, prf, a)) in
-       let t = in_pos _loc (ESequ(u,t)) in
+       let t = in_pos _loc (ESequ(t,u)) in
        fn t _loc_y y l
   in
   fn (Pos.none (EReco [])) _loc_a a eqns

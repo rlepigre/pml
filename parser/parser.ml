@@ -458,7 +458,7 @@ let parser expr @(m : mode) =
       when m <<= Trm R
       -> use _loc t
   (* Term ("eqns" tactic) *)
-  | _eqns_ a:term eqns:{ _:equiv b:term
+  | _eqns_ a:term eqns:{ _:equiv b:(expr (Trm R))
                          p:{ _:_by_ p:(expr (Trm R))
                            | _:_using_ '{' p:term '}'}? -> (_loc,b,p) }*
       when m <<= Trm R
