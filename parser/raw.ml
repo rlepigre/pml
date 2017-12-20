@@ -1287,7 +1287,7 @@ let show_using _loc a t =
   Pos.in_pos _loc (ECoer(new_sort_uvar None, t, a))
 
 let equations _loc _loc_a a eqns =
-  let rec fn t _loc_x x l = (* t is a proof of a = x *)
+  let rec fn t l = (* t is a proof of a = x *)
     match l with
     | [] -> t
     | (_loc_y,y,prf)::l ->
@@ -1296,12 +1296,12 @@ let equations _loc _loc_a a eqns =
          | Some t -> t
        in
        let a = none (ERest(None, EEquiv(a,true,y))) in
-       let u = in_pos (Pos.merge _loc _loc_y)
+       let u = in_pos (Pos.merge _loc_a _loc_y)
                       (ECoer(new_sort_uvar None, prf, a)) in
        let t = in_pos _loc (ESequ(t,u)) in
-       fn t _loc_y y l
+       fn t l
   in
-  fn (Pos.none (EReco [])) _loc_a a eqns
+  fn (Pos.none (EReco [])) eqns
 
 let from_int _loc n =
   let zero = evari (Some _loc) (in_pos _loc "zero") in
