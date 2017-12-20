@@ -5,19 +5,19 @@ include lib.comparison
 include lib.bool
 
 // signature of semi ring (like nat)
-type semiring<x> = ∃zero one add mul:ι, {
+type semiring<x> = ∃zero one (+) (*):ι, {
   zero : zero∈x;
   one  : one∈x;
-  add  : add∈(x ⇒ x ⇒ x);
-  mul  : mul∈(x ⇒ x ⇒ x);
-  add_neutral : ∀a∈x, add zero a ≡ a;
-  add_assoc   : ∀a b c∈x, add a (add b c) ≡ add (add a b) c;
-  add_comm    : ∀a b∈x, add a b ≡ add b a;
-  mul_neutral : ∀a∈x, mul one a ≡ a;
-  mul_assoc   : ∀a b c∈x, mul a (mul b c) ≡ mul (mul a b) c;
-  mul_comm    : ∀a b∈x, mul a b ≡ mul b a;
-  mul_abs     : ∀a∈x, mul zero a ≡ zero;
-  mul_distrib : ∀a b c∈x, mul a (add b c) ≡ add (mul a b) (mul a c);
+  (+)  : (+)∈(x ⇒ x ⇒ x);
+  (*)  : (*)∈(x ⇒ x ⇒ x);
+  add_neutral : ∀a∈x,        zero + a ≡ a;
+  add_assoc   : ∀a b c∈x, a + (b + c) ≡ (a + b) + c;
+  add_comm    : ∀a b∈x,         a + b ≡ b + a;
+  mul_neutral : ∀a∈x,         one * a ≡ a;
+  mul_abs     : ∀a∈x,        zero * a ≡ zero;
+  mul_assoc   : ∀a b c∈x, a * (b * c) ≡ (a * b) * c;
+  mul_comm    : ∀a b∈x,         a * b ≡ b * a;
+  mul_distrib : ∀a b c∈x, a * (b + c) ≡ (a * b) + (a * c);
   ⋯
   }
 
@@ -25,27 +25,24 @@ type semiring<x> = ∃zero one add mul:ι, {
 val rec exp_ring : ∀r, semiring<r> ⇒ r ⇒ nat ⇒ r = fun s x n {
   case n {
     Zero → s.one
-    S[p] → let exp = exp_ring s; s.mul x (exp x p)
+    S[p] → let exp = exp_ring s; x *_s (x ** p)
   }
 }
 
 val rec exp_add : ∀r, ∀s∈semiring<r>, ∀x∈r, ∀a b∈nat,
-                    exp_ring s x (add a b) ≡ s.mul (exp_ring s x a) (exp_ring s x b) =
+                    exp_ring s x (a + b) ≡ (exp_ring s x a) *_s (exp_ring s x b) =
   fun s x a b {
     let exp = exp_ring s;
     case a {
-      Zero → deduce exp x (add a b) ≡ exp x b;
-             deduce s.mul (exp x a) (exp x b) ≡ s.mul s.one (exp x b);
-             use s.mul_neutral (exp x b);
-             deduce s.mul (exp x a) (exp x b) ≡ exp x b;
+      Zero → deduce x ** (a + b) ≡ x ** b;
+             deduce x ** a *_s x ** b ≡ s.one *_s (x ** b);
+             use s.mul_neutral (x ** b);
+             deduce (x ** a) *_s (x ** b) ≡ x ** b;
              qed
-      S[p] → deduce exp x (add a b) ≡ s.mul x (exp x (add p b));
-             deduce s.mul (exp x a) (exp x b) ≡
-               s.mul (s.mul x (exp x p)) (exp x b);
-             show exp x (add a b) ≡
-               s.mul x (s.mul (exp x p) (exp x b)) using exp_add s x p b;
-             show exp x (add a b) ≡ s.mul (s.mul x (exp x p)) (exp x b)
-                 using s.mul_assoc x (exp x p) (exp x b);
+      S[p] → deduce x ** (a + b) ≡ x *_s x ** (p + b);
+             deduce x ** a *_s x ** b ≡ x *_s x ** p *_s x ** b;
+             show x ** (a + b) ≡ x *_s (x ** p *_s x ** b) using exp_add s x p b;
+             show x ** (a + b) ≡ x *_s x ** p *_s x ** b using s.mul_assoc x (x ** p) (x ** b);
              qed
     }
   }
@@ -566,6 +563,23 @@ val semi_nat : semiring<nat> = {
   mul_distrib = mul_dist_l;
   mul_abs = fun n { {} }
 }
+
+// polynomial on nat as a semi ring (missing the axioms yet)
+val pn : {
+  zero : tpoly<nat>;
+  one  : tpoly<nat>;
+  cst  : nat ⇒ tpoly<nat>;
+  (+)  : tpoly<nat> ⇒ tpoly<nat> ⇒ tpoly<nat>;
+  (*)  : tpoly<nat> ⇒ tpoly<nat> ⇒ tpoly<nat>;
+  (**) : tpoly<nat> ⇒ nat ⇒ tpoly<nat>
+} = {
+  zero = Cst[u0];
+  one  = Cst[u1];
+  cst  = fun n { Cst[n] };
+  (+)  = fun a b { Add[(a,b)] };
+  (*)  = fun a b { Mul[(a,b)] };
+  (**) = fun a b { Exp[(a,b)] }
+  }
 
 val test1 : npoly<nat> =
     let x = Var[u0];

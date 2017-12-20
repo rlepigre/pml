@@ -5,6 +5,10 @@ open Pos
 
 type any_sort = Sort : 'a sort           -> any_sort
 type any_expr = Expr : 'a sort * 'a expr -> any_expr
+type assoc = LeftAssoc | RightAssoc | NonAssoc
+type infix = string * float * assoc
+
+let infix_tbl : (string, infix) Hashtbl.t = Hashtbl.create 101
 
 module SMap = Map.Make(String)
 
@@ -14,7 +18,8 @@ type env =
   ; global_exprs  : any_expr SMap.t
   ; local_exprs   : any_expr SMap.t
   ; global_values : value SMap.t
-  ; local_values  : value SMap.t }
+  ; local_values  : value SMap.t
+  ; local_infix   : infix SMap.t }
 
 let empty =
   { global_sorts  = SMap.empty
@@ -22,7 +27,8 @@ let empty =
   ; global_exprs  = SMap.empty
   ; local_exprs   = SMap.empty
   ; global_values = SMap.empty
-  ; local_values  = SMap.empty }
+  ; local_values  = SMap.empty
+  ; local_infix  = SMap.empty }
 
 let find_sort : string -> env -> any_sort =
   fun id env -> SMap.find id env.global_sorts
@@ -59,6 +65,11 @@ let add_value : strloc -> term -> prop -> e_valu -> env -> env =
     let local_values = SMap.add value_name.elt nv env.local_values in
     {env with global_values; local_values}
 
+let add_infix : string -> infix -> env -> env =
+  fun sym infix env ->
+    let local_infix = SMap.add sym infix env.local_infix in
+    {env with local_infix}
+
 let parents = ref []
 
 let output_value ch v = Marshal.(to_channel ch v [Closures])
@@ -74,6 +85,7 @@ let save_file : env -> string -> unit = fun env fn ->
               parents := l; List.sort_uniq String.compare deps
   in
   output_value ch deps;
+  output_value ch env.local_infix;
   output_value ch (env.local_sorts, env.local_exprs, env.local_values);
   close_out ch
 
@@ -96,6 +108,21 @@ let more_recent source target =
 let start fn =
   parents := ref [] :: !parents
 
+let load_infix : string -> unit = fun fn ->
+  let cfn = Filename.chop_suffix fn ".pml" ^ ".pmi" in
+  if more_recent fn cfn then
+    raise Compile
+  else
+    let ch = open_in cfn in
+    let deps = input_value ch in
+    if List.exists (fun source -> more_recent source cfn) deps then
+      begin
+        close_in ch;
+        raise Compile;
+      end;
+    let infix = input_value ch in
+    SMap.iter (Hashtbl.replace infix_tbl) infix
+
 let load_file : env -> string -> env = fun env fn ->
   let cfn = Filename.chop_suffix fn ".pml" ^ ".pmi" in
   begin
@@ -108,18 +135,15 @@ let load_file : env -> string -> env = fun env fn ->
   else
     let ch = open_in cfn in
     let deps = input_value ch in
-    if List.exists (fun source -> more_recent source cfn) deps then
-      begin
-        close_in ch;
-        raise Compile;
-      end
-    else
-      begin
-        match !parents with
-        | [] -> ()
-        | dep::_ -> dep := deps @ !dep
-      end;
-    let (local_sorts, local_exprs, local_values) = input_value ch in
+    let _infix = input_value ch in
+    begin
+      match !parents with
+      | [] -> ()
+      | dep::_ -> dep := deps @ !dep
+    end;
+    let (local_sorts, local_exprs, local_values, local_infix) =
+      input_value ch
+    in
     close_in ch;
     let global_sorts  = SMap.fold SMap.add local_sorts env.global_sorts  in
     let global_exprs  = SMap.fold SMap.add local_exprs env.global_exprs  in

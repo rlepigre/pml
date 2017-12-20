@@ -3,14 +3,14 @@ include lib.option
 type fifo_sig_aux<fifo:ο→ο> =
   { empty : ∀a, fifo<a>
   ; push  : ∀a, a ⇒ fifo<a> ⇒ fifo<a>
-  ; pop   : ∀a, fifo<a> ⇒ option<a * fifo<a>> }
+  ; pop   : ∀a, fifo<a> ⇒ option<a × fifo<a>> }
 
 type fifo_sig = ∃fifo:ο→ο, fifo_sig_aux<fifo>
 
 include lib.list
 include lib.list_proofs
 
-val take_last : ∀a, list<a> ⇒ option<a*list<a>> =
+val take_last : ∀a, list<a> ⇒ option<a × list<a>> =
   fun s { case rev s { [] → None | e :: s → Some[(e,rev s)] } }
 
 val fifo_simple : fifo_sig =
@@ -22,7 +22,7 @@ val fifo_simple : fifo_sig =
 type slist<a,s> = μ_s list, [ Nil ; Cons of { hd : a; tl : list}  ]
 
 // FIXME #31: termination fails if we use a pair of lists. It should not!
-val rec pop : ∀a, list<a> ⇒ list<a> ⇒ option<a * (list<a> * list<a>)> =
+val rec pop : ∀a, list<a> ⇒ list<a> ⇒ option<a × (list<a> × list<a>)> =
   fun s1 s2 {
     case s2 {
       x::s2 → Some[(x,(s1,s2))]
@@ -34,7 +34,7 @@ val rec pop : ∀a, list<a> ⇒ list<a> ⇒ option<a * (list<a> * list<a>)> =
   }
 
 val fifo_pair : fifo_sig =
-   { empty = ((nil, nil) : ∀a, list<a> * list<a>)
+   { empty = ((nil, nil) : ∀a, list<a> × list<a>)
    ; push  = fun e p { let (s1,s2) = p; ((e::s1), s2) }
    ; pop   = fun p { pop p.1 p.2 } }
 
@@ -43,7 +43,7 @@ def translate<f:τ> = app f.1 (rev f.2)
 val equiv_empty : translate<fifo_pair.empty> ≡ fifo_simple.empty = {}
 
 val equiv_push :
-  ∀a, ∀x∈a, ∀f∈list<a>*list<a>,
+  ∀a, ∀x∈a, ∀f∈list<a> × list<a>,
     translate<fifo_pair.push x f> ≡ fifo_simple.push x translate<f> =
   fun x f {
     let (s1,s2) = f;
@@ -92,10 +92,10 @@ val rec lemma2 : ∀a, ∀s1∈list<a>,
   = fun s1 { use app_nil s1; use rev_rev s1 }
 
 val rec equiv_pop :
-  ∀a, ∀f∈list<a>*list<a>,
+  ∀a, ∀f∈list<a> × list<a>,
       translate_opt<fifo_pair.pop f> ≡ fifo_simple.pop translate<f> =
   fun f {
-    let a such that f : (list<a>*list<a>);
+    let a such that f : (list<a> × list<a>);
     let (s1,s2) = f;
     case s2 {
       x::s2' →

@@ -25,40 +25,48 @@ val is_zero : nat ⇒ bool =
   fun n { case n { Zero → true | S[_] → false } }
 
 // Addition function.
-val rec add : nat ⇒ nat ⇒ nat =
+infix (+) = add priority 3 left associative
+
+val rec (+) : nat ⇒ nat ⇒ nat =
   fun n m {
     case n {
       Zero → m
-      S[k] → succ (add k m)
+      S[k] → succ (k + m)
     }
   }
 
 // Multiplication function.
-val rec mul : nat ⇒ nat ⇒ nat =
+infix (*) = mul priority 2 left associative
+
+val rec ( * ) : nat ⇒ nat ⇒ nat =
   fun n m {
     case n {
       Zero → zero
-      S[k] → add m (mul k m)
+      S[k] → m + (k * m)
     }
   }
 
 // Exponentiation function.
-val rec exp : nat ⇒ nat ⇒ nat =
+infix (**) = exp priority 1 right associative
+
+val rec ( ** ) : nat ⇒ nat ⇒ nat =
   fun n m {
     case m {
       Zero → one
-      S[k] → mul n (exp n k)
+      S[k] → n * (n ** k)
     }
   }
 
 // Minus function.
-val rec minus : nat ⇒ nat ⇒ nat =
+infix (-) = minus priority 3 right associative
+
+val rec (-) : nat ⇒ nat ⇒ nat =
   fun n m {
     case n {
       Zero → zero
       S[p] → case m {
         Zero → n
-        S[q] → minus p q
+        S[q] → p - q
       }
     }
   }
@@ -142,7 +150,7 @@ val rec fact : nat ⇒ nat =
       Zero → zero
       S[k] → case k {
         Zero → one
-        S[_] → mul n (fact k)
+        S[_] → n * (fact k)
       }
     }
   }

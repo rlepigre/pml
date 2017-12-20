@@ -6,7 +6,7 @@ include lib.list
 val test1 : ∀a b, (a ⇒ b) ⇒ (a → b) = fun f { f }
 
 // paire dependante
-type dep_pair⟨k,v:τ→ο⟩ = ∃x:τ,x∈k * v⟨x⟩
+type dep_pair⟨k,v:τ→ο⟩ = ∃x:τ,x∈k × v⟨x⟩
 
 // map avec paire dépandantes
 type map⟨k,v⟩ = list⟨dep_pair⟨k,v⟩⟩

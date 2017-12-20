@@ -5,7 +5,12 @@ type rec list<a> = [Nil ; Cons of {hd : a ; tl : list}]
 
 val nil : ∀a, list<a> = []
 val cons : ∀a, a ⇒ list<a> ⇒ list<a> =
-  fun hd tl { hd::tl }
+  fun hd tl { Cons[{hd;tl}] }
+
+val ucons : ∀a b, a ⇒ b ⇒ [ Cons of { hd : a; tl : b} ] =
+  fun hd tl { Cons[{hd;tl}] }
+
+infix (::) = ucons priority 5 right associative
 
 val head : ∀a, list<a> ⇒ option<a> =
   fun l {

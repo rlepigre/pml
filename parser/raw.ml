@@ -190,7 +190,7 @@ and raw_ex' =
   | ESuch of raw_sort * (strloc * raw_sort) ne_list
                       * (strloc option * raw_ex) * raw_ex
   | EPSet of raw_sort * set_param * raw_ex
-
+  | EInfx of raw_ex * float (* for parsing *)
   | EConv
   | ESucc of raw_ex * int
 
@@ -251,6 +251,7 @@ let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
                        Printf.fprintf ch "ESuch(%a,%s,%a,%a)"
                          (print_list aux_sort ", ") (ne_list_to_list v)
                          x.elt print (snd j) print u
+    | EInfx(t,p)    -> Printf.fprintf ch "EInfx(%a,%f)" print t p
     | EPSet(_,l,u)  -> Printf.fprintf ch "EPSet(%a,%a)"
                          Print.print_set_param l print u
     | EConv         -> Printf.fprintf ch "EConv"
@@ -362,6 +363,7 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
          in
          infer_args es ss;
          leq sx s
+    | (EInfx(t,_)   , _        ) -> infer env vars t s
     | (EHOFn(x,k,f) , SFun(a,b)) -> leq a k;
                                     let vars = M.add x.elt (x.pos, k) vars in
                                     infer env vars f b
@@ -740,6 +742,7 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
           sort_filter sb (unsugar env vars f b)
         in
         Box(F(sa,sb), hfun e.pos sa sb x fn)
+    | (EInfx(t,_)   , _        ) -> unsugar env vars t s
     (* Propositions. *)
     | (EFunc(t,a,b) , SP       ) ->
         let a = unsugar env vars a s in
@@ -1062,9 +1065,10 @@ type toplevel =
   | Expr_def of strloc * raw_sort * raw_ex
   | Valu_def of strloc * raw_ex * raw_ex
   | Chck_sub of raw_ex * bool * raw_ex
-  | Include  of string list
+  | Include  of string
   | Def_list of toplevel list
   | Glbl_set of set_param
+  | Infix    of string * string * float * assoc
 
 let evari _loc x = Pos.make _loc (EVari(x, new_sort_uvar None))
 
@@ -1114,9 +1118,6 @@ let val_def : rec_t -> strloc -> raw_ex -> raw_ex -> toplevel = fun r id a t ->
 
 let check_sub : raw_ex -> bool -> raw_ex -> toplevel = fun a r b ->
   Chck_sub(a,r,b)
-
-let include_file : string list -> toplevel = fun path ->
-  Include(path)
 
 (** syntactic sugars *)
 

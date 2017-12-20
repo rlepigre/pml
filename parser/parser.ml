@@ -4,7 +4,21 @@
 open Earley
 open Extra
 open Pos
+open Output
+open Bindlib
+open Typing
 open Raw
+
+(** Exception raised in case of parse error. *)
+exception No_parse of pos
+
+exception Check_failed of Ast.prop * bool * Ast.prop
+
+let verbose   = ref true
+let timed     = ref false
+let recompile = ref false
+
+let parsing_chrono = Chrono.create "parsing"
 
 (* Definition of the [locate] function used by [Earley]. *)
 #define LOCATE locate
@@ -29,7 +43,11 @@ let str_lit =
 
 (* Parser of a module path. *)
 let parser path_atom = id:''[a-zA-Z0-9_]+''
-let parser path = ps:{path_atom '.'}* f:path_atom -> ps @ [f]
+let no_dot =
+  Earley.test ~name:"no_dot" Charset.full (fun buf pos ->
+    let c,buf,pos = Input.read buf pos in
+    if c <> '.' then ((), true) else ((), false))
+let parser path = ps:{path_atom '.'}* f:path_atom no_dot -> ps @ [f]
 
 (* Parser for the contents of a goal. *)
 let parser goal_name = s:''\([^-]\|\(-[^}]\)\)*''
@@ -52,6 +70,7 @@ let _for_     = Keyword.create "for"
 let _fun_     = Keyword.create "fun"
 let _if_      = Keyword.create "if"
 let _include_ = Keyword.create "include"
+let _infix_   = Keyword.create "infix"
 let _know_    = Keyword.create "know"
 let _let_     = Keyword.create "let"
 let _of_      = Keyword.create "of"
@@ -80,15 +99,49 @@ let parser lid = id:''[a-z][a-zA-Z0-9_']*'' -> Keyword.check id; id
 let parser uid = id:''[A-Z][a-zA-Z0-9_']*'' -> Keyword.check id; id
 let parser num = id:''[0-9]+''              -> id
 
+(* Infix *)
+let reserved_infix = [ "≡"; "∈"; "=" ]
+
+let parser infix_re = s:''[^][(){}a-zA-Z0-9_'"";,. \n\t\r]+'' ->
+    if List.mem s reserved_infix then give_up (); s
+
+let parser infix =
+  s:infix_re ->
+    begin
+      try
+        let open Env in
+        let (name, p, assoc) = Hashtbl.find infix_tbl s in
+        let epsilon = 1e-6 in
+        let q = p -. epsilon in
+        let (pl, pr) = match assoc with
+          | LeftAssoc  -> (p, q)
+          | RightAssoc -> (q, p)
+          | NonAssoc   -> (q, q)
+        in
+        let name = in_pos _loc_s name in
+        let sym = evari (Some _loc_s) name in
+        (sym, name, p, pl, pr)
+      with Not_found -> give_up ()
+    end
+| (_,s,p,pl,pr):infix - '_' - m:lid ->
+    let m = evari (Some _loc_m) (in_pos _loc_m m) in
+    let t = in_pos _loc (EProj(m,ref `T, s)) in
+    (t, s, p, pl, pr)
+
 (* Located identifiers. *)
-let parser llid = id:lid  -> in_pos _loc id
-let parser luid = id:uid  -> in_pos _loc id
-                | _true_  -> in_pos _loc "true"
-                | _false_ -> in_pos _loc "false"
-let parser lnum = id:num  -> in_pos _loc id
+let parser llid = id:lid       -> in_pos _loc id
+  | '(' (_,id,_,_,_):infix ')' -> id
+let parser luid = id:uid       -> in_pos _loc id
+                | _true_       -> in_pos _loc "true"
+                | _false_      -> in_pos _loc "false"
+let parser lnum = id:num       -> in_pos _loc id
 
 (* Int. *)
 let parser int  = s:''[0-9]+'' -> int_of_string s
+
+(* Float. *)
+let parser float = s:''[0-9]*\('.'[0-9]*\)?\([eE][-+]?[0-9]*\)?'' ->
+  if s = "" then give_up (); float_of_string s
 
 (* Lowercase identifier or wildcard (located). *)
 let parser llid_wc =
@@ -106,7 +159,7 @@ let parser scis    = "✂" | "8<"
 let parser equiv   = "≡" | "=="
 let parser nequiv  = "≠" | "!="
 let parser neg_sym = "¬"
-let parser prod    = "×" | "*"
+let parser prod    = "×"
 let parser lambda  = "λ"
 let parser langle  = "<" | "⟨"
 let parser rangle  = ">" | "⟩"
@@ -214,7 +267,7 @@ let parser expr @(m : mode) =
   (* Parenthesis niveau HO *)
   | '(' e:(expr Any) ')'
       when m = HO
-      -> e
+      -> (match e.elt  with EInfx(e,_) -> e | _ -> e)
 
   (* Proposition (boolean type) *)
   | _bool_
@@ -292,8 +345,9 @@ let parser expr @(m : mode) =
       when m <<= Prp A
       -> in_pos _loc (ERest(None,EEquiv(t,b,u)))
   (* Proposition (parentheses) *)
-  | "(" (expr (Prp F')) ")"
+  | "(" e:(expr (Prp F')) ")"
       when m <<= Prp A
+      -> (match e.elt  with EInfx(e,_) -> e | _ -> e)
   (* Proposition (injection of term) *)
   | t:(expr (Trm P))
       when m <<= Prp A && m <> Any && m <> Prp F'
@@ -324,10 +378,14 @@ let parser expr @(m : mode) =
   | '[' ']'
       when m <<= Trm A
       -> v_nil _loc
-  (* Term (list constructor) *)
-  | t:(expr (Trm P)) "::" u:(expr (Trm I))
-      when m <<= Trm I
-      -> v_cons _loc t u
+  (* Term (infix symbol) *)
+  | t:(expr (Trm I)) (s,_,p,pl,pr):infix when m <<= Trm I ->>
+      let pl' = match t.elt with EInfx(_,p) -> p | _ -> 0.0 in                                                  let _ = if pl' > pl then give_up () in
+      u:(expr (Trm I))
+      -> let pr' = match u.elt with EInfx(_,p) -> p | _ -> 0.0 in
+         if pr' > pr then give_up ();
+         let t = in_pos _loc (EAppl(none (EAppl(s,t)), u)) in
+         in_pos _loc (EInfx(t,p))
   (* Term (record) *)
   | "{" fs:(list1 field semi) "}"
       when m <<= Trm A
@@ -381,7 +439,7 @@ let parser expr @(m : mode) =
       when m <<= Trm R
       -> in_pos _loc (EDelm(u))
   (* Term ("deduce" tactic) *)
-  | _deduce_ a:prop$
+  | _deduce_ a:prop $
       when m <<= Trm A
       -> deduce _loc a
   (* Term ("show" tactic) *)
@@ -437,6 +495,7 @@ let parser expr @(m : mode) =
   (* Term (parentheses) *)
   | "(" t:term ")"
       when m <<= Trm A
+      -> (match t.elt  with EInfx(t,_) -> t | _ -> t)
 
   (* Ordinal (infinite) *)
   | infty
@@ -449,7 +508,7 @@ let parser expr @(m : mode) =
   (* Ordinal (parenthesis) *)
   | "(" o:ordinal ")"
       when m <<= Ord E
-      -> o
+      -> (match o.elt  with EInfx(o,_) -> o | _ -> o)
 
   (* Goal (term or stack) *)
   | s:goal
@@ -527,20 +586,177 @@ let parser toplevel =
 
   (* Inclusion of a file. *)
   | _include_ p:path
-      -> fun () -> include_file p
+      -> let fn = find_module p in
+         load_infix fn; fun () -> Include fn
 
   | _set_ l:set_param
       -> fun () -> Glbl_set l
 
-(* Entry point of the parser. *)
-let parser entry = toplevel*
+  | _infix_ '(' s:infix_re ')' '=' name:lid
+                                   "priority" p:float
+                                   a:{ "left"  -> Env.LeftAssoc
+                                     | "right" -> Env.RightAssoc
+                                     | "non"   -> Env.NonAssoc } "associative"
+      -> Hashtbl.replace Env.infix_tbl s (name,p,a);
+         fun () -> Infix(s,name,p,a)
 
-(** Exception raised in case of parse error. *)
-exception No_parse of pos
+(* Entry point of the parser. *)
+and parser entry = toplevel*
+
+and find_file : string -> string = fun fn ->
+  let add_fn dir = Filename.concat dir fn in
+  let ls = fn :: (List.map add_fn Config.path) in
+  let rec find ls =
+    match ls with
+    | []     -> err_msg "File \"%s\" does not exist." fn; exit 1
+    | fn::ls -> if Sys.file_exists fn then fn else find ls
+  in find ls
+
+and find_module : string list -> string = fun ps ->
+  let fn = (String.concat "/" ps) ^ ".pml" in
+  find_file fn
+
+and interpret : bool -> Env.env -> Raw.toplevel -> Env.env =
+  fun nodep env top ->
+  let verbose = !verbose && nodep in
+  match top with
+  | Sort_def(id,s) ->
+      let open Env in
+      let Sort s = unsugar_sort env s in
+      if verbose then
+        out "sort %s ≔ %a\n%!" id.elt Print.sort s;
+      add_sort id.elt s env
+  | Expr_def(id,s,e) ->
+      let open Env in
+      let Box(s,e) = unsugar_expr env e s in
+      let ee = Bindlib.unbox e in
+      if verbose then
+        out "expr %s : %a ≔ %a\n%!" id.elt Print.sort s Print.ex ee;
+      add_expr id s e env
+  | Valu_def(id,a,t) ->
+      let open Env in
+      let a = unbox (to_prop (unsugar_expr env a _sp)) in
+      let t = unbox (to_term (unsugar_expr env t _st)) in
+      let (a, prf) = type_check t a in
+      let v = Eval.eval (Erase.term_erasure t) in
+      if verbose then
+        out "val %s : %a\n%!" id.elt Print.ex a;
+      (* out "  = %a\n%!" Print.ex (Erase.to_valu v); *)
+      ignore prf;
+      add_value id t a v env
+  | Chck_sub(a,n,b) ->
+      let open Env in
+      let a = unbox (to_prop (unsugar_expr env a _sp)) in
+      let b = unbox (to_prop (unsugar_expr env b _sp)) in
+      if is_subtype a b <> n then raise (Check_failed(a,n,b));
+      if verbose then
+        begin
+          let (l,r) = if n then ("","") else ("¬(",")") in
+          out "showed %s%a ⊂ %a%s\n%!" l Print.ex a Print.ex b r;
+        end;
+      env
+  | Include(fn) ->
+      if verbose then
+        out "include %S\n%!" fn;
+      Log.without (handle_file false env) fn
+  | Def_list(tops) ->
+      List.fold_left (interpret nodep) env tops
+  | Glbl_set(l)    ->
+      begin
+        let open Ast in
+        match l with
+        | Alvl(b,d) -> Typing.default_auto_lvl := (b,d)
+        | Logs s    -> Log.set_enabled s
+      end;
+      env
+  | Infix(sym,name,p,a) ->
+     Env.add_infix sym (name,p,a) env
+
+and load_infix fn =
+  try  Env.load_infix fn
+  with Env.Compile -> ignore (compile_file false fn)
+
+and compile_file : bool -> string -> unit = fun nodep fn ->
+  if !verbose then out "[%s]\n%!" fn;
+  Env.start fn;
+  let ast = Chrono.add_time parsing_chrono parse_file fn in
+  let env = List.fold_left (interpret nodep) Env.empty ast in
+  Env.save_file env fn
+
+(* Handling the files. *)
+and handle_file nodep env fn =
+  try
+    if !recompile && nodep then compile_file nodep fn;
+    try Env.load_file env fn
+    with Env.Compile -> compile_file nodep fn;
+                        try Env.load_file env fn
+                        with Env.Compile -> assert false
+  with
+  | No_parse(p)             ->
+      begin
+        err_msg "No parse %a." Pos.print_short_pos p;
+        Quote.quote_file stderr p;
+        exit 1
+      end
+  | Unbound_sort(s, None  ) ->
+      begin
+        err_msg "Unbound sort %s." s;
+        exit 1
+      end
+  | Unbound_sort(s, Some p) ->
+      begin
+        err_msg "Unbound sort %s (%a)." s Pos.print_short_pos p;
+        Quote.quote_file stderr p;
+        exit 1
+      end
+  | Sort_clash(t,s)         ->
+      begin
+        let _ =
+          match t.pos with
+          | None   -> err_msg "Sort %a expected for %a."
+                        pretty_print_raw_sort s print_raw_expr t
+          | Some p -> err_msg "Sort %a expected %a."
+                        pretty_print_raw_sort s Pos.print_short_pos p;
+                      Quote.quote_file stderr p
+        in
+        exit 1
+      end
+  | Too_many_args(e)        ->
+      begin
+        let _ =
+          match e.pos with
+          | None   -> err_msg "Expr %a has too many arguments."
+                        print_raw_expr e
+          | Some p -> err_msg "Expr %a has too many arguments."
+                        print_raw_expr e;
+                      Quote.quote_file stderr p
+        in
+        exit 1
+      end
+  | Unbound_variable(x,p)   ->
+      begin
+        let _ =
+          match p with
+          | None   -> err_msg "Unbound variable %s." x;
+          | Some p -> err_msg "Unbound variable %s %a." x
+                        Pos.print_short_pos p;
+                      Quote.quote_file stderr p
+        in
+        exit 1
+      end
+  | Already_matched(c)      ->
+      begin
+        match c.pos with
+        | None   -> err_msg "%s has already been matched." c.elt;
+        | Some p -> err_msg "%s (%a) has already been matched." c.elt
+                      Pos.print_short_pos p;
+                    Quote.quote_file stderr p
+      end;
+      exit 1
 
 (** Main parsing function taking as input a file name. *)
-let parse_file : string -> toplevel list = fun fn ->
-  let parse = parse_file entry Blank.blank in
+and parse_file : string -> toplevel list = fun fn ->
+  let parse = Earley.parse_file entry Blank.blank in
   try List.map (fun act -> act ()) (parse fn)
   with Parse_error(buf, pos) ->
     let pos = Pos.locate buf pos buf pos in
