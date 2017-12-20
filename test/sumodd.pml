@@ -8,7 +8,6 @@ val rec sum_odd : nat ⇒ nat = fun n {
   }
 }
 
-
 val rec theorem : ∀n∈nat, sum_odd n ≡ n ** u2 = fun n {
   case n {
     Zero → eqns sum_odd u0 ≡ u0 ≡ u0 ** u2
@@ -17,8 +16,8 @@ val rec theorem : ∀n∈nat, sum_odd n ≡ n ** u2 = fun n {
                      ≡ p ** u2 + u1 + u2 * p    by theorem p
                      ≡ (u1 + p) ** u2           using {
                        let simpl = simpl1 semi_nat p;
-                       use simpl (fun x { x **_pn u2 +_pn pn.one +_pn (pn.cst u2) *_pn x});
-                       use simpl (fun x { (pn.one +_pn x) **_pn u2})
+                       use simpl (fun p { p **_pn u2 +_pn pn.one +_pn (pn.cst u2) *_pn p});
+                       use simpl (fun p { (pn.one +_pn p) **_pn u2})
                      }
                      ≡ n ** u2
   }
