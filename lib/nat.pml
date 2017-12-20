@@ -7,9 +7,12 @@ type rec nat = [Zero ; S of nat]
 val zero : nat = Zero
 val succ : nat ⇒ nat = fun n { S[n] }
 
+// With dble can use natural numbers!
+val rec dble : nat ⇒ nat = fun n { case n { Zero → Zero | S[p] → S[S[dble p]] }}
+
 // Usual numbers.
-val one : nat = succ zero
-val two : nat = succ one
+val one : nat = 1
+val two : nat = 2
 
 //// Usual operations ////////////////////////////////////////////////////////
 
@@ -41,7 +44,7 @@ infix (*) = mul priority 2 left associative
 val rec ( * ) : nat ⇒ nat ⇒ nat =
   fun n m {
     case n {
-      Zero → zero
+      Zero → 0
       S[k] → m + (k * m)
     }
   }
@@ -52,7 +55,7 @@ infix (**) = exp priority 1 right associative
 val rec ( ** ) : nat ⇒ nat ⇒ nat =
   fun n m {
     case m {
-      Zero → one
+      Zero → 1
       S[k] → n * (n ** k)
     }
   }
@@ -70,26 +73,6 @@ val rec (-) : nat ⇒ nat ⇒ nat =
       }
     }
   }
-
-//// Number constants ////////////////////////////////////////////////////////
-
-val u0   : nat = zero
-val u1   : nat = succ u0
-val u2   : nat = succ u1
-val u3   : nat = succ u2
-val u4   : nat = succ u3
-val u5   : nat = succ u4
-val u6   : nat = succ u5
-val u7   : nat = succ u6
-val u8   : nat = succ u7
-val u9   : nat = succ u8
-val u10  : nat = succ u9
-val u11  : nat = succ u10
-val u90  : nat = mul u10 u9
-val u91  : nat = succ u90
-val u100 : nat = mul u10 u10
-val u101 : nat = succ u100
-val u1000 : nat = mul u10 u100
 
 //// Comparison and equality /////////////////////////////////////////////////
 include lib.comparison
@@ -137,7 +120,7 @@ val rec ack : nat ⇒ nat ⇒ nat =
     case m {
       Zero → succ n
       S[p] → case n {
-        Zero → ack p one
+        Zero → ack p 1
         S[q] → ack p (ack m q)
       }
     }
@@ -149,7 +132,7 @@ val rec fact : nat ⇒ nat =
     case n {
       Zero → zero
       S[k] → case k {
-        Zero → one
+        Zero → 1
         S[_] → n * (fact k)
       }
     }

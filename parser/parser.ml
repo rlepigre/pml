@@ -380,6 +380,10 @@ let parser expr @(m : mode) =
   | '[' ']'
       when m <<= Trm A
       -> v_nil _loc
+  (* Term ("int") *)
+  | n:int
+      when m <<= Trm A
+      -> from_int _loc n
   (* Term (infix symbol) *)
   | t:(expr (Trm I)) (s,_,p,pl,pr):infix when m <<= Trm I ->>
       let pl' = match t.elt with EInfx(_,p) -> p | _ -> 0.0 in
@@ -448,16 +452,17 @@ let parser expr @(m : mode) =
   (* Term ("show" tactic) *)
   | _show_ a:prop _using_ t:(expr (Trm R))
       when m <<= Trm R
-           -> show_using _loc a t
-  | _eqns_ a:term eqns:{ _:equiv b:term
-                         p:{ _:_by_ p:(expr (Trm R))
-                           | _:_using_ '{' p:term '}'}? -> (_loc,b,p) }*
-      when m <<= Trm R
-           -> equations _loc _loc_a a eqns
+      -> show_using _loc a t
   (* Term ("use" tactic) *)
   | _use_ t:(expr (Trm R))
       when m <<= Trm R
       -> use _loc t
+  (* Term ("eqns" tactic) *)
+  | _eqns_ a:term eqns:{ _:equiv b:term
+                         p:{ _:_by_ p:(expr (Trm R))
+                           | _:_using_ '{' p:term '}'}? -> (_loc,b,p) }*
+      when m <<= Trm R
+      -> equations _loc _loc_a a eqns
   (* Term ("showing" tactic) *)
   | _showing_   a:(expr (Prp R)) ';' p:(expr (Trm S))
       when m <<= Trm S

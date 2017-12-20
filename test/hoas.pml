@@ -46,10 +46,10 @@ val rec print_term_aux : nat ⇒ pterm<nat> ⇒ {} = fun i t {
   }
 }
 
-val print_term : term → {} = fun t { print_term_aux u0 t; print "\n"; {} }
+val print_term : term → {} = fun t { print_term_aux 0 t; print "\n"; {} }
 
 val test0 : {} = print_term omega
-val testn : {} = print_term (church u10)
+val testn : {} = print_term (church 10)
 
 // equality on terms ( ≡ does not work because function equality in pml
 // is too weak. Is this a bug ?
@@ -76,7 +76,7 @@ val rec eq_aux : nat ⇒ pterm<nat> ⇒ pterm<nat> ⇒ bool = fun i t1 t2 {
   }
 }
 
-val eq : term ⇒ term ⇒ bool = eq_aux u0
+val eq : term ⇒ term ⇒ bool = eq_aux 0
 
 // The very important lifting function
 val rec lift : ∀v, pterm<either<v, pterm<v>>> ⇒ pterm<v> = fun t {
@@ -274,8 +274,8 @@ val rec normalise : term ↝ term = fun t {
   if is_idt p { t } else { normalise (par_red_one p t) }
 }
 
-val test9 : eq (normalise (App[(church u2, church u2)])) (church u4) = {}
+val test9 : eq (normalise (App[(church 2, church 2)])) (church 4) = {}
 
-val test10 : eq (normalise (App[(church u2, church u3)])) (church u9) = {}
+val test10 : eq (normalise (App[(church 2, church 3)])) (church 9) = {}
 
-val test11 : eq (normalise (App[(church u3, church u2)])) (church u8) = {}
+val test11 : eq (normalise (App[(church 3, church 2)])) (church 8) = {}

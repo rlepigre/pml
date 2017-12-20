@@ -8,9 +8,9 @@ include lib.nat
 val rec add_assoc : ∀m n p∈nat, m + (n + p) ≡ (m + n) + p =
   fun m n p {
     case m {
-      Zero → eqns u0 + (n + p)
+      Zero → eqns 0 + (n + p)
                      ≡ n + p
-                     ≡ (u0 + n) + p
+                     ≡ (0 + n) + p
       S[k] → eqns m + (n + p)
                     ≡ S[k] + (n + p)
                     ≡ S[k + (n + p)]
@@ -26,16 +26,16 @@ val rec add_assoc2 : ∀m n p∈nat, m + (n + p) ≡ (m + n) + p =
   fun m n p {
     case m {
       Zero → qed
-      S[k] → use add_assoc2 k n p;  qed
+      S[k] → use add_assoc2 k n p; qed
     }
   }
 
 // Zero as a neutral element on the right (detailed proof).
-val rec add_n_zero : ∀n∈nat, n + u0 ≡ n =
+val rec add_n_zero : ∀n∈nat, n + 0 ≡ n =
   fun n {
     case n {
       Zero → qed
-      S[k] → eqns n + u0 ≡ S[k] + u0 ≡ S[k + u0]
+      S[k] → eqns n + 0 ≡ S[k] + 0 ≡ S[k + 0]
                          ≡ S[k] by add_n_zero k ≡ n
     }
   }
@@ -55,7 +55,7 @@ val rec add_n_succ : ∀m n∈nat, m + S[n] ≡ S[m + n] =
 val rec add_comm : ∀m n∈nat, m + n ≡ n + m =
   fun m n {
     case m {
-      Zero → eqns u0 + n ≡ n ≡ n + u0 by add_n_zero n
+      Zero → eqns 0 + n ≡ n ≡ n + 0 by add_n_zero n
       S[k] → eqns m + n ≡ S[k + n]
                         ≡ S[n + k]    by add_comm k n
                         ≡ n + m       by add_n_succ n k
@@ -65,25 +65,25 @@ val rec add_comm : ∀m n∈nat, m + n ≡ n + m =
 //// Properties of multiplication ////////////////////////////////////////////
 
 // Zero as an absorbing element on the right (detailed proof).
-val rec mul_n_zero : ∀n∈nat, n * u0 ≡ u0 =
+val rec mul_n_zero : ∀n∈nat, n * 0 ≡ 0 =
   fun n {
     case n {
-      Zero → deduce u0 * u0 ≡ u0;
+      Zero → deduce 0 * 0 ≡ 0;
              qed
-      S[k] → show k * u0 ≡ u0 using mul_n_zero k;
-             deduce u0 + k * u0 ≡ u0;
+      S[k] → show k * 0 ≡ 0 using mul_n_zero k;
+             deduce 0 + k * 0 ≡ 0;
              qed
     }
   }
 
-val rec mul_neutral : ∀n∈nat, u1 * n ≡ n =
+val rec mul_neutral : ∀n∈nat, 1 * n ≡ n =
   fun n { add_n_zero n }
 
 // Successor on the right can be taken out (detailed proof).
 val rec mul_n_succ : ∀n m∈nat, n * S[m] ≡ n + n * m =
   fun n m {
     case n {
-      Zero → deduce u0 * S[m] ≡ u0 + u0 * m;
+      Zero → deduce 0 * S[m] ≡ 0 + 0 * m;
              qed
       S[k] → show k * S[m] ≡ k + k * m using mul_n_succ k m;
              deduce S[m] + k * S[m] ≡ S[m] + (k + k * m);
@@ -103,9 +103,9 @@ val rec mul_n_succ : ∀n m∈nat, n * S[m] ≡ n + n * m =
 val rec mul_comm : ∀n m∈nat, mul n m ≡ mul m n =
   fun n m {
     case n {
-      Zero → deduce mul u0 m ≡ u0;
-             show mul m u0 ≡ u0 using mul_n_zero m;
-             deduce mul u0 m ≡ mul m u0;
+      Zero → deduce mul 0 m ≡ 0;
+             show mul m 0 ≡ 0 using mul_n_zero m;
+             deduce mul 0 m ≡ mul m 0;
              qed
       S[k] → show mul k m ≡ mul m k using mul_comm k m;
              deduce add m (mul k m) ≡ add m (mul m k);
@@ -120,9 +120,9 @@ val rec mul_comm : ∀n m∈nat, mul n m ≡ mul m n =
 val rec mul_dist_l : ∀m n p∈nat, mul m (add n p) ≡ add (mul m n) (mul m p) =
   fun m n p {
     case m {
-      Zero → deduce mul u0 (add n p) ≡ u0;
-             deduce add (mul u0 n) (mul u0 p) ≡ u0;
-             deduce mul u0 (add n p) ≡ add (mul u0 n) (mul u0 p);
+      Zero → deduce mul 0 (add n p) ≡ 0;
+             deduce add (mul 0 n) (mul 0 p) ≡ 0;
+             deduce mul 0 (add n p) ≡ add (mul 0 n) (mul 0 p);
              qed
       S[k] → showing mul m (add n p) ≡ add (mul m n) (mul m p);
              show mul k (add n p) ≡ add (mul k n) (mul k p)
@@ -174,12 +174,12 @@ val rec mul_dist_r : ∀m n p∈nat, mul (add m n) p ≡ add (mul m p) (mul n p)
 val rec mul_assoc : ∀m n p∈nat, mul m (mul n p) ≡ mul (mul m n) p =
   fun m n p {
     case m {
-      Zero → showing mul u0 (mul n p) ≡ mul (mul u0 n) p;
-             deduce mul u0 (mul n p) ≡ u0;
-             showing u0 ≡ mul (mul u0 n) p;
-             deduce mul (mul u0 n) p ≡ mul u0 p;
-             deduce mul (mul u0 n) p ≡ u0;
-             showing u0 ≡ u0;
+      Zero → showing mul 0 (mul n p) ≡ mul (mul 0 n) p;
+             deduce mul 0 (mul n p) ≡ 0;
+             showing 0 ≡ mul (mul 0 n) p;
+             deduce mul (mul 0 n) p ≡ mul 0 p;
+             deduce mul (mul 0 n) p ≡ 0;
+             showing 0 ≡ 0;
              qed
       S[k] → show mul k (mul n p) ≡ mul (mul k n) p using mul_assoc k n p;
              deduce add (mul n p) (mul k (mul n p))

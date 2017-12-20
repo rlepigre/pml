@@ -71,20 +71,20 @@ val minimum_principle : ∀f:ι, f∈(nat ⇒ nat) → ∃n∈nat, min<n,f> =
     }
   }
 
-val test : ∀f:ι, f∈(nat ⇒ nat) ⇒ ∃n∈nat, leq (f n) (f (succ (mul u2 n))) =
+val test : ∀f:ι, f∈(nat ⇒ nat) ⇒ ∃n∈nat, leq (f n) (f (succ (mul 2 n))) =
   fun f {
     delim {
       set auto 0 5;
       let (n,p) = minimum_principle f;
       println_nat n; //print intermediate results
-      (n, p (succ (mul u2 n)))
+      (n, p (succ (mul 2 n)))
     }
   }
 
 val max : nat ⇒ nat ⇒ nat = fun x y { if leq x y { y } else { x } }
 val abssub : nat ⇒ nat ⇒ nat = fun x y { max (minus x y) (minus y x) }
-val f_alex : nat ⇒ nat = fun n { abssub n u1000 }
+val f_alex : nat ⇒ nat = fun n { abssub n 1000 }
 
-val test1 : ∃n, n∈nat | leq (f_alex n) (f_alex (succ (mul u2 n))) =
+val test1 : ∃n, n∈nat | leq (f_alex n) (f_alex (succ (mul 2 n))) =
   (test f_alex).1
 val test2 : {} = println_nat test1

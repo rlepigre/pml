@@ -87,10 +87,10 @@ val print_test : nat ⇒ {} =
     }
   }
 
-val test0 : {} = print_test u0
-val test1 : {} = print_test u1
-val test2 : {} = print_test u2
-val test3 : {} = print_test u3
-val test4 : {} = print_test u4
-val test5 : {} = print_test u5
-val test6 : {} = print_test u6
+val test0 : {} = print_test 0
+val test1 : {} = print_test 1
+val test2 : {} = print_test 2
+val test3 : {} = print_test 3
+val test4 : {} = print_test 4
+val test5 : {} = print_test 5
+val test6 : {} = print_test 6

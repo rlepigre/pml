@@ -199,8 +199,8 @@ type rec tpoly<x> =
 
 val rec var : nat ⇒ monom = fun n {
   case n {
-    Zero → u1::[]
-    S[p] → u0::var p
+    Zero → 1::[]
+    S[p] → 0::var p
   }
 }
 
@@ -234,8 +234,8 @@ val rec eval_monom_var : ∀r, ∀s∈semiring<r>, ∀n∈nat, ∀env∈(nat ⇒
                        eval_monom s (var n) env i ≡ env (add i n) =
   fun s n env i {
     case n {
-      Zero → deduce eval_monom s (var n) env i ≡ s.mul s.one (exp_ring s (env i) u1);
-             deduce exp_ring s (env i) u1 ≡ s.mul (env i) s.one;
+      Zero → deduce eval_monom s (var n) env i ≡ s.mul s.one (exp_ring s (env i) 1);
+             deduce exp_ring s (env i) 1 ≡ s.mul (env i) s.one;
              use s.mul_comm (env i) s.one;
              use s.mul_neutral (env i);
              deduce eval_monom s (var n) env i ≡ env i;
@@ -422,14 +422,14 @@ val rec eval_mul_monom : ∀r, ∀s∈semiring<r>,  ∀m1 m2∈monom, ∀env∈(
 val rec eval_mul_monom_poly : ∀r, ∀s∈semiring<r>, ∀x∈r, ∀m1∈monom,
                               ∀p∈list<r×monom>, ∀env∈(nat ⇒ r),
                        eval s (mul_monom_poly s x m1 p) env ≡
-                       s.mul (s.mul x (eval_monom s m1 env u0)) (eval s p env) =
+                       s.mul (s.mul x (eval_monom s m1 env 0)) (eval s p env) =
   fun s x m1 p env {
     case p {
       []   → deduce mul_monom_poly s x m1 p ≡ [];
              deduce eval s (mul_monom_poly s x m1 p) env ≡ s.zero;
-             showing s.mul (s.mul x (eval_monom s m1 env u0)) s.zero ≡ s.zero;
-             use s.mul_comm (s.mul x (eval_monom s m1 env u0)) s.zero;
-             use s.mul_abs (s.mul x (eval_monom s m1 env u0));
+             showing s.mul (s.mul x (eval_monom s m1 env 0)) s.zero ≡ s.zero;
+             use s.mul_comm (s.mul x (eval_monom s m1 env 0)) s.zero;
+             use s.mul_abs (s.mul x (eval_monom s m1 env 0));
              qed
       c::q → let (y,m2) = c;
              let m  = mul_monom m1 m2;
@@ -437,15 +437,15 @@ val rec eval_mul_monom_poly : ∀r, ∀s∈semiring<r>, ∀x∈r, ∀m1∈monom,
              deduce mul_monom_poly s x m1 p ≡
                (z, m) :: mul_monom_poly s x m1 q;
              deduce eval s (mul_monom_poly s x m1 p) env ≡
-               s.add (s.mul z (eval_monom s m env u0))
+               s.add (s.mul z (eval_monom s m env 0))
                (eval s (mul_monom_poly s x m1 q) env);
-             let a1 = eval_monom s m1 env u0;
-             let a2 = eval_monom s m2 env u0;
+             let a1 = eval_monom s m1 env 0;
+             let a2 = eval_monom s m2 env 0;
              let b  = eval s q env;
              show eval s (mul_monom_poly s x m1 p) env ≡
                s.add (s.mul z (s.mul a1 a2))
                      (eval s (mul_monom_poly s x m1 q) env)
-               using eval_mul_monom s m1 m2 env u0;
+               using eval_mul_monom s m1 m2 env 0;
              show eval s (mul_monom_poly s x m1 p) env ≡
                s.add (s.mul z (s.mul a1 a2)) (s.mul (s.mul x a1) b)
                using eval_mul_monom_poly s x m1 q env;
@@ -477,7 +477,7 @@ val rec eval_mul : ∀r, ∀s∈semiring<r>,  ∀p1 p2∈list<r×monom>, ∀env�
       c::q1 → let (x,m1) = c;
               deduce mul_poly s p1 p2 ≡
                 add_poly s (mul_poly s q1 p2) (mul_monom_poly s x m1 p2);
-              let a1 = eval_monom s m1 env u0;
+              let a1 = eval_monom s m1 env 0;
               let b1 = eval s q1 env;
               let b = eval s p2 env;
               show eval s (mul_poly s q1 p2) env ≡ s.mul b1 b
@@ -501,8 +501,6 @@ val rec eval_mul : ∀r, ∀s∈semiring<r>,  ∀p1 p2∈list<r×monom>, ∀env�
               qed
     }
   }
-
-val coucou : nat = u0
 
 val rec eval_exp : ∀r, ∀s∈semiring<r>,  ∀p∈list<r×monom>, ∀e∈nat, ∀env∈(nat ⇒ r),
                   eval s (exp_poly s p e) env ≡ exp_ring s (eval s p env) e =
@@ -555,16 +553,16 @@ val rec eval_cor : ∀r, ∀s∈semiring<r>, ∀t∈tpoly<r>, ∀env∈(nat ⇒ 
   }
 
 val simpl1 : ∀r, ∀s∈semiring<r>, ∀x∈r, ∀p∈tpoly<r> ⇒ tpoly<r>,
-  teval s (p Var[u0]) (fun p { x }) ≡ eval s (tpoly_to_poly s (p Var[u0])) (fun p { x }) =
+  teval s (p Var[0]) (fun p { x }) ≡ eval s (tpoly_to_poly s (p Var[0])) (fun p { x }) =
   fun s x p {
-    eval_cor s (p Var[u0]) (fun p { x })
+    eval_cor s (p Var[0]) (fun p { x })
   }
 
 val simpl2 : ∀r, ∀s∈semiring<r>, ∀x y∈r, ∀p∈tpoly<r> ⇒ tpoly<r> ⇒ tpoly<r>,
-          teval s (p Var[u0] Var[u1]) (fun p { case p { Zero → x | S[p] → y} })
-          ≡ eval s (tpoly_to_poly s (p Var[u0] Var[u1])) (fun p { case p { Zero → x | S[p] → y}}) =
+          teval s (p Var[0] Var[1]) (fun p { case p { Zero → x | S[p] → y} })
+          ≡ eval s (tpoly_to_poly s (p Var[0] Var[1])) (fun p { case p { Zero → x | S[p] → y}}) =
   fun s x y p {
-    eval_cor s (p Var[u0] Var[u1]) (fun p { case p { Zero → x | S[p] → y} })
+    eval_cor s (p Var[0] Var[1]) (fun p { case p { Zero → x | S[p] → y} })
   }
 
 // Test with polynomials with integer coefficients
@@ -586,54 +584,54 @@ val pn : {
   (*)  : tpoly<nat> ⇒ tpoly<nat> ⇒ tpoly<nat>;
   (**) : tpoly<nat> ⇒ nat ⇒ tpoly<nat>
 } = {
-  zero = Cst[u0];
-  one  = Cst[u1];
+  zero = Cst[0];
+  one  = Cst[1];
   cst  = fun n { Cst[n] };
   (+)  = fun a b { Add[(a,b)] };
   (*)  = fun a b { Mul[(a,b)] };
   (**) = fun a b { Exp[(a,b)] }
   }
 
-val test1 : npoly<nat> =
-    let x = Var[u0];
-    let y = Var[u1];
-    tpoly_to_poly semi_nat Exp[(Add[(x,y)],u2)]
+val test1 : poly<nat> =
+    let x = Var[0];
+    let y = Var[1];
+    tpoly_to_poly semi_nat Exp[(Add[(x,y)],2)]
 
-val test2 : npoly<nat> =
-    let x = Var[u0];
-    let y = Var[u1];
+val test2 : poly<nat> =
+    let x = Var[0];
+    let y = Var[1];
     tpoly_to_poly semi_nat Mul[(Add[(x,y)],Add[(x,y)])]
 
 val test3 : test1 ≡ test2 = qed
 
-val test4 : npoly<nat> =
-    let x = Var[u0];
-    let y = Var[u1];
-    tpoly_to_poly semi_nat Add[(Exp[(x,u2)],Add[(Mul[(Cst[u2],Mul[(x,y)])],Exp[(y,u2)])])]
+val test4 : poly<nat> =
+    let x = Var[0];
+    let y = Var[1];
+    tpoly_to_poly semi_nat Add[(Exp[(x,2)],Add[(Mul[(Cst[2],Mul[(x,y)])],Exp[(y,2)])])]
 
 val test5 : test1 ≡ test4 = qed
 
 val exp : nat ⇒ nat ⇒ nat = exp_ring semi_nat
 
-val test_binome : ∀x y∈nat, exp (add x y) u2 ≡ add (exp x u2) (add (mul u2 (mul x y)) (exp y u2)) =
+val test_binome : ∀x y∈nat, exp (add x y) 2 ≡ add (exp x 2) (add (mul 2 (mul x y)) (exp y 2)) =
   fun a b {
-    let x = Var[u0];
-    let y = Var[u1];
+    let x = Var[0];
+    let y = Var[1];
     let env : nat ⇒ nat = fun v { case v { Zero → a | S[p] → b } };
-    use eval_cor semi_nat Exp[(Add[(x,y)],u2)] env;
-    use eval_cor semi_nat Add[(Exp[(x,u2)],Add[(Mul[(Cst[u2],Mul[(x,y)])],Exp[(y,u2)])])] env;
+    use eval_cor semi_nat Exp[(Add[(x,y)],2)] env;
+    use eval_cor semi_nat Add[(Exp[(x,2)],Add[(Mul[(Cst[2],Mul[(x,y)])],Exp[(y,2)])])] env;
     qed
   }
 
-val test_trinome : ∀x y∈nat, exp (add x y) u3 ≡ add (exp x u3) (add (mul u3 (mul (exp x u2)  y))
-                                                            (add (mul u3 (mul x (exp y u2)))
-                                                                (exp y u3))) =
+val test_trinome : ∀x y∈nat, exp (add x y) 3 ≡ add (exp x 3) (add (mul 3 (mul (exp x 2)  y))
+                                                            (add (mul 3 (mul x (exp y 2)))
+                                                                (exp y 3))) =
   fun a b {
-    let x = Var[u0];
-    let y = Var[u1];
+    let x = Var[0];
+    let y = Var[1];
     let env : nat ⇒ nat = fun v { case v { Zero → a | S[p] → b } };
-    use eval_cor semi_nat Exp[(Add[(x,y)],u3)] env;
-    use eval_cor semi_nat Add[(Exp[(x,u3)],Add[(Mul[(Cst[u3],Mul[(Exp[(x,u2)],y)])],
-                         Add[(Mul[(Cst[u3],Mul[(x,Exp[(y,u2)])])],Exp[(y,u3)])])])] env;
+    use eval_cor semi_nat Exp[(Add[(x,y)],3)] env;
+    use eval_cor semi_nat Add[(Exp[(x,3)],Add[(Mul[(Cst[3],Mul[(Exp[(x,2)],y)])],
+                         Add[(Mul[(Cst[3],Mul[(x,Exp[(y,2)])])],Exp[(y,3)])])])] env;
     qed
   }

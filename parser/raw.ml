@@ -1295,12 +1295,26 @@ let equations _loc _loc_a a eqns =
          | None -> Pos.none (EReco [])
          | Some t -> t
        in
-       let a = Pos.none (ERest(None, EEquiv(x,true,y))) in
-       let u = Pos.in_pos (Pos.merge _loc_x _loc_y) (ECoer(new_sort_uvar None, prf, a)) in
-       let t = Pos.in_pos _loc (ESequ(u,t)) in
+       let a = none (ERest(None, EEquiv(x,true,y))) in
+       let u = in_pos (Pos.merge _loc_x _loc_y)
+                      (ECoer(new_sort_uvar None, prf, a)) in
+       let t = in_pos _loc (ESequ(u,t)) in
        fn t _loc_y y l
   in
   fn (Pos.none (EReco [])) _loc_a a eqns
+
+let from_int _loc n =
+  let zero = evari (Some _loc) (in_pos _loc "zero") in
+  let succ = evari (Some _loc) (in_pos _loc "succ" ) in
+  let dble = evari (Some _loc) (in_pos _loc "dble") in
+  let rec fn n =
+    if n = 0 then zero
+    else
+      let t = in_pos _loc (EAppl(dble,fn (n/2))) in
+      if n mod 2 = 0 then t
+      else in_pos _loc (EAppl(succ,t))
+  in
+  fn n
 
 (* "use a" := "a" *)
 let use _loc t =
