@@ -51,24 +51,24 @@ val rec add_n_succ : ∀m n∈nat, m + S[n] ≡ S[m + n] =
              qed
       S[k] → show k + S[n] ≡ S[k + n] using add_n_succ k n;
              deduce S[k + S[n]] ≡ S[S[k + n]];
-             deduce add S[k] S[n] ≡ S[S[add k n]];
-             deduce add S[k] S[n] ≡ S[add S[k] n];
-             deduce add S[k] S[n] ≡ S[S[add k n]];
+             deduce S[k] + S[n] ≡ S[S[k + n]];
+             deduce S[k] + S[n] ≡ S[S[k] + n];
+             deduce S[k] + S[n] ≡ S[S[k + n]];
              qed
     }
   }
 
 // Commutativity of addition (detailed proof).
-val rec add_comm : ∀m n∈nat, add m n ≡ add n m =
+val rec add_comm : ∀m n∈nat, m + n ≡ n + m =
   fun m n {
     case m {
-      Zero → show add n u0 ≡ add u0 n using add_n_zero n;
-             deduce add u0 n ≡ add n u0;
+      Zero → show n + u0 ≡ add u0 n using add_n_zero n;
+             deduce u0 + n ≡ n + u0;
              qed
-      S[k] → show add k n ≡ add n k using add_comm k n;
-             deduce S[add k n] ≡ S[add n k];
-             show S[add k n] ≡ add n S[k] using add_n_succ n k;
-             deduce add S[k] n ≡ add n S[k];
+      S[k] → show k + n ≡ n + k using add_comm k n;
+             deduce S[k + n] ≡ S[n + k];
+             show S[k + n] ≡ n + S[k] using add_n_succ n k;
+             deduce S[k] + n ≡ n + S[k];
              qed
     }
   }
@@ -76,38 +76,36 @@ val rec add_comm : ∀m n∈nat, add m n ≡ add n m =
 //// Properties of multiplication ////////////////////////////////////////////
 
 // Zero as an absorbing element on the right (detailed proof).
-val rec mul_n_zero : ∀n∈nat, mul n u0 ≡ u0 =
+val rec mul_n_zero : ∀n∈nat, n * u0 ≡ u0 =
   fun n {
     case n {
-      Zero → deduce mul u0 u0 ≡ u0;
+      Zero → deduce u0 * u0 ≡ u0;
              qed
-      S[k] → show mul k u0 ≡ u0 using mul_n_zero k;
-             deduce add u0 (mul k u0) ≡ u0;
+      S[k] → show k * u0 ≡ u0 using mul_n_zero k;
+             deduce u0 + k * u0 ≡ u0;
              qed
     }
   }
 
-val rec mul_neutral : ∀n∈nat, mul u1 n ≡ n =
+val rec mul_neutral : ∀n∈nat, u1 * n ≡ n =
   fun n { add_n_zero n }
 
 // Successor on the right can be taken out (detailed proof).
-val rec mul_n_succ : ∀n m∈nat, mul n S[m] ≡ add n (mul n m) =
+val rec mul_n_succ : ∀n m∈nat, n * S[m] ≡ n + n * m =
   fun n m {
     case n {
-      Zero → deduce mul u0 S[m] ≡ add u0 (mul u0 m);
+      Zero → deduce u0 * S[m] ≡ u0 + u0 * m;
              qed
-      S[k] → show mul k S[m] ≡ add k (mul k m) using mul_n_succ k m;
-             deduce add S[m] (mul k S[m]) ≡ add S[m] (add k (mul k m));
-             deduce mul S[k] S[m] ≡ add S[m] (add k (mul k m));
-             deduce mul S[k] S[m] ≡ S[add m (add k (mul k m))];
-             show add m (add k (mul k m)) ≡ add (add m k) (mul k m)
-               using add_assoc m k (mul k m);
-             show add m k ≡ add k m using add_comm m k;
-             show add m (add k (mul k m)) ≡ add k (add m (mul k m))
-               using add_assoc k m (mul k m);
-             deduce mul S[k] S[m] ≡ S[add k (add m (mul k m))];
-             deduce mul S[k] S[m] ≡ S[add k (mul S[k] m)];
-             deduce mul S[k] S[m] ≡ add S[k] (mul S[k] m);
+      S[k] → show k * S[m] ≡ k + k * m using mul_n_succ k m;
+             deduce S[m] + k * S[m] ≡ S[m] + (k + k * m);
+             deduce n * S[m] ≡ S[m] + (k + k * m);
+             deduce n * S[m] ≡ S[m + (k + k * m)];
+             show m + (k + k * m) ≡ (m + k) + k * m using add_assoc m k (k * m);
+             show m + k ≡ k + m using add_comm m k;
+             show m + (k + k * m) ≡ k + (m + k * m) using add_assoc k m (k * m);
+             deduce n * S[m] ≡ S[k + (m + k * m)];
+             deduce n * S[m] ≡ S[k + n * m];
+             deduce n * S[m] ≡ n + n * m;
              qed
     }
   }

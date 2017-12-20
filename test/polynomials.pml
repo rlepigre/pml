@@ -116,7 +116,7 @@ val rec add_poly
                 c::q2 → let (x2,m2) = c;
                         case lex m1 m2 {
                           Ls → (x1,m1) :: add_poly r q1 p2
-                          Eq → (r.add x1 x2, m1) :: add_poly r q1 q2
+                          Eq → (x1 +_r x2, m1) :: add_poly r q1 q2
                           Gr → (x2,m2) :: add_poly r p1 q2
                         }
               }
@@ -552,6 +552,19 @@ val rec eval_cor : ∀r, ∀s∈semiring<r>, ∀t∈tpoly<r>, ∀env∈(nat ⇒ 
                      use eval_cor s p1 env;
                      qed
     }
+  }
+
+val simpl1 : ∀r, ∀s∈semiring<r>, ∀x∈r, ∀p∈tpoly<r> ⇒ tpoly<r>,
+  teval s (p Var[u0]) (fun p { x }) ≡ eval s (tpoly_to_poly s (p Var[u0])) (fun p { x }) =
+  fun s x p {
+    eval_cor s (p Var[u0]) (fun p { x })
+  }
+
+val simpl2 : ∀r, ∀s∈semiring<r>, ∀x y∈r, ∀p∈tpoly<r> ⇒ tpoly<r> ⇒ tpoly<r>,
+          teval s (p Var[u0] Var[u1]) (fun p { case p { Zero → x | S[p] → y} })
+          ≡ eval s (tpoly_to_poly s (p Var[u0] Var[u1])) (fun p { case p { Zero → x | S[p] → y}}) =
+  fun s x y p {
+    eval_cor s (p Var[u0] Var[u1]) (fun p { case p { Zero → x | S[p] → y} })
   }
 
 // Test with polynomials with integer coefficients
