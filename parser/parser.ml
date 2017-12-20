@@ -449,10 +449,11 @@ let parser expr @(m : mode) =
   | _show_ a:prop _using_ t:(expr (Trm R))
       when m <<= Trm R
            -> show_using _loc a t
-  | _eqns_ a:term eqns:{ _:equiv b:term { _:_by_ p:(expr (Trm R))
-                                        | _:_using_ '{' p:term '}'}?}*
+  | _eqns_ a:term eqns:{ _:equiv b:term
+                         p:{ _:_by_ p:(expr (Trm R))
+                           | _:_using_ '{' p:term '}'}? -> (_loc,b,p) }*
       when m <<= Trm R
-           -> equations _loc a eqns
+           -> equations _loc _loc_a a eqns
   (* Term ("use" tactic) *)
   | _use_ t:(expr (Trm R))
       when m <<= Trm R

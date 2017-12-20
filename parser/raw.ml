@@ -1286,21 +1286,21 @@ let deduce _loc a =
 let show_using _loc a t =
   Pos.in_pos _loc (ECoer(new_sort_uvar None, t, a))
 
-let equations _loc a eqns =
-  let rec fn t x l = (* t is a proof of a = x *)
+let equations _loc _loc_a a eqns =
+  let rec fn t _loc_x x l = (* t is a proof of a = x *)
     match l with
     | [] -> t
-    | (y,prf)::l ->
+    | (_loc_y,y,prf)::l ->
        let prf = match prf with
          | None -> Pos.none (EReco [])
          | Some t -> t
        in
        let a = Pos.none (ERest(None, EEquiv(x,true,y))) in
-       let u = Pos.in_pos _loc (ECoer(new_sort_uvar None, prf, a)) in
+       let u = Pos.in_pos (Pos.merge _loc_x _loc_y) (ECoer(new_sort_uvar None, prf, a)) in
        let t = Pos.in_pos _loc (ESequ(u,t)) in
-       fn t y l
+       fn t _loc_y y l
   in
-  fn (Pos.none (EReco [])) a eqns
+  fn (Pos.none (EReco [])) _loc_a a eqns
 
 (* "use a" := "a" *)
 let use _loc t =
