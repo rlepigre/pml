@@ -675,9 +675,8 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof * tot  =
       | _     , _      ->  0
     in
     let bls = List.stable_sort cmp bls in
-    (* Helper that decreade the level and add the case being
-       tested to avoid repetition *)
-    let update_auto : ctxt -> int -> blocked -> ctxt = fun ctx n b ->
+    (* Helper that decrease the level *)
+    let decrease_lvl : ctxt -> int -> ctxt = fun ctx n ->
       let (l1,l2) = ctx.auto.level in
       let level =
         if n = 1 then
@@ -685,30 +684,36 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof * tot  =
         else
           if l1 <= 0 then raise exn else (l1 - 1, l2)
       in
-      { ctx with auto = { ctx.auto with level;
-                                        tsted = b :: ctx.auto.tsted } }
+      { ctx with auto = { ctx.auto with level } }
+
+    in
+    (* Add the case being tested to avoid repetition *)
+    let add_blocked : ctxt -> blocked -> ctxt = fun ctx b ->
+      { ctx with auto = { ctx.auto with tsted = b :: ctx.auto.tsted } }
     in
     (* main recursive function trying all elements *)
-    let rec fn bls =
+    let rec fn ctx bls =
       UTimed.Time.rollback st;
       match bls with
       | [] -> type_error (E(T,t)) ty exn
       | BTot e as b :: bls ->
+         let ctx = add_blocked ctx b in
          (* for a totality, we add a let to the term and typecheck *)
          (try
-            let ctx = update_auto ctx 1 b in
+            let ctx = decrease_lvl ctx 1 in
             let f = labs None None (Pos.none "x") (fun _ -> box t) in
             let t = unbox (appl None (valu None f) (Bindlib.box e)) in
             let (l1,l2) = ctx.auto.level in
             log_aut "totality (%d,%d): %a" l1 l2 Print.ex t;
             type_term ctx t ty
           with
-          | Failed_to_prove _ -> fn bls
-          | Type_error _      -> fn bls)
+          | Failed_to_prove _ -> fn ctx bls
+          | Type_error _      -> fn ctx bls)
       | BCas(e,cs) as b :: bls ->
          (* for a blocked case analysis, we add a case! *)
+         let ctx = add_blocked ctx b in
          (try
-            let ctx = update_auto ctx (List.length cs) b in
+            let ctx = decrease_lvl ctx (List.length cs) in
             let mk_case c =
               A.add c (None, Pos.none "x", (fun _ -> box t))
             in
@@ -721,9 +726,9 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof * tot  =
             log_aut "cases    (%d,%d): %a" l1 l2 Print.ex t;
             type_term ctx t ty
           with
-          | Failed_to_prove _ -> fn bls
-          | Type_error _      -> fn bls)
-    in fn bls
+          | Failed_to_prove _ -> fn ctx bls
+          | Type_error _      -> fn ctx bls)
+    in fn ctx bls
 
 and gen_subtype : ctxt -> prop -> prop -> sub_rule =
   fun ctx a b ->
