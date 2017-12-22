@@ -704,11 +704,11 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof * tot  =
             let f = labs None None (Pos.none "x") (fun _ -> box t) in
             let t = unbox (appl None (valu None f) (Bindlib.box e)) in
             let (l1,l2) = ctx.auto.level in
-            log_aut "totality (%d,%d): %a" l1 l2 Print.ex t;
+            log_aut "totality (%d,%d) [%d]: %a" l1 l2 (List.length bls) Print.ex t;
             type_term ctx t ty
           with
-          | Failed_to_prove _ -> fn ctx bls
-          | Type_error _      -> fn ctx bls)
+          | Failed_to_prove _ as e -> type_error (E(T,t)) ty e
+          | Type_error _           -> fn ctx bls)
       | BCas(e,cs) as b :: bls ->
          (* for a blocked case analysis, we add a case! *)
          let ctx = add_blocked ctx b in
