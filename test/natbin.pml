@@ -127,7 +127,7 @@ val rec bij2 : ∀n∈natbin, nat_to_natbin (natbin_to_nat n) ≡ n =
     B1[p]  → deduce natbin_to_nat n ≡ succ (mul (natbin_to_nat p) 2);
               use lemma2 (natbin_to_nat p);
               use bij2 p;
-              set auto 1 2;
+              set auto 1 3;
               qed
   }
 

@@ -1853,6 +1853,15 @@ let rec not_uewit : type a. ?vwit:bool -> a ex loc -> bool =
     | Case(_,c) -> A.length c > 1 (* TODO #29: fix this issue and remove! *)
     | _         -> true
 
+let cmp_orig (_,x) (_,y) = match (x.elt, y.elt) with
+    | (Valu{elt=VDef _}, _               ) -> -1
+    | ( _              , Valu{elt=VDef _}) ->  1
+    | (Valu{elt=VWit v}, _               ) -> -1
+    | (_               , Valu{elt=VWit v}) ->  1
+    | (Proj _          , _               ) -> -1
+    | (_               , Proj _          ) ->  1
+    | (_               , _               ) ->  0
+
 (* Search a vwit or a projection equal to a given term in the pool *)
 let to_vwit : term -> pool -> term = fun t po ->
   (*Printf.eprintf "to_vwit: %a\n%!" Print.ex t;*)
@@ -1862,14 +1871,7 @@ let to_vwit : term -> pool -> term = fun t po ->
   in
   let l = List.find_all fn po.os in
   if l = [] then raise Not_found;
-  let cmp (_,x) (_,y) = match (x.elt, y.elt) with
-    | (Valu{elt=VWit v}, _               ) -> -1
-    | (_               , Valu{elt=VWit v}) ->  1
-    | (Proj _          , _               ) -> -1
-    | (_               , Proj _          ) ->  1
-    | (_               , _               ) ->  0
-  in
-  snd (List.hd (List.sort cmp l))
+  snd (List.hd (List.sort cmp_orig l))
 
 (** test is a node is a nobox value *)
 let test_value : Ptr.t -> pool -> bool = fun p po ->
@@ -1889,12 +1891,7 @@ let rec get_orig : ?vwit:bool -> Ptr.t -> pool -> term =
         let l = List.find_all (fun (v',e) ->
                     eq_ptr po p v' && not_uewit ~vwit e) po.os in
         if l = [] then raise Not_found;
-        let cmp (_,x) (_,y) = match (x.elt, y.elt) with
-          | Valu{elt=VWit _}, _ -> -1
-          | _, Valu{elt=VWit _} -> 1
-          | _         -> 0
-        in
-        snd (List.hd (List.sort cmp l))
+        snd (List.hd (List.sort cmp_orig l))
       with Not_found ->
         let is_appl = function TN_Appl _ -> true | _ -> false in
         let (v',nn) = List.find (fun (v',nn) ->

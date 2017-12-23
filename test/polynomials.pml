@@ -4,7 +4,7 @@ include lib.list
 include lib.comparison
 include lib.bool
 
-// signature of semi ring (like nat)
+// signature of commutative semi ring (like nat)
 type semiring<x> = ∃zero one (+) (*):ι, {
   zero : zero∈x;
   one  : one∈x;

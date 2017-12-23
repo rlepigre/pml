@@ -9,8 +9,8 @@ val rec add_assoc : ∀m n p∈nat, m + (n + p) ≡ (m + n) + p =
   fun m n p {
     case m {
       Zero → eqns 0 + (n + p)
-                     ≡ n + p
-                     ≡ (0 + n) + p
+                    ≡ n + p
+                    ≡ (0 + n) + p
       S[k] → eqns m + (n + p)
                     ≡ S[k] + (n + p)
                     ≡ S[k + (n + p)]
@@ -38,7 +38,7 @@ val rec add_n_zero : ∀n∈nat, n + 0 ≡ n =
     case n {
       Zero → qed
       S[k] → eqns n + 0 ≡ S[k] + 0 ≡ S[k + 0]
-                         ≡ S[k] by add_n_zero k ≡ n
+                        ≡ S[k] by add_n_zero k ≡ n
     }
   }
 
@@ -70,11 +70,10 @@ val rec add_comm : ∀m n∈nat, m + n ≡ n + m =
 val rec mul_n_zero : ∀n∈nat, n * 0 ≡ 0 =
   fun n {
     case n {
-      Zero → deduce 0 * 0 ≡ 0;
-             qed
-      S[k] → show k * 0 ≡ 0 using mul_n_zero k;
-             deduce 0 + k * 0 ≡ 0;
-             qed
+      Zero → eqns 0 * 0 ≡ 0
+      S[k] → eqns S[k] * 0 ≡ 0 + k * 0
+                           ≡ 0 + 0 by mul_n_zero k
+                           ≡ 0
     }
   }
 
@@ -85,19 +84,16 @@ val rec mul_neutral : ∀n∈nat, 1 * n ≡ n =
 val rec mul_n_succ : ∀n m∈nat, n * S[m] ≡ n + n * m =
   fun n m {
     case n {
-      Zero → deduce 0 * S[m] ≡ 0 + 0 * m;
-             qed
-      S[k] → show k * S[m] ≡ k + k * m using mul_n_succ k m;
-             deduce S[m] + k * S[m] ≡ S[m] + (k + k * m);
-             deduce n * S[m] ≡ S[m] + (k + k * m);
-             deduce n * S[m] ≡ S[m + (k + k * m)];
-             show m + (k + k * m) ≡ (m + k) + k * m using add_assoc m k (k * m);
-             show m + k ≡ k + m using add_comm m k;
-             show m + (k + k * m) ≡ k + (m + k * m) using add_assoc k m (k * m);
-             deduce n * S[m] ≡ S[k + (m + k * m)];
-             deduce n * S[m] ≡ S[k + n * m];
-             deduce n * S[m] ≡ n + n * m;
-             qed
+      Zero → eqns 0 * S[m] ≡ 0 + 0 * m ≡ 0
+      S[k] → let _ = n * m; //FIXME
+             eqns n * S[m] ≡ S[m] + k * S[m]
+                           ≡ S[m] + (k + k * m) by mul_n_succ k m
+                           ≡ S[m + (k + k * m)]
+                           ≡ S[(m + k) + k * m] by add_assoc m k (k * m)
+                           ≡ S[(k + m) + k * m] by add_comm m k
+                           ≡ S[k + (m + k * m)] by add_assoc k m (k * m)
+                           ≡ S[k + n * m]
+                           ≡ n + n * m
     }
   }
 
@@ -105,9 +101,8 @@ val rec mul_n_succ : ∀n m∈nat, n * S[m] ≡ n + n * m =
 val rec mul_comm : ∀n m∈nat, mul n m ≡ mul m n =
   fun n m {
     case n {
-      Zero → deduce mul 0 m ≡ 0;
-             show mul m 0 ≡ 0 using mul_n_zero m;
-             deduce mul 0 m ≡ mul m 0;
+      Zero → eqns 0 * m ≡ 0;
+             eqns m * 0 ≡ 0 by mul_n_zero m;
              qed
       S[k] → show mul k m ≡ mul m k using mul_comm k m;
              deduce add m (mul k m) ≡ add m (mul m k);

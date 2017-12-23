@@ -12,8 +12,7 @@ val rec app : ∀a, ∀m n:ι, vec<a,m> ⇒ vec<a,n> ⇒ vec<a, add m n> =
     case l1 {
       Nil     → l2
       Cons[c] → let _  = length c.tl;
-                let tl = app c.tl l2;
-                Cons[{hd = c.hd; tl = tl}]
+                Cons[{hd = c.hd; tl = app c.tl l2}]
     }
   }
 
@@ -21,7 +20,6 @@ val rec app : ∀a, ∀m n:ι, vec<a,m> ⇒ vec<a,n> ⇒ vec<a, add m n> =
 val app3 : ∀a, ∀m n p:ι, vec<a,m> ⇒ vec<a,n> ⇒ vec<a,p>
   ⇒ vec<a, add m (add n p)> =
     fun l1 l2 l3 {
-      use add (length l2) (length l3);
       app l1 (app l2 l3)
     }
 

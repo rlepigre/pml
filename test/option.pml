@@ -35,6 +35,6 @@ val map_map : ∀ a b c:ο, ∀f∈(a⇒b), ∀g∈(b⇒c), ∀o∈option<a>,
   fun f g eo {
     case eo {
       None[y] → {}
-      Some[e] → let lem = f e; {} // FIXME #28
+      Some[e] → {}
     }
   }
