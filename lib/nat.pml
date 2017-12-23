@@ -111,6 +111,11 @@ val geq : nat ⇒ nat ⇒ bool =
 val gt : nat ⇒ nat ⇒ bool =
   fun n m { case compare n m { Ls → false | Eq → false | Gr → true  } }
 
+val min : nat ⇒ nat ⇒ nat =
+  fun n m { if leq n m { n } else { m } }
+
+val max : nat ⇒ nat ⇒ nat =
+  fun n m { if leq n m { m } else { n } }
 
 //// More functions //////////////////////////////////////////////////////////
 
