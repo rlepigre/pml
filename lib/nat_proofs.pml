@@ -15,9 +15,11 @@ val rec add_assoc : ∀m n p∈nat, m + (n + p) ≡ (m + n) + p =
                     ≡ S[k] + (n + p)
                     ≡ S[k + (n + p)]
                     ≡ S[(k + n) + p] by add_assoc k n p
-                    ≡ S[k + n] + p
+                    ≡ S[k + n] + p;
+             eqns (m + n) + p
                     ≡ (S[k] + n) + p
-                    ≡ (m + n) + p
+                    ≡ S[k + n] + p;
+             qed
     }
   }
 
@@ -26,7 +28,7 @@ val rec add_assoc2 : ∀m n p∈nat, m + (n + p) ≡ (m + n) + p =
   fun m n p {
     case m {
       Zero → qed
-      S[k] → use add_assoc2 k n p; qed
+      S[k] → add_assoc2 k n p
     }
   }
 
