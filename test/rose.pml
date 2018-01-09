@@ -32,7 +32,7 @@ val rec theorem : ∀a, ∀r∈rose<a>, leq (height r) (size r) =
         case l {
           []    → qed
           x::l' →
-            //show leq (height Node[l]) (size Node[l]) using theorem Node[l];
+            //show leq (height Node[l']) (size Node[l']) using theorem Node[l'];
             {- TODO -}
         }
     }
