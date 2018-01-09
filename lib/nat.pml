@@ -41,7 +41,7 @@ val rec (+) : nat ⇒ nat ⇒ nat =
 // Multiplication function.
 infix (*) = mul priority 2 left associative
 
-val rec ( * ) : nat ⇒ nat ⇒ nat =
+val rec (*) : nat ⇒ nat ⇒ nat =
   fun n m {
     case n {
       0    → 0
@@ -52,7 +52,7 @@ val rec ( * ) : nat ⇒ nat ⇒ nat =
 // Exponentiation function.
 infix (**) = exp priority 1 right associative
 
-val rec ( ** ) : nat ⇒ nat ⇒ nat =
+val rec (**) : nat ⇒ nat ⇒ nat =
   fun n m {
     case m {
       0    → 1
@@ -60,17 +60,30 @@ val rec ( ** ) : nat ⇒ nat ⇒ nat =
     }
   }
 
-// Minus function.
+// Difference function.
 infix (-) = minus priority 3 right associative
 
-val rec (-) : nat ⇒ nat ⇒ nat =
+val rec (-) : ∀s, nat^s ⇒ nat ⇒ nat^s =
   fun n m {
     case n {
-      0    → zero
+      0    → Zero
       S[p] → case m {
         0    → n
         S[q] → p - q
       }
+    }
+  }
+
+// NOTE we need size-preserving (-) to define (/).
+
+// Division function.
+infix (/) = div priority 2 left associative
+
+val rec (/) : nat ⇒ [S of nat] ⇒ nat =
+  fun n m {
+    case n {
+      0    → 0
+      S[p] → case m { S[q] → 1 + (p - q) / m }
     }
   }
 
