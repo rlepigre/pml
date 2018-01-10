@@ -20,7 +20,7 @@ let rec sort : type a. a sort printer = fun ch s ->
   | P      -> output_string ch "ο"
   | O      -> output_string ch "κ"
   | F(a,b) -> let (l,r) = match a with F(_,_) -> ("(",")") | _ -> ("","") in
-              fprintf ch "%s%a%s → %a" l sort a r sort b
+              fprintf ch "%s%a%s→%a" l sort a r sort b
 
 let print_vars ch e =
   let vars = uvars e in
@@ -88,16 +88,16 @@ let rec ex : type a. a ex loc printer = fun ch e ->
                      fprintf ch "%s : %a" l ex a
                    in fprintf ch "[%a]" (print_map pelt "; ") m
   | Univ(s,b)   -> let (x,a) = unbind (mk_free s) (snd b) in
-                   fprintf ch "∀%s:%a,%a" (name_of x)
+                   fprintf ch "∀%s:%a, %a" (name_of x)
                      sort s ex a
   | Exis(s,b)   -> let (x,a) = unbind (mk_free s) (snd b) in
-                   fprintf ch "∃%s:%a,%a" (name_of x)
+                   fprintf ch "∃%s:%a, %a" (name_of x)
                      sort s ex a
   | FixM(o,b)   -> let (x,a) = unbind (mk_free P) (snd b) in
-                   fprintf ch "μ_%a %s,%a"
+                   fprintf ch "μ^%a %s, %a"
                            ex o (name_of x) ex a
   | FixN(o,b)   -> let (x,a) = unbind (mk_free P) (snd b) in
-                   fprintf ch "ν_%a %s,%a"
+                   fprintf ch "ν^%a %s, %a"
                            ex o (name_of x) ex a
   | Memb(t,a)   -> begin
                      match is_eq e with

@@ -19,7 +19,7 @@ highlight link Str Character
 " Keywords
 syntax keyword Keyword fun save restore case of fix let rec corec using use
 syntax keyword Keyword type def val sort if else deduce show qed such that
-syntax keyword Keyword check for because delim set assume suppose take
+syntax keyword Keyword check for because delim set assume suppose take print
 syntax match   Keyword "λ"
 syntax match   Keyword "μ"
 syntax match   Keyword "ν"
@@ -29,14 +29,22 @@ syntax match   Keyword "⇒"
 syntax match   Keyword "→"
 syntax match   Keyword "×"
 syntax match   Keyword "∈"
+syntax match   Keyword "\^"
 
 " Constructors
 syntax match Constant "\<\u\w*\>"
 syntax match Constant "\<true\>"
 syntax match Constant "\<false\>"
+syntax match Constant "\<\d\d*\>"
 
 " Include
 syntax match Include "\<include \w*\(\.\w*\)*"
+
+" Operator configuration
+syntax keyword Include infix
+syntax match Include "\<priority \d\d*"
+syntax match Include "\<left associative"
+syntax match Include "\<right associative"
 
 " Meta-variables
 syntax match Include "{-[ ]*\w*[ ]*-}"
