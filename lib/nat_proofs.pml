@@ -255,3 +255,52 @@ val rec compare_eq : ∀n m∈nat, compare n m ≡ Eq ⇒ n ≡ m =
         }
     }
   }
+
+val zero_leq : ∀b∈nat, leq 0 b =
+  fun b {
+    case b {
+      0    → qed
+      S[p] → qed
+    }
+  }
+
+val rec succ_leq : ∀b1 b2∈nat, leq b1 b2 ⇒ leq b1 S[b2] =
+  fun b1 b2 h {
+    case b1 {
+      0     → qed
+      S[p1] →
+        case b2 {
+          0     → ✂
+          S[p2] → use succ_leq p1 p2 h
+        }
+    }
+  }
+
+val rec leq_add : ∀a1 b1 a2 b2∈nat, leq a1 a2 ⇒ leq b1 b2 ⇒ leq (a1 + b1) (a2 + b2) =
+  fun a1 b1 a2 b2 h1 h2 {
+    case a1 {
+      0     →
+        case a2 {
+          0     → qed
+          S[p2] → show leq 0 p2 using zero_leq p2;
+                  use leq_add a1 b1 p2 b2 {} h2;
+                  use succ_leq b1 (p2 + b2) {}
+        }
+      S[p1] →
+        case a2 {
+          0     → ✂
+          S[p2] → use leq_add p1 b1 p2 b2 h1 h2
+        }
+    }
+  }
+
+
+val leq_max_add : ∀a b∈nat, leq (max a b) (a+b) =
+  fun a b {
+    {--}
+  }
+
+val leq_trans : ∀a b c∈nat, leq a b ⇒ leq b c ⇒ leq a c =
+  fun a b c h1 h2 {
+    {--}
+  }
