@@ -276,6 +276,9 @@ and  e_stac =
   | SPush of e_valu * e_stac
   | SFram of e_term * e_stac
 
+type any_sort = Sort : 'a sort           -> any_sort
+type any_expr = Expr : 'a sort * 'a expr -> any_expr
+
 (** Sequence of functions to build and [bseq]. *)
 type (_,_) fseq =
   | FLast : 'c sort * strloc * ('c var -> 'r bindbox  ) -> ('c     , 'r) fseq
@@ -594,7 +597,7 @@ let rec bseq_dummy : type a b. (a, prop * b) bseq -> b = fun seq ->
   | BLast(s,f) -> snd (subst f (Dumm s))
   | BMore(s,f) -> bseq_dummy (subst f (Dumm s))
 
-let rec sort : type a b. a ex loc ->  a sort * a ex loc= fun e ->
+let rec sort : type a b. a ex loc -> a sort * a ex loc = fun e ->
   match e.elt with
   | HDef(s,_)       -> (s, e)
   | HApp(d,u,v)     -> let (F(_,s),_) = sort u in (s,e)

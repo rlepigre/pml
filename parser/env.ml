@@ -3,8 +3,6 @@ open Eval
 open Ast
 open Pos
 
-type any_sort = Sort : 'a sort           -> any_sort
-type any_expr = Expr : 'a sort * 'a expr -> any_expr
 type assoc = LeftAssoc | RightAssoc | NonAssoc
 type infix = string * float * assoc
 
@@ -50,7 +48,7 @@ let add_sort : type a. string -> a sort -> unit =
 let add_expr : type a. strloc -> a sort -> a box -> unit =
   fun expr_name s expr_box ->
     let expr_def = Bindlib.unbox expr_box in
-    let expr_hash = Compare.hash_expr expr_def in
+    let expr_hash = Hash.hash_expr expr_def in
     let ex = Expr(s, {expr_name; expr_def; expr_hash}) in
     let global_exprs = SMap.add expr_name.elt ex !env.global_exprs in
     let local_exprs = SMap.add expr_name.elt ex !env.local_exprs in
@@ -58,7 +56,7 @@ let add_expr : type a. strloc -> a sort -> a box -> unit =
 
 let add_value : strloc -> term -> prop -> e_valu -> unit =
   fun value_name value_orig value_type value_eval ->
-    let value_hash = Compare.hash_expr (Erase.to_valu value_eval) in
+    let value_hash = Hash.hash_expr (Erase.to_valu value_eval) in
     let value_eras = Erase.to_valu value_eval in
     let nv = { value_name; value_type; value_orig
              ; value_eval; value_eras; value_hash}

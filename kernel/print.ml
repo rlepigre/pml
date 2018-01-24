@@ -65,7 +65,16 @@ let collect_exis : type s a.s sort -> a ex loc -> s var list * a ex loc =
   in
   fn [] e
 
-let is_comprehension : type a. a ex loc -> (t var * prop * rel) option = fun e ->
+type _ sugar =
+  | NoSugar : 'a sugar
+  | StrictReco : (pos option * prop) Assoc.t -> p sugar
+  | Tuple      : valu list -> v sugar
+  | TupleType  : prop list -> p sugar
+  | DepSum     : t var list * prop * prop -> p sugar
+  | Compr      : t var * prop * rel -> p sugar
+  | Def        : 'a ex loc -> 'a sugar
+
+let is_comprehension : type a. a ex loc -> a sugar = fun e ->
   match (Norm.repr e).elt with
   | Exis(T, f) ->
      begin
@@ -74,14 +83,14 @@ let is_comprehension : type a. a ex loc -> (t var * prop * rel) option = fun e -
        | Memb(t,p) ->
           begin
             match ((Norm.repr t).elt, (Norm.repr p).elt) with
-            | (Vari(_,y), Rest(p,eq)) when eq_vars x y -> Some(x,p,eq)
-            | _                                        -> None
+            | (Vari(_,y), Rest(p,eq)) when eq_vars x y -> Compr(x,p,eq)
+            | _                                        -> NoSugar
           end
-       | _         -> None
+       | _         -> NoSugar
      end
-  | _          -> None
+  | _          -> NoSugar
 
-let is_strict_record : type a. a ex loc -> (pos option * prop) Assoc.t option =
+let is_strict_record : type a. a ex loc -> a sugar =
   fun e ->
   let (ls, e) = collect_exis V e in
   match e.elt with
@@ -104,16 +113,16 @@ let is_strict_record : type a. a ex loc -> (pos option * prop) Assoc.t option =
                              | _         -> false
                            end
                        ) m1
-               then Some m2
-               else None
+               then StrictReco m2
+               else NoSugar
 
-            | _                  -> None
+            | _                  -> NoSugar
           end
-       | _      -> None
+       | _      -> NoSugar
      end
-  | _         -> None
+  | _         -> NoSugar
 
-let is_tuple : type a.a ex loc -> v ex loc list option = fun e ->
+let is_tuple : type a.a ex loc -> a sugar = fun e ->
   match (Norm.repr e).elt with
   | Reco m ->
      let size = A.length m in
@@ -124,12 +133,12 @@ let is_tuple : type a.a ex loc -> v ex loc list option = fun e ->
            let k = string_of_int i in
            res:= snd (A.find k m) :: !res
          done;
-         Some !res
-       with Not_found -> None
+         Tuple !res
+       with Not_found -> NoSugar
      end
-  | _ -> None
+  | _ -> NoSugar
 
-let is_tuple_type : type a.a ex loc -> p ex loc list option = fun e ->
+let is_tuple_type : type a.a ex loc -> a sugar = fun e ->
   match (Norm.repr e).elt with
   | Prod m ->
      let size = A.length m in
@@ -140,21 +149,64 @@ let is_tuple_type : type a.a ex loc -> p ex loc list option = fun e ->
            let k = string_of_int i in
            res:= snd (A.find k m) :: !res
          done;
-         Some !res
-       with Not_found -> None
+         TupleType !res
+       with Not_found -> NoSugar
      end
-  | _ -> None
+  | _ -> NoSugar
 
 type feq = { mutable eq : 'a. 'a ex loc -> 'a ex loc -> bool }
 let feq_expr : feq = { eq = fun _ _ -> assert false }
 
-let is_dep_sum : type a.a ex loc -> (t var list * prop * prop) option =
-  fun e ->
+let is_def : type a. a ex loc -> a sugar = fun e ->
+  let rec is_def : type a. a ex loc -> bool = fun e ->
+    match (Norm.repr e).elt with
+    | VDef _      -> true
+    | HDef _      -> true
+    | HApp(_,e,_) -> is_def e
+    | _           -> false
+  in
+  if is_def e then NoSugar else
+  let (s,e) = Ast.sort e in
+  let res : a sugar =
+    match s with
+    | V ->
+       Env.SMap.fold (fun k v acc ->
+           let open Env in
+           match acc with
+           | NoSugar when feq_expr.eq e v.value_eras ->
+              Def(Pos.none (VDef v))
+           | _ -> acc)
+         !(Env.env).Env.global_values NoSugar
+    | _ -> NoSugar
+  in
+  if res <> NoSugar then res else
+  let is_expr : any_expr -> a sugar = fun (Expr(s',e')) ->
+    let rec fn : type b. b ex loc -> b sort -> a sugar = fun e' s' ->
+      match eq_sort s s' with
+      | Eq.Eq  -> if feq_expr.eq e e' then Def e' else NoSugar
+      | Eq.NEq -> match s' with
+                  | F(sa,s') -> let v = Pos.none
+                                          (UVar(sa, { uvar_key = -1
+                                                    ; uvar_val = ref (Unset [])
+                                                    ; uvar_pur = ref false}))
+                                in
+                                let e' = Pos.none (HApp(sa,e',v)) in
+                                fn e' s'
+                  | _        -> NoSugar
+    in
+    fn (Pos.none (HDef(s',e'))) s'
+  in
+  Env.SMap.fold (fun k e acc ->
+      let open Env in
+      match acc with NoSugar -> is_expr e | _ -> acc)
+    !(Env.env).Env.global_exprs NoSugar
+
+let is_dep_sum : type a.a ex loc -> a sugar = fun e ->
   let (ls, e) = collect_exis T e in
   let ty = ref None in
   match is_tuple_type e with
-  | None    -> None
-  | Some ps ->
+  | NoSugar      -> NoSugar
+  | TupleType ps ->
      if List.length ps = 1 + List.length ls && List.length ls > 0 then
        try
          let vars = List.mapi (
@@ -178,33 +230,24 @@ let is_dep_sum : type a.a ex loc -> (t var list * prop * prop) option =
            | None    -> assert false
            | Some ty -> ty
          in
-         Some(vars, ty, List.nth ps (List.length ls))
+         DepSum(vars, ty, List.nth ps (List.length ls))
        with
-         Exit -> None
-     else None
+         Exit -> NoSugar
+     else NoSugar
+  | _ -> assert false
 
-type sugar =
-  | NoSugar
-  | StrictReco of (pos option * prop) Assoc.t
-  | Tuple      of valu list
-  | TupleType  of prop list
-  | DepSum     of t var list * prop * prop
-  | Compr      of t var * prop * rel
-
-
-let is_sugar : type a.a ex loc -> sugar = fun e ->
-  match is_strict_record e with
-  | Some p      -> StrictReco p
-  | None        ->
-  match is_tuple e with
-  | Some(l)     -> Tuple l
-  | None        ->
-  match is_dep_sum e with
-  | Some(l,a,p) -> DepSum(l,a,p)
-  | None        ->
-  match is_comprehension e with
-  | Some(v,p,r)   -> Compr(v,p,r)
-  | None        -> NoSugar
+let is_sugar : type a.a ex loc -> a sugar = fun e ->
+  let s = is_strict_record e in
+  if s <> NoSugar then s else
+  let s = is_tuple e in
+  if s <> NoSugar then s else
+  let s = is_dep_sum e in
+  if s <> NoSugar then s else
+  let s = is_comprehension e in
+  if s <> NoSugar then s else
+  let s = is_def e in
+  if s <> NoSugar then s else
+  s
 
 let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
   let is_unit : v ex loc -> bool = fun e ->
@@ -241,7 +284,8 @@ let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
                      fprintf ch "%s%a%s" l (print_list (ex (Prp R)) " × ") ls r
   | DepSum(l,a,p) -> let pelt ch x = fprintf ch "%s" (name_of x) in
                      fprintf ch "∃%a∈%a, %a" (print_list pelt " ") l exp a exp p
-  | Compr(x,p,r)    -> fprintf ch "{ %s ∈ %a | %a }" (name_of x) exp p rel r
+  | Compr(x,p,r)  -> fprintf ch "{ %s ∈ %a | %a }" (name_of x) exp p rel r
+  | Def e         -> ex pr ch e
   | NoSugar       ->
   match e.elt with
   | Vari(_,x)   -> output_string ch (name_of x)

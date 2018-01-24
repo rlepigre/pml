@@ -623,7 +623,7 @@ and interpret : bool -> Raw.toplevel -> unit =
   let open Env in
   match top with
   | Sort_def(id,s) ->
-      let Sort s = unsugar_sort s in
+      let Ast.Sort s = unsugar_sort s in
       if verbose then
         out "sort %s ≔ %a\n%!" id.elt Print.sort s;
       add_sort id.elt s

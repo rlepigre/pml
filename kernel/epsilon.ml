@@ -1,4 +1,5 @@
 open Ast
+open Hash
 open Compare
 open Uvars
 open Sorts

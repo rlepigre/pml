@@ -12,6 +12,7 @@ open Pos
 open Ast
 open Output
 open Uvars
+open Hash
 open Compare
 open Epsilon
 
