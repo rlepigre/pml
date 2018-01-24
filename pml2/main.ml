@@ -144,7 +144,7 @@ let _ =
       err_msg "Unexpected exception [%s]." (Printexc.to_string e);
       err_msg "%t" Printexc.print_backtrace;
   in
-  try ignore (List.fold_left (handle_file true) Env.empty files) with
+  try List.iter (handle_file true) files with
   | e -> print_exn e; exit 1
 
 

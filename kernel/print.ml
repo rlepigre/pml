@@ -228,6 +228,10 @@ let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
   let ext ch t = ex (Trm F) ch t in
   let exi ch t = ex (Trm I) ch t in
   let exo ch t = ex (Ord F) ch t in
+  let supo ch o = match (Norm.repr o).elt with
+    | Conv -> ()
+    | _    -> fprintf ch "^%a " exo o
+  in
   match is_sugar e with
   | StrictReco m  -> let pelt ch (l,(_,a)) =
                        fprintf ch "%s : %a" l exp a
@@ -267,11 +271,9 @@ let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
                    fprintf ch "∃%s:%a, %a" (name_of x)
                      sort s exp a
   | FixM(o,b)   -> let (x,a) = unbind (mk_free P) (snd b) in
-                   fprintf ch "μ^%a %s, %a"
-                           exo o (name_of x) exp a
+                   fprintf ch "μ%a%s, %a" supo o (name_of x) exp a
   | FixN(o,b)   -> let (x,a) = unbind (mk_free P) (snd b) in
-                   fprintf ch "ν^%a %s, %a"
-                           exo o (name_of x) exp a
+                   fprintf ch "ν%a%s, %a" supo o (name_of x) exp a
   | Memb(t,a)   -> begin
                      match is_eq e with
                      | Some(e1,s,e2) -> fprintf ch "%a%s%a" exi e1 s exi e2

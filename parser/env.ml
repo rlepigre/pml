@@ -30,52 +30,54 @@ let empty =
   ; local_values  = SMap.empty
   ; local_infix  = SMap.empty }
 
-let find_sort : string -> env -> any_sort =
-  fun id env -> SMap.find id env.global_sorts
+let env = ref empty
 
-let find_expr : string -> env -> any_expr =
-  fun id env -> SMap.find id env.global_exprs
+let find_sort : string -> any_sort =
+  fun id -> SMap.find id !env.global_sorts
 
-let find_value : string -> env -> value =
-  fun id env -> SMap.find id env.global_values
+let find_expr : string -> any_expr =
+  fun id -> SMap.find id !env.global_exprs
 
-let add_sort : type a. string -> a sort -> env -> env =
-  fun id s env ->
-    let global_sorts = SMap.add id (Sort s) env.global_sorts in
-    let local_sorts = SMap.add id (Sort s) env.local_sorts in
-    {env with global_sorts; local_sorts}
+let find_value : string -> value =
+  fun id -> SMap.find id !env.global_values
 
-let add_expr : type a. strloc -> a sort -> a box -> env -> env =
-  fun expr_name s expr_box env ->
+let add_sort : type a. string -> a sort -> unit =
+  fun id s ->
+    let global_sorts = SMap.add id (Sort s) !env.global_sorts in
+    let local_sorts = SMap.add id (Sort s) !env.local_sorts in
+    env := {!env with global_sorts; local_sorts}
+
+let add_expr : type a. strloc -> a sort -> a box -> unit =
+  fun expr_name s expr_box ->
     let expr_def = Bindlib.unbox expr_box in
     let expr_hash = Compare.hash_expr expr_def in
     let ex = Expr(s, {expr_name; expr_def; expr_hash}) in
-    let global_exprs = SMap.add expr_name.elt ex env.global_exprs in
-    let local_exprs = SMap.add expr_name.elt ex env.local_exprs in
-    {env with global_exprs; local_exprs}
+    let global_exprs = SMap.add expr_name.elt ex !env.global_exprs in
+    let local_exprs = SMap.add expr_name.elt ex !env.local_exprs in
+    env := {!env with global_exprs; local_exprs}
 
-let add_value : strloc -> term -> prop -> e_valu -> env -> env =
-  fun value_name value_orig value_type value_eval env ->
+let add_value : strloc -> term -> prop -> e_valu -> unit =
+  fun value_name value_orig value_type value_eval ->
     let value_hash = Compare.hash_expr (Erase.to_valu value_eval) in
     let value_eras = Erase.to_valu value_eval in
     let nv = { value_name; value_type; value_orig
              ; value_eval; value_eras; value_hash}
     in
-    let global_values = SMap.add value_name.elt nv env.global_values in
-    let local_values = SMap.add value_name.elt nv env.local_values in
-    {env with global_values; local_values}
+    let global_values = SMap.add value_name.elt nv !env.global_values in
+    let local_values = SMap.add value_name.elt nv !env.local_values in
+    env := {!env with global_values; local_values}
 
-let add_infix : string -> infix -> env -> env =
-  fun sym infix env ->
-    let local_infix = SMap.add sym infix env.local_infix in
-    {env with local_infix}
+let add_infix : string -> infix -> unit =
+  fun sym infix ->
+    let local_infix = SMap.add sym infix !env.local_infix in
+    env := {!env with local_infix}
 
 let parents = ref []
 
 let output_value ch v = Marshal.(to_channel ch v [Closures])
 let input_value ch = Marshal.from_channel ch
 
-let save_file : env -> string -> unit = fun env fn ->
+let save_file : string -> unit = fun fn ->
   let cfn = Filename.chop_suffix fn ".pml" ^ ".pmi" in
   let ch = open_out cfn in
   let deps =
@@ -85,8 +87,8 @@ let save_file : env -> string -> unit = fun env fn ->
               parents := l; List.sort_uniq String.compare deps
   in
   output_value ch deps;
-  output_value ch env.local_infix;
-  output_value ch (env.local_sorts, env.local_exprs, env.local_values);
+  output_value ch !env.local_infix;
+  output_value ch (!env.local_sorts, !env.local_exprs, !env.local_values);
   close_out ch
 
 exception Compile
@@ -123,7 +125,7 @@ let load_infix : string -> unit = fun fn ->
     let infix = input_value ch in
     SMap.iter (Hashtbl.replace infix_tbl) infix
 
-let load_file : env -> string -> env = fun env fn ->
+let load_file : string -> unit = fun fn ->
   let cfn = Filename.chop_suffix fn ".pml" ^ ".pmi" in
   begin
     match !parents with
@@ -145,7 +147,7 @@ let load_file : env -> string -> env = fun env fn ->
       input_value ch
     in
     close_in ch;
-    let global_sorts  = SMap.fold SMap.add local_sorts env.global_sorts  in
-    let global_exprs  = SMap.fold SMap.add local_exprs env.global_exprs  in
-    let global_values = SMap.fold SMap.add local_values env.global_values in
-    { env with global_sorts; global_exprs; global_values }
+    let global_sorts  = SMap.fold SMap.add local_sorts !env.global_sorts  in
+    let global_exprs  = SMap.fold SMap.add local_exprs !env.global_exprs  in
+    let global_values = SMap.fold SMap.add local_values !env.global_values in
+    env := { !env with global_sorts; global_exprs; global_values }

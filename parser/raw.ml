@@ -108,13 +108,13 @@ let sort_from_opt : raw_sort option -> raw_sort = fun so ->
   | None   -> new_sort_uvar None
   | Some s -> s
 
-let rec sort_repr : env -> raw_sort -> raw_sort = fun env s ->
+let rec sort_repr : raw_sort -> raw_sort = fun s ->
   match s.elt with
-  | SUni(_,_,{contents = Some s}) -> sort_repr env s
+  | SUni(_,_,{contents = Some s}) -> sort_repr s
   | SVar(x)                       ->
       begin
         try
-          let Sort s = find_sort x env in
+          let Sort s = find_sort x in
           sort_from_ast s
         with Not_found -> s
       end
@@ -124,8 +124,8 @@ exception Unbound_sort of string * Pos.pos option
 let unbound_sort : string -> Pos.pos option -> 'a =
   fun s p -> raise (Unbound_sort(s,p))
 
-let rec unsugar_sort : env -> raw_sort -> any_sort = fun env s ->
-  match (sort_repr env s).elt with
+let rec unsugar_sort : raw_sort -> any_sort = fun s ->
+  match (sort_repr s).elt with
   | SV _        -> Sort V
   | ST          -> Sort T
   | SS          -> Sort S
@@ -133,12 +133,12 @@ let rec unsugar_sort : env -> raw_sort -> any_sort = fun env s ->
   | SO          -> Sort O
   | SFun(o1,o2) ->
       begin
-        match (unsugar_sort env o1, unsugar_sort env o2) with
+        match (unsugar_sort o1, unsugar_sort o2) with
         | (Sort o1, Sort o2) -> Sort (F(o1,o2))
       end
   | SVar(x)     ->
       begin
-        try find_sort x env with Not_found -> unbound_sort x s.pos
+        try find_sort x with Not_found -> unbound_sort x s.pos
       end
   | SUni(r)     -> sort_uvar_set r _sp; Sort P
 
@@ -295,11 +295,11 @@ exception Already_matched of strloc
 let already_matched : strloc -> 'a =
   fun s -> raise (Already_matched(s))
 
-let rec leq_sort : ?evar:bool -> env -> raw_sort -> raw_sort -> bool =
-  fun ?(evar=false) env s1 s2 ->
+let rec leq_sort : ?evar:bool -> raw_sort -> raw_sort -> bool =
+  fun ?(evar=false) s1 s2 ->
     log_par "leq_sort %a %a" print_raw_sort s1 print_raw_sort s2;
     let res =
-      match ((sort_repr env s1).elt, (sort_repr env s2).elt) with
+      match ((sort_repr s1).elt, (sort_repr s2).elt) with
       | (SV _       , SV _       ) -> true
       | (ST         , ST         ) -> true
       | (SV _       , ST         ) -> true
@@ -308,7 +308,7 @@ let rec leq_sort : ?evar:bool -> env -> raw_sort -> raw_sort -> bool =
       | (SO         , SO         ) -> true
       | (SV _       , SP         ) when evar -> true
       | (ST         , SP         ) when evar -> true
-      | (SFun(s1,s2), SFun(k1,k2)) -> leq_sort env k1 s1 && leq_sort env s2 k2
+      | (SFun(s1,s2), SFun(k1,k2)) -> leq_sort k1 s1 && leq_sort s2 k2
       | (SUni(r1)   , SUni(r2)   ) -> if r1 != r2 then sort_uvar_set r1 s2;
                                       true
       | (SUni(r)    , _          ) -> sort_uvar_set r s2; true
@@ -316,34 +316,34 @@ let rec leq_sort : ?evar:bool -> env -> raw_sort -> raw_sort -> bool =
       | (_          , _          ) -> false
     in log_par "ok"; res
 
-let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
+let infer_sorts : raw_ex -> raw_sort -> unit = fun e s ->
   let open Timed in
-  let rec infer env vars e s =
+  let rec infer vars e s =
     log_par "infer %a : %a" print_raw_expr e print_raw_sort s;
-    let leq  u s = if not (leq_sort env u s) then sort_clash e s in
-    let leqv u s = if not (leq_sort ~evar:true env u s) then sort_clash e s in
-    match (e.elt, (sort_repr env s).elt) with
+    let leq  u s = if not (leq_sort u s) then sort_clash e s in
+    let leqv u s = if not (leq_sort ~evar:true u s) then sort_clash e s in
+    match (e.elt, (sort_repr s).elt) with
     | (EVari(x,sx)     , _        ) ->
         begin
           try
             let sy =
               try snd (M.find x.elt vars) with Not_found ->
-                let Expr(k,d) = find_expr x.elt env in
+                let Expr(k,d) = find_expr x.elt in
                 sort_from_ast k
             in
             leq sy sx; leqv sx s
           with Not_found ->
             try
-              ignore (find_value x.elt env);
+              ignore (find_value x.elt);
               leq _sv sx; leqv sx s
             with Not_found ->
               unbound_var x.elt x.pos
          end
     | (EHOAp(e,sx,es), _        ) ->
          let nb_args = List.length es in
-         infer env vars e sx;
+         infer vars e sx;
          let rec decompose acc nb s =
-           let s = sort_repr env s in
+           let s = sort_repr s in
            match (nb, s.elt) with
            | (0, _        ) -> (List.rev acc, s)
            | (n, SFun(a,b)) -> decompose (a::acc) (n-1) b
@@ -358,41 +358,41 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
          let rec infer_args args ss =
            match (args, ss) with
            | ([]     , []   ) -> ()
-           | (a::args, s::ss) -> infer env vars a s; infer_args args ss
+           | (a::args, s::ss) -> infer vars a s; infer_args args ss
            | _                -> assert false
          in
          infer_args es ss;
          leq sx s
-    | (EInfx(t,_)   , _        ) -> infer env vars t s
+    | (EInfx(t,_)   , _        ) -> infer vars t s
     | (EHOFn(x,k,f) , SFun(a,b)) -> leq a k;
                                     let vars = M.add x.elt (x.pos, k) vars in
-                                    infer env vars f b
+                                    infer vars f b
     | (EHOFn(_,_,_) , SUni(r)  ) -> let a = new_sort_uvar None in
                                     let b = new_sort_uvar None in
                                     sort_uvar_set r (Pos.none (SFun(a,b)));
-                                    infer env vars e s
+                                    infer vars e s
     | (EHOFn(_,_,_) , _        ) -> sort_clash e s
     (* Propositions. *)
-    | (EFunc(_,a,b) , SP       ) -> infer env vars a _sp; infer env vars b _sp
-    | (EFunc(_,_,_) , SUni(r)  ) -> sort_uvar_set r _sp; infer env vars e s
+    | (EFunc(_,a,b) , SP       ) -> infer vars a _sp; infer vars b _sp
+    | (EFunc(_,_,_) , SUni(r)  ) -> sort_uvar_set r _sp; infer vars e s
     | (EFunc(_,_,_) , _        ) -> sort_clash e s
     | (EUnit        , SP       )
     | (EUnit        , SV _     )
     | (EUnit        , ST       ) -> ()
     | (EUnit        , SUni(r)  ) -> sort_uvar_set r _sv; (* arbitrary *)
-                                    infer env vars e s
+                                    infer vars e s
     | (EUnit        , _        ) -> sort_clash e s
     | (EDSum(l)     , SP       ) -> let fn (_, a) =
                                       match a with
                                       | None   -> ()
-                                      | Some a -> infer env vars a _sp
+                                      | Some a -> infer vars a _sp
                                     in List.iter fn l
     | (EProd(l,_)   , SP       ) -> let fn (_, a) =
-                                      infer env vars a _sp
+                                      infer vars a _sp
                                     in List.iter fn l
     | (EDSum(_)     , SUni(r)  )
     | (EProd(_,_)   , SUni(r)  ) -> sort_uvar_set r _sp;
-                                    infer env vars e s
+                                    infer vars e s
     | (EDSum(_)     , _        )
     | (EProd(_,_)   , _        ) -> sort_clash e s
     | (EUniv(xs,k,e), SP       )
@@ -401,54 +401,48 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
                                     in
                                     let xs = ne_list_to_list xs in
                                     let vars = List.fold_left fn vars xs in
-                                    infer env vars e s
+                                    infer vars e s
     | (EUniv(_,_,_) , SUni(r)  )
     | (EExis(_,_,_) , SUni(r)  ) -> sort_uvar_set r _sp;
-                                    infer env vars e s
+                                    infer vars e s
     | (EUniv(_,_,_) , _        )
     | (EExis(_,_,_) , _        ) -> sort_clash e s
     | (EFixM(o,x,e) , SP       )
-    | (EFixN(o,x,e) , SP       ) -> infer env vars o _so;
+    | (EFixN(o,x,e) , SP       ) -> infer vars o _so;
                                     let vars = M.add x.elt (x.pos,_sp) vars in
-                                    infer env vars e _sp
+                                    infer vars e _sp
     | (EFixM(_,_,_) , SUni(r)  )
-    | (EFixN(_,_,_) , SUni(r)  ) -> sort_uvar_set r _sp; infer env vars e s
+    | (EFixN(_,_,_) , SUni(r)  ) -> sort_uvar_set r _sp; infer vars e s
     | (EFixM(_,_,_) , _        )
     | (EFixN(_,_,_) , _        ) -> sort_clash e s
-    | (EMemb(t,a)   , SP       ) -> infer env vars t _st; infer env vars a _sp
-    | (EMemb(t,a)   , SUni(r)  ) -> sort_uvar_set r _sp; infer env vars e s
+    | (EMemb(t,a)   , SP       ) -> infer vars t _st; infer vars a _sp
+    | (EMemb(t,a)   , SUni(r)  ) -> sort_uvar_set r _sp; infer vars e s
     | (EMemb(_,_)   , _        ) -> sort_clash e s
     | (ERest(a,eq)  , SP       ) ->
        begin
          match eq with
-         | EEquiv(t,_,u) ->
-            infer env vars t _st;
-            infer env vars u _st;
-         | ENoBox(v) ->
-            infer env vars v _sv;
+         | EEquiv(t,_,u) -> infer vars t _st; infer vars u _st
+         | ENoBox(v)     -> infer vars v _sv
        end;
        begin
          match a with
          | None   -> ()
-         | Some a -> infer env vars a _sp
+         | Some a -> infer vars a _sp
        end
     | (EImpl(eq,a)  , SP       ) ->
        begin
          match eq with
-         | EEquiv(t,_,u) ->
-            infer env vars t _st;
-            infer env vars u _st;
-         | ENoBox(v) ->
-            infer env vars v _sv;
+         | EEquiv(t,_,u) -> infer vars t _st; infer vars u _st
+         | ENoBox(v)     -> infer vars v _sv
        end;
        begin
          match a with
          | None   -> ()
-         | Some a -> infer env vars a _sp
+         | Some a -> infer vars a _sp
        end
-    | (ERest(_,_)   , SUni(r)  ) -> sort_uvar_set r _sp; infer env vars e s
+    | (ERest(_,_)   , SUni(r)  ) -> sort_uvar_set r _sp; infer vars e s
     | (ERest(_,_)   , _        ) -> sort_clash e s
-    | (EImpl(_,_)   , SUni(r)  ) -> sort_uvar_set r _sp; infer env vars e s
+    | (EImpl(_,_)   , SUni(r)  ) -> sort_uvar_set r _sp; infer vars e s
     | (EImpl(_,_)   , _        ) -> sort_clash e s
     (* Terms / Values. *)
     | (ELAbs(args,t), SV _     )
@@ -458,20 +452,20 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
             begin
               match ao with
               | None   -> ()
-              | Some a -> infer env vars a _sp
+              | Some a -> infer vars a _sp
             end;
             M.add x.elt (x.pos, _sv) vs
           in
           let vars = List.fold_left fn vars (ne_list_to_list args) in
-          infer env vars t _st
+          infer vars t _st
         end
-    | (ELAbs(_,_)   , SUni(r)  ) -> sort_uvar_set r _sv; infer env vars e s
+    | (ELAbs(_,_)   , SUni(r)  ) -> sort_uvar_set r _sv; infer vars e s
     | (ELAbs(_,_)   , _        ) -> sort_clash e s
     | (ECons(_,vo)  , SV _     ) ->
         begin
           match vo with
           | None       -> ()
-          | Some (v,r) -> infer env vars v _sv; r := `V
+          | Some (v,r) -> infer vars v _sv; r := `V
         end
     | (ECons(_,vo)  , ST       ) ->
         begin
@@ -480,9 +474,9 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
           | Some (v,r) ->
               begin
                 let tm = Time.save () in
-                try infer env vars v _sv; r := `V
+                try infer vars v _sv; r := `V
                 with Sort_clash(_,_) ->
-                  Time.rollback tm; infer env vars v _st; r := `T
+                  Time.rollback tm; infer vars v _st; r := `T
               end
         end
     | (ECons(_,vo)  , SUni(r)  ) ->
@@ -492,119 +486,119 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
           | Some (v,f) ->
               begin
                 let tm = Time.save () in
-                try infer env vars v _sv; f := `V; sort_uvar_set r _sv
+                try infer vars v _sv; f := `V; sort_uvar_set r _sv
                 with Sort_clash(_,_) ->
                   Time.rollback tm;
-                  infer env vars v _st; f := `T; sort_uvar_set r _st
+                  infer vars v _st; f := `T; sort_uvar_set r _st
               end
         end
     | (ECons(_,_)   , _        ) -> sort_clash e s
     | (EReco(l)     , SV _     ) ->
-        let fn (_,v,r) = infer env vars v _sv; r := `V in
+        let fn (_,v,r) = infer vars v _sv; r := `V in
         List.iter fn l
     | (EReco(l)     , ST       ) ->
         let fn (_,v,r) =
           let tm = Time.save () in
-          try infer env vars v _sv; r := `V
+          try infer vars v _sv; r := `V
           with Sort_clash(_,_) ->
             Time.rollback tm;
-            infer env vars v _st; r := `T
+            infer vars v _st; r := `T
         in
         List.iter fn l
     | (EReco(l)     , SUni(r)  ) ->
         let all_val = ref true in
         let fn (_,v,r) =
           let tm = Time.save () in
-          try infer env vars v _sv; r := `V
+          try infer vars v _sv; r := `V
           with Sort_clash(_,_) ->
             Time.rollback tm;
-            infer env vars v _st; r := `T; all_val << false (* >> *)
+            infer vars v _st; r := `T; all_val << false (* >> *)
         in
         List.iter fn l;
         sort_uvar_set r (if !all_val then _sv else _st)
     | (EReco(_)     , _        ) -> sort_clash e s
     | (EScis        , SV _     )
     | (EScis        , ST       ) -> ()
-    | (EScis        , SUni(r)  ) -> sort_uvar_set r _sv; infer env vars e s
+    | (EScis        , SUni(r)  ) -> sort_uvar_set r _sv; infer vars e s
     | (EScis        , _        ) -> sort_clash e s
     | (EGoal(str)   , SV _     )
     | (EGoal(str)   , ST       )
     | (EGoal(str)   , SS       ) -> ()
-    | (EGoal(str)   , SUni(r)  ) -> sort_uvar_set r _sv; infer env vars e s
+    | (EGoal(str)   , SUni(r)  ) -> sort_uvar_set r _sv; infer vars e s
     | (EGoal(_)     , _        ) -> sort_clash e s
-    | (EAppl(t,u)   , ST       ) -> infer env vars t s; infer env vars u s
-    | (EAppl(t,u)   , SP       ) -> infer env vars t _st; infer env vars u _st
-    | (EAppl(_,_)   , SUni(r)  ) -> sort_uvar_set r _st; infer env vars e s
+    | (EAppl(t,u)   , ST       ) -> infer vars t s; infer vars u s
+    | (EAppl(t,u)   , SP       ) -> infer vars t _st; infer vars u _st
+    | (EAppl(_,_)   , SUni(r)  ) -> sort_uvar_set r _st; infer vars e s
     | (EAppl(_,_)   , _        ) -> sort_clash e s
-    | (ESequ(t,u)   , ST       ) -> infer env vars t s; infer env vars u s
-    | (ESequ(_,_)   , SUni(r)  ) -> sort_uvar_set r _st; infer env vars e s
+    | (ESequ(t,u)   , ST       ) -> infer vars t s; infer vars u s
+    | (ESequ(_,_)   , SUni(r)  ) -> sort_uvar_set r _st; infer vars e s
     | (ESequ(_,_)   , _        ) -> sort_clash e s
     | (EMAbs(arg,t) , ST       ) ->
         let vars = M.add arg.elt (arg.pos, Pos.none SS) vars in
-        infer env vars t _st
-    | (EMAbs(_,_)   , SUni(r)  ) -> sort_uvar_set r _st; infer env vars e s
+        infer vars t _st
+    | (EMAbs(_,_)   , SUni(r)  ) -> sort_uvar_set r _st; infer vars e s
     | (EMAbs(_,_)   , _        ) -> sort_clash e s
-    | (EName(s,t)   , ST       ) -> infer env vars s _ss; infer env vars t _st
-    | (EName(_,_)   , SUni(r)  ) -> sort_uvar_set r _st; infer env vars e s
+    | (EName(s,t)   , ST       ) -> infer vars s _ss; infer vars t _st
+    | (EName(_,_)   , SUni(r)  ) -> sort_uvar_set r _st; infer vars e s
     | (EName(_,_)   , _        ) -> sort_clash e s
     | (EProj(v,r,_) , ST       ) ->
         begin
-          try infer env vars v _sv; r := `V
+          try infer vars v _sv; r := `V
           with Sort_clash(_,_) ->
-            infer env vars v _st; r := `T
+            infer vars v _st; r := `T
         end
-    | (EProj(_,_,_) , SUni(r)  ) -> sort_uvar_set r _st; infer env vars e s
+    | (EProj(_,_,_) , SUni(r)  ) -> sort_uvar_set r _st; infer vars e s
     | (EProj(_,_,_) , _        ) -> sort_clash e s
     | (ECase(v,r,l) , ST       ) ->
         begin
           let fn ((_, argo), t) =
             let (x, ao) = Option.default (Pos.none "_", None) argo in
-            infer env (M.add x.elt (x.pos, _sv) vars) t _st;
+            infer (M.add x.elt (x.pos, _sv) vars) t _st;
             match ao with
             | None   -> ()
-            | Some a -> infer env vars a _sp
+            | Some a -> infer vars a _sp
           in
           List.iter fn l;
           let tm = Time.save () in
-          try infer env vars v _sv; r := `V
+          try infer vars v _sv; r := `V
           with Sort_clash(_,_) ->
             Time.rollback tm;
-            infer env vars v _st; r := `T
+            infer vars v _st; r := `T
         end
-    | (ECase(_,_,_) , SUni(r)  ) -> sort_uvar_set r _st; infer env vars e s
+    | (ECase(_,_,_) , SUni(r)  ) -> sort_uvar_set r _st; infer vars e s
     | (ECase(_,_,_) , _        ) -> sort_clash e s
     | (EFixY(s,a,v) , ST       ) -> let vars =
                                       M.add a.elt (a.pos, Pos.none ST) vars
                                     in
-                                    infer env vars v _sv
-    | (EFixY(_)     , SUni(r)  ) -> sort_uvar_set r _st; infer env vars e _st
+                                    infer vars v _sv
+    | (EFixY(_)     , SUni(r)  ) -> sort_uvar_set r _st; infer vars e _st
     | (EFixY(_)     , _        ) -> sort_clash e s
     | (EPrnt(_)     , ST       ) -> ()
     | (EPrnt(_)     , _        ) -> sort_clash e s
-    | (ERepl(t,u,p) , ST       ) -> infer env vars t _st;
-                                    infer env vars u _st;
+    | (ERepl(t,u,p) , ST       ) -> infer vars t _st;
+                                    infer vars u _st;
                                     begin
                                       match p with
                                       | None -> ()
-                                      | Some p ->  infer env vars p _st;
+                                      | Some p ->  infer vars p _st;
                                     end
     | (ERepl(t,u,p) , SUni(r)  ) -> sort_uvar_set r _st;
-                                    infer env vars t _st;
-                                    infer env vars u _st;
+                                    infer vars t _st;
+                                    infer vars u _st;
                                     begin
                                       match p with
                                       | None -> ()
-                                      | Some p ->  infer env vars p _st;
+                                      | Some p ->  infer vars p _st;
                                     end
     | (ERepl(_,_,_) , _        ) -> sort_clash e s
-    | (EDelm(u)     , ST       ) -> infer env vars u _st;
+    | (EDelm(u)     , ST       ) -> infer vars u _st;
     | (EDelm(u)     , SUni(r)  ) -> sort_uvar_set r _st;
-                                    infer env vars u _st;
+                                    infer vars u _st;
     | (EDelm(_)     , _        ) -> sort_clash e s
     | (ECoer(u,t,a) , SV _     )
     | (ECoer(u,t,a) , ST       )
-    | (ECoer(u,t,a) , SUni(_)  ) -> infer env vars t u; leq u s;
-                                    infer env vars a _sp
+    | (ECoer(u,t,a) , SUni(_)  ) -> infer vars t u; leq u s;
+                                    infer vars a _sp
     | (ECoer(_,t,_) , _        ) -> sort_clash e s
     | (ESuch(u,vs,j,v), SV _   )
     | (ESuch(u,vs,j,v), ST     )
@@ -613,7 +607,7 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
           let (xo,a) = j in
           let gn x =
             try
-              let s = sort_repr env (snd (M.find x.elt vars)) in
+              let s = sort_repr (snd (M.find x.elt vars)) in
               match s.elt with
               | SV _ | SS | SUni(_) -> ()
               | s'                 ->
@@ -623,23 +617,23 @@ let infer_sorts : env -> raw_ex -> raw_sort -> unit = fun env e s ->
           Option.iter gn xo;
           let fn vars (x,s) = M.add x.elt (x.pos, s) vars in
           let vars = List.fold_left fn vars (ne_list_to_list vs) in
-          infer env vars a _sp;
-          infer env vars v u;
+          infer vars a _sp;
+          infer vars v u;
           leq u s
         end
     | (ESuch(_)     ,  _       ) -> sort_clash e s
     | (EPSet(u,_,a) , SV _     )
     | (EPSet(u,_,a) , ST       )
-    | (EPSet(u,_,a) , SUni(_)  ) -> infer env vars a u; leq u s;
+    | (EPSet(u,_,a) , SUni(_)  ) -> infer vars a u; leq u s;
     | (EPSet(b,d,_) , _        ) -> sort_clash e s
     (* Ordinals. *)
     | (EConv        , SO       ) -> ()
-    | (ESucc(o,_)   , SO       ) -> infer env vars o s
+    | (ESucc(o,_)   , SO       ) -> infer vars o s
     | (EConv        , SUni(r)  )
-    | (ESucc(_)     , SUni(r)  ) -> sort_uvar_set r _so; infer env vars e s
+    | (ESucc(_)     , SUni(r)  ) -> sort_uvar_set r _so; infer vars e s
     | (EConv        , _        )
     | (ESucc(_)     , _        ) -> sort_clash e s
-  in infer env M.empty e s
+  in infer M.empty e s
 
 type boxed = Box : 'a sort * 'a ex loc Bindlib.bindbox -> boxed
 
@@ -683,25 +677,25 @@ let add_store : (vvar * tbox) list ref option -> vvar -> tbox -> unit =
     | None -> assert false
     | Some ptr -> ptr := (v,t) :: !ptr
 
-let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
-  infer_sorts env e s;
+let unsugar_expr : raw_ex -> raw_sort -> boxed = fun e s ->
+  infer_sorts e s;
   let rec unsugar env vars e s =
     log_par "unsug %a : %a" print_raw_expr e print_raw_sort s;
-    match (e.elt, (sort_repr env s).elt) with
-    | (EVari(x,sx)   , s0       ) when leq_sort ~evar:true env sx s ->
+    match (e.elt, (sort_repr s).elt) with
+    | (EVari(x,sx)   , s0       ) when leq_sort ~evar:true sx s ->
        begin
-         let convert t = if leq_sort env sx _st && leq_sort env _sp s
+         let convert t = if leq_sort sx _st && leq_sort _sp s
                          then Box(P,eq_true e.pos (to_term t))
                          else t
          in
          let bx =
            try box_set_pos (snd (M.find x.elt vars)) e.pos
            with Not_found -> try
-               let Expr(sx, d) = find_expr x.elt env in
+               let Expr(sx, d) = find_expr x.elt in
                let bx = Box(sx, Bindlib.box (Pos.make x.pos (HDef(sx,d)))) in
                box_set_pos bx e.pos
              with Not_found ->
-               let d = find_value x.elt env in
+               let d = find_value x.elt in
                Box(V, Bindlib.box (Pos.make x.pos (VDef(d))))
          in
          convert bx
@@ -718,7 +712,7 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
           | (_       , _      ) -> assert false
         in
         let Box(se,ex) = build_app box es in
-        let Sort s = unsugar_sort env s in
+        let Sort s = unsugar_sort s in
         begin
           match Sorts.eq_sort s se with
           | Eq.Eq  -> Box(s, sort_filter s (Box(se,ex)))
@@ -734,8 +728,8 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
              end
         end
     | (EHOFn(x,k,f) , SFun(a,b)) ->
-        let Sort sa = unsugar_sort env a in
-        let Sort sb = unsugar_sort env b in
+        let Sort sa = unsugar_sort a in
+        let Sort sb = unsugar_sort b in
         let fn xk =
           let xk = (x.pos, Box(sa, vari x.pos xk)) in
           let vars = M.add x.elt xk vars in
@@ -772,7 +766,7 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
         let m = List.fold_left gn A.empty (List.map fn l) in
         Box(P, dsum e.pos m)
     | (EUniv(xs,k,e), SP       ) ->
-        let Sort k = unsugar_sort env k in
+        let Sort k = unsugar_sort k in
         let xs = ne_list_to_list xs in
         let rec build vars xs ex =
           match xs with
@@ -786,7 +780,7 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
         in
         Box(P, build vars xs e)
     | (EExis(xs,k,e), SP       ) ->
-        let Sort k = unsugar_sort env k in
+        let Sort k = unsugar_sort k in
         let xs = ne_list_to_list xs in
         let rec build vars xs ex =
           match xs with
@@ -977,16 +971,16 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
         let u = to_term (unsugar env vars u _st) in
         Box(T, delm e.pos u)
     (* Type annotations. *)
-    | (ECoer(u,v,a) , SV _     ) when leq_sort env u s ->
+    | (ECoer(u,v,a) , SV _     ) when leq_sort u s ->
         let v = to_valu (unsugar env vars v s) in
         let a = to_prop (unsugar env vars a _sp) in
         Box(V, coer e.pos VoT_V v a)
-    | (ECoer(u,t,a)   , ST     ) when leq_sort env u s ->
+    | (ECoer(u,t,a)   , ST     ) when leq_sort u s ->
         let t = to_term (unsugar env vars t _st) in
         let a = to_prop (unsugar env vars a _sp) in
         Box(T, coer e.pos VoT_T t a)
-    | (ESuch(u,v,j,r), (SV _|ST)) when leq_sort env u s ->
-        let xs = map_ne_list (fun (x,s) -> (x, unsugar_sort env s)) v in
+    | (ESuch(u,v,j,r), (SV _|ST)) when leq_sort u s ->
+        let xs = map_ne_list (fun (x,s) -> (x, unsugar_sort s)) v in
         let (var, a) = j in
         let rec build_desc (x,xs) =
           match xs with
@@ -1035,10 +1029,10 @@ let unsugar_expr : env -> raw_ex -> raw_sort -> boxed = fun env e s ->
           | _    -> assert false (* should not happen *)
         end
     (* Ordinals. *)
-    | (EPSet(u,l,a) , SV _     ) when leq_sort env u s
+    | (EPSet(u,l,a) , SV _     ) when leq_sort u s
                                  -> let v = to_valu (unsugar env vars a s) in
                                     Box(V, pset e.pos l VoT_V v)
-    | (EPSet(u,l,a) , ST       ) when leq_sort env u s
+    | (EPSet(u,l,a) , ST       ) when leq_sort u s
                                  -> let t = to_term (unsugar env vars a s) in
                                     Box(T, pset e.pos l VoT_T t)
     | (EConv        , SO       ) -> Box(O, conv e.pos)

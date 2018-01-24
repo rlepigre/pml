@@ -617,51 +617,47 @@ and find_module : string list -> string = fun ps ->
   let fn = (String.concat "/" ps) ^ ".pml" in
   find_file fn
 
-and interpret : bool -> Env.env -> Raw.toplevel -> Env.env =
-  fun nodep env top ->
+and interpret : bool -> Raw.toplevel -> unit =
+  fun nodep top ->
   let verbose = !verbose && nodep in
+  let open Env in
   match top with
   | Sort_def(id,s) ->
-      let open Env in
-      let Sort s = unsugar_sort env s in
+      let Sort s = unsugar_sort s in
       if verbose then
         out "sort %s ≔ %a\n%!" id.elt Print.sort s;
-      add_sort id.elt s env
+      add_sort id.elt s
   | Expr_def(id,s,e) ->
-      let open Env in
-      let Box(s,e) = unsugar_expr env e s in
+      let Box(s,e) = unsugar_expr e s in
       let ee = Bindlib.unbox e in
       if verbose then
         out "expr %s : %a ≔ %a\n%!" id.elt Print.sort s Print.ex ee;
-      add_expr id s e env
+      add_expr id s e
   | Valu_def(id,a,t) ->
-      let open Env in
-      let a = unbox (to_prop (unsugar_expr env a _sp)) in
-      let t = unbox (to_term (unsugar_expr env t _st)) in
+      let a = unbox (to_prop (unsugar_expr a _sp)) in
+      let t = unbox (to_term (unsugar_expr t _st)) in
       let (a, prf) = type_check t a in
       let v = Eval.eval (Erase.term_erasure t) in
       if verbose then
         out "val %s : %a\n%!" id.elt Print.ex a;
       (* out "  = %a\n%!" Print.ex (Erase.to_valu v); *)
       ignore prf;
-      add_value id t a v env
+      add_value id t a v
   | Chck_sub(a,n,b) ->
-      let open Env in
-      let a = unbox (to_prop (unsugar_expr env a _sp)) in
-      let b = unbox (to_prop (unsugar_expr env b _sp)) in
+      let a = unbox (to_prop (unsugar_expr a _sp)) in
+      let b = unbox (to_prop (unsugar_expr b _sp)) in
       if is_subtype a b <> n then raise (Check_failed(a,n,b));
       if verbose then
         begin
           let (l,r) = if n then ("","") else ("¬(",")") in
           out "showed %s%a ⊂ %a%s\n%!" l Print.ex a Print.ex b r;
         end;
-      env
   | Include(fn) ->
       if verbose then
         out "include %S\n%!" fn;
-      Log.without (handle_file false env) fn
+      Log.without (handle_file false) fn
   | Def_list(tops) ->
-      List.fold_left (interpret nodep) env tops
+      List.iter (interpret nodep) tops
   | Glbl_set(l)    ->
       begin
         let open Ast in
@@ -669,9 +665,8 @@ and interpret : bool -> Env.env -> Raw.toplevel -> Env.env =
         | Alvl(b,d) -> Typing.default_auto_lvl := (b,d)
         | Logs s    -> Log.set_enabled s
       end;
-      env
   | Infix(sym,name,p,a) ->
-     Env.add_infix sym (name,p,a) env
+     add_infix sym (name,p,a)
 
 and load_infix fn =
   try  Env.load_infix fn
@@ -680,17 +675,20 @@ and load_infix fn =
 and compile_file : bool -> string -> unit = fun nodep fn ->
   if !verbose then out "[%s]\n%!" fn;
   Env.start fn;
+  let save = !Env.env in
+  Env.env := Env.empty;
   let ast = Chrono.add_time parsing_chrono parse_file fn in
-  let env = List.fold_left (interpret nodep) Env.empty ast in
-  Env.save_file env fn
+  List.iter (interpret nodep) ast;
+  Env.save_file fn;
+  Env.env := save
 
 (* Handling the files. *)
-and handle_file nodep env fn =
+and handle_file nodep fn =
   try
     if !recompile && nodep then compile_file nodep fn;
-    try Env.load_file env fn
+    try Env.load_file fn
     with Env.Compile -> compile_file nodep fn;
-                        try Env.load_file env fn
+                        try Env.load_file fn
                         with Env.Compile -> assert false
   with
   | No_parse(p)             ->
