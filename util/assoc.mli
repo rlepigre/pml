@@ -6,6 +6,8 @@ val empty : 'a t
 
 val length : 'a t -> int
 
+val is_empty : 'a t -> bool
+
 val add : string -> 'a -> 'a t -> 'a t
 
 val mem : string -> 'a t -> bool

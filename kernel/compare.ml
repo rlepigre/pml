@@ -414,6 +414,17 @@ let {eq_expr; eq_bndr} =
 
   {eq_expr; eq_bndr}
 
+let _ = feq_expr.eq <-
+  fun e f -> (* fex_expr is called from print ... log must be disabled ! *)
+    let save = Log.get_enabled () in
+    try
+      Log.set_enabled "";
+      let b = eq_expr e f in
+      Log.set_enabled save;
+      b
+    with
+      e -> Log.set_enabled save; raise e
+
 (** use eq_expr for a list membershipt test *)
 let is_in : type a. a ex loc -> a ex loc list -> bool = fun e1 es ->
   List.exists (fun e2 -> eq_expr e1 e2) es
