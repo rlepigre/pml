@@ -19,17 +19,15 @@ let uvar_set : type a. a uvar -> a ex loc -> unit = fun u e ->
   log_uni "?%i ← %a" u.uvar_key Print.ex e;
   match !(u.uvar_val) with
   | Set   _     -> assert false
-  | Unset hooks ->
-     UTimed.(u.uvar_val := Set e);
-     List.iter (fun f -> f ()) hooks
+  | Unset hooks -> UTimed.(u.uvar_val := Set e);
+                   List.iter (fun f -> f ()) hooks
 
 (* adds a hook to a unification variables, currently only used for
    epsilon. May be soon for pool updates *)
 let uvar_hook : type a. a uvar -> (unit -> unit) -> unit = fun u f ->
    match !(u.uvar_val) with
   | Set   _     -> ()
-  | Unset hooks ->
-     UTimed.(u.uvar_val := Unset (f::hooks))
+  | Unset hooks -> UTimed.(u.uvar_val := Unset (f::hooks))
 
 (* trigger more detailed printing *)
 let full_eq = ref false
