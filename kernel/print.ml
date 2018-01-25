@@ -333,13 +333,30 @@ let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
                        fprintf ch "(%s%a%s | %a)" l (ex (Prp R)) a r rel c
                    end
   | Impl(e,a)   -> fprintf ch "%a ↪ %a" rel e (ex (Prp R)) a (* FIXME, no parsing for Impl ? *)
-  | LAbs(ao,b)  -> let (x,t) = unbind (mk_free V) (snd b) in
-                   begin (* FIXME: group binders *)
+  | LAbs(ao,b)  -> let (l,r) = if Trm F < pr then ("(",")") else ("","") in
+                   let (x,t) = unbind (mk_free V) (snd b) in
+                   begin
                      match ao with
-                     | None   -> fprintf ch "fun %s {%a}"
-                                         (name_of x) ext t
-                     | Some a -> fprintf ch "fun (%s:%a) {%a}"
-                                         (name_of x) exp a ext t
+                     | None   ->
+                        let rec fn acc t =
+                          match (Norm.repr t).elt with
+                          | Valu(v) ->
+                             begin
+                               match (Norm.repr v).elt with
+                               | LAbs(None,b) ->
+                                  let (x,t) = unbind (mk_free V) (snd b) in
+                                  fn (x::acc) t
+                               | _            -> (acc, t)
+                             end
+                          | _            -> (acc, t)
+                        in
+                        let (ls, t) = fn [x] t in
+                        let ls = List.rev ls in
+                        let pelt ch x = fprintf ch "%s" (name_of x) in
+                        fprintf ch "%sfun %a {%a}%s"
+                                l (print_list pelt " ") ls ext t r
+                     | Some a -> fprintf ch "%sfun (%s:%a) {%a}%s"
+                                         l (name_of x) exp a ext t r
                    end
   | Cons(c,v)   -> if is_unit v then fprintf ch "%s" c.elt
                    else fprintf ch "%s[%a]" c.elt ext v
