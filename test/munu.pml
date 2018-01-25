@@ -5,9 +5,8 @@ check ¬ [A;B] ⊂ [A]
 check μx, [A of x ; B] ⊂ μx, [A of x ; B ; C]
 check ¬ μx, [A of x ; B; C] ⊂ μx, [A of x ; B]
 
-// FIXME
-//check μx, [A of x ; B] ⊂ νx, [A of x ; B]
-//check μx, [A of x ; B] ⊂ νx, [A of x ; B ; C]
+check μx, [A of x ; B] ⊂ νx, [A of x ; B]
+check μx, [A of x ; B] ⊂ νx, [A of x ; B ; C]
 check ¬ νx, [A of x ; B] ⊂ μx, [A of x ; B]
 check ¬ νx, [A of x ; B] ⊂ μx, [A of x ; B ; C]
 

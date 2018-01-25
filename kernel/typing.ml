@@ -293,12 +293,13 @@ let rec learn_neg_equivalences : ctxt -> valu -> term option -> prop -> ctxt =
     let rec fn ctx wit arg a =
       let twit = Pos.none (Valu wit) in
       match (Norm.whnf a).elt, arg with
-      | HDef(_,e), _  -> learn_neg_equivalences ctx wit arg e.expr_def
-      | Impl(c,a), _  -> let equations = learn ctx.equations c in
+      | HDef(_,e), _ -> learn_neg_equivalences ctx wit arg e.expr_def
+      | Impl(c,a), _ -> let equations = learn ctx.equations c in
                          learn_neg_equivalences {ctx with equations} wit arg a
-      | Univ(s, f), _ -> let (t, ctx_names) = uwit ctx.ctx_names s twit f in
-                         let ctx = { ctx with ctx_names } in
-                         learn_neg_equivalences ctx wit arg (bndr_subst f t.elt)
+      | Univ(s,f), _ -> let (t, ctx_names) = uwit ctx.ctx_names s twit f in
+                        let ctx = { ctx with ctx_names } in
+                        let u = bndr_subst f t.elt in
+                        learn_neg_equivalences ctx wit arg u
       | Func(t,a,b), Some arg ->
          begin
            match is_singleton a with
@@ -779,10 +780,13 @@ and check_sub : ctxt -> prop -> prop -> check_sub = fun ctx a b ->
         in
         log_sub "no suitable induction hypothesis";
         match a.elt, b.elt with
-        (* TODO #5 to avoid the restiction uvars a = [] && uvars b = [] below,
+        (* TODO #5 to avoid the restiction no_uvars () below,
            subml introduces unification variables parametrised by the
            generalised ordinals *)
-        | ((FixM _ | FixN _), _) | (_, (FixM _ | FixN _)) when no_uvars () ->
+        | ((FixM _ | FixN _), _)
+        | (_, (FixM _ | FixN _))
+        | (DSum _, DSum _)
+        | (Prod _, Prod _) when no_uvars () ->
            (* Construction of a new schema. *)
            let (sch, os) = sub_generalise ctx a b in
            (* Registration of the new top induction hypothesis and call. *)
@@ -1404,7 +1408,9 @@ and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
        in
        let ctx =
          if pure then { ctx with totality = new_tot () } else
-           { ctx with totality = Tot } (* FIXME: error ? *)
+            (* If not pure, we must prove totality.
+               NOTE: this could also trigger an error message ? *)
+           { ctx with totality = Tot }
        in
        let (p, _) = type_term ctx t c in
        (Typ_Delm(p), Tot)

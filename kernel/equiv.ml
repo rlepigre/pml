@@ -1971,6 +1971,7 @@ let get_blocked : pool -> blocked list = fun po ->
  let prove : eq_ctxt -> rel -> unit = fun ctx rel ->
   log "proving  %a" Print.rel rel;
   try
+    let st = UTimed.Time.save () in
     let ctx = match rel with
       | Equiv(t,b,u) ->
          (if b then add_inequiv else add_equiv) (t,u) ctx
@@ -1979,6 +1980,7 @@ let get_blocked : pool -> blocked list = fun po ->
          if b then raise Contradiction;
          ctx
     in
+    UTimed.Time.rollback st;
     let bls = get_blocked ctx.pool in
     log "failed to prove %a" Print.rel rel;
     equiv_error rel bls

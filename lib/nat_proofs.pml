@@ -85,7 +85,7 @@ val rec mul_n_succ : ∀n m∈nat, n * S[m] ≡ n + n * m =
   fun n m {
     case n {
       Zero → eqns 0 * S[m] ≡ 0 + 0 * m ≡ 0
-      S[k] → let _ = n * m; //FIXME
+      S[k] → let _ = n * m; //FIXME #28
              eqns n * S[m] ≡ S[m] + k * S[m]
                            ≡ S[m] + (k + k * m) by mul_n_succ k m
                            ≡ S[m + (k + k * m)]

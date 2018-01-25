@@ -26,7 +26,7 @@ val rec theorem : ∀a, ∀r∈list<rose<a>>, leq (height r) (size r) =
       x::l' →
         show leq (height l') (size l') using theorem l';
         show leq (height x) (size x) using theorem x;
-        {- TODO -}
+        {- -}
     }
   }
 
@@ -55,7 +55,7 @@ val rec theorem : ∀a, ∀r∈rose<a>, leq (height r) (size r) =
           []    → qed
           x::l' →
             //show leq (height Node[l']) (size Node[l']) using theorem Node[l'];
-            {- TODO -}
+            {- -}
         }
     }
   }

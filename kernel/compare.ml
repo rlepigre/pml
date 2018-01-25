@@ -178,8 +178,8 @@ let {eq_expr; eq_bndr} =
        assert (u1.uvar_key >= 0);
        if strict && u2.uvar_key >= 0 then u1.uvar_key = u2.uvar_key else
          begin
-           if u1.uvar_key <> u2.uvar_key then  (* arbitrary *)
-             if not (uvar_occurs u1 e2) then (uvar_set u1 e2; true)
+           if u1.uvar_key <> u2.uvar_key then
+             if not (uvar_occurs u2 e1) then (uvar_set u2 e1; true)
              else false
            else true
          end

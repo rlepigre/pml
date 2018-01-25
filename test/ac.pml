@@ -43,7 +43,7 @@ val ac : ∀a,∀b, (∀n∈nat, ∃m∈b, a<n,m>) ⇒
     let sp: ∃s∈stream<∃n∈nat, ∃m∈b, a<n,m>>, ∀m∈nat, (nth m s).1 ≡ m = ex g;
     let (s, lem) = sp;
     let f : nat ⇒ b = fun n { let (n', q) = nth n s; q.1 };
-                              // FIXME: (nth n s).2.1 fails
+                              // FIXME #37: (nth n s).2.1 fails
     (f, fun n {
         let (n', q) = nth n s;
         show n' ≡ n using lem n;
@@ -101,7 +101,7 @@ val ac : ∀a,∀b, (∀n∈nat, ∃m∈b, a<n,m>) ⇒
 //     let sp: ∃s∈cstream<∃n∈nat, ∃m∈b, a<n,m>>, ∀m, m∈nat → (nth m s).1 ≡ m = exc g;
 //     let (s, lem) = sp;
 //     let f : nat → b = fun n { let (n', q) = nthc n s; q.1 };
-//                               // FIXME: (nth n s).2.1 fails
+//                               // FIXME #37: (nth n s).2.1 fails
 //     (f, fun n {
 //         let (n', q) = nthc n s;
 //         show n' ≡ n using lem n;

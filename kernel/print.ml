@@ -183,7 +183,7 @@ let is_def : type a. a ex loc -> a sugar = fun e ->
   let is_expr : any_expr -> a sugar = fun (Expr(s',e')) ->
     let rec fn : type b. b ex loc -> b sort -> a sugar = fun e' s' ->
       match eq_sort s s' with
-      | Eq.Eq  -> if UTimed.pure_test (feq_expr.eq e) e' then Def e' else NoSugar
+      | Eq.Eq  -> if feq_expr.eq e e' then Def e' else NoSugar
       | Eq.NEq -> match s' with
                   | F(sa,s') -> let v = Pos.none
                                           (UVar(sa, { uvar_key = -1
@@ -283,7 +283,8 @@ let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
   | TupleType ls  -> let (l,r) = if Prp P < pr then ("(",")") else ("","") in
                      fprintf ch "%s%a%s" l (print_list (ex (Prp R)) " × ") ls r
   | DepSum(l,a,p) -> let pelt ch x = fprintf ch "%s" (name_of x) in
-                     fprintf ch "∃%a∈%a, %a" (print_list pelt " ") l exp a exp p
+                     fprintf ch "∃%a∈%a, %a"
+                             (print_list pelt " ") l exp a exp p
   | Compr(x,p,r)  -> fprintf ch "{ %s ∈ %a | %a }" (name_of x) exp p rel r
   | Def e         -> ex pr ch e
   | NoSugar       ->
@@ -322,19 +323,19 @@ let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
                      match is_eq e with
                      | Some(e1,s,e2) -> fprintf ch "%a%s%a" exi e1 s exi e2
                      | None ->
-                       let (l,r) = if Prp M <= pr then ("(",")") else ("","") in
-                       fprintf ch "%a ∈ %s%a%s" exi t l (ex (Prp M)) a r
+                       let (l,r) = if Prp M <= pr then ("(",")") else ("","")
+                       in fprintf ch "%a ∈ %s%a%s" exi t l (ex (Prp M)) a r
                    end
   | Rest(a,c)   -> begin
                      match is_eq e with
                      | Some(e1,s,e2) -> fprintf ch "%a%s%a" exi e1 s exi e2
                      | None ->
-                       let (l,r) = if Prp R <= pr then ("(",")") else ("","") in
-                       fprintf ch "(%s%a%s | %a)" l (ex (Prp R)) a r rel c
+                       let (l,r) = if Prp R <= pr then ("(",")") else ("","")
+                       in fprintf ch "(%s%a%s | %a)" l (ex (Prp R)) a r rel c
                    end
-  | Impl(e,a)   -> fprintf ch "%a ↪ %a" rel e (ex (Prp R)) a (* FIXME, no parsing for Impl ? *)
-  | LAbs(ao,b)  -> let (l,r) = if Trm F < pr then ("(",")") else ("","") in
-                   let (x,t) = unbind (mk_free V) (snd b) in
+  | Impl(e,a)   -> (* FIXME #36, no parsing for Impl ? *)
+                   fprintf ch "%a ↪ %a" rel e (ex (Prp R)) a
+  | LAbs(ao,b)  -> let (x,t) = unbind (mk_free V) (snd b) in
                    begin
                      match ao with
                      | None   ->
@@ -353,10 +354,10 @@ let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
                         let (ls, t) = fn [x] t in
                         let ls = List.rev ls in
                         let pelt ch x = fprintf ch "%s" (name_of x) in
-                        fprintf ch "%sfun %a {%a}%s"
-                                l (print_list pelt " ") ls ext t r
-                     | Some a -> fprintf ch "%sfun (%s:%a) {%a}%s"
-                                         l (name_of x) exp a ext t r
+                        fprintf ch "fun %a {%a}"
+                                (print_list pelt " ") ls ext t
+                     | Some a -> fprintf ch "fun (%s:%a) {%a}"
+                                         (name_of x) exp a ext t
                    end
   | Cons(c,v)   -> if is_unit v then fprintf ch "%s" c.elt
                    else fprintf ch "%s[%a]" c.elt ext v
@@ -383,7 +384,7 @@ let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
                    let sf = if sf then "" else "unsafe " in
                    fprintf ch "fix %s%s {%a}" sf (name_of x) ext t
   | Prnt(s)     -> fprintf ch "print(%S)" s
-  | Repl(t,u)   -> fprintf ch "(check %a for %a)" ext t ext u (* FIXME *)
+  | Repl(t,u)   -> fprintf ch "(check %a for %a)" ext t ext u (* FIXME #38 *)
   | Delm(t)     -> fprintf ch "delim {%a}" ext t
   | Conv        -> output_string ch "∞"
   | Succ(o)     -> fprintf ch "%a+1" exo o
@@ -407,7 +408,7 @@ let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
             fprintf ch "%s:%a, " (name_of x) sort s;
             aux seq
       in aux r.binder
-  | PSet(l,s,e) -> fprintf ch "%a; %a" print_set_param l ext e (* FIXME *)
+  | PSet(l,s,e) -> fprintf ch "%a; %a" print_set_param l ext e (* FIXME #38 *)
   | ITag(_,i)   -> fprintf ch "#%i" i
   | Dumm(_)     -> output_string ch "∅"
   | VWit(w)     -> fprintf ch "%s%a" w.name print_vars e
@@ -429,7 +430,8 @@ and print_set_param ch = function
 and rel ch cnd =
   let eq b = if b then "=" else "≠" in
     match cnd with
-    | Equiv(t,b,u) -> fprintf ch "%a %s %a" (ex (Trm F)) t (eq b) (ex (Trm F)) u
+    | Equiv(t,b,u) -> fprintf ch "%a %s %a"
+                              (ex (Trm F)) t (eq b) (ex (Trm F)) u
     | NoBox(v)     -> fprintf ch "%a↓" (ex (Trm F)) v
 
 let ex ch t = ex Any ch t
