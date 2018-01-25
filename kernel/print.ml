@@ -183,7 +183,7 @@ let is_def : type a. a ex loc -> a sugar = fun e ->
   let is_expr : any_expr -> a sugar = fun (Expr(s',e')) ->
     let rec fn : type b. b ex loc -> b sort -> a sugar = fun e' s' ->
       match eq_sort s s' with
-      | Eq.Eq  -> if feq_expr.eq e e' then Def e' else NoSugar
+      | Eq.Eq  -> if UTimed.pure_test (feq_expr.eq e) e' then Def e' else NoSugar
       | Eq.NEq -> match s' with
                   | F(sa,s') -> let v = Pos.none
                                           (UVar(sa, { uvar_key = -1
