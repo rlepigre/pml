@@ -72,7 +72,7 @@ type auto_ctxt =
   ; doing : bool
   ; tsted : blocked list }
 
-let default_auto_lvl = ref (0, 5)
+let default_auto_lvl = ref (0, 3)
 
 let auto_empty () =
   { level = !default_auto_lvl

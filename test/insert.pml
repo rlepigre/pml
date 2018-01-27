@@ -19,13 +19,8 @@ val rec sorted : ∀a:ο, ∀o∈order<a>, ∀l∈list<a>, bool =
   }
 
 val rec tail_sorted : ∀a:ο, ∀o∈order<a>, ∀x∈a, ∀l∈list<a>,
-     sorted o (x::l) ⇒ sorted o l =
-  fun o x l _ {
-    case l {
-      []     → qed
-      hd::tl → know o.cmp x hd; qed
-    }
-  }
+          sorted o (x::l) ⇒ sorted o l =
+  fun o x l _ { set auto 2 2; qed }
 
 val rec insert : ∀a:ο, order<a> ⇒ a ⇒ list<a> ⇒ list<a> =
   fun o x l {
@@ -59,7 +54,6 @@ val rec insert_sorted : ∀a:ο, ∀o∈order<a>, ∀x∈a, ∀l∈slist<a,o>,
            case tl {
              | []       → qed
              | hd2::tl2 →
-                let _ = insert o x tl2; // FIXME #28: necessary to instanciate l in slist
                 know cmp hd hd2;
                 show sorted o (insert o x tl) using insert_sorted o x tl;
                 if cmp x hd2 { qed } else {

@@ -5,14 +5,17 @@ include lib.list_proofs
 
 // Type of vectors (list of a given length).
 type vec<a,n> = ∃l, l∈(list<a> | length l ≡ n)
+type svec<o,a,n> = ∃l, l∈(list^o<a> | length l ≡ n)
 
 // Append function.
 val rec app : ∀a, ∀m n:ι, vec<a,m> ⇒ vec<a,n> ⇒ vec<a, add m n> =
   fun l1 l2 {
     case l1 {
-      Nil     → l2
-      Cons[c] → let _  = length c.tl;
-                Cons[{hd = c.hd; tl = app c.tl l2}]
+      []   → l2
+      x::l → let _ = length l;
+             // NOTE: let _ = ⋯ is necessary to have l : vec<a,length l>
+             // It is not a totality issue
+             x::app l l2
     }
   }
 

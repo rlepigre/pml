@@ -363,7 +363,7 @@ let print_pool : string -> out_channel -> pool -> unit = fun prefix ch po ->
     let f = if Timed.get po.time k.Ptr.fs then "+" else "" in
     let g = if Timed.get po.time k.Ptr.ns then "n" else "" in
     let pars = let (p, po) = find (Ptr.T_ptr k) po in ptr_par p po.time in
-    Printf.fprintf ch "%s  %a%s%s\t→ %a [%a}\t\n" prefix TPtr.print k f g
+    Printf.fprintf ch "%s  %a%s%s\t→ %a [%a]\t\n" prefix TPtr.print k f g
       print_t_node n print_parents pars
   in
   List.iter fn ts;
@@ -736,7 +736,7 @@ let insert_t_node : bool -> t_node -> pool -> TPtr.t * pool =
          raise Not_found
     with
     | FoundT(p, po) ->
-       (** if the node is found but was not free (not under binders),
+       (** if the node is found but was not free (was under binders),
            then it may become free if the equal added node is free *)
        let po =
          if fs then begin
@@ -1161,21 +1161,13 @@ and join : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
   let nps = parents p1 po in
   let pp2 = parents p2 po in
   let po = add_parents p2 nps po in
+  let (fs2, po) = is_free p2 po in
+  let (fs1, po) = is_free p1 po in
+  let (bs2, po) = is_nobox p2 po in
+  let (bs1, po) = is_nobox p1 po in
   let po = { po with time = ptr_set p1 p2 po.time
                    ; eq_map = (p1,p2) :: po.eq_map }
   in
-  let po = check_parents_eq nps pp2 po in
-  let (bs2, po) = is_nobox p2 po in
-  let (bs1, po) = is_nobox p1 po in
-  let po = if bs1 && not bs2 then begin
-               match p2 with
-               | Ptr.V_ptr p2 -> set_bs p2 po
-               | Ptr.T_ptr _  -> assert false
-             end
-           else po
-  in
-  let (fs2, po) = is_free p2 po in
-  let (fs1, po) = is_free p1 po in
   let po = if fs1 && not fs2 then begin
                match p2 with
                | Ptr.T_ptr p2 -> set_fs p2 po
@@ -1183,6 +1175,14 @@ and join : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
              end
            else po
   in
+  let po = if bs1 && not bs2 then begin
+               match p2 with
+               | Ptr.V_ptr p2 -> set_bs p2 po
+               | Ptr.T_ptr _  -> assert false
+             end
+           else po
+  in
+  let po = check_parents_eq nps pp2 po in
   let po = MapKey.fold (fun k l po ->
                if is_head k then PtrSet.fold reinsert l po else po) nps po in
   po
@@ -1849,23 +1849,28 @@ let rec not_uewit : type a. ?vwit:bool -> a ex loc -> bool =
     match (Norm.whnf e).elt with
     | UWit _    -> false
     | EWit _    -> false
+    | VPtr _    -> false
+    | TPtr _    -> false
     | VWit _    -> vwit
     | Valu e    -> not_uewit ~vwit e
     | Case(_,c) -> A.length c > 1 (* TODO #29: fix this issue and remove! *)
     | _         -> true
 
-let cmp_orig (_,x) (_,y) = match (x.elt, y.elt) with
+let cmp_orig (p,x) (q,y) = match (x.elt, y.elt) with
+    | (_               , Valu{elt=VPtr _}) -> -1
+    | (Valu{elt=VPtr _},  _              ) ->  1
     | (Valu{elt=VDef _}, _               ) -> -1
     | ( _              , Valu{elt=VDef _}) ->  1
-    | (Valu{elt=VWit v}, _               ) -> -1
-    | (_               , Valu{elt=VWit v}) ->  1
+    (*    | (Valu{elt=VWit _}, Valu{elt=VWit _}) ->  compare p q*)
+    | (Valu{elt=VWit _}, _               ) -> -1
+    | (_               , Valu{elt=VWit _}) ->  1
     | (Proj _          , _               ) -> -1
     | (_               , Proj _          ) ->  1
     | (_               , _               ) ->  0
 
 (* Search a vwit or a projection equal to a given term in the pool *)
-let to_vwit : term -> pool -> term = fun t po ->
-  (*Printf.eprintf "to_vwit: %a\n%!" Print.ex t;*)
+let term_vwit : term -> pool -> term = fun t po ->
+  (*Printf.eprintf "term_vwit: %a\n%!" Print.ex t;*)
   let (pt, po) = add_term true true po t in
   let fn (p,t) =
     eq_ptr po p pt && not_uewit t
@@ -1873,6 +1878,23 @@ let to_vwit : term -> pool -> term = fun t po ->
   let l = List.find_all fn po.os in
   if l = [] then raise Not_found;
   snd (List.hd (List.sort cmp_orig l))
+
+(* Search a vwit or a projection equal to a given term in the pool *)
+let valu_vwit : valu -> pool -> valu = fun t po ->
+  (*Printf.eprintf "valu_vwit: %a\n%!" Print.ex t;*)
+  let (pt, po) = add_valu true po t in
+  let fn (p,t) =
+    eq_ptr po p (Ptr.V_ptr pt) && not_uewit t &&
+      (match (Norm.repr t).elt with Valu _ -> true
+                                  | _      -> false)
+  in
+  let l = List.find_all fn po.os in
+  if l = [] then raise Not_found;
+  let t = snd (List.hd (List.sort cmp_orig l)) in
+  match (Norm.repr t).elt with
+  | Valu v -> v
+  | _      -> assert false
+
 
 (** test is a node is a nobox value *)
 let test_value : Ptr.t -> pool -> bool = fun p po ->
@@ -1892,9 +1914,10 @@ let rec get_orig : ?vwit:bool -> Ptr.t -> pool -> term =
         let l = List.find_all (fun (v',e) ->
                     eq_ptr po p v' && not_uewit ~vwit e) po.os in
         if l = [] then raise Not_found;
+        (*Printf.eprintf "coucou 2b\n%!";*)
         snd (List.hd (List.sort cmp_orig l))
       with Not_found ->
-        let is_appl = function TN_Appl _ -> true | _ -> false in
+        let is_appl = function TN_Appl _ -> true | TN_Proj _ -> true | _ -> false in
         let (v',nn) = List.find (fun (v',nn) ->
                           eq_ptr po (Ptr.T_ptr v') p && is_appl nn) po.ts
         in
@@ -1903,6 +1926,8 @@ let rec get_orig : ?vwit:bool -> Ptr.t -> pool -> term =
            let u1 = get_orig u1 po in
            let u2 = get_orig u2 po in
            Pos.none (Appl(u1, u2))
+        | TN_Proj(u1,l) ->
+           Pos.none (Proj(Pos.none (VPtr u1), l))
         | _ -> assert false
     in
     let open Mapper in
@@ -1911,13 +1936,19 @@ let rec get_orig : ?vwit:bool -> Ptr.t -> pool -> term =
       | UWit _ | EWit _ ->
          begin
            match sort t with
-           | (T, t) -> r.recall (to_vwit t po)
+           | (T, t) -> r.recall (term_vwit t po)
            | _      -> r.default t
+         end
+      | VPtr _ ->
+         begin
+           match sort t with
+           | (V, t) -> r.recall (valu_vwit t po)
+           | _      -> .
          end
       | Valu(v) ->
          begin
            match (Norm.whnf v).elt with
-           | UWit _ | EWit _ -> r.recall (to_vwit t po)
+           | UWit _ | EWit _ | VPtr _ -> r.recall (term_vwit t po)
            | _ -> r.default t
          end
       | _      -> r.default t
@@ -1934,7 +1965,7 @@ let get_blocked : pool -> blocked list = fun po ->
   List.fold_left (fun acc (tp,tn) ->
       (*Printf.eprintf "testing %a %a %b %b\n%!" TPtr.print tp print_t_node tn
                      (get_ns tp po) (get_fs tp po);*)
-    if not (get_ns tp po) && get_fs tp po then
+      if not (get_ns tp po) && fst (is_free (Ptr.T_ptr tp) po) then
       begin
         (*Printf.eprintf "coucou 1 %d\n%!" (List.length !adone);*)
         adone := tp :: !adone;
@@ -1945,9 +1976,11 @@ let get_blocked : pool -> blocked list = fun po ->
                (*Printf.eprintf "coucou 2\n%!";*)
                try
                  let e = get_orig ~vwit:false v po in
+                 (*Printf.eprintf "coucou 3\n%!";*)
                  let b = BTot e in
                  if List.exists (eq_blocked b) acc then acc else
                    begin
+                     (*Printf.eprintf "coucou 4\n%!";*)
                      log "blocked arg %a" Print.ex e;
                      b :: acc
                    end
