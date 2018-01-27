@@ -181,20 +181,25 @@ let is_def : type a. a ex loc -> a sugar = fun e ->
   in
   if res <> NoSugar then res else
   let is_expr : any_expr -> a sugar = fun (Expr(s',e')) ->
-    let rec fn : type b. b ex loc -> b sort -> a sugar = fun e' s' ->
+    let rec fn : type b. (unit -> bool) -> b ex loc -> b sort -> a sugar =
+      fun test e' s' ->
       match eq_sort s s' with
-      | Eq.Eq  -> if feq_expr.eq e e' then Def e' else NoSugar
+      | Eq.Eq  -> if feq_expr.eq e e' && test () then Def e' else NoSugar
       | Eq.NEq -> match s' with
-                  | F(sa,s') -> let v = Pos.none
-                                          (UVar(sa, { uvar_key = -1
-                                                    ; uvar_val = ref (Unset [])
-                                                    ; uvar_pur = ref false}))
-                                in
+                  | F(sa,s') -> let u = { uvar_key = -1
+                                        ; uvar_val = ref (Unset [])
+                                        ; uvar_pur = ref false} in
+                                let v = Pos.none (UVar(sa, u)) in
                                 let e' = Pos.none (HApp(sa,e',v)) in
-                                fn e' s'
+                                let is_set () = match !(u.uvar_val) with
+                                  | Unset _ -> false
+                                  | _       -> true
+                                in
+                                let test () = is_set () && test () in
+                                fn test e' s'
                   | _        -> NoSugar
     in
-    fn (Pos.none (HDef(s',e'))) s'
+    fn (fun _ -> true) (Pos.none (HDef(s',e'))) s'
   in
   Env.SMap.fold (fun k e acc ->
       let open Env in
