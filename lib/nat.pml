@@ -173,3 +173,57 @@ val rec print_nat : nat ⇒ {} =
 // Print a natural number with a newline.
 val println_nat : nat ⇒ {} =
   fun n { print_nat n; print "\n" }
+
+include lib.either
+
+val rec sub_size : ∀o1 o2, nat^(o1+1) ⇒ [S of nat^o2] ⇒ either⟨nat^o2,nat^o1⟩ =
+  fun n m {
+    case m {
+      S[m'] →
+        case m' {
+          0      →
+            case n {
+              0     → InL[Zero]
+              S[n'] → InR[n']
+            }
+          S[m''] →
+            case n {
+              0     → InL[Zero]
+              S[n'] →
+                let o such that n' : nat^(o+1);
+                case sub_size (n':nat^(o+1)) S[m''] {
+                  InL[r] → InL[S[r]]
+                  InR[d] → InR[d]
+                }
+            }
+        }
+    }
+  }
+
+val rec mod : ∀o1 o2, nat^(o1+1) ⇒ [S of nat^(o2+1)] ⇒ nat^(o2+1) =
+  fun n m {
+    case sub_size n m {
+      InL[r]  → r
+      InR[n'] →
+        case n' {
+          0      → Zero
+          S[n''] → mod S[n''] m
+        }
+    }
+  }
+
+val rec gcd : nat ⇒ nat ⇒ nat =
+  fun n m {
+    case n {
+      0     → m
+      S[n'] →
+        case n' {
+          0      → 1
+          S[n''] →
+            case m {
+              0     → 0
+              S[m'] → gcd (mod S[m'] S[S[n'']]) n
+            }
+        }
+    }
+  }
