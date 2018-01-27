@@ -1,13 +1,13 @@
-type rec list<a:ο> = [ Nil of {}; Cns of { hd : a; tl : list } ]
+type rec list⟨a:ο⟩ = [ Nil of {}; Cns of { hd : a; tl : list } ]
 
-val nil : ∀a:ο, list<a> = Nil
+val nil : ∀a:ο, list⟨a⟩ = Nil
 
 def tl : ι = fun l { case l { Cns[c] → c.tl } }
 def hd : ι = fun l { case l { Cns[c] → c.hd } }
 
-val cns : ∀a:ο, a ⇒ list<a> ⇒ list<a> = fun e l { Cns[{ hd = e; tl = l }] }
+val cns : ∀a:ο, a ⇒ list⟨a⟩ ⇒ list⟨a⟩ = fun e l { Cns[{ hd = e; tl = l }] }
 
-val rec app : ∀b:ο, list<b> ⇒ list<b> ⇒ list<b> =
+val rec app : ∀b:ο, list⟨b⟩ ⇒ list⟨b⟩ ⇒ list⟨b⟩ =
   fun l1 l2 {
     case l1 {
       Nil[_] → l2
@@ -17,7 +17,7 @@ val rec app : ∀b:ο, list<b> ⇒ list<b> ⇒ list<b> =
     }
   }
 
-val rec app2 : ∀b:ο, list<b> ⇒ list<b> ⇒ list<b> =
+val rec app2 : ∀b:ο, list⟨b⟩ ⇒ list⟨b⟩ ⇒ list⟨b⟩ =
   fun l1 l2 {
     case l1 {
       Nil    → l2
@@ -33,9 +33,9 @@ def app0 : τ =
     }
   }}
 
-val appt : ∀b:ο, list<b> ⇒ list<b> ⇒ ∃w:ι, (w∈list<b>) = app0
+val appt : ∀b:ο, list⟨b⟩ ⇒ list⟨b⟩ ⇒ ∃w:ι, (w∈list⟨b⟩) = app0
 
-val rec app_asso : ∀a:ο, ∀x1 x2 x3∈list<a>, app x1 (app x2 x3) ≡ app (app x1 x2) x3 =
+val rec app_asso : ∀a:ο, ∀x1 x2 x3∈list⟨a⟩, app x1 (app x2 x3) ≡ app (app x1 x2) x3 =
   fun l1 l2 l3 {
     case l1 {
       Nil    →
@@ -50,7 +50,7 @@ val rec app_asso : ∀a:ο, ∀x1 x2 x3∈list<a>, app x1 (app x2 x3) ≡ app (a
     }
   }
 
-val rec app2_asso : ∀a:ο, ∀x1 x2 x3∈list<a>, app2 x1 (app2 x2 x3) ≡ app2 (app2 x1 x2) x3 =
+val rec app2_asso : ∀a:ο, ∀x1 x2 x3∈list⟨a⟩, app2 x1 (app2 x2 x3) ≡ app2 (app2 x1 x2) x3 =
   fun l1 l2 l3 {
     case l1 {
       Nil    →
@@ -65,7 +65,7 @@ val rec app2_asso : ∀a:ο, ∀x1 x2 x3∈list<a>, app2 x1 (app2 x2 x3) ≡ app
     }
   }
 
-val rec map : ∀a b:ο, (a ⇒ b) ⇒ list<a> ⇒ list<b> =
+val rec map : ∀a b:ο, (a ⇒ b) ⇒ list⟨a⟩ ⇒ list⟨b⟩ =
   fun f l {
     case l {
       Nil    → Nil
@@ -75,7 +75,7 @@ val rec map : ∀a b:ο, (a ⇒ b) ⇒ list<a> ⇒ list<b> =
     }
   }
 
-val map_map : ∀a b c:ο, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c), ∀l∈list<a>,
+val map_map : ∀a b c:ο, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c), ∀l∈list⟨a⟩,
                         map g (map f l) ≡ map (fun x { g (f x) }) l =
   fun fn gn {
     fix map_map { fun ls {
@@ -91,7 +91,7 @@ val map_map : ∀a b c:ο, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c), ∀l∈list<a>,
     }
   }}
 
-val rec map_map : ∀a b c:ο, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c), ∀l∈list<a>,
+val rec map_map : ∀a b c:ο, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c), ∀l∈list⟨a⟩,
                             map g (map f l) ≡ map (fun x { g (f x) }) l =
   fun fn gn ls {
     case ls {

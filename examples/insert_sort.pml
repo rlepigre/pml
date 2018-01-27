@@ -2,7 +2,7 @@ include lib.list
 include lib.order
 // remark: we do not use transitivity in the example
 
-val rec insert : ∀a:ο, ord<a> ⇒ a ⇒ list<a> ⇒ list<a> =
+val rec insert : ∀a:ο, ord⟨a⟩ ⇒ a ⇒ list⟨a⟩ ⇒ list⟨a⟩ =
   fun o x l {
     case l {
       Nil     → Cons[{hd = x; tl = Nil}]
@@ -16,7 +16,7 @@ val rec insert : ∀a:ο, ord<a> ⇒ a ⇒ list<a> ⇒ list<a> =
     }
   }
 
-val rec isort : ∀a:ο, ord<a> ⇒ list<a> ⇒ list<a> =
+val rec isort : ∀a:ο, ord⟨a⟩ ⇒ list⟨a⟩ ⇒ list⟨a⟩ =
   fun o l {
     case l {
       Nil     → Nil
@@ -24,7 +24,7 @@ val rec isort : ∀a:ο, ord<a> ⇒ list<a> ⇒ list<a> =
     }
   }
 
-val rec insert_sorted : ∀a:ο, ∀o∈ord<a>, ∀x∈a, ∀l∈slist<a,o>,
+val rec insert_sorted : ∀a:ο, ∀o∈ord⟨a⟩, ∀x∈a, ∀l∈slist⟨a,o⟩,
                   sorted o (insert o x l) ≡ true =
   fun o x l {
     case l {
@@ -48,7 +48,7 @@ val rec insert_sorted : ∀a:ο, ∀o∈ord<a>, ∀x∈a, ∀l∈slist<a,o>,
     }
   }
 
-val rec isort_sorted : ∀a:ο, ∀o∈ord<a>, ∀l∈list<a>,
+val rec isort_sorted : ∀a:ο, ∀o∈ord⟨a⟩, ∀l∈list⟨a⟩,
                        sorted o (isort o l) ≡ true =
   fun o l {
     case l {
@@ -59,7 +59,7 @@ val rec isort_sorted : ∀a:ο, ∀o∈ord<a>, ∀l∈list<a>,
     }
   }
 
-val isort_full : ∀a:ο, ∀o∈ord<a>, list<a> ⇒ slist<a,o> =
+val isort_full : ∀a:ο, ∀o∈ord⟨a⟩, list⟨a⟩ ⇒ slist⟨a,o⟩ =
   fun o l {
     let tot = isort o l;
     let lem = isort_sorted o l;

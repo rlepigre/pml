@@ -3,10 +3,10 @@ include lib.nat_proofs
 include lib.stream
 
 // Axiome du choix intuitionniste
-val ac : ∀a,∀b, (∀n∈nat, ∃m∈b, a<n,m>) ⇒
-            ∃f∈(nat ⇒ b), ∀n∈nat, ∃v:ι,a<n,v>|v≡f n =
+val ac : ∀a,∀b, (∀n∈nat, ∃m∈b, a⟨n,m⟩) ⇒
+            ∃f∈(nat ⇒ b), ∀n∈nat, ∃v:ι,a⟨n,v⟩|v≡f n =
   fun g {
-    let a,b such that g : ∀n∈nat, ∃m∈b, a<n,m>;
+    let a,b such that g : ∀n∈nat, ∃m∈b, a⟨n,m⟩;
     let f : nat ⇒ b = fun n { (g n).1 };
     (f, fun n { (g n).2 })
   }
@@ -15,12 +15,12 @@ val ac : ∀a,∀b, (∀n∈nat, ∃m∈b, a<n,m>) ⇒
 // It demonstrates proving properties with streams.
 // and compute g n only once.
 
-val ex : ∀a,∀b, (∀n∈nat, ∃m∈b, a<n,m>) ⇒
-           ∃s∈stream<∃n∈nat, ∃m∈b, a<n,m>>, ∀n∈nat, (nth n s).1 ≡ n =
+val ex : ∀a,∀b, (∀n∈nat, ∃m∈b, a⟨n,m⟩) ⇒
+           ∃s∈stream⟨∃n∈nat, ∃m∈b, a⟨n,m⟩⟩, ∀n∈nat, (nth n s).1 ≡ n =
   fun g {
-    let a,b such that g : ∀n∈nat, ∃m∈b, a<n,m>;
-    let rec fn : nat ⇒ stream<∃n∈nat,∃m∈b, a<n,m>> = fun n _ {
-      let hd : ∃n∈nat,∃m∈b, a<n,m> = (n, g n);
+    let a,b such that g : ∀n∈nat, ∃m∈b, a⟨n,m⟩;
+    let rec fn : nat ⇒ stream⟨∃n∈nat,∃m∈b, a⟨n,m⟩⟩ = fun n _ {
+      let hd : ∃n∈nat,∃m∈b, a⟨n,m⟩ = (n, g n);
       { hd; tl = fn (S[n]) }
     };
     let rec lem : ∀n k∈nat, (nth k (fn n)).1 ≡ add n k = fun n k {
@@ -36,11 +36,11 @@ val ex : ∀a,∀b, (∀n∈nat, ∃m∈b, a<n,m>) ⇒
     (fn Zero, lemz)
   }
 
-val ac : ∀a,∀b, (∀n∈nat, ∃m∈b, a<n,m>) ⇒
-            ∃f∈(nat ⇒ b), ∀n∈nat, ∃v:ι,a<n,v>|v≡f n =
+val ac : ∀a,∀b, (∀n∈nat, ∃m∈b, a⟨n,m⟩) ⇒
+            ∃f∈(nat ⇒ b), ∀n∈nat, ∃v:ι,a⟨n,v⟩|v≡f n =
   fun g {
-    let a,b such that g : ∀n∈nat, ∃m∈b, a<n,m>;
-    let sp: ∃s∈stream<∃n∈nat, ∃m∈b, a<n,m>>, ∀m∈nat, (nth m s).1 ≡ m = ex g;
+    let a,b such that g : ∀n∈nat, ∃m∈b, a⟨n,m⟩;
+    let sp: ∃s∈stream⟨∃n∈nat, ∃m∈b, a⟨n,m⟩⟩, ∀m∈nat, (nth m s).1 ≡ m = ex g;
     let (s, lem) = sp;
     let f : nat ⇒ b = fun n { let (n', q) = nth n s; q.1 };
                               // FIXME #37: (nth n s).2.1 fails
@@ -53,23 +53,23 @@ val ac : ∀a,∀b, (∀n∈nat, ∃m∈b, a<n,m>) ⇒
   }
 
 // Axiome du choix classique, rejected
-// val acc : ∀a,∀b, (∀n, n∈nat → ∃m∈b, a<n,m>) ⇒
-//             ∃f∈(nat → b), ∀n, n∈nat→ ∃v:ι,a<n,v>|v≡f n =
+// val acc : ∀a,∀b, (∀n, n∈nat → ∃m∈b, a⟨n,m⟩) ⇒
+//             ∃f∈(nat → b), ∀n, n∈nat→ ∃v:ι,a⟨n,v⟩|v≡f n =
 //   fun g {
-//     let a,b such that g : ∀n, n∈nat → ∃m∈b, a<n,m>;
+//     let a,b such that g : ∀n, n∈nat → ∃m∈b, a⟨n,m⟩;
 //     let f : nat → b = fun n { (g n).1 };
 //     (f, fun n { (g n).2 })
 //   }
 
 // Type of classical streams.
-// type corec cstream<a> = {} → {hd : a; tl : cstream}
+// type corec cstream⟨a⟩ = {} → {hd : a; tl : cstream}
 
-// val exc : ∀a,∀b, (∀n, n∈nat → ∃m∈b, a<n,m>) ⇒
-//            ∃s∈cstream<∃n∈nat, ∃m∈b, a<n,m>>, ∀n, n∈nat → (nth n s).1 ≡ n =
+// val exc : ∀a,∀b, (∀n, n∈nat → ∃m∈b, a⟨n,m⟩) ⇒
+//            ∃s∈cstream⟨∃n∈nat, ∃m∈b, a⟨n,m⟩⟩, ∀n, n∈nat → (nth n s).1 ≡ n =
 //   fun g {
-//     let a,b such that g : ∀n, n∈nat → ∃m∈b, a<n,m>;
-//     let rec fn : nat ⇒ cstream<∃n∈nat,∃m∈b, a<n,m>> = fun n _ {
-//       let hd : ∃n∈nat,∃m∈b, a<n,m> = (n, g n);
+//     let a,b such that g : ∀n, n∈nat → ∃m∈b, a⟨n,m⟩;
+//     let rec fn : nat ⇒ cstream⟨∃n∈nat,∃m∈b, a⟨n,m⟩⟩ = fun n _ {
+//       let hd : ∃n∈nat,∃m∈b, a⟨n,m⟩ = (n, g n);
 //       { hd; tl = fn (S[n]) }
 //     };
 //     let rec lem : ∀n∈nat, ∀k, k∈nat → (nth k (fn n)).1 ≡ add n k = fun n k {
@@ -86,7 +86,7 @@ val ac : ∀a,∀b, (∀n∈nat, ∃m∈b, a<n,m>) ⇒
 //   }
 
 // // Compute the list of the first n elements of a stream.
-// val rec nthc : ∀a, nat ⇒ cstream<a> → a =
+// val rec nthc : ∀a, nat ⇒ cstream⟨a⟩ → a =
 //   fun n s {
 //     case n {
 //            | Zero → (s {}).hd
@@ -94,11 +94,11 @@ val ac : ∀a,∀b, (∀n∈nat, ∃m∈b, a<n,m>) ⇒
 //     }
 //   }
 
-// val acc : ∀a,∀b, (∀n, n∈nat → ∃m∈b, a<n,m>) ⇒
-//             ∃f∈(nat → b), ∀n, n∈nat→ ∃v:ι,a<n,v>|v≡f n =
+// val acc : ∀a,∀b, (∀n, n∈nat → ∃m∈b, a⟨n,m⟩) ⇒
+//             ∃f∈(nat → b), ∀n, n∈nat→ ∃v:ι,a⟨n,v⟩|v≡f n =
 //   fun g {
-//     let a,b such that g : ∀n, n∈nat → ∃m∈b, a<n,m>;
-//     let sp: ∃s∈cstream<∃n∈nat, ∃m∈b, a<n,m>>, ∀m, m∈nat → (nth m s).1 ≡ m = exc g;
+//     let a,b such that g : ∀n, n∈nat → ∃m∈b, a⟨n,m⟩;
+//     let sp: ∃s∈cstream⟨∃n∈nat, ∃m∈b, a⟨n,m⟩⟩, ∀m, m∈nat → (nth m s).1 ≡ m = exc g;
 //     let (s, lem) = sp;
 //     let f : nat → b = fun n { let (n', q) = nthc n s; q.1 };
 //                               // FIXME #37: (nth n s).2.1 fails

@@ -3,9 +3,9 @@ include lib.list
 include lib.option
 
 type bot = ∀x, x
-type neg<a> = a → bot
+type neg⟨a⟩ = a → bot
 
-val rec exists : ∀a:ο, (a ⇒ bool) ⇒ list<a> ⇒ bool =
+val rec exists : ∀a:ο, (a ⇒ bool) ⇒ list⟨a⟩ ⇒ bool =
   fun f l {
     case l {
       Nil[_]  → false
@@ -14,7 +14,7 @@ val rec exists : ∀a:ο, (a ⇒ bool) ⇒ list<a> ⇒ bool =
   }
 
 val rec find : ∀a:ο, ∀f∈(a ⇒ bool),
-                       ∀l∈list<a>, neg<(exists f l ≡ false)> → a =
+                       ∀l∈list⟨a⟩, neg⟨(exists f l ≡ false)⟩ → a =
   fun f l exc {
     case l {
       | Nil[_]  → exc {}
@@ -23,17 +23,17 @@ val rec find : ∀a:ο, ∀f∈(a ⇒ bool),
     }
   }
 
-val find_opt : ∀a:ο, ∀f∈(a ⇒ bool), list<a> ⇒ option<a> =
+val find_opt : ∀a:ο, ∀f∈(a ⇒ bool), list⟨a⟩ ⇒ option⟨a⟩ =
   fun f l {
     delim { save a {
       Some[find f l (fun _ { restore a none })]
     }}
   }
 
-val notNone : ∀a:ο, option<a> ⇒ bool =
+val notNone : ∀a:ο, option⟨a⟩ ⇒ bool =
   fun o { case o { None → false | Some[_] → true } }
 
-val rec find2 : ∀a:ο, ∀f∈(a ⇒ bool), list<list<a>> ⇒ option<a> =
+val rec find2 : ∀a:ο, ∀f∈(a ⇒ bool), list⟨list⟨a⟩⟩ ⇒ option⟨a⟩ =
   fun f ls {
     case ls {
       Nil     → none
@@ -45,8 +45,8 @@ val rec find2 : ∀a:ο, ∀f∈(a ⇒ bool), list<list<a>> ⇒ option<a> =
   }
 
 
-// val find_opt2 : ∀a:ο, ∀f∈(a ⇒ bool), ∀l:ι, l∈list<a> →
-//                 ∃o:ι, option<a> | imp (exists f l) (notNone o) ≡ tru =
+// val find_opt2 : ∀a:ο, ∀f∈(a ⇒ bool), ∀l:ι, l∈list⟨a⟩ →
+//                 ∃o:ι, option⟨a⟩ | imp (exists f l) (notNone o) ≡ tru =
 //   fun f l {
 //      let test = total (exists f) l;
 //      if test {

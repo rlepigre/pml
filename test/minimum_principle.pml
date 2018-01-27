@@ -2,11 +2,11 @@ include lib.either
 include lib.nat
 include lib.nat_proofs
 
-type min<n,f> = ∀p, p ∈ nat → leq (f n) (f p)
+type min⟨n,f⟩ = ∀p, p ∈ nat → leq (f n) (f p)
 
 type bot = ∀x:ο,x
 
-val rec leq_size : ∀o, ∀m∈nat^(o+1), ∀n∈nat, either<leq m n, n∈nat^o> =
+val rec leq_size : ∀o, ∀m∈nat^(o+1), ∀n∈nat, either⟨leq m n, n∈nat^o⟩ =
   fun m n {
     case m {
       Zero → case n {
@@ -30,7 +30,7 @@ val rec leq_size : ∀o, ∀m∈nat^(o+1), ∀n∈nat, either<leq m n, n∈nat^o
   }
 
 val rec fn : ∀f∈(nat ⇒ nat), ∀n∈nat, ∀q∈(nat | q ≡ f n),
-    (∀n∈ nat, min<n,f> → bot) → bot =
+    (∀n∈ nat, min⟨n,f⟩ → bot) → bot =
   fun f n q k {
     let o such that q : nat^(o+1);
     k (n:nat) (fun p {
@@ -38,20 +38,20 @@ val rec fn : ∀f∈(nat ⇒ nat), ∀n∈nat, ∀q∈(nat | q ≡ f n),
         case leq_size (q:nat^(o+1)) fp {
           InL     → {}
           InR[fp] → fn f p fp k
-        }} : min<n,f>)
+        }} : min⟨n,f⟩)
   }
 
-type umin<n,f> = ∀p, p ∈ nat ↝ leq (f n) (f p)
+type umin⟨n,f⟩ = ∀p, p ∈ nat ↝ leq (f n) (f p)
 
 val rec gn : ∀f∈(nat ⇒ nat), ∀n∈nat,
-    (∀n∈ nat, umin<n,f> → bot) ↝ bot =
+    (∀n∈ nat, umin⟨n,f⟩ → bot) ↝ bot =
   fun f n k {
-    k (n:nat) (fun p { gn f p k } : umin<n,f>)
+    k (n:nat) (fun p { gn f p k } : umin⟨n,f⟩)
   }
 
 // It would be nice to prove fn ≡ gn ⋯
 // val lemma : ∀f∈(nat ⇒ nat), ∀n∈nat, ∀q∈(nat | q ≡ f n),
-//               ∀k∈(∀n∈ nat, min<n,f> → bot), fn f n q k ≡ gn f n k =
+//               ∀k∈(∀n∈ nat, min⟨n,f⟩ → bot), fn f n q k ≡ gn f n k =
 //   fun f n q k {
 //     let o such that q : nat^(o+1);
 //     k (n:nat) (fun p {
@@ -59,13 +59,13 @@ val rec gn : ∀f∈(nat ⇒ nat), ∀n∈nat,
 //         case leq_size (q:nat^(o+1)) (f p) {
 //           InL     → {}
 //           InR[fp] → fn f p fp k
-//         }} : min<n,f>)
+//         }} : min⟨n,f⟩)
 //   }
 
-val minimum_principle : ∀f:ι, f∈(nat ⇒ nat) → ∃n∈nat, min<n,f> =
+val minimum_principle : ∀f:ι, f∈(nat ⇒ nat) → ∃n∈nat, min⟨n,f⟩ =
   fun f {
     save s {
-      let k : ∀n∈ nat, min<n,f> → bot =
+      let k : ∀n∈ nat, min⟨n,f⟩ → bot =
         fun n mi { restore s (n, mi) };
       fn f Zero (f Zero) k
     }

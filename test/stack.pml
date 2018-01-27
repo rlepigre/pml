@@ -1,11 +1,11 @@
 include lib.option
 
-type stack_sig_aux<stack:ο→ο> =
-  { empty : ∀a, stack<a>
-  ; push  : ∀a, a ⇒ stack<a> ⇒ stack<a>
-  ; pop   : ∀a, stack<a> ⇒ option<a × stack<a>> }
+type stack_sig_aux⟨stack:ο→ο⟩ =
+  { empty : ∀a, stack⟨a⟩
+  ; push  : ∀a, a ⇒ stack⟨a⟩ ⇒ stack⟨a⟩
+  ; pop   : ∀a, stack⟨a⟩ ⇒ option⟨a × stack⟨a⟩⟩ }
 
-type stack_sig = ∃stack:ο→ο, stack_sig_aux<stack>
+type stack_sig = ∃stack:ο→ο, stack_sig_aux⟨stack⟩
 
 include lib.list
 

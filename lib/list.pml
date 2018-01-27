@@ -1,10 +1,10 @@
 include lib.option
 include lib.nat
 
-type rec list<a> = [Nil ; Cons of {hd : a ; tl : list}]
+type rec list⟨a⟩ = [Nil ; Cons of {hd : a ; tl : list}]
 
-val nil : ∀a, list<a> = []
-val cons : ∀a, a ⇒ list<a> ⇒ list<a> =
+val nil : ∀a, list⟨a⟩ = []
+val cons : ∀a, a ⇒ list⟨a⟩ ⇒ list⟨a⟩ =
   fun hd tl { Cons[{hd;tl}] }
 
 val ucons : ∀a b, a ⇒ b ⇒ [ Cons of { hd : a; tl : b} ] =
@@ -12,7 +12,7 @@ val ucons : ∀a b, a ⇒ b ⇒ [ Cons of { hd : a; tl : b} ] =
 
 infix (::) = ucons priority 5 right associative
 
-val head : ∀a, list<a> ⇒ option<a> =
+val head : ∀a, list⟨a⟩ ⇒ option⟨a⟩ =
   fun l {
     case l {
       []       → none
@@ -20,7 +20,7 @@ val head : ∀a, list<a> ⇒ option<a> =
     }
   }
 
-val tail : ∀a, list<a> ⇒ option<list<a>> =
+val tail : ∀a, list⟨a⟩ ⇒ option⟨list⟨a⟩⟩ =
   fun l {
     case l {
       []       → none
@@ -28,7 +28,7 @@ val tail : ∀a, list<a> ⇒ option<list<a>> =
     }
   }
 
-val rec length : ∀a, list<a> ⇒ nat =
+val rec length : ∀a, list⟨a⟩ ⇒ nat =
   fun l {
     case l {
       []       → zero
@@ -36,7 +36,7 @@ val rec length : ∀a, list<a> ⇒ nat =
     }
   }
 
-val rec map : ∀a b, (a ⇒ b) ⇒ list<a> ⇒ list<b> =
+val rec map : ∀a b, (a ⇒ b) ⇒ list⟨a⟩ ⇒ list⟨b⟩ =
   fun fn l {
     case l {
       []       → []
@@ -44,7 +44,7 @@ val rec map : ∀a b, (a ⇒ b) ⇒ list<a> ⇒ list<b> =
     }
   }
 
-val rec fold_left : ∀a b, (a ⇒ b ⇒ a) ⇒ a ⇒ list<b> ⇒ a =
+val rec fold_left : ∀a b, (a ⇒ b ⇒ a) ⇒ a ⇒ list⟨b⟩ ⇒ a =
   fun fn acc l {
     case l {
       []       → acc
@@ -52,7 +52,7 @@ val rec fold_left : ∀a b, (a ⇒ b ⇒ a) ⇒ a ⇒ list<b> ⇒ a =
     }
   }
 
-val rec fold_right : ∀a b, (b ⇒ a ⇒ a) ⇒ list<b> ⇒ a ⇒ a =
+val rec fold_right : ∀a b, (b ⇒ a ⇒ a) ⇒ list⟨b⟩ ⇒ a ⇒ a =
   fun fn l acc {
     case l {
       []       → acc
@@ -61,9 +61,9 @@ val rec fold_right : ∀a b, (b ⇒ a ⇒ a) ⇒ list<b> ⇒ a ⇒ a =
     }
   }
 
-val sum : list<nat> ⇒ nat = fold_left add zero
+val sum : list⟨nat⟩ ⇒ nat = (fold_left add zero)
 
-val rec app : ∀b, list<b> ⇒ list<b> ⇒ list<b> =
+val rec app : ∀b, list⟨b⟩ ⇒ list⟨b⟩ ⇒ list⟨b⟩ =
   fun l1 l2 {
     case l1 {
       []       → l2
@@ -71,7 +71,7 @@ val rec app : ∀b, list<b> ⇒ list<b> ⇒ list<b> =
     }
   }
 
-val rec rev_app : ∀b, list<b> ⇒ list<b> ⇒ list<b> =
+val rec rev_app : ∀b, list⟨b⟩ ⇒ list⟨b⟩ ⇒ list⟨b⟩ =
   fun l1 l2 {
     case l1 {
       []       → l2
@@ -79,4 +79,4 @@ val rec rev_app : ∀b, list<b> ⇒ list<b> ⇒ list<b> =
     }
   }
 
-val rev : ∀b, list<b> ⇒ list<b> = fun l { rev_app l [] }
+val rev : ∀b, list⟨b⟩ ⇒ list⟨b⟩ = fun l { rev_app l [] }

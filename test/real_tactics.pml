@@ -106,20 +106,20 @@ val rec mul_comm : ∀n m∈nat, mul n m ≡ mul m n =
     }
   }
 
-def t_deduce<f:ο> : τ = ({} : f)
-def t_show<f:ο, p:τ> : τ = (p : f)
+def t_deduce⟨f:ο⟩ : τ = ({} : f)
+def t_show⟨f:ο, p:τ⟩ : τ = (p : f)
 
 val rec mul_comm : ∀n m∈nat, mul n m ≡ mul m n =
   fun n m {
     case n {
-      Zero    → t_deduce<mul Zero m ≡ Zero>;
-                t_show<mul m Zero ≡ Zero, mul_n_zero m>
-      Succ[k] → t_deduce<mul Succ[k] m ≡ add m (mul k m)>;
-                t_show<mul k m ≡ mul m k, mul_comm k m>;
-                t_show<mul m Succ[k] ≡ add (mul m k) m, mul_succ m k>;
+      Zero    → t_deduce⟨mul Zero m ≡ Zero⟩;
+                t_show⟨mul m Zero ≡ Zero, mul_n_zero m⟩
+      Succ[k] → t_deduce⟨mul Succ[k] m ≡ add m (mul k m)⟩;
+                t_show⟨mul k m ≡ mul m k, mul_comm k m⟩;
+                t_show⟨mul m Succ[k] ≡ add (mul m k) m, mul_succ m k⟩;
                 use mul k m;
-                t_show<add (mul k m) m ≡ add m (mul k m)
-                      , add_comm (mul k m) m>
+                t_show⟨add (mul k m) m ≡ add m (mul k m)
+                      , add_comm (mul k m) m⟩
     }
   }
 
@@ -137,9 +137,9 @@ val rec mul_comm : ∀n m∈nat, mul n m ≡ mul m n =
     }
   }
 
-type rec list<a:ο> = [Nil ; Cons of {hd : a ; tl : list}]
+type rec list⟨a:ο⟩ = [Nil ; Cons of {hd : a ; tl : list}]
 
-val rec map : ∀a b:ο, (a ⇒ b) ⇒ list<a> ⇒ list<b> =
+val rec map : ∀a b:ο, (a ⇒ b) ⇒ list⟨a⟩ ⇒ list⟨b⟩ =
   fun f l {
     case l {
       Nil     → Nil
@@ -149,13 +149,13 @@ val rec map : ∀a b:ο, (a ⇒ b) ⇒ list<a> ⇒ list<b> =
     }
   }
 
-val rec length : ∀a:ο, list<a> ⇒ nat =
+val rec length : ∀a:ο, list⟨a⟩ ⇒ nat =
   fun l {
     case l { Nil → Zero | Cons[c] → Succ[length c.tl] }
   }
 
 val map_map : ∀a b c:ο, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c),
-    ∀l∈list<a>, map g (map f l) ≡ map (fun x { g (f x) }) l =
+    ∀l∈list⟨a⟩, map g (map f l) ≡ map (fun x { g (f x) }) l =
   fun f g {
     fix map_map { fun ls {
       case ls {
@@ -169,9 +169,9 @@ val map_map : ∀a b c:ο, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c),
     }}
   }
 
-type vec<a:ο, s:τ> = ∃l:ι, l∈(list<a> | length l ≡ s)
+type vec⟨a:ο, s:τ⟩ = ∃l:ι, l∈(list⟨a⟩ | length l ≡ s)
 
-val rec app : ∀a:ο, ∀m n:ι, vec<a, m> ⇒ vec<a, n> ⇒ vec<a, add m n> =
+val rec app : ∀a:ο, ∀m n:ι, vec⟨a, m⟩ ⇒ vec⟨a, n⟩ ⇒ vec⟨a, add m n⟩ =
   fun l1 l2 {
     case l1 {
       Nil[_]  → l2
@@ -181,21 +181,21 @@ val rec app : ∀a:ο, ∀m n:ι, vec<a, m> ⇒ vec<a, n> ⇒ vec<a, add m n> =
     }
   }
 
-val app3 : ∀a:ο, ∀m n p:ι, vec<a,m> ⇒ vec<a,n> ⇒ vec<a,p>
-                           ⇒ vec<a, add m (add n p)> =
+val app3 : ∀a:ο, ∀m n p:ι, vec⟨a,m⟩ ⇒ vec⟨a,n⟩ ⇒ vec⟨a,p⟩
+                           ⇒ vec⟨a, add m (add n p)⟩ =
   fun l1 l2 l3 {
     let lem = add (length l2) (length l3);
     app l1 (app l2 l3)
   }
 
-val vec_to_list : ∀a:ο, ∀s:τ, vec<a,s> ⇒ list<a> = fun x { x }
+val vec_to_list : ∀a:ο, ∀s:τ, vec⟨a,s⟩ ⇒ list⟨a⟩ = fun x { x }
 
-type ord<a:ο> = ∃cmp:ι,
+type ord⟨a:ο⟩ = ∃cmp:ι,
   { cmp : cmp ∈ (a ⇒ a ⇒ bool)
   ; tot : ∀x y∈a, ∃v:ι, cmp x y ≡ v
   ; dis : ∀x y∈a, or (cmp x y) (cmp y x) ≡ true }
 
-val rec insert : ∀a:ο, ord<a> ⇒ a ⇒ list<a> ⇒ list<a> =
+val rec insert : ∀a:ο, ord⟨a⟩ ⇒ a ⇒ list⟨a⟩ ⇒ list⟨a⟩ =
   fun o x l {
     case l {
       Nil[_]  → Cons[{hd = x; tl = Nil}]
@@ -208,7 +208,7 @@ val rec insert : ∀a:ο, ord<a> ⇒ a ⇒ list<a> ⇒ list<a> =
     }
   }
 
-val rec isort : ∀a:ο, ord<a> ⇒ list<a> ⇒ list<a> =
+val rec isort : ∀a:ο, ord⟨a⟩ ⇒ list⟨a⟩ ⇒ list⟨a⟩ =
   fun o l {
     case l {
       Nil[_]  → Nil
@@ -216,7 +216,7 @@ val rec isort : ∀a:ο, ord<a> ⇒ list<a> ⇒ list<a> =
     }
   }
 
-val rec sorted : ∀a:ο, ∀o∈ord<a>, ∀l∈list<a>, bool =
+val rec sorted : ∀a:ο, ∀o∈ord⟨a⟩, ∀l∈list⟨a⟩, bool =
   fun o l {
     case l {
       Nil      → true
@@ -224,14 +224,14 @@ val rec sorted : ∀a:ο, ∀o∈ord<a>, ∀l∈list<a>, bool =
                  case tl {
                    Nil      → true
                    Cons[c2] → let hd2 = c2.hd;
-                              land<(o.cmp) hd hd2, sorted o tl>
+                              land⟨(o.cmp) hd hd2, sorted o tl⟩
                  }
     }
   }
 
-type slist<a:ο,o:τ> = ∃l:ι, l∈(list<a> | sorted o l ≡ true)
+type slist⟨a:ο,o:τ⟩ = ∃l:ι, l∈(list⟨a⟩ | sorted o l ≡ true)
 
-val rec isorted : ∀a:ο, ∀o∈ord<a>, ∀x∈a, ∀l∈slist<a,o>,
+val rec isorted : ∀a:ο, ∀o∈ord⟨a⟩, ∀x∈a, ∀l∈slist⟨a,o⟩,
                   sorted o (insert o x l) ≡ true =
   fun o x l {
     case l {
@@ -257,7 +257,7 @@ val rec isorted : ∀a:ο, ∀o∈ord<a>, ∀x∈a, ∀l∈slist<a,o>,
     }
   }
 
-val rec isort_sorted : ∀a:ο, ∀o∈ord<a>, ∀l∈list<a>,
+val rec isort_sorted : ∀a:ο, ∀o∈ord⟨a⟩, ∀l∈list⟨a⟩,
                        sorted o (isort o l) ≡ true =
   fun o l {
     case l {
@@ -268,14 +268,14 @@ val rec isort_sorted : ∀a:ο, ∀o∈ord<a>, ∀l∈list<a>,
     }
   }
 
-val isort_full : ∀a:ο, ∀o∈ord<a>, list<a> ⇒ slist<a,o> =
+val isort_full : ∀a:ο, ∀o∈ord⟨a⟩, list⟨a⟩ ⇒ slist⟨a,o⟩ =
   fun o l {
     let tot = isort o l;
     let lem = isort_sorted o l;
     isort o l
   }
 
-val rec exists : ∀a, (a ⇒ bool) ⇒ list<a> ⇒ bool =
+val rec exists : ∀a, (a ⇒ bool) ⇒ list⟨a⟩ ⇒ bool =
   fun pred l {
     case l {
       Nil     → false
@@ -284,10 +284,10 @@ val rec exists : ∀a, (a ⇒ bool) ⇒ list<a> ⇒ bool =
   }
 
 type bot = ∀x, x
-type neg<a> = a → bot
+type neg⟨a⟩ = a → bot
 
 val rec find : ∀a:ο, ∀pred∈(a ⇒ bool),
-               ∀l∈list<a>, neg<exists pred l ≡ false> → a =
+               ∀l∈list⟨a⟩, neg⟨exists pred l ≡ false⟩ → a =
   fun pred l exc {
     case l {
       Nil[_]  → exc {}
@@ -296,7 +296,7 @@ val rec find : ∀a:ο, ∀pred∈(a ⇒ bool),
   }
 
 val find_opt : ∀a:ο, ∀pred∈(a ⇒ bool),
-               list<a> → option<a> =
+               list⟨a⟩ → option⟨a⟩ =
   fun pred l {
     save a {
       some (find pred l (fun _ { restore a none}))
@@ -304,7 +304,7 @@ val find_opt : ∀a:ο, ∀pred∈(a ⇒ bool),
   }
 
 val rec find_list : ∀a:ο, ∀pred∈(a ⇒ bool),
-                    list<list<a>> → option<a> =
+                    list⟨list⟨a⟩⟩ → option⟨a⟩ =
   fun pred l {
     case l {
       Nil     → none

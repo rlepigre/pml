@@ -1,12 +1,12 @@
 
-type rec list<a> = [ Nil ; Cons of { hd : a; tl : list}  ]
+type rec list⟨a⟩ = [ Nil ; Cons of { hd : a; tl : list}  ]
 
 val cons : ∀a b, a ⇒ b ⇒ [ Cons of { hd : a; tl : b} ] =
   fun hd tl { Cons[{hd;tl}] }
 
 infix (::) = cons priority 5 right associative
 
-val rec map : ∀a b, ((a ⇒ b) ⇒ list<a> ⇒ list<b>) =
+val rec map : ∀a b, ((a ⇒ b) ⇒ list⟨a⟩ ⇒ list⟨b⟩) =
   fun f l {
     case l {
       Nil → Nil
@@ -14,7 +14,7 @@ val rec map : ∀a b, ((a ⇒ b) ⇒ list<a> ⇒ list<b>) =
     }
   }
 
-// val rec map_biz : ∀a, ((a ⇒ a) ⇒ list<a> ⇒ list<a>) =
+// val rec map_biz : ∀a, ((a ⇒ a) ⇒ list⟨a⟩ ⇒ list⟨a⟩) =
 //   fun f l {
 //     case l {
 //       Nil → Nil
@@ -22,7 +22,7 @@ val rec map : ∀a b, ((a ⇒ b) ⇒ list<a> ⇒ list<b>) =
 //     }
 //   }
 
-val rec map_biz : ∀a,∀s, ((a ⇒ a) ⇒ list^s<a> ⇒ list^s<a>) =
+val rec map_biz : ∀a,∀s, ((a ⇒ a) ⇒ list^s⟨a⟩ ⇒ list^s⟨a⟩) =
   fun f l {
     case l {
       Nil → Nil
@@ -30,9 +30,9 @@ val rec map_biz : ∀a,∀s, ((a ⇒ a) ⇒ list^s<a> ⇒ list^s<a>) =
     }
   }
 
-type corec stream<a> = {} ⇒ [ Cons of { hd : a; tl : stream} ]
+type corec stream⟨a⟩ = {} ⇒ [ Cons of { hd : a; tl : stream} ]
 
-val rec smap : ∀a b, ((a ⇒ b) ⇒ stream<a> ⇒ stream<b>) =
+val rec smap : ∀a b, ((a ⇒ b) ⇒ stream⟨a⟩ ⇒ stream⟨b⟩) =
   fun f s _ {
     case s {} {
       x::s → f x :: smap f s
@@ -40,7 +40,7 @@ val rec smap : ∀a b, ((a ⇒ b) ⇒ stream<a> ⇒ stream<b>) =
   }
 
 
-val rec smap_biz : ∀a,∀s, ((a ⇒ a) ⇒ stream^s<a> ⇒ stream^s<a>) =
+val rec smap_biz : ∀a,∀s, ((a ⇒ a) ⇒ stream^s⟨a⟩ ⇒ stream^s⟨a⟩) =
   fun f s _ {
     case s {} {
       x::s → f x :: smap_biz f (smap_biz f s)

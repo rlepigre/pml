@@ -23,12 +23,12 @@ val abort : ∀y, bot ⇒ y = fun x { x }
 type odd  = {v∈nat | is_odd v ≡ true }
 type even = {v∈nat | is_odd v ≡ false}
 
-type sstream<o,a> = ν_o stream, {} → {hd : a; tl : stream}
-type csstream<o,a> = {hd : a; tl : sstream<o,a>}
-type stream<a>=sstream<∞,a>
+type sstream⟨o,a⟩ = ν_o stream, {} → {hd : a; tl : stream}
+type csstream⟨o,a⟩ = {hd : a; tl : sstream⟨o,a⟩}
+type stream⟨a⟩=sstream⟨∞,a⟩
 
-val rec aux : ∀a b, (csstream<a,even> → bot) ⇒ (csstream<b,odd> → bot)
-             ⇒ stream<nat> → bot =
+val rec aux : ∀a b, (csstream⟨a,even⟩ → bot) ⇒ (csstream⟨b,odd⟩ → bot)
+             ⇒ stream⟨nat⟩ → bot =
   fun fe fo s {
     let hd = (s {}).hd;
     let tl = (s {}).tl;
@@ -42,7 +42,7 @@ val rec aux : ∀a b, (csstream<a,even> → bot) ⇒ (csstream<b,odd> → bot)
     }
   }
 
-val itl : stream<nat> ⇒ either<stream<even>, stream<odd>> =
+val itl : stream⟨nat⟩ ⇒ either⟨stream⟨even⟩, stream⟨odd⟩⟩ =
   fun s {
     save a {
       InL[fun _ { save e { restore a InR[fun _ { save o {
@@ -53,7 +53,7 @@ val itl : stream<nat> ⇒ either<stream<even>, stream<odd>> =
 include test.stream_nat
 
 // Compute the list of the first n elements of a stream.
-val rec takes : ∀a, nat ⇒ stream<a> → list<a> =
+val rec takes : ∀a, nat ⇒ stream⟨a⟩ → list⟨a⟩ =
   fun n s {
     case n {
            | Zero → Nil
@@ -64,14 +64,14 @@ val rec takes : ∀a, nat ⇒ stream<a> → list<a> =
   }
 
 // take2 is rejected (and should be rejected, s is in the context and classical
-// val take2 : ∀a, nat ⇒ stream<a> ⇒ list<a> = fun n s { delim { take n s } }
+// val take2 : ∀a, nat ⇒ stream⟨a⟩ ⇒ list⟨a⟩ = fun n s { delim { take n s } }
 
-type istream<a> = ν stream, {} ⇒ {hd : a; tl : stream}
+type istream⟨a⟩ = ν stream, {} ⇒ {hd : a; tl : stream}
 
-// marche avec le sous typage stream intuitioniste < stream classique
-val take2 : ∀a, nat ⇒ istream<a> ⇒ list<a> = fun n s { delim { takes n s } }
+// marche avec le sous typage stream intuitioniste ⟨ stream classique
+val take2 : ∀a, nat ⇒ istream⟨a⟩ ⇒ list⟨a⟩ = fun n s { delim { takes n s } }
 
-val test : nat ⇒ either<list<nat>,list<nat>> =
+val test : nat ⇒ either⟨list⟨nat⟩,list⟨nat⟩⟩ =
   fun n {
     delim { case itl naturals {
       InL[s] → InL[takes n s]

@@ -1,12 +1,12 @@
 include lib.bool
 include lib.list
 
-type ord<a> = ∃cmp,
+type ord⟨a⟩ = ∃cmp,
   { cmp   : cmp ∈ (a ⇒ a ⇒ bool)
   ; trans : ∀x y z∈a, cmp x y ⇒ cmp y z ⇒ cmp x y
   ; total : ∀x y∈a, or (cmp x y) (cmp y x) }
 
-val rec sorted : ∀a, ∀o∈ord<a>, ∀l∈list<a>, bool =
+val rec sorted : ∀a, ∀o∈ord⟨a⟩, ∀l∈list⟨a⟩, bool =
   fun o l {
     case l {
       Nil      → true
@@ -17,14 +17,14 @@ val rec sorted : ∀a, ∀o∈ord<a>, ∀l∈list<a>, bool =
           Nil      → true
           Cons[c2] →
             let hd2 = c2.hd;
-            land<o.cmp hd hd2, sorted o tl>
+            land⟨o.cmp hd hd2, sorted o tl⟩
         }
     }
   }
 
-type slist<a,o> = {l∈list<a> | sorted o l }
+type slist⟨a,o⟩ = {l∈list⟨a⟩ | sorted o l }
 
-val tl : ∀a, list<a> ⇒ list<a> =
+val tl : ∀a, list⟨a⟩ ⇒ list⟨a⟩ =
   fun l {
     case l {
       Nil → Nil
@@ -32,7 +32,7 @@ val tl : ∀a, list<a> ⇒ list<a> =
     }
   }
 
-val tl_sorted : ∀a, ∀o∈ord<a>, ∀l∈slist<a,o>, sorted o (tl l) =
+val tl_sorted : ∀a, ∀o∈ord⟨a⟩, ∀l∈slist⟨a,o⟩, sorted o (tl l) =
   fun o l {
     case l {
       Nil →

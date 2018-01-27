@@ -238,6 +238,14 @@ val rec succ_eq_r : ∀n m∈nat, compare n m ≡ Eq ⇒ compare n S[m] ≡ Ls =
     }
   }
 
+val rec compare_refl : ∀n∈nat, compare n n ≡ Eq =
+  fun n {
+    case n {
+      0    → qed
+      S[m] → compare_refl m
+    }
+  }
+
 val rec compare_eq : ∀n m∈nat, compare n m ≡ Eq ⇒ n ≡ m =
   fun n m h {
     case n {
@@ -255,7 +263,7 @@ val rec compare_eq : ∀n m∈nat, compare n m ≡ Eq ⇒ n ≡ m =
     }
   }
 
-val zero_leq : ∀b∈nat, leq 0 b =
+val zero_leq : ∀b∈nat, 0 ≤ b =
   fun b {
     case b {
       0    → qed
@@ -263,7 +271,7 @@ val zero_leq : ∀b∈nat, leq 0 b =
     }
   }
 
-val rec succ_leq : ∀b1 b2∈nat, leq b1 b2 ⇒ leq b1 S[b2] =
+val rec succ_leq : ∀b1 b2∈nat, b1 ≤ b2 ⇒ b1 ≤ S[b2] =
   fun b1 b2 h {
     case b1 {
       0     → qed
@@ -275,7 +283,7 @@ val rec succ_leq : ∀b1 b2∈nat, leq b1 b2 ⇒ leq b1 S[b2] =
     }
   }
 
-val rec leq_add : ∀a1 b1 a2 b2∈nat, leq a1 a2 ⇒ leq b1 b2 ⇒ leq (a1 + b1) (a2 + b2) =
+val rec leq_add : ∀a1 b1 a2 b2∈nat, a1 ≤ a2 ⇒ b1 ≤ b2 ⇒ a1 + b1 ≤ a2 + b2 =
   fun a1 b1 a2 b2 h1 h2 {
     case a1 {
       0     →
@@ -293,13 +301,89 @@ val rec leq_add : ∀a1 b1 a2 b2∈nat, leq a1 a2 ⇒ leq b1 b2 ⇒ leq (a1 + b1
     }
   }
 
-
-val leq_max_add : ∀a b∈nat, leq (max a b) (a+b) =
+val rec leq_max_add : ∀a b∈nat, max a b ≤ a+b =
   fun a b {
-    {--}
+    set auto 2 3;
+    if leq a b {
+      deduce max a b ≡ b;
+      show b ≤ b using compare_refl b;
+      deduce 0 ≤ a;
+      use leq_add 0 b a b {} {};
+      qed
+    } else {
+      deduce max a b ≡ a;
+      show a ≤ a using compare_refl a;
+      deduce 0 ≤ b;
+      use leq_add a 0 a b {} {};
+      use add_n_zero a;
+      qed
+    }
   }
 
-val leq_trans : ∀a b c∈nat, leq a b ⇒ leq b c ⇒ leq a c =
+val rec leq_trans : ∀a b c∈nat, leq a b ⇒ leq b c ⇒ leq a c =
   fun a b c h1 h2 {
-    {--}
+    set auto 2 3;
+    case a {
+      0     → qed
+      S[a1] →
+        case b {
+          0     → ✂
+          S[b1] →
+            case c {
+              0     → ✂
+              S[c1] → leq_trans a1 b1 c1 {} {}
+            }
+        }
+    }
+  }
+
+val rec lt_trans : ∀a b c∈nat, lt a b ⇒ lt b c ⇒ lt a c =
+  fun a b c h1 h2 {
+    set auto 2 3;
+    case a {
+      0     → qed
+      S[a1] →
+        case b {
+          0     → ✂
+          S[b1] →
+            case c {
+              0     → ✂
+              S[c1] → lt_trans a1 b1 c1 {} {}
+            }
+        }
+    }
+  }
+
+val rec geq_trans : ∀a b c∈nat, geq a b ⇒ geq b c ⇒ geq a c =
+  fun a b c h1 h2 {
+    set auto 2 3;
+    case c {
+      0     → qed
+      S[c1] →
+        case b {
+          0     → ✂
+          S[b1] →
+            case a {
+              0     → ✂
+              S[a1] → geq_trans a1 b1 c1 {} {}
+            }
+        }
+    }
+  }
+
+val rec gt_trans : ∀a b c∈nat, gt a b ⇒ gt b c ⇒ gt a c =
+  fun a b c h1 h2 {
+    set auto 2 3;
+    case c {
+      0     → qed
+      S[c1] →
+        case b {
+          0     → ✂
+          S[b1] →
+            case a {
+              0     → ✂
+              S[a1] → gt_trans a1 b1 c1 {} {}
+            }
+        }
+    }
   }

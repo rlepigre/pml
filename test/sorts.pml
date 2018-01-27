@@ -8,7 +8,7 @@ sort y = ι → ι → ι
 sort z = (ι → ι) → ι
 sort c = (v → w) → ο → κ
 sort l = ι → κ
-sort m = <term> -> (<term> -> <term>)
+sort m = <term> → (<term> → <term>)
 
 def unit : ι = {}
 def reco  : ι = {l1 = {}; l2 = {}}

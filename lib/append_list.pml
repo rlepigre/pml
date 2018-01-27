@@ -2,16 +2,16 @@
 
 include lib.list
 
-type rec alist<a> =
+type rec alist⟨a⟩ =
   [Nil ; Cons of {hd : a ; tl : alist} ; Append of {l : alist; r : alist}]
 
-val alist_app : ∀a, alist<a> ⇒ alist<a> ⇒ alist<a> =
+val alist_app : ∀a, alist⟨a⟩ ⇒ alist⟨a⟩ ⇒ alist⟨a⟩ =
   fun l r { Append[{l;r}] }
 
-val list_to_alist : ∀a, list<a> ⇒ alist<a> =
+val list_to_alist : ∀a, list⟨a⟩ ⇒ alist⟨a⟩ =
   fun l { l }
 
-val rec alist_to_list : ∀a, alist<a> ⇒ list<a> =
+val rec alist_to_list : ∀a, alist⟨a⟩ ⇒ list⟨a⟩ =
   fun l {
     case l {
       Nil       → Nil

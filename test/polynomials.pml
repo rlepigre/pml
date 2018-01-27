@@ -5,7 +5,7 @@ include lib.comparison
 include lib.bool
 
 // signature of commutative semi ring (like nat)
-type semiring<x> = ∃zero one (+) (*):ι, {
+type semiring⟨x⟩ = ∃zero one (+) (*):ι, {
   zero : zero∈x;
   one  : one∈x;
   (+)  : (+)∈(x ⇒ x ⇒ x);
@@ -22,14 +22,14 @@ type semiring<x> = ∃zero one (+) (*):ι, {
   }
 
 // any semi ring has an exponential
-val rec exp_ring : ∀r, semiring<r> ⇒ r ⇒ nat ⇒ r = fun s x n {
+val rec exp_ring : ∀r, semiring⟨r⟩ ⇒ r ⇒ nat ⇒ r = fun s x n {
   case n {
     Zero → s.one
     S[p] → let exp = exp_ring s; x *_s (x ** p)
   }
 }
 
-val rec exp_add : ∀r, ∀s∈semiring<r>, ∀x∈r, ∀a b∈nat,
+val rec exp_add : ∀r, ∀s∈semiring⟨r⟩, ∀x∈r, ∀a b∈nat,
                     exp_ring s x (a + b) ≡ (exp_ring s x a) *_s (exp_ring s x b) =
   fun s x a b {
     let exp = exp_ring s;
@@ -52,10 +52,10 @@ val rec exp_add : ∀r, ∀s∈semiring<r>, ∀x∈r, ∀a b∈nat,
 
 // monom: list of natural numbers: a::b::c::[] ⇒ x0^a + x1^a + x2^a
 // one shoud avoid trailing Zero.
-type monom = list<nat>
+type monom = list⟨nat⟩
 
 // lexicographic ordering on monomials
-val rec lex : ∀m1 m2∈monom, dcmp<m1,m2> = fun m1 m2 {
+val rec lex : ∀m1 m2∈monom, dcmp⟨m1,m2⟩ = fun m1 m2 {
   case m1 {
     []     → case m2 {
       []     → Eq
@@ -81,11 +81,11 @@ val less : monom ⇒ monom ⇒ bool = fun m1 m2 {
 }
 
 // polynomial
-type poly<x> = list<x × monom>
+type poly⟨x⟩ = list⟨x × monom⟩
 
 // Polynomials should be sorted with no duplicate.
 // not really usefull for reflexion.
-val rec sorted : ∀x, poly<x> ⇒ bool = fun p {
+val rec sorted : ∀x, poly⟨x⟩ ⇒ bool = fun p {
   case p {
     []   → true
     c::q → let (x,m) = c;
@@ -98,7 +98,7 @@ val rec sorted : ∀x, poly<x> ⇒ bool = fun p {
 }
 
 // normalised polynomial
-type npoly<x> = {l∈poly<x> | sorted l}
+type npoly⟨x⟩ = {l∈poly⟨x⟩ | sorted l}
 
 ///////////////////////////////
 // operations on polynomials //
@@ -106,7 +106,7 @@ type npoly<x> = {l∈poly<x> | sorted l}
 
 // addition, the fact that we keep the invariant is unproved yed
 val rec add_poly
-        : ∀x, semiring<x> ⇒ poly<x> ⇒ poly<x> ⇒ poly<x> =
+        : ∀x, semiring⟨x⟩ ⇒ poly⟨x⟩ ⇒ poly⟨x⟩ ⇒ poly⟨x⟩ =
   fun r p1 p2 {
     case p1 {
       []    → p2
@@ -135,7 +135,7 @@ val rec mul_monom : monom ⇒ monom ⇒ monom = fun m1 m2 {
 }
 
 // multiplication of a polynomial as a coef and a monomial
-val rec mul_monom_poly : ∀r, semiring<r> ⇒ r ⇒ monom ⇒ list<r×monom> ⇒ list<r×monom> =
+val rec mul_monom_poly : ∀r, semiring⟨r⟩ ⇒ r ⇒ monom ⇒ list⟨r×monom⟩ ⇒ list⟨r×monom⟩ =
   fun s x m1 p {
     case p {
       []   → []
@@ -145,10 +145,10 @@ val rec mul_monom_poly : ∀r, semiring<r> ⇒ r ⇒ monom ⇒ list<r×monom> �
   }
 
 // polynomial multiplication
-val rec mul_poly : ∀r, semiring<r> ⇒ list<r×monom> ⇒ list<r×monom> ⇒ list<r×monom> =
+val rec mul_poly : ∀r, semiring⟨r⟩ ⇒ list⟨r×monom⟩ ⇒ list⟨r×monom⟩ ⇒ list⟨r×monom⟩ =
   fun s p1 p2 {
-    let r such that _:list<r×monom>;
-    let fn : r×monom ⇒ list<r×monom> ⇒ list<r×monom> = fun c p {
+    let r such that _:list⟨r×monom⟩;
+    let fn : r×monom ⇒ list⟨r×monom⟩ ⇒ list⟨r×monom⟩ = fun c p {
       let (x,m) = c;
       add_poly s p (mul_monom_poly s x m p2)
     };
@@ -156,7 +156,7 @@ val rec mul_poly : ∀r, semiring<r> ⇒ list<r×monom> ⇒ list<r×monom> ⇒ l
   }
 
 // polynomial exponentiation
-val rec exp_poly : ∀r, semiring<r> ⇒ list<r×monom> ⇒ nat ⇒ list<r×monom> =
+val rec exp_poly : ∀r, semiring⟨r⟩ ⇒ list⟨r×monom⟩ ⇒ nat ⇒ list⟨r×monom⟩ =
   fun s p n {
     case n {
       Zero → (s.one,[]) :: []
@@ -168,7 +168,7 @@ val rec exp_poly : ∀r, semiring<r> ⇒ list<r×monom> ⇒ nat ⇒ list<r×mono
 // evaluation of polynomials //
 ///////////////////////////////
 
-val rec eval_monom : ∀r, semiring<r> ⇒ monom ⇒ (nat ⇒ r) ⇒ nat ⇒ r = fun s m env i {
+val rec eval_monom : ∀r, semiring⟨r⟩ ⇒ monom ⇒ (nat ⇒ r) ⇒ nat ⇒ r = fun s m env i {
   case m {
     [] → s.one
     x::m →
@@ -177,7 +177,7 @@ val rec eval_monom : ∀r, semiring<r> ⇒ monom ⇒ (nat ⇒ r) ⇒ nat ⇒ r =
   }
 }
 
-val rec eval : ∀x, semiring<x> ⇒ poly<x> ⇒ (nat ⇒ x) ⇒ x = fun r p env {
+val rec eval : ∀x, semiring⟨x⟩ ⇒ poly⟨x⟩ ⇒ (nat ⇒ x) ⇒ x = fun r p env {
   case p {
     []   → r.zero
     c::p → let (x,m) = c;
@@ -189,7 +189,7 @@ val rec eval : ∀x, semiring<x> ⇒ poly<x> ⇒ (nat ⇒ x) ⇒ x = fun r p env
 //    polynomials as trees   //
 ///////////////////////////////
 
-type rec tpoly<x> =
+type rec tpoly⟨x⟩ =
   [ Var of nat
   ; Cst of x
   ; Add of tpoly × tpoly
@@ -205,7 +205,7 @@ val rec var : nat ⇒ monom = fun n {
 }
 
 // conversion (develop)
-val rec tpoly_to_poly : ∀r, semiring<r> ⇒ tpoly<r> ⇒ list<r×monom> = fun s t {
+val rec tpoly_to_poly : ∀r, semiring⟨r⟩ ⇒ tpoly⟨r⟩ ⇒ list⟨r×monom⟩ = fun s t {
   case t {
     Var[n]       → (s.one, var n) :: []
     Cst[x]       → (x    , []   ) :: []
@@ -216,7 +216,7 @@ val rec tpoly_to_poly : ∀r, semiring<r> ⇒ tpoly<r> ⇒ list<r×monom> = fun 
 }
 
 // evaluation of trees
-val rec teval : ∀r, semiring<r> ⇒ tpoly<r> ⇒ (nat ⇒ r) ⇒ r = fun s t env {
+val rec teval : ∀r, semiring⟨r⟩ ⇒ tpoly⟨r⟩ ⇒ (nat ⇒ r) ⇒ r = fun s t env {
   case t {
     Var[n]       → env n
     Cst[x]       → x
@@ -230,7 +230,7 @@ val rec teval : ∀r, semiring<r> ⇒ tpoly<r> ⇒ (nat ⇒ r) ⇒ r = fun s t e
 //    main theorems: lemmas  //
 ///////////////////////////////
 
-val rec eval_monom_var : ∀r, ∀s∈semiring<r>, ∀n∈nat, ∀env∈(nat ⇒ r), ∀i∈nat,
+val rec eval_monom_var : ∀r, ∀s∈semiring⟨r⟩, ∀n∈nat, ∀env∈(nat ⇒ r), ∀i∈nat,
                        eval_monom s (var n) env i ≡ env (add i n) =
   fun s n env i {
     case n {
@@ -255,7 +255,7 @@ val rec eval_monom_var : ∀r, ∀s∈semiring<r>, ∀n∈nat, ∀env∈(nat ⇒
     }
   }
 
-val eval_var : ∀r, ∀s∈semiring<r>,  ∀n∈nat, ∀env∈(nat ⇒ r),
+val eval_var : ∀r, ∀s∈semiring⟨r⟩,  ∀n∈nat, ∀env∈(nat ⇒ r),
                  eval s (tpoly_to_poly s Var[n]) env ≡ env n =
   fun s n env {
     let t = Var[n];
@@ -271,7 +271,7 @@ val eval_var : ∀r, ∀s∈semiring<r>,  ∀n∈nat, ∀env∈(nat ⇒ r),
     qed
    }
 
-val eval_cst : ∀r, ∀s∈semiring<r>,  ∀x∈r, ∀env∈(nat ⇒ r),
+val eval_cst : ∀r, ∀s∈semiring⟨r⟩,  ∀x∈r, ∀env∈(nat ⇒ r),
                  eval s (tpoly_to_poly s Cst[x]) env ≡ x =
   fun s x env {
     let t = Cst[x];
@@ -284,7 +284,7 @@ val eval_cst : ∀r, ∀s∈semiring<r>,  ∀x∈r, ∀env∈(nat ⇒ r),
     qed
   }
 
-val rec eval_add : ∀r, ∀s∈semiring<r>,  ∀p1 p2∈list<r×monom>, ∀env∈(nat ⇒ r),
+val rec eval_add : ∀r, ∀s∈semiring⟨r⟩,  ∀p1 p2∈list⟨r×monom⟩, ∀env∈(nat ⇒ r),
                   eval s (add_poly s p1 p2) env ≡ s.add (eval s p1 env) (eval s p2 env) =
   fun s p1 p2 env {
      case p1 {
@@ -379,7 +379,7 @@ val rec eval_add : ∀r, ∀s∈semiring<r>,  ∀p1 p2∈list<r×monom>, ∀env�
      }
   }
 
-val rec eval_mul_monom : ∀r, ∀s∈semiring<r>,  ∀m1 m2∈monom, ∀env∈(nat ⇒ r), ∀i∈nat,
+val rec eval_mul_monom : ∀r, ∀s∈semiring⟨r⟩,  ∀m1 m2∈monom, ∀env∈(nat ⇒ r), ∀i∈nat,
                        eval_monom s (mul_monom m1 m2) env i ≡
                        s.mul (eval_monom s m1 env i) (eval_monom s m2 env i) =
   fun s m1 m2 env i {
@@ -419,8 +419,8 @@ val rec eval_mul_monom : ∀r, ∀s∈semiring<r>,  ∀m1 m2∈monom, ∀env∈(
     }
   }
 
-val rec eval_mul_monom_poly : ∀r, ∀s∈semiring<r>, ∀x∈r, ∀m1∈monom,
-                              ∀p∈list<r×monom>, ∀env∈(nat ⇒ r),
+val rec eval_mul_monom_poly : ∀r, ∀s∈semiring⟨r⟩, ∀x∈r, ∀m1∈monom,
+                              ∀p∈list⟨r×monom⟩, ∀env∈(nat ⇒ r),
                        eval s (mul_monom_poly s x m1 p) env ≡
                        s.mul (s.mul x (eval_monom s m1 env 0)) (eval s p env) =
   fun s x m1 p env {
@@ -466,7 +466,7 @@ val rec eval_mul_monom_poly : ∀r, ∀s∈semiring<r>, ∀x∈r, ∀m1∈monom,
     }
   }
 
-val rec eval_mul : ∀r, ∀s∈semiring<r>,  ∀p1 p2∈list<r×monom>, ∀env∈(nat ⇒ r),
+val rec eval_mul : ∀r, ∀s∈semiring⟨r⟩,  ∀p1 p2∈list⟨r×monom⟩, ∀env∈(nat ⇒ r),
                   eval s (mul_poly s p1 p2) env ≡ s.mul (eval s p1 env) (eval s p2 env) =
   fun s p1 p2 env {
     case p1 {
@@ -502,7 +502,7 @@ val rec eval_mul : ∀r, ∀s∈semiring<r>,  ∀p1 p2∈list<r×monom>, ∀env�
     }
   }
 
-val rec eval_exp : ∀r, ∀s∈semiring<r>,  ∀p∈list<r×monom>, ∀e∈nat, ∀env∈(nat ⇒ r),
+val rec eval_exp : ∀r, ∀s∈semiring⟨r⟩,  ∀p∈list⟨r×monom⟩, ∀e∈nat, ∀env∈(nat ⇒ r),
                   eval s (exp_poly s p e) env ≡ exp_ring s (eval s p env) e =
   fun s p e env {
     case e {
@@ -526,7 +526,7 @@ val rec eval_exp : ∀r, ∀s∈semiring<r>,  ∀p∈list<r×monom>, ∀e∈nat,
   }
 
 // Main theorem
-val rec eval_cor : ∀r, ∀s∈semiring<r>, ∀t∈tpoly<r>, ∀env∈(nat ⇒ r),
+val rec eval_cor : ∀r, ∀s∈semiring⟨r⟩, ∀t∈tpoly⟨r⟩, ∀env∈(nat ⇒ r),
                 teval s t env ≡ eval s (tpoly_to_poly s t) env =
   fun s t env {
     case t {
@@ -552,13 +552,13 @@ val rec eval_cor : ∀r, ∀s∈semiring<r>, ∀t∈tpoly<r>, ∀env∈(nat ⇒ 
     }
   }
 
-val simpl1 : ∀r, ∀s∈semiring<r>, ∀x∈r, ∀p∈tpoly<r> ⇒ tpoly<r>,
+val simpl1 : ∀r, ∀s∈semiring⟨r⟩, ∀x∈r, ∀p∈tpoly⟨r⟩ ⇒ tpoly⟨r⟩,
   teval s (p Var[0]) (fun p { x }) ≡ eval s (tpoly_to_poly s (p Var[0])) (fun p { x }) =
   fun s x p {
     eval_cor s (p Var[0]) (fun p { x })
   }
 
-val simpl2 : ∀r, ∀s∈semiring<r>, ∀x y∈r, ∀p∈tpoly<r> ⇒ tpoly<r> ⇒ tpoly<r>,
+val simpl2 : ∀r, ∀s∈semiring⟨r⟩, ∀x y∈r, ∀p∈tpoly⟨r⟩ ⇒ tpoly⟨r⟩ ⇒ tpoly⟨r⟩,
           teval s (p Var[0] Var[1]) (fun p { case p { Zero → x | S[p] → y} })
           ≡ eval s (tpoly_to_poly s (p Var[0] Var[1])) (fun p { case p { Zero → x | S[p] → y}}) =
   fun s x y p {
@@ -566,7 +566,7 @@ val simpl2 : ∀r, ∀s∈semiring<r>, ∀x y∈r, ∀p∈tpoly<r> ⇒ tpoly<r> 
   }
 
 // Test with polynomials with integer coefficients
-val semi_nat : semiring<nat> = {
+val semi_nat : semiring⟨nat⟩ = {
   zero = zero; one; add; mul;
   add_neutral = fun n { {} };
   add_assoc; add_comm;
@@ -577,12 +577,12 @@ val semi_nat : semiring<nat> = {
 
 // polynomial on nat as a semi ring (missing the axioms yet)
 val pn : {
-  zero : tpoly<nat>;
-  one  : tpoly<nat>;
-  cst  : nat ⇒ tpoly<nat>;
-  (+)  : tpoly<nat> ⇒ tpoly<nat> ⇒ tpoly<nat>;
-  (*)  : tpoly<nat> ⇒ tpoly<nat> ⇒ tpoly<nat>;
-  (**) : tpoly<nat> ⇒ nat ⇒ tpoly<nat>
+  zero : tpoly⟨nat⟩;
+  one  : tpoly⟨nat⟩;
+  cst  : nat ⇒ tpoly⟨nat⟩;
+  (+)  : tpoly⟨nat⟩ ⇒ tpoly⟨nat⟩ ⇒ tpoly⟨nat⟩;
+  (*)  : tpoly⟨nat⟩ ⇒ tpoly⟨nat⟩ ⇒ tpoly⟨nat⟩;
+  (**) : tpoly⟨nat⟩ ⇒ nat ⇒ tpoly⟨nat⟩
 } = {
   zero = Cst[0];
   one  = Cst[1];
@@ -592,19 +592,19 @@ val pn : {
   (**) = fun a b { Exp[(a,b)] }
   }
 
-val test1 : poly<nat> =
+val test1 : poly⟨nat⟩ =
     let x = Var[0];
     let y = Var[1];
     tpoly_to_poly semi_nat Exp[(Add[(x,y)],2)]
 
-val test2 : poly<nat> =
+val test2 : poly⟨nat⟩ =
     let x = Var[0];
     let y = Var[1];
     tpoly_to_poly semi_nat Mul[(Add[(x,y)],Add[(x,y)])]
 
 val test3 : test1 ≡ test2 = qed
 
-val test4 : poly<nat> =
+val test4 : poly⟨nat⟩ =
     let x = Var[0];
     let y = Var[1];
     tpoly_to_poly semi_nat Add[(Exp[(x,2)],Add[(Mul[(Cst[2],Mul[(x,y)])],Exp[(y,2)])])]

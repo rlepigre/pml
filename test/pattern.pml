@@ -1,6 +1,6 @@
 include lib.list
 
-val rec id : ∀a, list<a> ⇒ list<a> =
+val rec id : ∀a, list⟨a⟩ ⇒ list⟨a⟩ =
   fun l {
     case l {
       Nil     → nil
@@ -8,7 +8,7 @@ val rec id : ∀a, list<a> ⇒ list<a> =
     }
   }
 
-val rec id : ∀a, list<a> ⇒ list<a> =
+val rec id : ∀a, list⟨a⟩ ⇒ list⟨a⟩ =
   fun l {
     case l {
       Nil           → nil
@@ -16,7 +16,7 @@ val rec id : ∀a, list<a> ⇒ list<a> =
     }
   }
 
-val rec id : ∀a, list<a> ⇒ list<a> =
+val rec id : ∀a, list⟨a⟩ ⇒ list⟨a⟩ =
   fun l {
     case l {
       Nil                → nil
@@ -24,7 +24,7 @@ val rec id : ∀a, list<a> ⇒ list<a> =
     }
   }
 
-val rec id : ∀a, list<a> ⇒ list<a> =
+val rec id : ∀a, list⟨a⟩ ⇒ list⟨a⟩ =
   fun l {
     case l {
       []    → nil
@@ -32,7 +32,7 @@ val rec id : ∀a, list<a> ⇒ list<a> =
     }
   }
 
-val rec id : ∀a, list<a> ⇒ list<a> =
+val rec id : ∀a, list⟨a⟩ ⇒ list⟨a⟩ =
   fun l {
     case l {
       []    → []

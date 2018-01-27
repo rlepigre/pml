@@ -91,7 +91,7 @@ val rec (/) : nat ⇒ [S of nat] ⇒ nat =
 include lib.comparison
 
 // Comparison function.
-val rec compare : ∀n m∈nat, dcmp<n,m> =
+val rec compare : ∀n m∈nat, dcmp⟨n,m⟩ =
   fun n m {
     case n {
       0    → case m {
@@ -124,11 +124,16 @@ val geq : nat ⇒ nat ⇒ bool =
 val gt : nat ⇒ nat ⇒ bool =
   fun n m { case compare n m { Ls → false | Eq → false | Gr → true  } }
 
+infix (≤) = leq priority 5 non associative
+infix (<) = lt priority 5 non associative
+infix (≥) = geq priority 5 non associative
+infix (>) = gt priority 5 non associative
+
 val min : nat ⇒ nat ⇒ nat =
-  fun n m { if leq n m { n } else { m } }
+  fun n m { if n ≤ m { n } else { m } }
 
 val max : nat ⇒ nat ⇒ nat =
-  fun n m { if leq n m { m } else { n } }
+  fun n m { if n ≤ m { m } else { n } }
 
 //// More functions //////////////////////////////////////////////////////////
 

@@ -16,9 +16,9 @@ val curry : ∀x y z, (x ⇒ y ⇒ z) ⇒ x × y ⇒ z =
     f x y
   }
 
-type rec list<a> = [Nil ; Cons of a × list]
+type rec list⟨a⟩ = [Nil ; Cons of a × list]
 
-val rec map : ∀a b, (a ⇒ b) ⇒ list<a> ⇒ list<b> =
+val rec map : ∀a b, (a ⇒ b) ⇒ list⟨a⟩ ⇒ list⟨b⟩ =
   fun f l {
     case l {
       Nil          → Nil

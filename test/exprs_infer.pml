@@ -5,7 +5,7 @@ def blop = ∀ x, x
 def id = fun x { x }
 def delta = fun x { x x }
 def omega = delta delta
-def arrow<a, b> = a ⇒ b
+def arrow⟨a, b⟩ = a ⇒ b
 
 def test1 =
   case C[{}] {
@@ -28,4 +28,4 @@ def mua = save a { fun x { x } }
 def mub = save a { restore a (fun x { x }) }
 def mud = save a { save b { restore a (fun x { restore b x }) } }
 
-def app3<a, b, c> = a b c
+def app3⟨a, b, c⟩ = a b c

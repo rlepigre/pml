@@ -68,9 +68,10 @@ val rec mul_succ : ∀n m∈nat, mul n Succ[m] ≡ add (mul n m) n =
       Zero    → {}
       Succ[k] → set auto 0 2;
                 let lem = mul_succ k m;
-                let _ = add m (mul k m); // FIXME #28
                 let lem = add_succ (add m (mul k m)) k;
                 let lem = add_asso m (mul k m) k;
+                //set log "a";
+                let _ = add m (mul k m); // FIXME #28
                 {}
     }
   }
@@ -101,18 +102,18 @@ val rec mul_comm : ∀n m∈nat, mul n m ≡ mul m n =
     }
   }
 
-def t_deduce<f:ο> : τ = ({} : f)
-def t_show<f:ο, p:τ> : τ = (p : f)
+def t_deduce⟨f:ο⟩ : τ = ({} : f)
+def t_show⟨f:ο, p:τ⟩ : τ = (p : f)
 
 val rec mul_comm : ∀n m∈nat, mul n m ≡ mul m n =
   fun n m {
     case n {
-      Zero    → t_deduce<mul Zero m ≡ Zero>;
-                t_show<mul m Zero ≡ Zero, mul_n_zero m>
-      Succ[k] → t_deduce<mul Succ[k] m ≡ add m (mul k m)>;
-                t_show<mul k m ≡ mul m k, mul_comm k m>;
-                t_show<mul m Succ[k] ≡ add (mul m k) m, mul_succ m k>;
-                t_show<add (mul k m) m ≡ add m (mul k m), add_comm (mul k m) m>
+      Zero    → t_deduce⟨mul Zero m ≡ Zero⟩;
+                t_show⟨mul m Zero ≡ Zero, mul_n_zero m⟩
+      Succ[k] → t_deduce⟨mul Succ[k] m ≡ add m (mul k m)⟩;
+                t_show⟨mul k m ≡ mul m k, mul_comm k m⟩;
+                t_show⟨mul m Succ[k] ≡ add (mul m k) m, mul_succ m k⟩;
+                t_show⟨add (mul k m) m ≡ add m (mul k m), add_comm (mul k m) m⟩
     }
   }
 

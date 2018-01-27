@@ -1,6 +1,6 @@
-type rec list<a> = [Nil ; Cons of {hd : a ; tl : list}]
+type rec list⟨a⟩ = [Nil ; Cons of {hd : a ; tl : list}]
 
-val rec exists : ∀a, (a ⇒ bool) ⇒ list<a> ⇒ bool =
+val rec exists : ∀a, (a ⇒ bool) ⇒ list⟨a⟩ ⇒ bool =
   fun pred l {
     case l {
       Nil     → false
@@ -8,23 +8,23 @@ val rec exists : ∀a, (a ⇒ bool) ⇒ list<a> ⇒ bool =
     }
   }
 
-val rec fold_left : ∀a b, (a ⇒ b ⇒ a) ⇒ a ⇒ list<b> ⇒ a =
+val rec fold_left : ∀a b, (a ⇒ b ⇒ a) ⇒ a ⇒ list⟨b⟩ ⇒ a =
   fun f acc l {
     case l {
       Nil     → acc
       Cons[c] → fold_left f (f acc c.hd) c.tl
     }
   }
-val rec fold_left2 : ∀a b, (a ⇒ b → a) ⇒ a ⇒ list<b> → a =
+val rec fold_left2 : ∀a b, (a ⇒ b → a) ⇒ a ⇒ list⟨b⟩ → a =
   fun f acc l {
     case l {
       Nil     → acc
       Cons[c] → fold_left2 f (f acc c.hd) c.tl
     }
   }
-val exists : ∀a, (a ⇒ bool) ⇒ list<a> ⇒ bool =
+val exists : ∀a, (a ⇒ bool) ⇒ list⟨a⟩ ⇒ bool =
   fun pred l {
-    let a such that l : list<a>;
+    let a such that l : list⟨a⟩;
     //FIXME #21: inferring with a partial arrow ?
     //Because Totality.is_not_tot compares with Tot when typing "pred e".
     //So we need to give the type of f.
@@ -32,10 +32,10 @@ val exists : ∀a, (a ⇒ bool) ⇒ list<a> ⇒ bool =
     fold_left f false l
   }
 include lib.option
-val silly : (∀a, a ⇒ a) ⇒ {} ⇒ option<{}> =
+val silly : (∀a, a ⇒ a) ⇒ {} ⇒ option⟨{}⟩ =
   fun f u { f Some[f u] }
 
-val exists : ∀a, (a ⇒ bool) ⇒ list<a> → bool =
+val exists : ∀a, (a ⇒ bool) ⇒ list⟨a⟩ → bool =
   fun pred l {
     save k {
       let a such that pred : a ⇒ bool;
@@ -50,15 +50,15 @@ val peirce : ∀a b, ((a → b) ⇒ a) ⇒ a =
   }
 
 // Usual definition of logical negation
-type neg<a> = a → ∀x, x
+type neg⟨a⟩ = a → ∀x, x
 
-val dneg_elim : ∀a, (neg<a> ⇒ ∀x, x)  ⇒ a =
+val dneg_elim : ∀a, (neg⟨a⟩ ⇒ ∀x, x)  ⇒ a =
   peirce
 
 // Disjoint sum of two types (logical disjunction)
-type either<a,b> = [InL of a ; InR of b]
+type either⟨a,b⟩ = [InL of a ; InR of b]
 
-val excl_mid : ∀a, {} ⇒ either<a, neg<a>> =
+val excl_mid : ∀a, {} ⇒ either⟨a, neg⟨a⟩⟩ =
   fun _ {
     save k { InR[fun x { restore k InL[x] }] }
   }

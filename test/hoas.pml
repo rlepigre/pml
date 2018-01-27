@@ -5,13 +5,13 @@ include lib.nat
 
 // use hoas + parametricity to give a type containing
 // only closed lambda-terms.
-type rec pterm<v> =
+type rec pterm⟨v⟩ =
   [ Var of v
   ; Lam of v ⇒ pterm
   ; App of pterm × pterm
   ]
 
-type term = ∀v, pterm<v>
+type term = ∀v, pterm⟨v⟩
 
 // A few terms
 val idt : term = Lam[fun x { Var[x] }]
@@ -23,8 +23,8 @@ val omega : term = App[(delta,delta)]
 val church : nat ⇒ term = fun n {
   Lam[fun f {
       Lam[fun x {
-          let v such that _ : pterm<v>;
-          let rec fn : nat ⇒ pterm<v> = fun n {
+          let v such that _ : pterm⟨v⟩;
+          let rec fn : nat ⇒ pterm⟨v⟩ = fun n {
             case n {
               Zero → Var[x]
               S[p] → App[(Var[f], fn p)]
@@ -35,7 +35,7 @@ val church : nat ⇒ term = fun n {
 }
 
 // printing for terms
-val rec print_term_aux : nat ⇒ pterm<nat> ⇒ {} = fun i t {
+val rec print_term_aux : nat ⇒ pterm⟨nat⟩ ⇒ {} = fun i t {
   case t {
     Var[i]       → print_nat i
     App[(t1,t2)] → print "("; print_term_aux i t1;
@@ -53,11 +53,11 @@ val testn : {} = print_term (church 10)
 
 // equality on terms ( ≡ does not work because function equality in pml
 // is too weak. Is this a bug ?
-val rec eq_aux : nat ⇒ pterm<nat> ⇒ pterm<nat> ⇒ bool = fun i t1 t2 {
+val rec eq_aux : nat ⇒ pterm⟨nat⟩ ⇒ pterm⟨nat⟩ ⇒ bool = fun i t1 t2 {
   case t1 {
     App[(u1,v1)] →
       case t2 {
-        App[(u2,v2)] → land<eq_aux i u1 u2, eq_aux i v1 v2>
+        App[(u2,v2)] → land⟨eq_aux i u1 u2, eq_aux i v1 v2⟩
         Lam[_]       → false
         Var[_]       → false
       }
@@ -79,7 +79,7 @@ val rec eq_aux : nat ⇒ pterm<nat> ⇒ pterm<nat> ⇒ bool = fun i t1 t2 {
 val eq : term ⇒ term ⇒ bool = eq_aux 0
 
 // The very important lifting function
-val rec lift : ∀v, pterm<either<v, pterm<v>>> ⇒ pterm<v> = fun t {
+val rec lift : ∀v, pterm⟨either⟨v, pterm⟨v⟩⟩⟩ ⇒ pterm⟨v⟩ = fun t {
   case t {
     Var[v]       →  case v {
       InL[v] → Var[v]
@@ -93,10 +93,10 @@ val rec lift : ∀v, pterm<either<v, pterm<v>>> ⇒ pterm<v> = fun t {
 }
 
 // substitution (usefull ?)
-val subst_aux : term ⇒ ∀v, pterm<v> ⇒ pterm<v> = fun t1 t2 {
-  let v such that _:pterm<v>;
-  let t1' : pterm<either<v, pterm<v>>> = t1;
-  let t2  : either<v, pterm<v>> = InR[t2];
+val subst_aux : term ⇒ ∀v, pterm⟨v⟩ ⇒ pterm⟨v⟩ = fun t1 t2 {
+  let v such that _:pterm⟨v⟩;
+  let t1' : pterm⟨either⟨v, pterm⟨v⟩⟩⟩ = t1;
+  let t2  : either⟨v, pterm⟨v⟩⟩ = InR[t2];
   case t1' {
     Var[_] → t1
     App[_] → t1
@@ -109,9 +109,9 @@ val subst : term ⇒ term ⇒ term = subst_aux
 // one step reduction, at a position.
 // if the position is wrong, returns the initial term
 type path_elt = [Lam ; AppL ; AppR]
-type path = list<path_elt>
+type path = list⟨path_elt⟩
 
-val rec red_one : ∀v, path ⇒ pterm<either<v, pterm<v>>> ⇒ pterm<v> = fun p t {
+val rec red_one : ∀v, path ⇒ pterm⟨either⟨v, pterm⟨v⟩⟩⟩ ⇒ pterm⟨v⟩ = fun p t {
   case p {
     [] →
       case t {
@@ -150,7 +150,7 @@ val rec red_one : ∀v, path ⇒ pterm<either<v, pterm<v>>> ⇒ pterm<v> = fun p
 val red_one :  path ⇒ term ⇒ term = red_one
 
 // multiple step reduction
-val rec red : list<path> ⇒ term ⇒ term = fun ps t {
+val rec red : list⟨path⟩ ⇒ term ⇒ term = fun ps t {
   case ps {
     []    → t
     p::ps → red ps (red_one p t)
@@ -158,7 +158,7 @@ val rec red : list<path> ⇒ term ⇒ term = fun ps t {
 }
 
 // type for beta !
-type beta<t1,t2> = { ps∈list<path> | eq (red ps t1) t2 }
+type beta⟨t1,t2⟩ = { ps∈list⟨path⟩ | eq (red ps t1) t2 }
 
 // Tests
 val test1 : {} = print_term (red_one [] omega)
@@ -169,11 +169,11 @@ val test2 : omega ≡ omega = {}
 
 val test4 : eq omega (red_one [] omega) ≡ true = {}
 
-val test5 : beta<omega,omega> = []::[]
+val test5 : beta⟨omega,omega⟩ = []::[]
 
-val test6 : beta<omega,omega> = []::[]::[]
+val test6 : beta⟨omega,omega⟩ = []::[]::[]
 
-val test7 : beta<App[(idt,omega)],omega> = []::[]::[]
+val test7 : beta⟨App[(idt,omega)],omega⟩ = []::[]::[]
 
 // reduction parrallel
 
@@ -184,7 +184,7 @@ type rec ptree =
   ; Lam of ptree
   ]
 
-val rec par_red_one : ∀v, ptree ⇒ pterm<either<v, pterm<v>>> ⇒ pterm<v> = fun p t {
+val rec par_red_one : ∀v, ptree ⇒ pterm⟨either⟨v, pterm⟨v⟩⟩⟩ ⇒ pterm⟨v⟩ = fun p t {
   case p {
     Idt          → lift t
     Rdx[(p1,p2)] →
@@ -216,7 +216,7 @@ val rec par_red_one : ∀v, ptree ⇒ pterm<either<v, pterm<v>>> ⇒ pterm<v> = 
 val par_red_one : ptree ⇒ term ⇒ term = par_red_one
 
 // multiple step parallel reduction
-val rec par_red : list<ptree> ⇒ term ⇒ term = fun ps t {
+val rec par_red : list⟨ptree⟩ ⇒ term ⇒ term = fun ps t {
   case ps {
     []    → t
     p::ps → par_red ps (par_red_one p t)
@@ -224,10 +224,10 @@ val rec par_red : list<ptree> ⇒ term ⇒ term = fun ps t {
 }
 
 // type for parallel beta !
-type beta_par<t1,t2> = { ps∈list<ptree> | eq (par_red ps t1) t2 }
+type beta_par⟨t1,t2⟩ = { ps∈list⟨ptree⟩ | eq (par_red ps t1) t2 }
 
 // test parallel reduction
-val test8 : beta_par<App[(App[(idt,delta)],App[(idt,delta)])],omega> =
+val test8 : beta_par⟨App[(App[(idt,delta)],App[(idt,delta)])],omega⟩ =
   App[(Rdx[(Idt,Idt)],Rdx[(Idt,Idt)])]::Rdx[(Idt,Idt)]::[]
 
 val is_idt : ptree ⇒ bool = fun t1 {
@@ -240,7 +240,7 @@ val is_idt : ptree ⇒ bool = fun t1 {
 }
 
 val app : ptree ⇒ ptree ⇒ ptree = fun t1 t2 {
-  if land<is_idt t1, is_idt t2> { Idt } else { App[(t1,t2)] }
+  if land⟨is_idt t1, is_idt t2⟩ { Idt } else { App[(t1,t2)] }
 }
 
 val lam : ptree ⇒ ptree = fun t1 {
@@ -248,7 +248,7 @@ val lam : ptree ⇒ ptree = fun t1 {
 }
 
 // search all redexes, ensure that we return Idt if no redex
-val rec redexes : pterm<{}> ⇒ ptree = fun t {
+val rec redexes : pterm⟨{}⟩ ⇒ ptree = fun t {
   case t {
     Var[_]       → Idt
     Lam[f]       → lam (redexes(f {}))

@@ -1,14 +1,14 @@
 include lib.bool
 include lib.nat
 
-type rec tree23<a:ο> = [
+type rec tree23⟨a:ο⟩ = [
   E ;
   N2 of { l : tree23; x : a; r : tree23 } ;
   N3 of { l : tree23; x : a; m : tree23; y : a; r : tree23 } ]
 
 type cmp = [ Le ; Eq ; Ge ]
 
-val rec mem : ∀a:ο, (a⇒a⇒cmp) ⇒ a => tree23<a> => bool =
+val rec mem : ∀a:ο, (a⇒a⇒cmp) ⇒ a ⇒ tree23⟨a⟩ ⇒ bool =
   fun f z t {
     case t {
       E     → false
@@ -21,11 +21,11 @@ val rec mem : ∀a:ο, (a⇒a⇒cmp) ⇒ a => tree23<a> => bool =
     }
   }
 
-type add23<a:ο> = [
-  N1 of tree23<a> ;
-  N2 of { l : tree23<a>; x : a; r : tree23<a> } ]
+type add23⟨a:ο⟩ = [
+  N1 of tree23⟨a⟩ ;
+  N2 of { l : tree23⟨a⟩; x : a; r : tree23⟨a⟩ } ]
 
-val rec add_aux : ∀a:ο, (a⇒a⇒cmp) ⇒ a ⇒ tree23<a> ⇒ add23<a> =
+val rec add_aux : ∀a:ο, (a⇒a⇒cmp) ⇒ a ⇒ tree23⟨a⟩ ⇒ add23⟨a⟩ =
   fun f x t {
     case t {
     | E     → N2[{l=E; x=x; r=E}]
@@ -67,7 +67,7 @@ val rec add_aux : ∀a:ο, (a⇒a⇒cmp) ⇒ a ⇒ tree23<a> ⇒ add23<a> =
     }
   }
 
-val add : ∀a:ο, (a⇒a⇒cmp) ⇒ a ⇒ tree23<a> ⇒ tree23<a> =
+val add : ∀a:ο, (a⇒a⇒cmp) ⇒ a ⇒ tree23⟨a⟩ ⇒ tree23⟨a⟩ =
   fun f x t {
     case add_aux f x t {
       N1[u] → u
@@ -75,7 +75,7 @@ val add : ∀a:ο, (a⇒a⇒cmp) ⇒ a ⇒ tree23<a> ⇒ tree23<a> =
     }
   }
 
-val mem_aux : ∀a:ο, (a⇒a⇒cmp) ⇒ a => add23<a> => bool =
+val mem_aux : ∀a:ο, (a⇒a⇒cmp) ⇒ a ⇒ add23⟨a⟩ ⇒ bool =
   fun f x t {
     case t {
       N1[u] → mem f x u
@@ -83,7 +83,7 @@ val mem_aux : ∀a:ο, (a⇒a⇒cmp) ⇒ a => add23<a> => bool =
     }
   }
 
-val rec height : ∀a:ο, tree23<a> ⇒ nat ⇒ bool =
+val rec height : ∀a:ο, tree23⟨a⟩ ⇒ nat ⇒ bool =
   fun t n {
     case n {
     | Zero →
@@ -99,7 +99,7 @@ val rec height : ∀a:ο, tree23<a> ⇒ nat ⇒ bool =
     }
   }
 
-val height_aux : ∀a:ο, add23<a> ⇒ nat ⇒ bool =
+val height_aux : ∀a:ο, add23⟨a⟩ ⇒ nat ⇒ bool =
   fun t n {
     case t {
       N1[u] → height u n
@@ -108,13 +108,13 @@ val height_aux : ∀a:ο, add23<a> ⇒ nat ⇒ bool =
   }
 
 val and_left : ∀b1 b2∈bool, and b1 b2 ≡ true ⇒ b1 ≡ true =
-  fun b1 b2 _ { cond<b1,{},✂> }
+  fun b1 b2 _ { cond⟨b1,{},✂⟩ }
 
 val and_right : ∀b1 b2∈bool, and b1 b2 ≡ true ⇒ b2 ≡ true =
   fun b1 b2 _ { and_left b1 b2 {} }
 
 val add_height_aux : ∀a:ο, ∀f∈(a⇒a⇒cmp), ∀x∈a, ∀n∈nat,
-                     ∀t∈(tree23<a> | height t n ≡ true),
+                     ∀t∈(tree23⟨a⟩ | height t n ≡ true),
                      height_aux (add_aux f x t) n ≡ true =
   fun f x {
     fix add_height_aux { fun n t {
@@ -190,7 +190,7 @@ val add_height_aux : ∀a:ο, ∀f∈(a⇒a⇒cmp), ∀x∈a, ∀n∈nat,
   }
 
 val add_height : ∀a:ο, ∀f∈(a⇒a⇒cmp), ∀x∈a, ∀n∈nat,
-                 ∀t∈(tree23<a> | height t n ≡ true),
+                 ∀t∈(tree23⟨a⟩ | height t n ≡ true),
                  or (height (add f x t) n) (height (add f x t) S[n]) ≡ true =
   fun f x n t {
     let _ = add_height_aux f x n t;
@@ -200,8 +200,8 @@ val add_height : ∀a:ο, ∀f∈(a⇒a⇒cmp), ∀x∈a, ∀n∈nat,
     let _ = height (add f x t) S[n];
     case add_aux f x t {
       N1[u] → {}
-      N2[c] → cond<height (add f x t) n,{},{}>
+      N2[c] → cond⟨height (add f x t) n,{},{}⟩
     }
   }
 
-type bal23<a:ο> = ∃t n:ι, t ∈ tree23<a> | height t n ≡ true
+type bal23⟨a:ο⟩ = ∃t n:ι, t ∈ tree23⟨a⟩ | height t n ≡ true

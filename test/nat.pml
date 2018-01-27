@@ -49,7 +49,7 @@ val rec add_total : ∀n m∈nat, ∃v:ι, add n m ≡ v =
     }
   }
 
-def addt<x:τ,y:τ> : τ =
+def addt⟨x:τ,y:τ⟩ : τ =
    let lem = add_total x y; add x y
 
 val add_zero_left : ∀z∈nat, add zero z ≡ z = λn.{}
@@ -183,7 +183,7 @@ val rec mul_comm : ∀n m∈nat, mul n m ≡ mul m n =
     }
   }
 
-def add_all3<a:τ,b:τ,c:τ> =
+def add_all3⟨a:τ,b:τ,c:τ⟩ =
   let lem = add_total a b;
   let lem = add_total a c;
   let lem = add_total b c;
@@ -194,11 +194,11 @@ def add_all3<a:τ,b:τ,c:τ> =
   let lem = add_asso a c b;
   {}
 
-def add_all4<a:τ,b:τ,c:τ,d:τ> =
-  let lem = add_all3<a,b,c>;
-  let lem = add_all3<a,b,d>;
-  let lem = add_all3<a,c,d>;
-  let lem = add_all3<b,c,d>;
+def add_all4⟨a:τ,b:τ,c:τ,d:τ⟩ =
+  let lem = add_all3⟨a,b,c⟩;
+  let lem = add_all3⟨a,b,d⟩;
+  let lem = add_all3⟨a,c,d⟩;
+  let lem = add_all3⟨b,c,d⟩;
   {}
 
 val rec mul_dist_l : ∀p n m∈nat, mul p (add n m) ≡ add (mul p n) (mul p m) =
@@ -214,7 +214,7 @@ val rec mul_dist_l : ∀p n m∈nat, mul p (add n m) ≡ add (mul p n) (mul p m)
            mul_dist_l p' n m;
         let lem = mul_total p' n;
         let lem = mul_total p' m;
-        let lem = add_all4<n, mul p' n, m, mul p' m>;
+        let lem = add_all4⟨n, mul p' n, m, mul p' m⟩;
         let lem = add_total m (mul p' m);
         let lem : add (add n (mul p' n)) (add m (mul p' m)) ≡
                   add n (add (mul p' n) (add m (mul p' m))) =
@@ -264,7 +264,7 @@ val rec mul_asso : ∀n m p∈nat, mul (mul n m) p ≡ mul n (mul m p) =
   }
 
 // Proof by induction.
-val rec ind : ∀f:ι→ο, f<Z> ⇒ (∀i∈nat, f<i> ⇒ f<S[i]>) ⇒ ∀n∈nat, f<n> =
+val rec ind : ∀f:ι→ο, f⟨Z⟩ ⇒ (∀i∈nat, f⟨i⟩ ⇒ f⟨S[i]⟩) ⇒ ∀n∈nat, f⟨n⟩ =
   fun d s n {
     case n {
       Z[_] → d
@@ -273,8 +273,8 @@ val rec ind : ∀f:ι→ο, f<Z> ⇒ (∀i∈nat, f<i> ⇒ f<S[i]>) ⇒ ∀n∈n
   }
 
 // Proof by induction.
-def ind2<f:ι→ο,z:τ,s:τ> : τ = (ind z s : ∀n∈nat, f<n>)
+def ind2⟨f:ι→ο,z:τ,s:τ⟩ : τ = (ind z s : ∀n∈nat, f⟨n⟩)
 
-def p<n:ι> : ο =  id_nat n ≡ n
+def p⟨n:ι⟩ : ο =  id_nat n ≡ n
 
-//val rec id_nat_id : ∀n∈nat, id_nat n ≡ n = ind2<p,{},(fun i x → x)>
+//val rec id_nat_id : ∀n∈nat, id_nat n ≡ n = ind2⟨p,{},(fun i x → x)⟩

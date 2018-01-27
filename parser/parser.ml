@@ -154,18 +154,18 @@ let parser llid_wc =
 (* Some useful tokens. *)
 let parser elipsis = "⋯" | "..."
 let parser infty   = "∞" | "<inf>"
-let parser arrow   = "→" | "->"
-let parser impl    = {"⇒" | "=>"} -> Totality.Tot
-                   | {"→" | "->"} -> Totality.Ter
-                   | {"↝" | "~>"} -> Totality.Any
-let parser scis    = "✂" | "8<"
+let parser arrow   = "→"
+let parser impl    = "⇒" -> Totality.Tot
+                   | "→" -> Totality.Ter
+                   | "↝" -> Totality.Any
+let parser scis    = "✂"
 let parser equiv   = "≡" | "=="
 let parser nequiv  = "≠" | "!="
 let parser neg_sym = "¬"
 let parser prod    = "×"
 let parser lambda  = "λ"
-let parser langle  = "<" | "⟨"
-let parser rangle  = ">" | "⟩"
+let parser langle  = "⟨"
+let parser rangle  = "⟩"
 let parser empty_s = "[.]" | "∅"
 let parser comma   = ","
 let parser semi    = ";"
@@ -338,7 +338,7 @@ let parser expr @(m : mode) =
       when m <<= Prp A
       -> (match e.elt  with EInfx(e,_) -> e | _ -> e)
   (* Proposition (injection of term) *)
-  | t:(expr (Trm P))
+  | t:(expr (Trm I))
       when m <<= Prp A && m <> Any && m <> Prp F'
       -> begin
           match t.elt with

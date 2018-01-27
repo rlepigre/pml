@@ -1,12 +1,12 @@
 include lib.bool
 include lib.list
 
-type order<a:ο> = ∃cmp:ι,
+type order⟨a:ο⟩ = ∃cmp:ι,
   { cmp : cmp ∈ (a ⇒ a ⇒ bool)
 //  ; tra : ∀x y z∈a, (cmp x y ⇒ cmp y z ⇒ cmp x y)
   ; tot : ∀x y∈a, or (cmp x y) (cmp y x) }
 
-val rec sorted : ∀a:ο, ∀o∈order<a>, ∀l∈list<a>, bool =
+val rec sorted : ∀a:ο, ∀o∈order⟨a⟩, ∀l∈list⟨a⟩, bool =
   fun o l {
     case l {
       []     → tru
@@ -18,11 +18,11 @@ val rec sorted : ∀a:ο, ∀o∈order<a>, ∀l∈list<a>, bool =
     }
   }
 
-val rec tail_sorted : ∀a:ο, ∀o∈order<a>, ∀x∈a, ∀l∈list<a>,
+val rec tail_sorted : ∀a:ο, ∀o∈order⟨a⟩, ∀x∈a, ∀l∈list⟨a⟩,
           sorted o (x::l) ⇒ sorted o l =
   fun o x l _ { set auto 2 2; qed }
 
-val rec insert : ∀a:ο, order<a> ⇒ a ⇒ list<a> ⇒ list<a> =
+val rec insert : ∀a:ο, order⟨a⟩ ⇒ a ⇒ list⟨a⟩ ⇒ list⟨a⟩ =
   fun o x l {
     case l {
       []     → x::[]
@@ -30,7 +30,7 @@ val rec insert : ∀a:ο, order<a> ⇒ a ⇒ list<a> ⇒ list<a> =
     }
   }
 
-val rec isort : ∀a:ο, order<a> ⇒ list<a> ⇒ list<a> =
+val rec isort : ∀a:ο, order⟨a⟩ ⇒ list⟨a⟩ ⇒ list⟨a⟩ =
   fun o l {
     case l {
       []     → []
@@ -38,9 +38,9 @@ val rec isort : ∀a:ο, order<a> ⇒ list<a> ⇒ list<a> =
     }
   }
 
-type slist<a:ο,ord:τ> = ∃l:ι, l∈(list<a> | sorted ord l ≡ tru)
+type slist⟨a:ο,ord:τ⟩ = ∃l:ι, l∈(list⟨a⟩ | sorted ord l ≡ tru)
 
-val rec insert_sorted : ∀a:ο, ∀o∈order<a>, ∀x∈a, ∀l∈slist<a,o>,
+val rec insert_sorted : ∀a:ο, ∀o∈order⟨a⟩, ∀x∈a, ∀l∈slist⟨a,o⟩,
                        sorted o (insert o x l) =
   fun o x l {
     let cmp = o.cmp;
@@ -65,7 +65,7 @@ val rec insert_sorted : ∀a:ο, ∀o∈order<a>, ∀x∈a, ∀l∈slist<a,o>,
     }
   }
 
-val rec isort_sorted : ∀a:ο, ∀o∈order<a>, ∀l∈list<a>, sorted o (isort o l) =
+val rec isort_sorted : ∀a:ο, ∀o∈order⟨a⟩, ∀l∈list⟨a⟩, sorted o (isort o l) =
   fun o l {
     case l {
       []     → qed
@@ -76,7 +76,7 @@ val rec isort_sorted : ∀a:ο, ∀o∈order<a>, ∀l∈list<a>, sorted o (isort
     }
   }
 
-val isort_full : ∀a:ο, ∀o∈order<a>, list<a> ⇒ slist<a,o> =
+val isort_full : ∀a:ο, ∀o∈order⟨a⟩, list⟨a⟩ ⇒ slist⟨a,o⟩ =
   fun o l {
     use isort_sorted o l;
     isort o l

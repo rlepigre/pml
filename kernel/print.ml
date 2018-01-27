@@ -303,9 +303,9 @@ let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
                        match f.elt with
                        | HApp(_,g,a) -> print_app g; fprintf ch "%a,"
                                                              exa a
-                       | _           -> fprintf ch "%a<" (ex HO) f
+                       | _           -> fprintf ch "%a⟨" (ex HO) f
                    in
-                   print_app f; fprintf ch "%a>" exa a
+                   print_app f; fprintf ch "%a⟩" exa a
   | HDef(_,d)   -> output_string ch d.expr_name.elt
   | Func(t,a,b) -> let (l,r) = if Prp F < pr then ("(",")") else ("","") in
                    fprintf ch "%s%a%s %a %a" l (ex (Prp P)) a r arrow t exp b
