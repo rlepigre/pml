@@ -241,7 +241,13 @@ let rec learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
     | DSum(fs)   ->
        begin
          match find_sum ctx.equations.pool wit with
-         | None -> ctx
+         | None ->
+            if A.length fs = 1 then
+              A.fold (fun c (_,b) ctx ->
+                  let cwit = vdot wit c in
+                  let (vwit, ctx) = learn_value ctx cwit b in
+                  fn ctx vwit b) fs ctx
+            else ctx
          | Some(s,v,pool) ->
             try
               let (_, b) = A.find s fs in
@@ -259,7 +265,7 @@ let rec learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
              | Succ(o) -> (o, ctx)
              | _       ->
                 (** We know that o is positive and wit in a
-               so w              e can build an eps < o *)
+                    so we can build an eps < o *)
                 let f o = bndr_subst f (FixM(Pos.none o, f)) in
                 let f = binder_from_fun "o" f in
                 let (o', ctx_names) = owmu ctx.ctx_names o twit (None, f) in
