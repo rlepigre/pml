@@ -33,23 +33,7 @@ val tl : ∀a, list⟨a⟩ ⇒ list⟨a⟩ =
   }
 
 val tl_sorted : ∀a, ∀o∈ord⟨a⟩, ∀l∈slist⟨a,o⟩, sorted o (tl l) =
-  fun o l {
-    case l {
-      Nil →
-        let _ : tl l ≡ Nil = {};
-        {}
-      Cons[c1] →
-        let tl1 = c1.tl;
-        deduce tl l ≡ tl1;
-        let hd1 = c1.hd;
-        case tl1 {
-          Nil → {}
-          Cons[c2] →
-            let hd2 = c2.hd;
-            if o.cmp hd1 hd2 { {} } else { ✂ }
-        }
-    }
-  }
+  fun o l { set auto 3 3; qed }
 
 include lib.nat
 include lib.nat_proofs
