@@ -176,7 +176,8 @@ val println_nat : nat ⇒ {} =
 
 include lib.either
 
-val rec sub_size : ∀o1 o2, nat^(o1+1) ⇒ [S of nat^o2] ⇒ either⟨nat^o2,nat^o1⟩ =
+val rec sub_size : ∀o1 o2, ∀n∈nat^(o1+1), ∀m∈[S of nat^o2],
+                     either⟨n∈nat^o2, {p∈nat^o1 | n ≡ m + p}⟩ =
   fun n m {
     case m {
       S[m'] →
@@ -184,7 +185,7 @@ val rec sub_size : ∀o1 o2, nat^(o1+1) ⇒ [S of nat^o2] ⇒ either⟨nat^o2,na
           0     → InL[Zero]
           S[n'] →
             case m' {
-              0      → InR[Zero]
+              0      → InR[n']
               S[m''] →
                 let o such that n' : nat^(o+1);
                 case sub_size (n':nat^(o+1)) S[m''] {
