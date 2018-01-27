@@ -4,7 +4,7 @@ include lib.list
 type ord⟨a⟩ = ∃cmp,
   { cmp   : cmp ∈ (a ⇒ a ⇒ bool)
   ; trans : ∀x y z∈a, cmp x y ⇒ cmp y z ⇒ cmp x y
-  ; total : ∀x y∈a, or (cmp x y) (cmp y x) }
+  ; total : ∀x y∈a, lor⟨cmp x y,cmp y x⟩ ≡ true }
 
 val rec sorted : ∀a, ∀o∈ord⟨a⟩, ∀l∈list⟨a⟩, bool =
   fun o l {
@@ -50,3 +50,12 @@ val tl_sorted : ∀a, ∀o∈ord⟨a⟩, ∀l∈slist⟨a,o⟩, sorted o (tl l) 
         }
     }
   }
+
+include lib.nat
+include lib.nat_proofs
+
+val nat_order : ord⟨nat⟩ =
+  { cmp = leq; trans = leq_trans; total = leq_total }
+
+val nat_rev_order : ord⟨nat⟩ =
+  { cmp = geq; trans = geq_trans; total = geq_total }

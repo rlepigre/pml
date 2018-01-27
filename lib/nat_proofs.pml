@@ -408,3 +408,6 @@ val lt_gt   : ∀a b∈nat, a < b ≡ b > a = fun a b { set auto 1 1; compare_sy
 
 val leq_lt : ∀a b∈nat, a ≤ b ≡ not (b < a) = fun a b { set auto 2 2; compare_sym a b }
 val geq_gt : ∀a b∈nat, a ≥ b ≡ not (b > a) = fun a b { set auto 2 2; compare_sym a b }
+
+val leq_total : ∀a b∈nat, lor⟨a ≤ b,b ≤ a⟩ ≡ true = fun a b { set auto 2 2; compare_sym a b }
+val geq_total : ∀a b∈nat, lor⟨a ≥ b,b ≥ a⟩ ≡ true = fun a b { set auto 2 2; compare_sym a b }
