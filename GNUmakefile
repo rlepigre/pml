@@ -124,7 +124,7 @@ check:
 	@echo Lines with TAB:
 	@grep -P "\t" */*.ml */*.mli; true
 	@echo Lines too long:
-	@grep -n '^.\{80\}' */*.ml */*.mli
+	@grep -n '^.\{80\}' */*.ml */*.mli; true
 
 # Lib target (PML handles the dependencies).
 .PHONY: lib
