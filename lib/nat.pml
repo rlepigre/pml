@@ -176,6 +176,11 @@ val println_nat : nat ⇒ {} =
 
 include lib.either
 
+// sub_size n S[m]
+//    either return n with a sized type
+//            less or equal than the size of m
+//    or return n - S[m] with a sized type
+//            less that the size of n
 val rec sub_size : ∀o1 o2, ∀n∈nat^(o1+1), ∀m∈[S of nat^o2],
                      either⟨n∈nat^o2, {p∈nat^o1 | n ≡ m + p}⟩ =
   fun n m {
@@ -197,6 +202,7 @@ val rec sub_size : ∀o1 o2, ∀n∈nat^(o1+1), ∀m∈[S of nat^o2],
     }
   }
 
+// modulo, with size information
 val rec mod : ∀o2, nat ⇒ [S of nat^o2] ⇒ nat^o2 =
   fun n m {
     let o such that n : nat^(o+1);
@@ -210,6 +216,7 @@ val rec mod : ∀o2, nat ⇒ [S of nat^o2] ⇒ nat^o2 =
     }
   }
 
+// gcd
 val rec gcd : nat ⇒ nat ⇒ nat =
   fun n m {
     case n {

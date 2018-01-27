@@ -17,4 +17,12 @@ val compose : cmp ⇒ cmp ⇒ cmp' = fun c1 c2 {
   }
 }
 
+val inverse : cmp ⇒ cmp = fun c {
+  case c {
+    Ls → Gr
+    Eq → Eq
+    Gr → Ls
+  }
+}
+
 type dcmp⟨a,b⟩ = [Ls ; Eq of a ≡ b ; Gr]

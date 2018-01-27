@@ -1,6 +1,7 @@
 // Proofs on unary natural numbers.
 
 include lib.nat
+include lib.bool
 
 //// Properties of addition //////////////////////////////////////////////////
 
@@ -263,6 +264,20 @@ val rec compare_eq : ∀n m∈nat, compare n m ≡ Eq ⇒ n ≡ m =
     }
   }
 
+val rec compare_sym : ∀n m∈nat, compare n m ≡ inverse (compare m n) =
+  fun n m {
+    case n {
+      0     → case m {
+        0     → qed
+        S[m'] → qed
+      }
+      S[n'] → case m {
+        0     → qed
+        S[m'] → compare_sym n' m'
+      }
+    }
+  }
+
 val zero_leq : ∀b∈nat, 0 ≤ b =
   fun b {
     case b {
@@ -320,7 +335,7 @@ val rec leq_max_add : ∀a b∈nat, max a b ≤ a+b =
     }
   }
 
-val rec leq_trans : ∀a b c∈nat, leq a b ⇒ leq b c ⇒ leq a c =
+val rec leq_trans : ∀a b c∈nat, a ≤ b ⇒ b ≤ c ⇒ a ≤ c =
   fun a b c h1 h2 {
     set auto 2 3;
     case a {
@@ -337,7 +352,7 @@ val rec leq_trans : ∀a b c∈nat, leq a b ⇒ leq b c ⇒ leq a c =
     }
   }
 
-val rec lt_trans : ∀a b c∈nat, lt a b ⇒ lt b c ⇒ lt a c =
+val rec lt_trans : ∀a b c∈nat, a < b ⇒ b < c ⇒ a < c =
   fun a b c h1 h2 {
     set auto 2 3;
     case a {
@@ -354,7 +369,7 @@ val rec lt_trans : ∀a b c∈nat, lt a b ⇒ lt b c ⇒ lt a c =
     }
   }
 
-val rec geq_trans : ∀a b c∈nat, geq a b ⇒ geq b c ⇒ geq a c =
+val rec geq_trans : ∀a b c∈nat, a ≥ b ⇒ b ≥ c ⇒ a ≥ c =
   fun a b c h1 h2 {
     set auto 2 3;
     case c {
@@ -371,7 +386,7 @@ val rec geq_trans : ∀a b c∈nat, geq a b ⇒ geq b c ⇒ geq a c =
     }
   }
 
-val rec gt_trans : ∀a b c∈nat, gt a b ⇒ gt b c ⇒ gt a c =
+val rec gt_trans : ∀a b c∈nat, a > b ⇒ b > c ⇒ a > c =
   fun a b c h1 h2 {
     set auto 2 3;
     case c {
@@ -387,3 +402,9 @@ val rec gt_trans : ∀a b c∈nat, gt a b ⇒ gt b c ⇒ gt a c =
         }
     }
   }
+
+val leq_geq : ∀a b∈nat, a ≤ b ≡ b ≥ a = fun a b { set auto 1 1; compare_sym a b }
+val lt_gt   : ∀a b∈nat, a < b ≡ b > a = fun a b { set auto 1 1; compare_sym a b }
+
+val leq_lt : ∀a b∈nat, a ≤ b ≡ not (b < a) = fun a b { set auto 2 2; compare_sym a b }
+val geq_gt : ∀a b∈nat, a ≥ b ≡ not (b > a) = fun a b { set auto 2 2; compare_sym a b }
