@@ -705,7 +705,8 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof * tot  =
             let f = labs None None (Pos.none "x") (fun _ -> box t) in
             let t = unbox (appl None (valu None f) (Bindlib.box e)) in
             let (l1,l2) = ctx.auto.level in
-            log_aut "totality (%d,%d) [%d]: %a" l1 l2 (List.length bls) Print.ex t;
+            log_aut "totality (%d,%d) [%d]: %a"
+                    l1 l2 (List.length bls) Print.ex t;
             type_term ctx t ty
           with
           | Failed_to_prove _ as e -> type_error (E(T,t)) ty e
@@ -1211,7 +1212,8 @@ and warn_unreachable ctx t =
 
 and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
   log_typ "proving the term judgment:\n  %a\n  ⊢(%a) %a\n  : %a"
-          print_pos ctx.positives Print.arrow ctx.totality Print.ex t Print.ex c;
+          print_pos ctx.positives Print.arrow ctx.totality
+          Print.ex t Print.ex c;
   let st = UTimed.Time.save () in
   try
   let (r, tot) =
@@ -1230,8 +1232,8 @@ and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
         let (p1,p2,tot1,strong) =
           (* when u is not typed and f is, typecheck f first *)
           if is_typed VoT_T f && not (is_typed VoT_T u) then
-            (* f will be of type ae => c, with ae = u∈a if
-                - we know the function will be total (otherwise it is illegal) *)
+            (* f will be of type ae => c, with ae = u∈a if we know the function
+               will be total (otherwise it is illegal) *)
             let ae = if know_tot tot then Pos.none (Memb(u,a)) else a in
             (* type check f *)
             let (p1,tot1) = type_term ctx f (Pos.none (Func(tot,ae,c))) in
@@ -1273,7 +1275,8 @@ and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
             if not (sub tot1 tot) then subtype_msg f.pos "Arrow clash";
             (p1,p2,max tot1 tot2,strong)
         in
-        ((if strong then Typ_Func_s(p1,p2) else Typ_Func_e(p1,p2)), max tot tot1)
+        let prf = if strong then Typ_Func_s(p1,p2) else Typ_Func_e(p1,p2) in
+        (prf, max tot tot1)
     (* Fixpoint *)
     | FixY(saf,b) ->
        let rec break_univ ctx c =

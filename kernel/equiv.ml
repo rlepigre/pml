@@ -1917,7 +1917,7 @@ let rec get_orig : ?vwit:bool -> Ptr.t -> pool -> term =
         (*Printf.eprintf "coucou 2b\n%!";*)
         snd (List.hd (List.sort cmp_orig l))
       with Not_found ->
-        let is_appl = function TN_Appl _ -> true | TN_Proj _ -> true | _ -> false in
+        let is_appl = function TN_Appl _ | TN_Proj _ -> true | _ -> false in
         let (v',nn) = List.find (fun (v',nn) ->
                           eq_ptr po (Ptr.T_ptr v') p && is_appl nn) po.ts
         in
