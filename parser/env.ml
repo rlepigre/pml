@@ -4,7 +4,10 @@ open Ast
 open Pos
 
 type assoc = LeftAssoc | RightAssoc | NonAssoc
-type infix = string * float * assoc
+type infix = { name:string
+             ; prio:float
+             ; asso:assoc
+             ; hiho:bool }
 
 let infix_tbl : (string, infix) Hashtbl.t = Hashtbl.create 101
 

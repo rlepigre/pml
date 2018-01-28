@@ -9,10 +9,10 @@ type order⟨a:ο⟩ = ∃cmp:ι,
 val rec sorted : ∀a:ο, ∀o∈order⟨a⟩, ∀l∈list⟨a⟩, bool =
   fun o l {
     case l {
-      []     → tru
+      []     → true
       hd::tl →
         case tl {
-          []       → tru
+          []       → true
           hd2::tl2 → if o.cmp hd hd2 { sorted o tl } else { false }
        }
     }
@@ -38,7 +38,7 @@ val rec isort : ∀a:ο, order⟨a⟩ ⇒ list⟨a⟩ ⇒ list⟨a⟩ =
     }
   }
 
-type slist⟨a:ο,ord:τ⟩ = ∃l:ι, l∈(list⟨a⟩ | sorted ord l ≡ tru)
+type slist⟨a:ο,ord:τ⟩ = ∃l:ι, l∈(list⟨a⟩ | sorted ord l)
 
 val rec insert_sorted : ∀a:ο, ∀o∈order⟨a⟩, ∀x∈a, ∀l∈slist⟨a,o⟩,
                        sorted o (insert o x l) =

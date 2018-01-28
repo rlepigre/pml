@@ -1062,7 +1062,7 @@ type toplevel =
   | Include  of string
   | Def_list of toplevel list
   | Glbl_set of set_param
-  | Infix    of string * string * float * assoc
+  | Infix    of string * infix
 
 let evari _loc x = Pos.make _loc (EVari(x, new_sort_uvar None))
 

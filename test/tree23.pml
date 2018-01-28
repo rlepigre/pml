@@ -108,7 +108,7 @@ val height_aux : ∀a:ο, add23⟨a⟩ ⇒ nat ⇒ bool =
   }
 
 val and_left : ∀b1 b2∈bool, and b1 b2 ≡ true ⇒ b1 ≡ true =
-  fun b1 b2 _ { cond⟨b1,{},✂⟩ }
+  fun b1 b2 _ { if b1 { {} } else { ✂ } }
 
 val and_right : ∀b1 b2∈bool, and b1 b2 ≡ true ⇒ b2 ≡ true =
   fun b1 b2 _ { and_left b1 b2 {} }
@@ -200,7 +200,7 @@ val add_height : ∀a:ο, ∀f∈(a⇒a⇒cmp), ∀x∈a, ∀n∈nat,
     let _ = height (add f x t) S[n];
     case add_aux f x t {
       N1[u] → {}
-      N2[c] → cond⟨height (add f x t) n,{},{}⟩
+      N2[c] → if height (add f x t) n { {} } else { {} }
     }
   }
 

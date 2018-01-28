@@ -113,27 +113,27 @@ let parser infix =
     begin
       try
         let open Env in
-        let (name, p, assoc) = Hashtbl.find infix_tbl s in
+        let {name; prio=p; asso; hiho} = Hashtbl.find infix_tbl s in
         let epsilon = 1e-6 in
         let q = p -. epsilon in
-        let (pl, pr) = match assoc with
+        let (pl, pr) = match asso with
           | LeftAssoc  -> (p, q)
           | RightAssoc -> (q, p)
           | NonAssoc   -> (q, q)
         in
         let name = in_pos _loc_s name in
         let sym = evari (Some _loc_s) name in
-        (sym, name, p, pl, pr)
+        (sym, name, p, pl, pr, hiho)
       with Not_found -> give_up ()
     end
-| (_,s,p,pl,pr):infix - '_' - m:lid ->
+| (_,s,p,pl,pr,ho):infix - '_' - m:lid ->
     let m = evari (Some _loc_m) (in_pos _loc_m m) in
     let t = in_pos _loc (EProj(m,ref `T, s)) in
-    (t, s, p, pl, pr)
+    (t, s, p, pl, pr,ho)
 
 (* Located identifiers. *)
 let parser llid = id:lid       -> in_pos _loc id
-  | '(' (_,id,_,_,_):infix ')' -> id
+  | '(' (_,id,_,_,_,_):infix ')' -> id
 let parser luid = id:uid       -> in_pos _loc id
                 | _true_       -> in_pos _loc "true"
                 | _false_      -> in_pos _loc "false"
@@ -372,13 +372,17 @@ let parser expr @(m : mode) =
       when m <<= Trm A
       -> from_int _loc n
   (* Term (infix symbol) *)
-  | t:(expr (Trm I)) (s,_,p,pl,pr):infix when m <<= Trm I ->>
+  | t:(expr (Trm I)) (s,_,p,pl,pr,ho):infix when m <<= Trm I ->>
       let pl' = match t.elt with EInfx(_,p) -> p | _ -> 0.0 in
       let _ = if pl' > pl then give_up () in
       u:(expr (Trm I))
       -> let pr' = match u.elt with EInfx(_,p) -> p | _ -> 0.0 in
          if pr' > pr then give_up ();
-         let t = in_pos _loc (EAppl(none (EAppl(s,t)), u)) in
+         let t =
+           if ho then
+             in_pos _loc (EHOAp(s, new_sort_uvar None, [t;u]))
+           else
+             in_pos _loc (EAppl(none (EAppl(s,t)), u)) in
          in_pos _loc (EInfx(t,p))
   (* Term (record) *)
   | "{" fs:(list1 field semi) "}"
@@ -594,12 +598,15 @@ let parser toplevel =
       -> fun () -> Glbl_set l
 
   | _infix_ '(' s:infix_re ')' '=' name:lid
-                                   "priority" p:float
-                                   a:{ "left"  -> Env.LeftAssoc
-                                     | "right" -> Env.RightAssoc
-                                     | "non"   -> Env.NonAssoc } "associative"
-      -> Hashtbl.replace Env.infix_tbl s (name,p,a);
-         fun () -> Infix(s,name,p,a)
+                                   hiho:{"⟨" "⟩"->true}?[false]
+                                   "priority" prio:float
+                                   asso:{ "left"  -> Env.LeftAssoc
+                                        | "right" -> Env.RightAssoc
+                                        | "non"   -> Env.NonAssoc }
+                                   "associative"
+      -> let infix = Env.{name;prio;asso;hiho} in
+         Hashtbl.replace Env.infix_tbl s infix;
+         fun () -> Infix(s,infix)
 
 (* Entry point of the parser. *)
 and parser entry = toplevel*
@@ -665,8 +672,8 @@ and interpret : bool -> Raw.toplevel -> unit =
         | Alvl(b,d) -> Typing.default_auto_lvl := (b,d)
         | Logs s    -> Log.set_enabled s
       end;
-  | Infix(sym,name,p,a) ->
-     add_infix sym (name,p,a)
+  | Infix(sym,infix) ->
+     add_infix sym infix
 
 and load_infix fn =
   try  Env.load_infix fn
