@@ -403,11 +403,25 @@ val rec gt_trans : ∀a b c∈nat, a > b ⇒ b > c ⇒ a > c =
     }
   }
 
-val leq_geq : ∀a b∈nat, a ≤ b ≡ b ≥ a = fun a b { set auto 1 1; compare_sym a b }
-val lt_gt   : ∀a b∈nat, a < b ≡ b > a = fun a b { set auto 1 1; compare_sym a b }
+val leq_geq : ∀a b∈nat, a ≤ b ≡ b ≥ a =
+  fun a b { set auto 1 1; compare_sym a b }
+val lt_gt   : ∀a b∈nat, a < b ≡ b > a =
+  fun a b { set auto 1 1; compare_sym a b }
 
-val leq_lt : ∀a b∈nat, a ≤ b ≡ not (b < a) = fun a b { set auto 2 2; compare_sym a b }
-val geq_gt : ∀a b∈nat, a ≥ b ≡ not (b > a) = fun a b { set auto 2 2; compare_sym a b }
+val leq_lt : ∀a b∈nat, a ≤ b ≡ not (b < a) =
+  fun a b { set auto 2 2; compare_sym a b }
+val geq_gt : ∀a b∈nat, a ≥ b ≡ not (b > a) =
+  fun a b { set auto 2 2; compare_sym a b }
 
-val leq_total : ∀a b∈nat, lor⟨a ≤ b,b ≤ a⟩ ≡ true = fun a b { set auto 2 2; compare_sym a b }
-val geq_total : ∀a b∈nat, lor⟨a ≥ b,b ≥ a⟩ ≡ true = fun a b { set auto 2 2; compare_sym a b }
+val leq_refl : ∀a∈nat, a ≤ a = fun a { compare_refl a }
+val leq_refl : ∀a∈nat, a ≥ a = fun a { compare_refl a }
+
+val leq_total : ∀a b∈nat, lor⟨a ≤ b,b ≤ a⟩ ≡ true =
+  fun a b { set auto 2 2; compare_sym a b }
+val geq_total : ∀a b∈nat, lor⟨a ≥ b,b ≥ a⟩ ≡ true =
+  fun a b { set auto 2 2; compare_sym a b }
+
+val leq_anti : ∀a b∈nat, land⟨a ≤ b,b ≤ a⟩ ≡ true ⇒ a ≡ b =
+  fun a b h { set auto 2 2; compare_sym a b }
+val geq_anti : ∀a b∈nat, land⟨a ≥ b,b ≥ a⟩ ≡ true ⇒ a ≡ b =
+  fun a b h { set auto 2 2; compare_sym a b }
