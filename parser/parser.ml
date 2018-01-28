@@ -380,7 +380,8 @@ let parser expr @(m : mode) =
          if pr' > pr then give_up ();
          let t =
            if ho then
-             in_pos _loc (EHOAp(s, new_sort_uvar None, [t;u]))
+             let sort = none (SFun(_st, none (SFun(_st,_st)))) in
+             in_pos _loc (EHOAp(s, sort, [t;u]))
            else
              in_pos _loc (EAppl(none (EAppl(s,t)), u)) in
          in_pos _loc (EInfx(t,p))

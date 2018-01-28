@@ -363,7 +363,9 @@ let infer_sorts : raw_ex -> raw_sort -> unit = fun e s ->
          in
          infer_args es ss;
          leq sx s
-    | (EInfx(t,_)   , _        ) -> infer vars t s
+    | (EInfx(t,_)   , ST       )
+    | (EInfx(t,_)   , SP       ) -> infer vars t _st
+    | (EInfx _      , _        ) -> sort_clash e s
     | (EHOFn(x,k,f) , SFun(a,b)) -> leq a k;
                                     let vars = M.add x.elt (x.pos, k) vars in
                                     infer vars f b
@@ -736,7 +738,10 @@ let unsugar_expr : raw_ex -> raw_sort -> boxed = fun e s ->
           sort_filter sb (unsugar env vars f b)
         in
         Box(F(sa,sb), hfun e.pos sa sb x fn)
-    | (EInfx(t,_)   , _        ) -> unsugar env vars t s
+    | (EInfx(t,_)   , ST       ) -> unsugar env vars t _st
+    | (EInfx(t,_)   , SP       ) ->
+       let t = to_term (unsugar env vars t _st) in
+       Box(P, eq_true e.pos t)
     (* Propositions. *)
     | (EFunc(t,a,b) , SP       ) ->
         let a = unsugar env vars a s in
@@ -1042,7 +1047,7 @@ let unsugar_expr : raw_ex -> raw_sort -> boxed = fun e s ->
         let rec fn n =
           if n = 0 then o else succ e.pos (fn (n-1)) in
         Box(O, fn n)
-    | (EGoal(str)   , SV _      ) -> Box(V, goal e.pos V str)
+    | (EGoal(str)   , SV _     ) -> Box(V, goal e.pos V str)
     | (EGoal(str)   , ST       ) -> Box(T, to_term (Box(V, goal e.pos V str)))
     | (EGoal(str)   , SS       ) -> Box(S, goal e.pos S str)
     | (_, SV store) when store <> None ->
