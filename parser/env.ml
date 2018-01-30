@@ -75,8 +75,11 @@ let add_infix : string -> infix -> unit =
 
 let parents = ref []
 
+exception Compile
+
 let output_value ch v = Marshal.(to_channel ch v [Closures])
-let input_value ch = Marshal.from_channel ch
+let input_value ch =
+  try Marshal.from_channel ch with Failure s -> raise Compile
 
 let save_file : string -> unit = fun fn ->
   let cfn = Filename.chop_suffix fn ".pml" ^ ".pmi" in
@@ -89,13 +92,11 @@ let save_file : string -> unit = fun fn ->
   in
   (* make sure load_infix sees a closure too, to recompile
      soon enough *)
-  output_value ch (fun () -> 0);
-  output_value ch deps;
+  output_value ch (fun _ -> ());
+  output_value ch (deps:string list);
   output_value ch !env.local_infix;
   output_value ch (!env.local_sorts, !env.local_exprs, !env.local_values);
   close_out ch
-
-exception Compile
 
 (* Obtain the modification time of a file as a float (neg_infinity is return
    when the file does not exist. *)
@@ -110,16 +111,26 @@ let more_recent source target =
 let start fn =
   parents := ref [] :: !parents
 
-let input_value ch =
-  try input_value ch with Failure _ -> raise Compile
+let find_file : string -> string = fun fn ->
+  let add_fn dir = Filename.concat dir fn in
+  let ls = fn :: (List.map add_fn Config.path) in
+  let rec find ls =
+    match ls with
+    | []     -> Output.err_msg "File \"%s\" does not exist." fn; exit 1
+    | fn::ls -> if Sys.file_exists fn then fn else find ls
+  in find ls
+
+let find_module : string list -> string = fun ps ->
+  let fn = (String.concat "/" ps) ^ ".pml" in
+  find_file fn
 
 let check_deps deps cfn ch =
   if List.exists (fun source ->
+         let source = find_file source in
          let dfn = Filename.chop_suffix source ".pml" ^ ".pmi" in
          more_recent source cfn ||
            not (Sys.file_exists dfn) ||
-             more_recent dfn cfn
-       ) deps
+             more_recent dfn cfn) deps
   then
     begin
       close_in ch;
@@ -128,12 +139,11 @@ let check_deps deps cfn ch =
 
 let load_infix : string -> unit = fun fn ->
   let cfn = Filename.chop_suffix fn ".pml" ^ ".pmi" in
-  if more_recent fn cfn then
-    raise Compile
+  if more_recent fn cfn then raise Compile
   else
     let ch = open_in cfn in
     let _ = input_value ch in
-    let deps = input_value ch in
+    let (deps:string list) = input_value ch in
     check_deps deps cfn ch;
     let infix = input_value ch in
     SMap.iter (Hashtbl.replace infix_tbl) infix;
@@ -151,7 +161,7 @@ let load_file : string -> unit = fun fn ->
   else
     let ch = open_in cfn in
     let _ = input_value ch in
-    let deps = input_value ch in
+    let (deps:string list) = input_value ch in
     check_deps deps cfn ch;
     let _infix = input_value ch in
     begin
@@ -159,7 +169,7 @@ let load_file : string -> unit = fun fn ->
       | [] -> ()
       | dep::_ -> dep := deps @ !dep
     end;
-    let (local_sorts, local_exprs, local_values, local_infix) =
+    let (local_sorts, local_exprs, local_values) =
       input_value ch
     in
     close_in ch;

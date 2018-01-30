@@ -196,8 +196,8 @@ install: main.native $(PML_FILES) lib install_emacs
 	install -d $(BINDIR)
 	install -m 755 $< $(BINDIR)/pml2
 	install -d $(LIBDIR)/pml2/lib
-	install -m 644 $(PML_FILES) $(LIBDIR)/pml2/lib
-	install -m 644 $(PMI_FILES) $(LIBDIR)/pml2/lib
+	install -p -m 644 $(PML_FILES) $(LIBDIR)/pml2/lib
+	install -p -m 644 $(PMI_FILES) $(LIBDIR)/pml2/lib
 
 # Release.
 .PHONY: release
