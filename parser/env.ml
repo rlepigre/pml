@@ -87,6 +87,9 @@ let save_file : string -> unit = fun fn ->
     | _::l -> let deps = List.concat (List.map (!) !parents) in
               parents := l; List.sort_uniq String.compare deps
   in
+  (* make sure load_infix sees a closure too, to recompile
+     soon enough *)
+  output_value ch (fun () -> 0);
   output_value ch deps;
   output_value ch !env.local_infix;
   output_value ch (!env.local_sorts, !env.local_exprs, !env.local_values);
@@ -100,16 +103,28 @@ let mod_time : string -> float = fun fname ->
   if Sys.file_exists fname then Unix.((stat fname).st_mtime)
   else neg_infinity
 
-(* Modification time of the current binary. *)
-let binary_time : float = mod_time "/proc/self/exe"
-
 (* Test if a file is more recent than another file (or the binary). *)
 let more_recent source target =
   mod_time source > mod_time target
-  || binary_time > mod_time target
 
 let start fn =
   parents := ref [] :: !parents
+
+let input_value ch =
+  try input_value ch with Failure _ -> raise Compile
+
+let check_deps deps cfn ch =
+  if List.exists (fun source ->
+         let dfn = Filename.chop_suffix source ".pml" ^ ".pmi" in
+         more_recent source cfn ||
+           not (Sys.file_exists dfn) ||
+             more_recent dfn cfn
+       ) deps
+  then
+    begin
+      close_in ch;
+      raise Compile;
+    end
 
 let load_infix : string -> unit = fun fn ->
   let cfn = Filename.chop_suffix fn ".pml" ^ ".pmi" in
@@ -117,14 +132,12 @@ let load_infix : string -> unit = fun fn ->
     raise Compile
   else
     let ch = open_in cfn in
+    let _ = input_value ch in
     let deps = input_value ch in
-    if List.exists (fun source -> more_recent source cfn) deps then
-      begin
-        close_in ch;
-        raise Compile;
-      end;
+    check_deps deps cfn ch;
     let infix = input_value ch in
-    SMap.iter (Hashtbl.replace infix_tbl) infix
+    SMap.iter (Hashtbl.replace infix_tbl) infix;
+    close_in ch
 
 let load_file : string -> unit = fun fn ->
   let cfn = Filename.chop_suffix fn ".pml" ^ ".pmi" in
@@ -137,7 +150,9 @@ let load_file : string -> unit = fun fn ->
     raise Compile
   else
     let ch = open_in cfn in
+    let _ = input_value ch in
     let deps = input_value ch in
+    check_deps deps cfn ch;
     let _infix = input_value ch in
     begin
       match !parents with

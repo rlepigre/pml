@@ -678,7 +678,10 @@ and interpret : bool -> Raw.toplevel -> unit =
 
 and load_infix fn =
   try  Env.load_infix fn
-  with Env.Compile -> ignore (compile_file false fn)
+  with Env.Compile ->
+    compile_file false fn;
+    try Env.load_infix fn
+    with Env.Compile -> failwith "source changed during compilation"
 
 and compile_file : bool -> string -> unit = fun nodep fn ->
   if !verbose then out "[%s]\n%!" fn;
@@ -695,9 +698,16 @@ and handle_file nodep fn =
   try
     if !recompile && nodep then compile_file nodep fn;
     try Env.load_file fn
-    with Env.Compile -> compile_file nodep fn;
-                        try Env.load_file fn
-                        with Env.Compile -> assert false
+    with Env.Compile ->
+      if nodep then
+        begin
+          compile_file nodep fn;
+          try Env.load_file fn
+          with Env.Compile ->
+            failwith "source changed during compilation"
+        end
+      else (* allready compiled by load_infix if dep *)
+        failwith "source changed during compilation"
   with
   | No_parse(p)             ->
       begin
