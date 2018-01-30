@@ -180,7 +180,7 @@ include lib.either
 //    either return n with a sized type less or equal than the size of m
 //    or return n - S[m] with a sized type less that the size of n
 val rec sub_size : ∀o1 o2, ∀n∈nat^(o1+1), ∀m∈[S of nat^o2],
-                     either⟨{n∈nat^o2 | n < m}, {p∈nat^o1 | n ≡ m + p}⟩ =
+                     either⟨n∈nat^o2 | n < m, {p∈nat^o1 | n ≡ m + p}⟩ =
   fun n m {
     case m {
       S[m'] →
@@ -200,7 +200,7 @@ val rec sub_size : ∀o1 o2, ∀n∈nat^(o1+1), ∀m∈[S of nat^o2],
   }
 
 // modulo, with size information
-val rec mod : ∀o2, nat ⇒ [S of nat^o2] ⇒ nat^o2 =
+val rec mod : ∀o, nat ⇒ [S of nat^o] ⇒ nat^o =
   fun n m {
     case sub_size n m {
       InL[r]  → r
@@ -212,7 +212,7 @@ val rec mod : ∀o2, nat ⇒ [S of nat^o2] ⇒ nat^o2 =
     }
   }
 
-// gcd. Note: if we add a max on ordinals, we could have the size information
+// gcd. Note: if we add a max on ord, we could have the size information
 val rec gcd : nat ⇒ nat ⇒ nat =
   fun n m {
     case n {
