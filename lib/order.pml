@@ -3,7 +3,7 @@ include lib.list
 
 type ord⟨a⟩ = ∃cmp,
   { cmp   : cmp ∈ (a ⇒ a ⇒ bool)
-  ; trans : ∀x y z∈a, cmp x y ⇒ cmp y z ⇒ cmp x y
+  ; trans : ∀x y z∈a, cmp x y ⇒ cmp y z ⇒ cmp x z
   ; total : ∀x y∈a, lor⟨cmp x y,cmp y x⟩ ≡ true }
 
 val rec sorted : ∀a, ∀o∈ord⟨a⟩, ∀l∈list⟨a⟩, bool =
