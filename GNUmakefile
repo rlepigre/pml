@@ -92,7 +92,7 @@ main.byte: _build/pml2/main.byte
 main.native: _build/pml2/main.native
 main.p.native: _build/pml2/main.p.native
 
-pml2/config.ml: GNUmakefile
+pml2/config.ml: Makefile.config
 	@echo "let path = [\"$(LIBDIR)/pml2\"]" > $@
 
 ML_FILES = $(wildcard */*.ml) pml2/config.ml
@@ -173,19 +173,19 @@ else
 	install -m 644 editors/vim/syntax/pml.vim $(VIMDIR)/syntax
 	install -m 644 editors/vim/indent/pml.vim $(VIMDIR)/indent
 	install -m 644 editors/vim/ftdetect/pml.vim $(VIMDIR)/ftdetect
-	@echo -e "\e[36mVim mode installed.\e[39m"
+	@echo "\e[36mVim mode installed.\e[39m"
 endif
 
 # Install for the emacs mode (system-wide).
 .PHONY: install_emacs
 install_emacs: editors/emacs/pml2-mode.el
 ifeq ($(wildcard $(EMACSDIR)/.),)
-	@echo -e "\e[36mWill not install emacs mode.\e[39m"
+	@echo "\e[36mWill not install emacs mode.\e[39m"
 else
 	install -d $(EMACSDIR)
 	install -m 644 editors/emacs/pml2-mode.el $(EMACSDIR)
 	install -m 755 editors/emacs/pml2-indent.sh $(BINDIR)/pml2-indent
-	@echo -e "\e[36mEmacs mode installed.\e[39m"
+	@echo "\e[36mEmacs mode installed.\e[39m"
 endif
 
 # Install.
