@@ -134,7 +134,7 @@ lib: main.native $(LIB_FILES)
 
 # Test target.
 .PHONY: test
-TEST_FILES = $(wildcard examples/*.pml test/*.pml test/phd_examples/*.pml)
+TEST_FILES = $(wildcard examples/*.pml test/*.pml test/*/*.pml)
 test: main.native lib $(TEST_FILES)
 	@for f in $(TEST_FILES); do echo $$f; ./main.native --quiet $$f || break ; done
 
@@ -150,6 +150,10 @@ clean: libclean
 
 libclean:
 	@find . -name \*.pmi -exec rm {} \;
+	@find . -name \*.vo -exec rm {} \;
+	@find . -name \*.vo.aux -exec rm {} \;
+	@find . -name \*.glob -exec rm {} \;
+	@find . -name \*.agdai -exec rm {} \;
 
 distclean: clean
 	@find . -type f -name "*~" -exec rm {} \;
