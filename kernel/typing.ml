@@ -116,6 +116,11 @@ let new_uvar : type a. ctxt -> a sort -> a ex loc = fun ctx s ->
                     ; uvar_val = ref (Unset [])
                     ; uvar_pur = ref false}))
 
+let opred ctx o =
+  match (Norm.whnf o).elt with
+  | Succ o' -> o'
+  | _       -> new_uvar ctx O
+
 let add_positive : ctxt -> ordi -> ordi -> ctxt = fun ctx o oo ->
   let o = Norm.whnf o in
   match o.elt with
@@ -499,12 +504,20 @@ and subtype =
          let fn x = appl None (box t) (valu None (vari None x)) in
          let name = Print.get_lambda_name t in
          let f = (None, unbox (vbind (mk_free V) name fn)) in
-         let (vwit, ctx_names) = vwit ctx.ctx_names f a2 b2 in
-         let ctx = { ctx with ctx_names } in
-         let ctx = learn_nobox ctx vwit in
-         let wit = Pos.none (Valu(vwit)) in
-         (* learn the equation from a2. *)
-         let ctx = learn_equivalences ctx vwit a2 in
+         let (wit, ctx) =
+           match is_singleton a2 with
+           | Some(wit) ->
+              let (_,ctx) = learn_value ctx wit a2 in
+              (wit, ctx)
+           | _ ->
+              let (vwit, ctx_names) = vwit ctx.ctx_names f a2 b2 in
+              let ctx = { ctx with ctx_names } in
+              let ctx = learn_nobox ctx vwit in
+              let wit = Pos.none (Valu(vwit)) in
+              (* learn the equation from a2. *)
+              let ctx = learn_equivalences ctx vwit a2 in
+              (wit, ctx)
+         in
          (* the local term for b1 < b2 *)
          let rwit = Pos.none (Appl(t, wit)) in
          (* if the first function type is total, we can assume that
@@ -634,19 +647,19 @@ and subtype =
           Sub_FixN_l(true, subtype ctx t (bndr_subst f a.elt) b)
       (* Mu right and Nu left rules, general case. *)
       | (_          , FixM(o,f)  ) ->
-          let u = new_uvar ctx O in
-          let b = bndr_subst f (FixM(u,f)) in
-          let prf = subtype ctx t a b in
-          if not (Ordinal.less_ordi ctx.positives u o) then
-            subtype_msg b.pos "ordinal not suitable (μr rule)";
-          Sub_FixM_r(false, prf)
+         let u = opred ctx o in
+         let b = bndr_subst f (FixM(u,f)) in
+         let prf = subtype ctx t a b in
+         if not (Ordinal.less_ordi ctx.positives u o) then
+           subtype_msg b.pos "ordinal not suitable (μr rule)";
+         Sub_FixM_r(false, prf)
       | (FixN(o,f)  , _          ) ->
-          let u = new_uvar ctx O in
-          let a = bndr_subst f (FixN(u,f)) in
-          let prf = subtype ctx t a b in
-          if not (Ordinal.less_ordi ctx.positives u o) then
-            subtype_msg b.pos "ordinal not suitable (νl rule)";
-          Sub_FixN_l(false, prf)
+         let u = opred ctx o in
+         let a = bndr_subst f (FixN(u,f)) in
+         let prf = subtype ctx t a b in
+         if not (Ordinal.less_ordi ctx.positives u o) then
+           subtype_msg b.pos "ordinal not suitable (νl rule)";
+         Sub_FixN_l(false, prf)
       (* Fallback to general witness. *)
       | (_          , _          ) when not t_is_val ->
          log_sub "general subtyping";
@@ -1235,20 +1248,30 @@ and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
         (* a fresh unif var for the type of u *)
         let a = new_uvar ctx P in
         let tot = ctx.totality in
+        let check_f ctx strong a =
+          (* common code to check f *)
+          if strong then (* strong application *)
+            let a = (* do not add singleton if it is one *)
+              if is_singleton a <> None then a else Pos.none (Memb(u,a))
+            in
+            let c = Pos.none (Func(tot,a,c)) in
+            try
+              let (v,ctx) = learn_value ctx u a in
+              let ctx = learn_equivalences ctx v a in
+              type_term ctx f c
+            with Contradiction ->
+              warn_unreachable ctx f; ((t,c,Typ_Scis), Tot)
+          else
+            type_term ctx f (Pos.none (Func(tot,a,c)))
+        in
         let (p1,p2,tot1,strong) =
           (* when u is not typed and f is, typecheck f first *)
           if is_typed VoT_T f && not (is_typed VoT_T u) then
             (* f will be of type ae => c, with ae = u∈a if we know the function
                will be total (otherwise it is illegal) *)
-            let ae = if know_tot tot then Pos.none (Memb(u,a)) else a in
+            let strong = know_tot tot in
             (* type check f *)
-            let (p1,tot1) = type_term ctx f (Pos.none (Func(tot,ae,c))) in
-            (* we apply strong application rule if ae is a singleton type *)
-            let strong =
-              match is_singleton ae with
-              | None -> false
-              | Some a -> unif_expr ctx u a
-            in
+            let (p1,tot1) = check_f ctx strong a in
             (* total checking for u if we use strong application *)
             let ctx_u = if strong then { ctx with totality = Tot } else ctx in
             (* check u *)
@@ -1261,22 +1284,11 @@ and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
                tot1 < tot is checked at the end *)
             let ctx_u = if know_tot tot then ctx else
                           { ctx with totality = new_tot () } in
-            let (p2,tot1) = type_term ctx_u u a in
+            let (p2,tot2) = type_term ctx_u u a in
             (* If the typing of u was total, we can use strong application *)
-            let strong = is_tot tot1 in
-            (* Same trick as above: ae = u∈a is a is not already a singleton
-               type and if the application is strong *)
-            let (ctx, ae) =
-              if strong then
-                let ae =
-                  if is_singleton a <> None then a else Pos.none (Memb(u,a))
-                in
-                let (v,ctx) = learn_value ctx u a in
-                (ctx, ae)
-              else (ctx, a)
-            in
-            (* checking f *)
-            let (p1,tot2) = type_term ctx f (Pos.none (Func(tot,ae,c))) in
+            let strong = is_tot tot2 in
+            (* type check f *)
+            let (p1,tot1) = check_f ctx strong a in
             (* check tot1, as late as possible to avoid instanciating tot *)
             if not (sub tot1 tot) then subtype_msg f.pos "Arrow clash";
             (p1,p2,max tot1 tot2,strong)

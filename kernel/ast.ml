@@ -579,9 +579,11 @@ let eq_true : popt -> tbox -> pbox =
 let rec is_scis : type a. a ex loc -> bool =
   fun e ->
     match e.elt with
-    | Scis    -> true
-    | Valu(v) -> is_scis v
-    | _       -> false
+    | Scis      -> true
+    | Valu(v)   -> is_scis v
+    | LAbs(_,f) -> (* because of sugar like show ...; 8< *)
+                   is_scis (bndr_subst f (Dumm V))
+    | _         -> false
 
 (*
 let build_v_fixy : (v,t) bndr -> valu = fun b ->

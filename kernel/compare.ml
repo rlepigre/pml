@@ -169,7 +169,8 @@ let {eq_expr; eq_bndr} =
       | _ -> raise DontKnow
     with DontKnow ->
     (** third we recurse *)
-    if !full_eq then log_equ "comparing %a and %a" Print.ex e1 Print.ex e2;
+    if !full_eq then log_equ "comparing %a and %a (%b)"
+                             Print.ex e1 Print.ex e2 strict;
     match (e1.elt, e2.elt) with
     | (Vari(_,x1)    , Vari(_,x2)    ) ->
        Bindlib.eq_vars x1 x2
@@ -283,7 +284,7 @@ let {eq_expr; eq_bndr} =
                 false
           end
     (* NOTE type annotation ignored. *)
-    | (LAbs(_,b1)   , LAbs(_,b2)    )  -> eq_bndr V b1 b2
+    | (LAbs(_,b1)    , LAbs(_,b2)    )  -> eq_bndr V b1 b2
     | (Cons(c1,v1)   , Cons(c2,v2)   ) -> c1.elt = c2.elt && eq_expr v1 v2
     | (Reco(m1)      , Reco(m2)      ) ->
         A.equal (fun (_,v1) (_,v2) -> eq_expr v1 v2) m1 m2
@@ -293,7 +294,7 @@ let {eq_expr; eq_bndr} =
     | (VDef(d1)      , _             ) -> eq_expr d1.value_eras e2
     | (_             , VDef(d2)      ) -> eq_expr e1 d2.value_eras
     | (Valu(v1)      , Valu(v2)      ) -> eq_expr v1 v2
-    | (Appl(t1,u1)  , Appl(t2,u2)    ) -> eq_expr t1 t2 && eq_expr u1 u2
+    | (Appl(t1,u1)   , Appl(t2,u2)   ) -> eq_expr t1 t2 && eq_expr u1 u2
     (* NOTE type annotation ignored. *)
     | (MAbs(b1)      , MAbs(b2)      ) -> eq_bndr S b1 b2
     | (Name(s1,t1)   , Name(s2,t2)   ) -> eq_expr s1 s2 && eq_expr t1 t2

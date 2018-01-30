@@ -53,10 +53,7 @@ val mccarthy91_total : ∀n∈nat, ∃v:ι, v∈nat | mccarthy91 n ≡ v =
                  deduce compare n S[u100] ≡ Gr;
                  show compare n S[u100] ≡ Ls using succ_ls n u100 {};
                  ✂
-          | Eq → deduce compare n u100 ≡ Eq;
-                 deduce compare n S[u100] ≡ Gr;
-                 show compare n S[u100] ≡ Ls using succ_eq_r n u100 {};
-                 ✂
+          | Eq → ✂
           | Gr → ✂
         }
       }
