@@ -592,7 +592,7 @@ let parser toplevel =
 
   (* Inclusion of a file. *)
   | _include_ p:path
-      -> let fn = find_module p in
+      -> let fn = Env.find_module p in
          load_infix fn; fun () -> Include fn
 
   | _set_ l:set_param
@@ -611,19 +611,6 @@ let parser toplevel =
 
 (* Entry point of the parser. *)
 and parser entry = toplevel*
-
-and find_file : string -> string = fun fn ->
-  let add_fn dir = Filename.concat dir fn in
-  let ls = fn :: (List.map add_fn Config.path) in
-  let rec find ls =
-    match ls with
-    | []     -> err_msg "File \"%s\" does not exist." fn; exit 1
-    | fn::ls -> if Sys.file_exists fn then fn else find ls
-  in find ls
-
-and find_module : string list -> string = fun ps ->
-  let fn = (String.concat "/" ps) ^ ".pml" in
-  find_file fn
 
 and interpret : bool -> Raw.toplevel -> unit =
   fun nodep top ->
