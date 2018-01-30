@@ -414,17 +414,17 @@ val geq_gt : ∀a b∈nat, a ≥ b ≡ not (b > a) =
   fun a b { set auto 2 2; compare_sym a b }
 
 val leq_refl : ∀a∈nat, a ≤ a = fun a { compare_refl a }
-val leq_refl : ∀a∈nat, a ≥ a = fun a { compare_refl a }
+val geq_refl : ∀a∈nat, a ≥ a = fun a { compare_refl a }
 
 val leq_total : ∀a b∈nat, a ≤ b || b ≤ a =
   fun a b { set auto 2 2; compare_sym a b }
 val geq_total : ∀a b∈nat, a ≥ b || b ≥ a =
   fun a b { set auto 2 2; compare_sym a b }
 
-val leq_anti : ∀a b∈nat, a ≤ b && b ≤ a ⇒ a ≡ b =
-  fun a b h { set auto 2 2; compare_sym a b }
-val geq_anti : ∀a b∈nat, a ≥ b && b ≥ a ⇒ a ≡ b =
-  fun a b h { set auto 2 2; compare_sym a b }
+val leq_anti : ∀a b∈nat, a ≤ b ⇒ b ≤ a ⇒ a ≡ b =
+  fun a b h1 h2 { set auto 2 2; compare_sym a b }
+val geq_anti : ∀a b∈nat, a ≥ b ⇒ b ≥ a ⇒ a ≡ b =
+  fun a b h1 h2 { set auto 2 2; compare_sym a b }
 
 val rec div_mod : ∀n∈nat,∀m∈[S of nat], (n / m) * m + n % m ≡ n =
   fun n m {
