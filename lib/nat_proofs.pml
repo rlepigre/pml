@@ -425,3 +425,21 @@ val leq_anti : ∀a b∈nat, a ≤ b && b ≤ a ⇒ a ≡ b =
   fun a b h { set auto 2 2; compare_sym a b }
 val geq_anti : ∀a b∈nat, a ≥ b && b ≥ a ⇒ a ≡ b =
   fun a b h { set auto 2 2; compare_sym a b }
+
+val rec div_mod : ∀n∈nat,∀m∈[S of nat], (n / m) * m + n % m ≡ n =
+  fun n m {
+    case sub_size n m {
+      InL[r]  → qed
+      InR[n'] →
+        case n' {
+          0      → use add_n_zero m; qed
+          S[n''] → eqns n / m * m + n % m
+                      ≡ S[n' / m] * m + n' % m
+                      ≡ (m + n' / m * m) + n' % m
+                      ≡ m + (n' / m * m + n' % m)
+                         by add_assoc m (n' / m * m) (n' % m)
+                      ≡ m + n' by div_mod n' m
+                      ≡ n
+        }
+    }
+  }

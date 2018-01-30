@@ -74,19 +74,6 @@ val rec (-) : ∀s, nat^s ⇒ nat ⇒ nat^s =
     }
   }
 
-// NOTE we need size-preserving (-) to define (/).
-
-// Division function.
-infix (/) = div priority 2 left associative
-
-val rec (/) : nat ⇒ [S of nat] ⇒ nat =
-  fun n m {
-    case n {
-      0    → 0
-      S[p] → case m { S[q] → 1 + (p - q) / m }
-    }
-  }
-
 //// Comparison and equality /////////////////////////////////////////////////
 include lib.comparison
 
@@ -179,35 +166,59 @@ include lib.either
 // sub_size n S[m]
 //    either return n with a sized type less or equal than the size of m
 //    or return n - S[m] with a sized type less that the size of n
+
 val rec sub_size : ∀o1 o2, ∀n∈nat^(o1+1), ∀m∈[S of nat^o2],
                      either⟨n∈nat^o2 | n < m, {p∈nat^o1 | n ≡ m + p}⟩ =
   fun n m {
     case m {
       S[m'] →
-        case n {
-          0     → InL[Zero]
-          S[n'] →
-            case m' {
-              0      → InR[n']
-              S[m''] →
-                case sub_size n' S[m''] {
-                  InL[r] → InL[S[r]]
-                  InR[d] → InR[d]
+        let rec sub_aux : ∀o1 o2, ∀n∈nat^(o1+1), ∀m∈nat^o2,
+                      either⟨n∈nat^o2 | n < S[m], {p∈nat^o1 | n ≡ S[m] + p}⟩ =
+          fun n m {
+            case n {
+              0     → InL[Zero]
+              S[n'] →
+                case m {
+                  0     → InR[n']
+                  S[m'] →
+                    case sub_aux n' m' {
+                      InL[r] → InL[S[r]]
+                      InR[d] → InR[d]
+                    }
                 }
             }
-        }
+          };
+        sub_aux n m'
     }
   }
 
 // modulo, with size information
-val rec mod : ∀o, nat ⇒ [S of nat^o] ⇒ nat^o =
+infix (%) = mod priority 2 left associative
+
+val rec (%) : ∀o, nat ⇒ [S of nat^o] ⇒ nat^o =
   fun n m {
     case sub_size n m {
       InL[r]  → r
       InR[n'] →
         case n' {
           0      → Zero
-          S[n''] → mod n' m
+          S[n''] → n' % m
+        }
+    }
+  }
+
+
+infix (/) = div priority 2 left associative
+
+// div
+val rec (/) : nat ⇒ [S of nat] ⇒ nat =
+  fun n m {
+    case sub_size n m {
+      InL[r]  → 0
+      InR[n'] →
+        case n' {
+          0      → 1
+          S[n''] → S[n' / m]
         }
     }
   }
@@ -220,7 +231,7 @@ val rec gcd : nat ⇒ nat ⇒ nat =
       S[n'] →
         case m {
           0     → n
-          S[m'] → gcd (mod m S[n']) n
+          S[m'] → gcd (m % S[n']) n
             }
         }
     }
