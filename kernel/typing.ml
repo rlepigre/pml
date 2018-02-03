@@ -803,8 +803,8 @@ and check_sub : ctxt -> prop -> prop -> check_sub = fun ctx a b ->
         (* TODO #5 to avoid the restiction no_uvars () below,
            subml introduces unification variables parametrised by the
            generalised ordinals *)
-        | ((FixM _ | FixN _), _)
-        | (_, (FixM _ | FixN _))
+        | (FixN _, _     )
+        | (_     , FixM _)
         | (DSum _, DSum _)
         | (Prod _, Prod _) when no_uvars () ->
            (* Construction of a new schema. *)
