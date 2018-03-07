@@ -63,6 +63,8 @@ val rec fold_right : ∀a b, (b ⇒ a ⇒ a) ⇒ list⟨b⟩ ⇒ a ⇒ a =
 
 val sum : list⟨nat⟩ ⇒ nat = (fold_left add zero)
 
+infix (@) = app priority 3 left associative
+
 val rec app : ∀b, list⟨b⟩ ⇒ list⟨b⟩ ⇒ list⟨b⟩ =
   fun l1 l2 {
     case l1 {
