@@ -18,3 +18,9 @@ val xor : bool ⇒ bool ⇒ bool = fun a b { if a { not b } else { b } }
 val imp : bool ⇒ bool ⇒ bool = fun a b { a => b }
 
 val eq  : bool ⇒ bool ⇒ bool = fun a b { if a { b } else { not b } }
+
+val print_bool : bool ⇒ {} =
+  fun b { if b { print "true " } else { print "false" } }
+
+val println_bool : bool ⇒ {} =
+  fun b { print_bool b; print "\n" }
