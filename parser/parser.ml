@@ -549,10 +549,10 @@ and parser field = l:llid {"=" t:(expr (Trm R))}?
 (* Pattern. *)
 and parser patt =
   | '[' ']'                       -> (in_pos _loc "Nil"  , None)
-  | x:llid "::" y:llid            -> let hd = (Pos.none "hd", (x, None)) in
-                                     let tl = (Pos.none "tl", (y, None)) in
-                                     let arg = Some (`LetArgRec [hd; tl]) in
-                                     (in_pos _loc "Cons" , arg )
+  | x:llid_wc "::" y:llid_wc      ->
+      let fs = if y.elt <> "_" then [(Pos.none "tl", (y, None))] else [] in
+      let fs = if x.elt <> "_" then (Pos.none "hd", (x, None))::fs else fs in
+      (in_pos _loc "Cons", Some (`LetArgRec fs))
   | c:luid arg:{'[' let_arg ']'}? -> (c                  , arg )
   | "0"                           -> (in_pos _loc "Zero" , None)
 
