@@ -20,16 +20,22 @@ highlight link Str Character
 syntax keyword Keyword fun save restore case of fix let rec corec using use
 syntax keyword Keyword type def val sort if else deduce show qed such that
 syntax keyword Keyword check for because delim set assume suppose take print
+syntax keyword Keyword auto log
 syntax match   Keyword "λ"
 syntax match   Keyword "μ"
 syntax match   Keyword "ν"
 syntax match   Keyword "Λ"
-syntax match   Keyword "[][{}()=<>,;:.|]"
+syntax match   Keyword "[][{}()=,;:.|]"
+syntax match   Keyword "∃"
+syntax match   Keyword "∀"
 syntax match   Keyword "⇒"
 syntax match   Keyword "→"
 syntax match   Keyword "×"
 syntax match   Keyword "∈"
 syntax match   Keyword "\^"
+syntax match   Keyword "⟨"
+syntax match   Keyword "⟩"
+syntax match   Keyword "⋯"
 
 " Constructors
 syntax match Constant "\<\u\w*\>"
@@ -66,17 +72,49 @@ syntax match Type "κ"
 syntax match Type "<kappa>"
 syntax match Type "<ordinal>"
 
-" Abbreviations
-abbreviate ->        →
-abbreviate =>        ⇒
-abbreviate *         ×
-abbreviate <iota>    ι
-abbreviate <value>   ι
-abbreviate <tau>     τ
-abbreviate <term>    τ
-abbreviate <sigma>   σ
-abbreviate <stack>   σ
-abbreviate <omicron> ο
-abbreviate <prop>    ο
-abbreviate <kappa>   κ
-abbreviate <ordinal> κ
+" A few functions to work with abbreviations (input mode).
+func Eatspace()
+  let c = nr2char(getchar(0))
+  return (c =~ '\s') ? '' : c
+endfunc
+
+function! s:Expr(default, repl)
+  if getline('.')[col('.')-2]=='\'
+    return "\<bs>".a:repl
+  else
+    return a:default
+  endif
+endfunction
+
+function! s:DefAB(lhs, rhs)
+  exe 'ab '.a:lhs.' <c-r>=<sid>Expr('.string(a:lhs).', '.string(a:rhs).')<cr>'
+endfunction
+
+function! s:DefABEat(lhs, rhs)
+  exe 'ab '.a:lhs.' <c-r>=<sid>Expr('.string(a:lhs).', '.string(a:rhs).')<cr><c-r>=Eatspace()<cr>'
+endfunction
+
+command! -nargs=+ ABBackslash    call s:DefAB(<f-args>)
+command! -nargs=+ ABBackslashEat call s:DefABEat(<f-args>)
+
+" Usual abbreviations.
+ab -> →
+ab => ⇒
+ab *  ×
+
+" Abbreviations starting with backslash.
+ABBackslashEat langle  ⟨
+ABBackslash    rangle  ⟩
+ABBackslash    notin   ∉
+ABBackslash    times   ×
+ABBackslashEat forall  ∀
+ABBackslashEat exists  ∃
+ABBackslash    infty   ∞
+ABBackslashEat mu      μ
+ABBackslashEat nu      ν
+ABBackslash    iota    ι
+ABBackslash    tau     τ
+ABBackslash    sigma   σ
+ABBackslash    omicron ο
+ABBackslash    kappa   κ
+ABBackslashEat dots    ⋯
