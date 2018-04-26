@@ -1,16 +1,19 @@
 open Extra
 open Ast
 open Pos
-open Bindlib
 open Sorts
 
 (* a mapper may raise the exception Default *)
 type recall = { recall : 'a. 'a ex loc -> 'a box;
                 default : 'a. 'a ex loc -> 'a box}
 type mapper = { mapper : 'a. recall -> 'a ex loc -> 'a box }
-let defmapper = { mapper = (fun { default } x ->
-                    let res = default x in
-                    if is_closed res then box x else res ) }
+
+let defmapper =
+  let mapper {default} x =
+    let res = default x in
+    if Bindlib.is_closed res then Bindlib.box x else res
+  in
+  {mapper}
 
 let map : type a. ?mapper:mapper -> a ex loc -> a box
   = fun ?(mapper=defmapper) e ->
@@ -23,15 +26,15 @@ let map : type a. ?mapper:mapper -> a ex loc -> a box
       let e = Norm.whnf e in
       let default : type a. a ex loc -> a box = fun e ->
           match e.elt with
-            | HDef(_,_)   -> box e (* Assumed closed *)
+            | HDef(_,_)   -> Bindlib.box e (* Assumed closed *)
             | HApp(s,f,a) -> happ e.pos s (map f) (map a)
             | HFun(a,b,f) -> hfun e.pos a b (bndr_name f)
                                   (fun x -> map (bndr_subst f (mk_free a x)))
-            | UWit(_)     -> box e
-            | EWit(_)     -> box e
-            | UVar(_,_)   -> box e
-            | ITag(_,_)   -> box e
-            | Goal(_,_)   -> box e
+            | UWit(_)     -> Bindlib.box e
+            | EWit(_)     -> Bindlib.box e
+            | UVar(_,_)   -> Bindlib.box e
+            | ITag(_,_)   -> Bindlib.box e
+            | Goal(_,_)   -> Bindlib.box e
 
             | Func(t,a,b) -> func e.pos t (map a) (map b)
             | Prod(m)     -> prod e.pos (A.map (fun (p,a) -> (p, map a)) m)
@@ -48,13 +51,13 @@ let map : type a. ?mapper:mapper -> a ex loc -> a box
             | Rest(a,c)   -> rest e.pos (map a) (map_cond c)
             | Impl(c,a)   -> impl e.pos (map_cond c) (map a)
 
-            | VWit(_)     -> box e
+            | VWit(_)     -> Bindlib.box e
             | LAbs(a,f)   -> labs e.pos (Option.map map a) (bndr_name f)
                                   (fun x -> map (bndr_subst f (mk_free V x)))
             | Cons(c,v)   -> cons e.pos c (map v)
             | Reco(m)     -> reco e.pos (A.map (fun (p,v) -> (p, map v)) m)
-            | Scis        -> box e
-            | VDef(_)     -> box e
+            | Scis        -> Bindlib.box e
+            | VDef(_)     -> Bindlib.box e
 
             | Coer(t,e,a) -> coer e.pos t (map e) (map a)
             | Such(t,d,r) -> let sv =
@@ -68,15 +71,19 @@ let map : type a. ?mapper:mapper -> a ex loc -> a box
                                fun b ->
                                  match b with
                                  | BLast(s,b) ->
-                                     let x = binder_name b in
+                                     let x = Bindlib.binder_name b in
                                      let f x =
-                                       let (p,e) = subst b (mk_free s x) in
-                                       box_pair (map p) (map e)
+                                       let (p,e) =
+                                         Bindlib.subst b (mk_free s x)
+                                       in
+                                       Bindlib.box_pair (map p) (map e)
                                      in
                                      FLast(s, Pos.none x, f)
                                  | BMore(s,b) ->
-                                     let x = binder_name b in
-                                     let f x = aux (subst b (mk_free s x)) in
+                                     let x = Bindlib.binder_name b in
+                                     let f x =
+                                       aux (Bindlib.subst b (mk_free s x))
+                                     in
                                      FMore(s, Pos.none x, f)
                              in
                              such e.pos t d sv (aux r.binder)
@@ -99,18 +106,18 @@ let map : type a. ?mapper:mapper -> a ex loc -> a box
             | Repl(t,u)   -> repl e.pos (map t) (map u) None
             | Delm(u)     -> delm e.pos (map u)
 
-            | SWit(_)     -> box e
+            | SWit(_)     -> Bindlib.box e
 
-            | Conv        -> box e
+            | Conv        -> Bindlib.box e
             | Succ(o)     -> succ e.pos (map o)
-            | OWMu(_)     -> box e
-            | OWNu(_)     -> box e
-            | OSch(_)     -> box e
+            | OWMu(_)     -> Bindlib.box e
+            | OWNu(_)     -> Bindlib.box e
+            | OSch(_)     -> Bindlib.box e
             | Vari(_,x)   -> vari e.pos x
-            | Dumm(_)     -> box e
+            | Dumm(_)     -> Bindlib.box e
 
-            | VPtr _      -> box e
-            | TPtr _      -> box e
+            | VPtr _      -> Bindlib.box e
+            | TPtr _      -> Bindlib.box e
         in
         mapper.mapper { recall = map; default } e
       in map e
