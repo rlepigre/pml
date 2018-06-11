@@ -113,7 +113,7 @@ let {eq_expr; eq_bndr} =
               let rec fn : type b. b args -> a ebox = function
                 | Nil -> raise Not_found
                 | Cns(s,v,a,args) ->
-                   let v = box_apply Pos.none (box_of_var v) in
+                   let v = box_apply Pos.none (box_var v) in
                    match eq_sort s s' with
                    | Eq.Eq -> if eq_expr e a then v else fn args
                    | _ -> fn args

@@ -1,5 +1,18 @@
 (** Main type-checking and subtyping functions. *)
 
+(* FIXME FIXME FIXME temporary *)
+module Bindlib = struct
+  include Bindlib
+
+  let vbind : ('a var -> 'a) -> string -> ('a var -> 'b box)
+              -> ('a, 'b) binder box = fun mkfree name f ->
+    let x = new_var mkfree name in
+    bind_var x (f x)
+
+  let binder_from_fun : string -> ('a -> 'b) -> ('a, 'b) binder =
+    fun x f -> raw_binder x true 0 (fun _ -> assert false) f
+end
+
 open Extra
 open Bindlib
 open Sorts

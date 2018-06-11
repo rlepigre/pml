@@ -84,11 +84,11 @@ module CWit = struct
     (match s with
      | FixSch s ->
         let (b, mb) = s.fsch_judge in
-        let (_, mb) = unmbind (mk_free O) mb in
+        let (_, mb) = unmbind mb in
         bndr_uvars T b @ uvars mb
      | SubSch s ->
         let mb = s.ssch_judge in
-        let (_, (e1,e2)) = unmbind (mk_free O) mb in
+        let (_, (e1,e2)) = unmbind mb in
         uvars e1 @ uvars e2)
 end
 

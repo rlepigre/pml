@@ -1,5 +1,15 @@
 (** Function to retreive information from expression *)
 
+(* FIXME FIXME FIXME temporary *)
+module Bindlib = struct
+  include Bindlib
+
+  let mbinder_from_fun : ('a var -> 'a) -> string array -> ('a array -> 'b)
+      -> ('a,'b) mbinder =
+    fun mkfree xs f ->
+      raw_mbinder xs (Array.map (fun _ -> true) xs) 0 mkfree f
+end
+
 open Extra
 open Bindlib
 open Eq
@@ -142,9 +152,8 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
   let b = bind_mvar xs (bind_all e) in
   (unbox b, os)
 
-let bind2_ordinals
-    : p ex loc -> p ex loc -> (o ex, p ex loc * p ex loc) mbinder * ordi array
-  = fun e1 e2 ->
+let bind2_ordinals : p ex loc -> p ex loc
+    -> (o ex, p ex loc * p ex loc) mbinder * ordi array = fun e1 e2 ->
   let m = A.singleton "1" (None, e1) in
   let m = A.add "2" (None, e2) m in
   let e = Pos.none (Prod m) in
@@ -159,7 +168,7 @@ let bind2_ordinals
        end
     | _ -> assert false
   in
-  (mbinder_from_fun names fn, os)
+  (mbinder_from_fun (mk_free O) names fn, os)
 
 type occ = Pos | Neg | Any
 
@@ -173,7 +182,7 @@ let bind_spos_ordinals
   let new_ord () =
     let v = new_var (mk_free O) "o" in
     vars := v::!vars;
-    box_apply Pos.none (box_of_var v)
+    box_apply Pos.none (box_var v)
   in
   let assoc = ref [] in
   let rec search_ord o =
@@ -263,7 +272,7 @@ let make_closure
 let make_bndr_closure
     : type a b. a sort -> (a, b) bndr -> (a, b) bndr closure
   = fun s b0 ->
-    let (x,e) = unbind (mk_free s) (snd b0) in
+    let (x,e) = unbind (snd b0) in
     let (e,tv,vv,tl,vl) = box_closure e in
     let b = bind_var x e in
     let b = box_pair (box (fst b0)) b in

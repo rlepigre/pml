@@ -4,6 +4,16 @@
     such a graph (or pool), one will be able to read back the representative
     of a term by following the edges. *)
 
+(* FIXME FIXME FIXME temporary *)
+module Bindlib = struct
+  include Bindlib
+
+  let vbind : ('a var -> 'a) -> string -> ('a var -> 'b box)
+              -> ('a, 'b) binder box = fun mkfree name f ->
+    let x = new_var mkfree name in
+    bind_var x (f x)
+end
+
 open Extra
 open Bindlib
 open Ptr
@@ -198,8 +208,8 @@ let pcl : type a. out_channel -> a closure -> unit =
   fun ch (funptr,vs,ts) ->
     let prnt = Printf.fprintf in
     let pex = Print.ex in
-    let (vvars,b) = unmbind (mk_free V) funptr in
-    let (tvars,t) = unmbind (mk_free T) b in
+    let (vvars,b) = unmbind funptr in
+    let (tvars,t) = unmbind b in
     let vvars = if vs = [||] then [||] else vvars in
     let tvars = if ts = [||] then [||] else tvars in
     let fn ch =
@@ -221,9 +231,9 @@ let pbcl : type a b. a sort -> out_channel -> (a, b) bndr_closure -> unit =
   fun s ch (funptr,vs,ts) ->
     let prnt = Printf.fprintf in
     let pex = Print.ex in
-    let (vvars,b) = unmbind (mk_free V) funptr in
-    let (tvars,b) = unmbind (mk_free T) b in
-    let (var,t)   = unbind (mk_free s) (snd b) in
+    let (vvars,b) = unmbind funptr in
+    let (tvars,b) = unmbind b in
+    let (var,t)   = unbind (snd b) in
     let vvars = if vs = [||] then [||] else vvars in
     let tvars = if ts = [||] then [||] else tvars in
     let fn ch =

@@ -637,7 +637,7 @@ let infer_sorts : raw_ex -> raw_sort -> unit = fun e s ->
     | (ESucc(_)     , _        ) -> sort_clash e s
   in infer M.empty e s
 
-type boxed = Box : 'a sort * 'a ex loc Bindlib.bindbox -> boxed
+type boxed = Box : 'a sort * 'a ex loc Bindlib.box -> boxed
 
 let box_set_pos : boxed -> Pos.popt -> boxed = fun (Box(s,e)) pos ->
   Box(s, Bindlib.box_apply (fun e -> {e with pos}) e)

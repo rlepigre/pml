@@ -82,5 +82,5 @@ open Bindlib
 
 include Lift(ListMap)
 
-let map_box : ('b -> 'a bindbox) -> 'b t -> 'a t bindbox =
+let map_box : ('b -> 'a box) -> 'b t -> 'a t box =
   fun f m -> lift_box (map f m)
