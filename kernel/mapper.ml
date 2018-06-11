@@ -4,9 +4,9 @@ open Pos
 open Sorts
 
 (* a mapper may raise the exception Default *)
-type recall = { recall : 'a. 'a ex loc -> 'a box;
-                default : 'a. 'a ex loc -> 'a box}
-type mapper = { mapper : 'a. recall -> 'a ex loc -> 'a box }
+type recall = { recall : 'a. 'a ex loc -> 'a ebox;
+                default : 'a. 'a ex loc -> 'a ebox}
+type mapper = { mapper : 'a. recall -> 'a ex loc -> 'a ebox }
 
 let defmapper =
   let mapper {default} x =
@@ -15,16 +15,16 @@ let defmapper =
   in
   {mapper}
 
-let map : type a. ?mapper:mapper -> a ex loc -> a box
+let map : type a. ?mapper:mapper -> a ex loc -> a ebox
   = fun ?(mapper=defmapper) e ->
     let rec map_cond c =
       match c with
       | Equiv(t,b,u) -> equiv (map t) b (map u)
       | NoBox(v)     -> nobox (map v)
 
-    and map : type a. a ex loc -> a box = fun e ->
+    and map : type a. a ex loc -> a ebox = fun e ->
       let e = Norm.whnf e in
-      let default : type a. a ex loc -> a box = fun e ->
+      let default : type a. a ex loc -> a ebox = fun e ->
           match e.elt with
             | HDef(_,_)   -> Bindlib.box e (* Assumed closed *)
             | HApp(s,f,a) -> happ e.pos s (map f) (map a)
@@ -122,4 +122,4 @@ let map : type a. ?mapper:mapper -> a ex loc -> a box
         mapper.mapper { recall = map; default } e
       in map e
 
-let lift : type a. a ex loc -> a box = fun e -> map e
+let lift : type a. a ex loc -> a ebox = fun e -> map e

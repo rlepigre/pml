@@ -251,7 +251,7 @@ and ('a, 'b) bndr = popt * ('a ex, 'b ex loc) binder
 
 (** Type of an expression in a (bindlib) bindbox.
     @see <https://www.lama.univ-savoie.fr/~raffalli/bindlib.html> bindlib *)
-and 'a box = 'a ex loc bindbox
+and 'a ebox = 'a ex loc bindbox
 
 and e_valu =
   | VVari of e_valu Bindlib.var
@@ -322,11 +322,11 @@ type omvar = ovar array (** Ordinal multiple variable type. *)
 
 (** {5 Bindlib bindboxes containing expressions of base sort} *)
 
-type vbox = v box    (** Value   bindbox type. *)
-type tbox = t box    (** Term    bindbox type. *)
-type sbox = s box    (** Stack   bindbox type. *)
-type pbox = p box    (** Type    bindbox type. *)
-type obox = o box    (** Ordinal bindbox type. *)
+type vbox = v ebox    (** Value   bindbox type. *)
+type tbox = t ebox    (** Term    bindbox type. *)
+type sbox = s ebox    (** Stack   bindbox type. *)
+type pbox = p ebox    (** Type    bindbox type. *)
+type obox = o ebox    (** Ordinal bindbox type. *)
 
 (** {6 Smart constructors} *)
 
@@ -338,13 +338,13 @@ let mk_free : 'a sort -> 'a var -> 'a ex =
 let vari : type a. popt -> a var -> a ex loc bindbox =
   fun p x -> box_apply (fun x -> Pos.make p x) (box_of_var x)
 
-let hfun : type a b. popt -> a sort -> b sort -> strloc -> (a var -> b box)
-             -> (a -> b) box =
+let hfun : type a b. popt -> a sort -> b sort -> strloc -> (a var -> b ebox)
+             -> (a -> b) ebox =
   fun p sa sb x f ->
     let b = vbind (mk_free sa) x.elt f in
     box_apply (fun b -> Pos.make p (HFun(sa, sb, (x.pos, b)))) b
 
-let happ : type a b. popt -> a sort -> (a -> b) box -> a box -> b box =
+let happ : type a b. popt -> a sort -> (a -> b) ebox -> a ebox -> b ebox =
   fun p s -> box_apply2 (fun f a -> Pos.make p (HApp(s,f,a)))
 
 (** {5 Value constructors} *)
@@ -429,11 +429,11 @@ let delm : popt -> tbox -> tbox =
 
 (** {5 Type annotation constructors} *)
 
-let coer : type a. popt -> a v_or_t -> a box -> pbox -> a box =
+let coer : type a. popt -> a v_or_t -> a ebox -> pbox -> a ebox =
   fun p t -> box_apply2 (fun e a -> Pos.make p (Coer(t,e,a)))
 
 let such : type a b. popt -> a v_or_t -> b desc -> such_var bindbox
-           -> (b, prop * a ex loc) fseq -> a box =
+           -> (b, prop * a ex loc) fseq -> a ebox =
   let rec aux : type a c. (c, p ex loc * a ex loc) fseq
       -> (c, prop * a ex loc) bseq bindbox = fun fs ->
     match fs with
@@ -447,7 +447,7 @@ let such : type a b. popt -> a v_or_t -> b desc -> such_var bindbox
     let fn sv b = Pos.make p (Such(t,d,{opt_var = sv; binder = b})) in
     box_apply2 fn sv (aux f)
 
-let pset : type a. popt -> set_param -> a v_or_t -> a box -> a box =
+let pset : type a. popt -> set_param -> a v_or_t -> a ebox -> a ebox =
   fun p sp sv t ->
     let fn t = Pos.make p (PSet(sp,sv,t)) in
     box_apply fn t

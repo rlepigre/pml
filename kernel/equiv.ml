@@ -1931,7 +1931,7 @@ let rec get_orig : ?vwit:bool -> Ptr.t -> pool -> term =
         | _ -> assert false
     in
     let open Mapper in
-    let mapper : type a. recall -> a ex loc -> a box = fun r t ->
+    let mapper : type a. recall -> a ex loc -> a ebox = fun r t ->
       match t.elt with
       | UWit _ | EWit _ ->
          begin

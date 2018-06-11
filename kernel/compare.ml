@@ -106,24 +106,25 @@ let {eq_expr; eq_bndr} =
         immitate *)
     let bind_args : type a b. a sort -> (a -> b) args -> b ex loc -> a ex loc =
       fun sa args b ->
-        let b' : b box =
-          let mapper : type a. recall -> a ex loc -> a box = fun {default} e ->
-            let (s',e) = Ast.sort e in
-            let rec fn : type b. b args -> a box = function
-              | Nil -> raise Not_found
-              | Cns(s,v,a,args) ->
-                 let v = box_apply Pos.none (box_of_var v) in
-                 match eq_sort s s' with
-                 | Eq.Eq -> if eq_expr e a then v else fn args
-                 | _ -> fn args
-            in
-            try fn args
-            with Not_found -> default e
+        let b' : b ebox =
+          let mapper : type a. recall -> a ex loc -> a ebox =
+            fun {default} e ->
+              let (s',e) = Ast.sort e in
+              let rec fn : type b. b args -> a ebox = function
+                | Nil -> raise Not_found
+                | Cns(s,v,a,args) ->
+                   let v = box_apply Pos.none (box_of_var v) in
+                   match eq_sort s s' with
+                   | Eq.Eq -> if eq_expr e a then v else fn args
+                   | _ -> fn args
+              in
+              try fn args
+              with Not_found -> default e
          in
          map ~mapper:{mapper} b
        in
        (** last we build the lambda (HFun) from the list *)
-       let rec blam : type a. a sort -> (a -> b) args -> a box =
+       let rec blam : type a. a sort -> (a -> b) args -> a ebox =
          fun sa args ->
            match args with
            | Nil -> b'

@@ -48,7 +48,7 @@ let add_sort : type a. string -> a sort -> unit =
     let local_sorts = SMap.add id (Sort s) !env.local_sorts in
     env := {!env with global_sorts; local_sorts}
 
-let add_expr : type a. strloc -> a sort -> a box -> unit =
+let add_expr : type a. strloc -> a sort -> a ebox -> unit =
   fun expr_name s expr_box ->
     let expr_def = Bindlib.unbox expr_box in
     let expr_hash = Hash.hash_expr expr_def in

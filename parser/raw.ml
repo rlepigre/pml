@@ -642,7 +642,7 @@ type boxed = Box : 'a sort * 'a ex loc Bindlib.bindbox -> boxed
 let box_set_pos : boxed -> Pos.popt -> boxed = fun (Box(s,e)) pos ->
   Box(s, Bindlib.box_apply (fun e -> {e with pos}) e)
 
-let rec sort_filter : type a b. a sort -> boxed -> a box =
+let rec sort_filter : type a b. a sort -> boxed -> a ebox =
   fun s bx ->
     match (s, bx) with
     | (T, Box(V,e)) -> valu (Bindlib.unbox e).pos e
@@ -655,19 +655,19 @@ let rec sort_filter : type a b. a sort -> boxed -> a box =
                       assert false (* FIXME #11 error management. *)
         end
 
-let to_valu : boxed -> v box = sort_filter V
+let to_valu : boxed -> vbox = sort_filter V
 
-let to_term : boxed -> t box = fun e ->
+let to_term : boxed -> tbox = fun e ->
   match e with
   | Box(T,e) -> e
   | Box(V,e) -> valu (Bindlib.unbox e).pos e
   | _        -> assert false
 
-let to_stac : boxed -> s box = sort_filter S
-let to_prop : boxed -> p box = sort_filter P
-let to_ordi : boxed -> o box = sort_filter O
+let to_stac : boxed -> sbox = sort_filter S
+let to_prop : boxed -> pbox = sort_filter P
+let to_ordi : boxed -> obox = sort_filter O
 
-let to_v_or_t : type a. a v_or_t -> boxed -> a box =
+let to_v_or_t : type a. a v_or_t -> boxed -> a ebox =
   fun vot b ->
     match vot with
     | VoT_V -> to_valu b
@@ -776,7 +776,7 @@ let unsugar_expr : raw_ex -> raw_sort -> boxed = fun e s ->
         let rec build vars xs ex =
           match xs with
           | []    -> to_prop (unsugar env vars ex _sp)
-          | x::xs -> let fn xk : p box =
+          | x::xs -> let fn xk : pbox =
                        let xk = (x.pos, Box(k, vari x.pos xk)) in
                        let vars = M.add x.elt xk vars in
                        build vars xs ex
@@ -790,7 +790,7 @@ let unsugar_expr : raw_ex -> raw_sort -> boxed = fun e s ->
         let rec build vars xs ex =
           match xs with
           | []    -> to_prop (unsugar env vars ex _sp)
-          | x::xs -> let fn xk : p box =
+          | x::xs -> let fn xk : pbox =
                        let xk = (x.pos, Box(k, vari x.pos xk)) in
                        let vars = M.add x.elt xk vars in
                        build vars xs ex
