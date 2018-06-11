@@ -1,18 +1,5 @@
 (** Main type-checking and subtyping functions. *)
 
-(* FIXME FIXME FIXME temporary *)
-module Bindlib = struct
-  include Bindlib
-
-  let vbind : ('a var -> 'a) -> string -> ('a var -> 'b box)
-              -> ('a, 'b) binder box = fun mkfree name f ->
-    let x = new_var mkfree name in
-    bind_var x (f x)
-
-  let binder_from_fun : string -> ('a -> 'b) -> ('a, 'b) binder =
-    fun x f -> raw_binder x true 0 (fun _ -> assert false) f
-end
-
 open Extra
 open Bindlib
 open Sorts
@@ -285,7 +272,7 @@ let rec learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
                 (** We know that o is positive and wit in a
                     so we can build an eps < o *)
                 let f o = bndr_subst f (FixM(Pos.none o, f)) in
-                let f = binder_from_fun "o" f in
+                let f = raw_binder "o" true 0 (fun _ -> assert false) f in
                 let (o', ctx_names) = owmu ctx.ctx_names o twit (None, f) in
                 (o', { ctx with ctx_names })
            in
@@ -344,7 +331,7 @@ let rec learn_neg_equivalences : ctxt -> valu -> term option -> prop -> ctxt =
                 (** We know that o is positive and wit in a
                     so we can build an eps < o *)
                 let f o = bndr_subst f (FixN(Pos.none o, f)) in
-                let f = binder_from_fun "o" f in
+                let f = raw_binder "o" true 0 (fun _ -> assert false) f in
                 let (o', ctx_names) = ownu ctx.ctx_names o twit (None, f) in
                 (o', { ctx with ctx_names })
            in
@@ -473,7 +460,7 @@ and subtype =
               Succ o' -> (ctx, o')
             | _ ->
                let f o = bndr_subst f (FixM(Pos.none o, f)) in
-               let f = binder_from_fun "o" f in
+               let f = raw_binder "o" true 0 (fun _ -> assert false) f in
                let (o', ctx_names) = owmu ctx.ctx_names o t (None,f) in
                let ctx = { ctx with ctx_names } in
                (add_positive ctx o o', o')
@@ -497,7 +484,7 @@ and subtype =
               Succ o' -> (ctx, o')
             | _ ->
                let f o = bndr_subst f (FixN(Pos.none o, f)) in
-               let f = binder_from_fun "o" f in
+               let f = raw_binder "o" true 0 (fun _ -> assert false) f in
                let (o', ctx_names) = ownu ctx.ctx_names o t (None, f) in
                let ctx = { ctx with ctx_names } in
                (add_positive ctx o o', o')
@@ -514,16 +501,17 @@ and subtype =
          (* check that totality agree *)
          if not (sub t1 t2) then subtype_msg a.pos "Arrow clash";
          (* build the nobox value witness *)
-         let fn x = appl None (box t) (valu None (vari None x)) in
-         let name = Print.get_lambda_name t in
-         let f = (None, unbox (vbind (mk_free V) name fn)) in
+         let w =
+           let x = new_var (mk_free V) (Print.get_lambda_name t) in
+           unbox (bind_var x (appl None (box t) (valu None (vari None x))))
+         in
          let (wit, ctx) =
            match is_singleton a2 with
            | Some(wit) ->
               let (_,ctx) = learn_value ctx wit a2 in
               (wit, ctx)
            | _ ->
-              let (vwit, ctx_names) = vwit ctx.ctx_names f a2 b2 in
+              let (vwit, ctx_names) = vwit ctx.ctx_names (None, w) a2 b2 in
               let ctx = { ctx with ctx_names } in
               let ctx = learn_nobox ctx vwit in
               let wit = Pos.none (Valu(vwit)) in

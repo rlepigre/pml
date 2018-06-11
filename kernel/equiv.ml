@@ -4,16 +4,6 @@
     such a graph (or pool), one will be able to read back the representative
     of a term by following the edges. *)
 
-(* FIXME FIXME FIXME temporary *)
-module Bindlib = struct
-  include Bindlib
-
-  let vbind : ('a var -> 'a) -> string -> ('a var -> 'b box)
-              -> ('a, 'b) binder box = fun mkfree name f ->
-    let x = new_var mkfree name in
-    bind_var x (f x)
-end
-
 open Extra
 open Bindlib
 open Ptr
@@ -1725,17 +1715,18 @@ let add_nobox : valu -> pool -> pool = fun v po ->
   let (vp, po) = add_valu true po v in
   add_vptr_nobox vp po
 
-(* epsilon for projection:
-   proj_eps v l define a value w such v.l = w *)
+(** [proj_eps v l] denotes a value “w” such that “v.l ≡ w”. *)
 let proj_eps : Bindlib.ctxt -> valu -> string -> valu * Bindlib.ctxt =
   fun names v l ->
-    let eq x = equiv (valu None (vari None x))
-                     true
-                     (proj None (box v) (Pos.none l))
+    let w =
+      let x = new_var (mk_free V) "x" in
+      let term_x = valu None (vari None x) in
+      let v_dot_l = proj None (box v) (Pos.none l) in
+      let w = rest None unit_prod (equiv term_x true v_dot_l) in
+      unbox (bind_var x w)
     in
-    let bndr x = rest None unit_prod (eq x) in
     let t = Pos.none (Valu(Pos.none (Reco A.empty))) in
-    ewit names V t (None, unbox (vbind (mk_free V) "x" bndr))
+    ewit names V t (None, w)
 
 let find_proj : pool -> Bindlib.ctxt -> valu -> string
                 -> valu * pool * Bindlib.ctxt =
