@@ -41,7 +41,7 @@ Using Opam, a suitable OCaml environment can be setup as follows.
 opam switch 4.05.0
 eval `opam config env`
 opam install ocamlfind ocamlbuild
-opam install bindlib.4.0.5 earley.1.0.0 earley-ocaml.1.0.0
+opam install bindlib.4.0.5 earley.1.0.2 earley-ocaml.1.0.2
 ```
 
 To compile PML₂, just run the command `make` in the source directory. This

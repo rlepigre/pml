@@ -404,31 +404,31 @@ let parser expr (m : mode) =
       -> in_pos _loc (EGoal(s))
 
 (* Higher-order variable arguments. *)
-and ho_args = {_:langle (lsep "," any) _:rangle}?[[]]
+and parser ho_args = {_:langle (lsep "," any) _:rangle}?[[]]
 
 (* Variable with optional type. *)
-and arg_t = id:llid ao:{":" a:prop}?
+and parser arg_t = id:llid ao:{":" a:prop}?
 
 (* Function argument. *)
-and arg  =
+and parser arg  =
   | id:llid_wc                    -> (id, None  )
   | "(" id:llid_wc ":" a:prop ")" -> (id, Some a)
 
-and field_nt =
+and parser field_nt =
   | a:arg_t            -> (fst a, a)
   | l:llid '=' a:arg_t -> (l    , a)
 
 (* Argument of let-binding. *)
-and let_arg =
+and parser let_arg =
   | id:llid_wc ao:{':' a:prop}?                -> `LetArgVar(id,ao)
   | '{' fs:(lsep_ne ";" field_nt) '}'          -> `LetArgRec(fs)
   | '(' f:arg_t ',' fs:(lsep_ne "," arg_t) ')' -> `LetArgTup(f::fs)
 
 (* Record field. *)
-and field = l:llid {"=" t:term}?
+and parser field = l:llid {"=" t:term}?
 
 (* Pattern. *)
-and patt =
+and parser patt =
   | '[' ']'                       -> (in_pos _loc "Nil"  , None)
   | x:llid "::" y:llid            -> let hd = (Pos.none "hd", (x, None)) in
                                      let tl = (Pos.none "tl", (y, None)) in
