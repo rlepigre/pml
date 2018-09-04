@@ -1,6 +1,25 @@
 The PML₂ programming language and proof assistant
 =================================================
 
+The PML₂ language provides a uniform environment for programming, and for
+proving properties of programs in an ML-like setting.  The language is
+Curry-style and call-by-value, it provides a control operator (interpreted in
+terms of classical logic), it supports general recursion and a very general
+form of (implicit, non-coercive) subtyping. In the system, equational
+properties of programs are expressed using two new type formers, and they are
+proved by constructing terminating programs. Although proofs rely heavily on
+equational reasoning, equalities are exclusively managed by the type-checker.
+This means that the user only has to choose which equality to use, and not
+where to use it, as is usually done in mathematical proofs. In the system,
+writing proofs mostly amounts to applying lemmas (possibly recursive function
+calls), and to perform case analyses (pattern matchings).
+
+Related documents and prototypes:
+ - http://lepigre.fr/files/docs/lepigre2017_pml2.pdf (introductory paper),
+ - https://tel.archives-ouvertes.fr/tel-01590363 (R. Lepigre's PhD thesis),
+ - https://doi.org/10.1007/978-3-662-49498-1_19 (paper related to the model),
+ - https://github.com/rlepigre/subml (the SubML language).
+
 Dependencies and compilation
 ----------------------------
 
