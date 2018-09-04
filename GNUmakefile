@@ -1,117 +1,78 @@
-include Makefile.config
-
-OCAMLBUILD := ocamlbuild -docflags -hide-warnings -use-ocamlfind -r -quiet
-
-all: pml2 lib check
-
-.PHONY: libs libs_byte doc
-doc: depchecks kernel_doc util_doc
-libs: depchecks kernel util parser
-libs_byte: depchecks kernel_byte util_byte parser_byte
-
-# Check for ocamlfind and ocamlbuild on the system.
-HAS_OCAMLFIND  := $(shell which ocamlfind 2> /dev/null)
-HAS_OCAMLBUILD := $(shell which ocamlbuild 2> /dev/null)
-HAS_PA_OCAML   := $(shell which pa_ocaml 2> /dev/null)
-
-# Check for the bindlib and earley library.
-HAS_BINDLIB    := $(shell ocamlfind query -format %p bindlib 2> /dev/null)
-HAS_EARLEY     := $(shell ocamlfind query -format %p earley 2> /dev/null)
-
-.PHONY: depchecks
-depchecks:
-ifndef HAS_OCAMLBUILD
-	$(error "The ocamlbuild program is required...")
-endif
-ifndef HAS_OCAMLFIND
-	$(error "The ocamlfind program is required...")
-endif
-ifndef HAS_PA_OCAML
-	$(error "The pa_ocaml (earley-ocaml) is required...")
-endif
-ifndef HAS_BINDLIB
-	$(error "The bindlib library is required...")
-endif
-ifndef HAS_EARLEY
-	$(error "The earley library is required...")
+# Take opam config if available.
+ifeq (, $(shell which opam 2> /dev/null))
+$(warning "We recommend using opam for dependencies.")
+PREFIX   = /usr/local
+BINDIR   = $(PREFIX)/bin
+LIBDIR   = $(PREFIX)/lib
+else
+PREFIX   = $(shell opam config var prefix)
+BINDIR   = $(shell opam config var bin)
+LIBDIR   = $(shell opam config var lib)
 endif
 
-# Compilation of the util modules.
-.PHONY: util util_byte util_doc
-util: _build/util/util.cmxa
-util_byte: _build/util/util.cma
+# Editors directory.
+EMACSDIR = $(PREFIX)/emacs/site-lisp
+VIMDIR   = $(HOME)/.vim
+
+# Check for required binaries.
+ifeq (, $(shell which ocamlbuild 2> /dev/null))
+$(error "ocamlbuild is required... (try 'opam install ocamlbuild')")
+endif
+ifeq (, $(shell which ocamlfind 2> /dev/null))
+$(error "ocamlfind is required... (try 'opam install ocamlfind')")
+endif
+ifeq (, $(shell which pa_ocaml 2> /dev/null))
+$(error "pa_ocaml is required... (try 'opam install earley-ocaml')")
+endif
+
+# Check for required libraries.
+ifeq (, $(shell ocamlfind query -format %p bindlib 2> /dev/null))
+$(error "bindlib is required... (try 'opam install bindlib')")
+endif
+ifeq (, $(shell ocamlfind query -format %p earley 2> /dev/null))
+$(error "earley is required... (try 'opam install earley earley-ocaml')")
+endif
+
+# Compilation commands and flags
+OCAMLBUILD = ocamlbuild -use-ocamlfind -r -quiet
+DOCFLAGS   = -docflags -hide-warnings
+
+# Version.
+VERSION  = devel
+
+# Main target.
+.PHONY: all
+all: main.native lib check
+
+# Documentation targets.
+.PHONY: doc
+doc: util_doc kernel_doc
+
+.PHONY: util_doc
 util_doc: _build/util/util.docdir/index.html
-
-UTILFILES := $(wildcard util/*.ml) $(wildcard util/*.mli)
-
-_build/util/util.cmxa: $(UTILFILES)
-	$(OCAMLBUILD) util/util.cmxa
-
-_build/util/util.cma: $(UTILFILES)
-	$(OCAMLBUILD) util/util.cma
-
 _build/util/util.docdir/index.html: $(UTILFILES)
-	$(OCAMLBUILD) util/util.docdir/index.html
+	$(OCAMLBUILD) $(DOCFLAGS) util/util.docdir/index.html
 
-# Compilation of the kernel.
-.PHONY: kernel kernel_byte kernel_doc
-kernel: _build/kernel/kernel.cmxa
-kernel_byte: _build/kernel/kernel.cma
+.PHONY: kernel_doc
 kernel_doc: _build/kernel/kernel.docdir/index.html
-
-KERNELFILES := $(wildcard kernel/*.ml) $(wildcard kernel/*.mli)
-
-_build/kernel/kernel.cmxa: $(KERNELFILES)
-	$(OCAMLBUILD) kernel/kernel.cmxa
-
-_build/kernel/kernel.cma: $(KERNELFILES)
-	$(OCAMLBUILD) kernel/kernel.cma
-
 _build/kernel/kernel.docdir/index.html: $(KERNELFILES)
-	$(OCAMLBUILD) kernel/kernel.docdir/index.html
+	$(OCAMLBUILD) $(DOCFLAGS) kernel/kernel.docdir/index.html
 
-# Compilation of the parser.
-.PHONY: parser parser_byte
-parser: _build/parser/parser.cmxa
-parser_byte: _build/parser/parser.cma
-
-PARSERFILES := $(wildcard parser/*.ml) $(wildcard parser/*.mli)
-
-_build/parser/parser.cmxa: $(KERNELFILES)
-	$(OCAMLBUILD) parser/parser.cmxa
-
-_build/parser/parser.cma: $(KERNELFILES)
-	$(OCAMLBUILD) parser/parser.cma
-
-# Compilation of PML2.
-.PHONY: pml2 pml2_byte
-pml2: _build/pml2/main.native
-pml2_byte: _build/pml2/main.byte
-
-main.byte: _build/pml2/main.byte
-main.native: _build/pml2/main.native
-main.p.native: _build/pml2/main.p.native
-
-pml2/config.ml: Makefile.config
+# Configuration file.
+pml2/config.ml: GNUmakefile
 	@echo "let path = [\"$(LIBDIR)/pml2\"]" > $@
 
 ML_FILES = $(wildcard */*.ml) pml2/config.ml
 
+# Compilation of PML2.
+main.native: _build/pml2/main.native
 _build/pml2/main.native: $(ML_FILES)
 	@rm -f main.native
 	$(OCAMLBUILD) pml2/main.native
 
-_build/pml2/main.byte: $(ML_FILES)
-	@rm -f main.byte
-	$(OCAMLBUILD) -cflags -g -lflag -g  pml2/main.byte
-
-_build/pml2/main.p.native: $(ML_FILES)
-	@rm -f main.p.native
-	$(OCAMLBUILD) -cflags -ccopt,-no-pie -lflags -ccopt,-no-pie pml2/main.p.native
-
 # Checks on the source code.
 check:
-	# FIXME/TODO
+	# FIXMES/TODOS
 	@f=`grep FIXME */*.ml */*.mli */*.pml */*/*.pml  | wc -l`;\
 	 ft=`grep FIXME */*.ml */*.mli */*.pml */*/*.pml | grep -P -v '#[0-9]+' | wc -l`;\
 	 echo FIXME: $$ft/$$f '(without ticket/all)'
@@ -192,12 +153,13 @@ endif
 .PHONY: install
 PML_FILES = $(wildcard lib/*.pml)
 PMI_FILES = $(PML_FILES:.pml=.pmi)
-install: main.native $(PML_FILES) lib install_emacs
+install: main.native lib install_emacs install_vim
 	install -d $(BINDIR)
 	install -m 755 $< $(BINDIR)/pml2
+	@echo -e "\e[36m\"pml2\" binary installed.\e[39m"
 	install -d $(LIBDIR)/pml2/lib
-	install -p -m 644 $(PML_FILES) $(LIBDIR)/pml2/lib
-	install -p -m 644 $(PMI_FILES) $(LIBDIR)/pml2/lib
+	install -p -m 644 $(PML_FILES) $(PMI_FILES) $(LIBDIR)/pml2/lib
+	@echo -e "\e[36mPML library installed.\e[39m"
 
 # Release.
 .PHONY: release
