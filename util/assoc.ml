@@ -10,6 +10,7 @@ module ListMap =
 
     let mem = List.mem_assoc
     let find = List.assoc
+    let is_empty = fun l -> l = empty
 
     let map  f l = List.map (fun (k, v) -> (k, f v)) l
     let mapi f l = List.map (fun (k, v) -> (k, f k v)) l
@@ -81,5 +82,5 @@ open Bindlib
 
 include Lift(ListMap)
 
-let map_box : ('b -> 'a bindbox) -> 'b t -> 'a t bindbox =
+let map_box : ('b -> 'a box) -> 'b t -> 'a t box =
   fun f m -> lift_box (map f m)

@@ -89,23 +89,23 @@ let {eq_expr; eq_bndr} =
     (** bind_args and immitage: two functions for higher-order unification *)
     let bind_args : type a b. a sort -> (a -> b) args -> b ex loc -> a ex loc =
       fun sa args b ->
-        let b' : b box =
-          let mapper : type a. recall -> a ex loc -> a box = fun {default} e ->
+        let b' : b ebox =
+          let mapper : type a. recall -> a ex loc -> a ebox = fun {default} e ->
             let (s',e) = Ast.sort e in
-            let rec fn : type b. b args -> a box = function
+            let rec fn : type b. b args -> a ebox = function
               | Nil -> raise Not_found
               | Cns(s,v,a,args) ->
-                 let v = box_apply Pos.none (box_of_var v) in
+                 let v = box_apply Pos.none (box_var v) in
                  match eq_sort s s' with
                  | Eq.Eq -> if eq_expr e a then v else fn args
-                 | _ -> fn args
+                 | _     -> fn args
             in
             try fn args
             with Not_found -> default e
          in
          map ~mapper:{mapper} b
        in
-       let rec blam : type a. a sort -> (a -> b) args -> a box =
+       let rec blam : type a. a sort -> (a -> b) args -> a ebox =
          fun sa args ->
            match args with
            | Nil -> b'
@@ -586,11 +586,11 @@ module CWit = struct
     (match s with
      | FixSch s ->
         let (b, mb) = s.fsch_judge in
-        let (_, mb) = unmbind (mk_free O) mb in
+        let (_, mb) = unmbind mb in
         bndr_uvars V b @ uvars mb
      | SubSch s ->
         let mb = s.ssch_judge in
-        let (_, (e1,e2)) = unmbind (mk_free O) mb in
+        let (_, (e1,e2)) = unmbind mb in
         uvars e1 @ uvars e2)
 end
 

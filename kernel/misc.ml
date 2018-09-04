@@ -1,5 +1,15 @@
 (** Function to retreive information from expression *)
 
+(* FIXME FIXME FIXME temporary *)
+module Bindlib = struct
+  include Bindlib
+
+  let mbinder_from_fun : ('a var -> 'a) -> string array -> ('a array -> 'b)
+      -> ('a,'b) mbinder =
+    fun mkfree xs f ->
+      raw_mbinder xs (Array.map (fun _ -> true) xs) 0 mkfree f
+end
+
 open Extra
 open Bindlib
 open Eq
@@ -114,9 +124,9 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
   (* The variables themselves. *)
   let xs = new_mvar (mk_free O) xs in
   (* Binding function. *)
-  let bind_all : type a. a ex loc -> a box =
-    let mapper : type a. recall -> a ex loc -> a box = fun { default } e ->
-      let var_of_ordi_wit : type a.a sort -> a ex loc -> a box = fun s o ->
+  let bind_all : type a. a ex loc -> a ebox =
+    let mapper : type a. recall -> a ex loc -> a ebox = fun { default } e ->
+      let var_of_ordi_wit : type a.a sort -> a ex loc -> a ebox = fun s o ->
         match s with
         | O ->
            begin
@@ -126,7 +136,7 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
                  then raise (Found_index(i))
                done;
                raise Not_found
-             with Found_index(i) -> (vari o.pos xs.(i) : o box)
+             with Found_index(i) -> (vari o.pos xs.(i) : o ebox)
            end
         | _ -> default o
       in
@@ -161,7 +171,7 @@ let bind2_ordinals
        end
     | _ -> assert false
   in
-  (mbinder_from_fun names fn, os)
+  (mbinder_from_fun (mk_free O) names fn, os)
 
 type occ = Pos | Neg | Any
 
@@ -175,7 +185,7 @@ let bind_spos_ordinals
   let new_ord () =
     let v = new_var (mk_free O) "o" in
     vars := v::!vars;
-    box_apply Pos.none (box_of_var v)
+    box_apply Pos.none (box_var v)
   in
   let assoc = ref [] in
   let rec search_ord o =
@@ -191,8 +201,8 @@ let bind_spos_ordinals
       assoc := (o,v) :: !assoc;
       v
   in
-  let rec bind_all : type p. occ -> p ex loc -> p box = fun o e ->
-    let mapper : type p. recall -> p ex loc -> p box =
+  let rec bind_all : type p. occ -> p ex loc -> p ebox = fun o e ->
+    let mapper : type p. recall -> p ex loc -> p ebox =
     fun { recall; default } e ->
       match e.elt with
       | HDef(_,e)   -> recall e.expr_def
@@ -219,14 +229,14 @@ let bind_spos_ordinals
   let os = Array.make (Array.length vars) (Pos.none Conv) in
   (unbox b, os)
 
-let box_closure: type a. a ex loc -> a box * t var array * v var array
+let box_closure: type a. a ex loc -> a ebox * t var array * v var array
                                      * t ex loc array * v ex loc array
   = fun e ->
     let vl : v ex loc list ref = ref [] in
     let tl : t ex loc list ref = ref [] in
     let vv = ref [] in
     let tv = ref [] in
-    let mapper : type a. recall -> a ex loc -> a box = fun {default} e ->
+    let mapper : type a. recall -> a ex loc -> a ebox = fun {default} e ->
       let s, e = sort e in
       let svl = !vl and stl = !tl and svv = !vv and stv = !tv in
       let e' = default e in
@@ -270,7 +280,7 @@ let make_bndr_closure
       let b0 = unbox (bind_mvar [||] (bind_mvar [||] (box b0))) in
       (b0, [||], [||])
     else
-    let (x,e) = unbind (mk_free s) (snd b0) in
+    let (x,e) = unbind (snd b0) in
     let (e,tv,vv,tl,vl) = box_closure e in
     let b = bind_var x e in
     let b = box_pair (box (fst b0)) b in

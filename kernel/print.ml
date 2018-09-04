@@ -57,7 +57,7 @@ let rec ex : type a. a ex loc printer = fun ch e ->
   let e = Norm.repr e in
   match e.elt with
   | Vari(_,x)   -> output_string ch (name_of x)
-  | HFun(s,_,b) -> let (x,t) = unbind (mk_free s) (snd b) in
+  | HFun(s,_,b) -> let (x,t) = unbind (snd b) in
                    fprintf ch "(%s ↦ %a)" (name_of x) ex t
   | HApp(_,f,a) -> let rec print_app : type a b.(a -> b) ex loc -> unit =
                      fun f ->
@@ -77,16 +77,16 @@ let rec ex : type a. a ex loc printer = fun ch e ->
   | DSum(m)     -> let pelt ch (l,(_,a)) =
                      fprintf ch "%s : %a" l ex a
                    in fprintf ch "[%a]" (print_map pelt "; ") m
-  | Univ(s,b)   -> let (x,a) = unbind (mk_free s) (snd b) in
+  | Univ(s,b)   -> let (x,a) = unbind (snd b) in
                    fprintf ch "∀%s:%a,%a" (name_of x)
                      sort s ex a
-  | Exis(s,b)   -> let (x,a) = unbind (mk_free s) (snd b) in
+  | Exis(s,b)   -> let (x,a) = unbind (snd b) in
                    fprintf ch "∃%s:%a,%a" (name_of x)
                      sort s ex a
-  | FixM(o,b)   -> let (x,a) = unbind (mk_free P) (snd b) in
+  | FixM(o,b)   -> let (x,a) = unbind (snd b) in
                    fprintf ch "μ_%a %s,%a"
                            ex o (name_of x) ex a
-  | FixN(o,b)   -> let (x,a) = unbind (mk_free P) (snd b) in
+  | FixN(o,b)   -> let (x,a) = unbind (snd b) in
                    fprintf ch "ν_%a %s,%a"
                            ex o (name_of x) ex a
   | Memb(t,a)   -> begin
@@ -104,7 +104,7 @@ let rec ex : type a. a ex loc printer = fun ch e ->
                        fprintf ch "(%s%a%s | %a)" l ex a r rel c
                    end
   | Impl(e,a)   -> fprintf ch "%a ↪ %a" rel e ex a
-  | LAbs(ao,b)  -> let (x,t) = unbind (mk_free V) (snd b) in
+  | LAbs(ao,b)  -> let (x,t) = unbind (snd b) in
                    begin
                      match ao with
                      | None   -> fprintf ch "λ%s.%a"
@@ -121,18 +121,18 @@ let rec ex : type a. a ex loc printer = fun ch e ->
   | VDef(d)     -> output_string ch d.value_name.elt
   | Valu(v)     -> ex ch v
   | Appl(t,u)   -> fprintf ch "(%a) (%a)" ex t ex u
-  | MAbs(b)     -> let (x,t) = unbind (mk_free S) (snd b) in
+  | MAbs(b)     -> let (x,t) = unbind (snd b) in
                    fprintf ch "μ%s.%a" (name_of x) ex t
   | Name(s,t)   -> fprintf ch "[%a]%a" ex s ex t
   | Proj(v,l)   -> fprintf ch "%a.%s" ex v l.elt
   | Case(v,m)   -> let pelt ch (c, (_, (_,b))) =
-                     let (x,t) = unbind (mk_free V) b in
+                     let (x,t) = unbind b in
                      fprintf ch "%s[%s] → %a"
                              c (name_of x) ex t
                    in
                    let pcase = print_map pelt " | " in
                    fprintf ch "[%a | %a]" ex v pcase m
-  | FixY(f,v)   -> let (x,t) = unbind (mk_free V) (snd f) in
+  | FixY(f,v)   -> let (x,t) = unbind (snd f) in
                    fprintf ch "Y(λ%s.%a, %a)" (name_of x)
                      ex t ex v
   | Prnt(s)     -> fprintf ch "print(%S)" s
@@ -148,7 +148,7 @@ let rec ex : type a. a ex loc printer = fun ch e ->
       let rec aux : type a b. (a, prop * b ex loc) bseq -> unit = fun seq ->
         match seq with
         | BLast(s,b) ->
-            let (x,(a,t)) = unbind (mk_free s) b in
+            let (x,(a,t)) = unbind b in
             fprintf ch "%s:%a s.t. " (name_of x) sort s;
             let _ =
               match r.opt_var with
@@ -158,7 +158,7 @@ let rec ex : type a. a ex loc printer = fun ch e ->
             in
             fprintf ch " : %a in %a" ex a ex t
         | BMore(s,b) ->
-            let (x,seq) = unbind (mk_free s) b in
+            let (x,seq) = unbind b in
             fprintf ch "%s:%a, " (name_of x) sort s;
             aux seq
       in aux r.binder
@@ -184,15 +184,15 @@ and rel ch cnd =
     | Posit(o)     -> ex ch o
 
 let print_fix_sch ch sch =
-  let (x,t) = unbind (mk_free V) (snd (fst sch.fsch_judge)) in
-  let (vars,k) = unmbind (mk_free O) (snd sch.fsch_judge) in
+  let (x,t) = unbind (snd (fst sch.fsch_judge)) in
+  let (vars,k) = unmbind (snd sch.fsch_judge) in
   let vars = Array.map (fun x -> Pos.none (mk_free O x)) vars in
   let print_vars = print_list ex "," in
   fprintf ch "%a (⊢ λx.Y(λ%s.%a,x) : %a)" print_vars (Array.to_list vars)
     (name_of x) ex t ex k
 
 let print_sub_sch ch sch =
-  let (vars,(k1,k2)) = unmbind (mk_free O) sch.ssch_judge in
+  let (vars,(k1,k2)) = unmbind sch.ssch_judge in
   let vars = Array.map (fun x -> Pos.none (mk_free O x)) vars in
   let print_vars = print_list ex "," in
   let rel = List.map (fun (i,j) -> (vars.(i), vars.(j))) sch.ssch_relat in
@@ -207,7 +207,7 @@ let print_sch ch sch =
   | SubSch sch -> print_sub_sch ch sch
 
 let omb ch b =
-  let (vars,k) = unmbind (mk_free O) b in
+  let (vars,k) = unmbind b in
   let vars = Array.map (fun x -> Pos.none (mk_free O x)) vars in
   let print_vars = print_list ex "," in
   fprintf ch "%a.%a" print_vars (Array.to_list vars) ex k

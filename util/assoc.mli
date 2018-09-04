@@ -6,6 +6,8 @@ val empty : 'a t
 
 val length : 'a t -> int
 
+val is_empty : 'a t -> bool
+
 val add : string -> 'a -> 'a t -> 'a t
 
 val mem : string -> 'a t -> bool
@@ -38,8 +40,8 @@ val for_all : (string -> 'a -> bool) -> 'a t -> bool
 
 val exists : (string -> 'a -> bool) -> 'a t -> bool
 
-val lift_box : 'a Bindlib.bindbox t -> 'a t Bindlib.bindbox
+val lift_box : 'a Bindlib.box t -> 'a t Bindlib.box
 
-val map_box : ('b -> 'a Bindlib.bindbox) -> 'b t -> 'a t Bindlib.bindbox
+val map_box : ('b -> 'a Bindlib.box) -> 'b t -> 'a t Bindlib.box
 
 val hash : ('a -> int) -> 'a t -> int

@@ -204,8 +204,8 @@ let pcl : type a. out_channel -> a closure -> unit =
   fun ch (funptr,vs,ts) ->
     let prnt = Printf.fprintf in
     let pex = Print.ex in
-    let (vvars,b) = unmbind (mk_free V) funptr in
-    let (tvars,t) = unmbind (mk_free T) b in
+    let (vvars,b) = unmbind funptr in
+    let (tvars,t) = unmbind b in
     let vvars = if vs = [||] then [||] else vvars in
     let tvars = if ts = [||] then [||] else tvars in
     let fn ch =
@@ -227,9 +227,9 @@ let pbcl : type a b. a sort -> out_channel -> (a, b) bndr_closure -> unit =
   fun s ch (funptr,vs,ts) ->
     let prnt = Printf.fprintf in
     let pex = Print.ex in
-    let (vvars,b) = unmbind (mk_free V) funptr in
-    let (tvars,b) = unmbind (mk_free T) b in
-    let (var,t)   = unbind (mk_free s) (snd b) in
+    let (vvars,b) = unmbind funptr in
+    let (tvars,b) = unmbind b in
+    let (var,t)   = unbind (snd b) in
     let vvars = if vs = [||] then [||] else vvars in
     let tvars = if ts = [||] then [||] else tvars in
     let fn ch =
@@ -684,8 +684,9 @@ let rec add_term : bool -> pool -> term -> TPtr.t * pool = fun safe po t ->
                      if !pt = dummy_t_node then
                        begin
                          let f = subst_closure b in
-                         let b' = bndr_from_fun "x"
-                                                (fun x -> FixY(f, Pos.none x))
+                         let b' =
+                           let fn x = none (FixY(f, Pos.none x)) in
+                           (None, raw_binder "x" true 0 (mk_free V) fn)
                          in
                          let f' = Pos.none (LAbs(None, b')) in
                          let (pf, po) = add_valu po f' in
@@ -1549,17 +1550,18 @@ let add_inequiv : inequiv -> eq_ctxt -> eq_ctxt = fun (t,u) {pool} ->
 
 (* Main module interface. *)
 
-(* epsilon for projection:
-   proj_eps v l define a value w such v.l = w *)
+(** [proj_eps v l] denotes a value “w” such that “v.l ≡ w”. *)
 let proj_eps : Bindlib.ctxt -> valu -> string -> valu * Bindlib.ctxt =
   fun names v l ->
-    let eq x = equiv (valu None (vari None x))
-                     true
-                     (proj None (box v) (Pos.none l))
+    let w =
+      let x = new_var (mk_free V) "x" in
+      let term_x = valu None (vari None x) in
+      let v_dot_l = proj None (box v) (Pos.none l) in
+      let w = rest None unit_prod (equiv term_x true v_dot_l) in
+      unbox (bind_var x w)
     in
-    let bndr x = rest None unit_prod (eq x) in
     let t = Pos.none (Valu(Pos.none (Reco A.empty))) in
-    ewit names V t (None, unbox (vbind (mk_free V) "x" bndr))
+    ewit names V t (None, w)
 
 let find_proj : pool -> Bindlib.ctxt -> valu -> string
                 -> valu * pool * Bindlib.ctxt =

@@ -1,6 +1,19 @@
 (** Abstract syntax tree. This module defined the internal representation of
     PML's programs and higher-order type. *)
 
+(* FIXME FIXME FIXME temporary *)
+module Bindlib = struct
+  include Bindlib
+
+  let vbind : ('a var -> 'a) -> string -> ('a var -> 'b box)
+              -> ('a, 'b) binder box = fun mkfree name f ->
+    let x = new_var mkfree name in
+    bind_var x (f x)
+
+  let binder_from_fun : string -> ('a -> 'b) -> ('a, 'b) binder =
+    fun x f -> raw_binder x true 0 (fun _ -> assert false) f
+end
+
 open Extra
 open Bindlib
 open Sorts
@@ -250,9 +263,9 @@ and 'a var = 'a ex Bindlib.var
     @see <https://www.lama.univ-savoie.fr/~raffalli/bindlib.html> bindlib *)
 and ('a, 'b) bndr = popt * ('a ex, 'b ex loc) binder
 
-(** Type of an expression in a (bindlib) bindbox.
+(** Type of an expression in a (bindlib) box.
     @see <https://www.lama.univ-savoie.fr/~raffalli/bindlib.html> bindlib *)
-and 'a box = 'a ex loc bindbox
+and 'a ebox = 'a ex loc box
 
 and e_valu =
   | VVari of e_valu Bindlib.var
@@ -279,7 +292,7 @@ and  e_stac =
 
 (** Sequence of functions to build and [bseq]. *)
 type (_,_) fseq =
-  | FLast : 'c sort * strloc * ('c var -> 'r bindbox  ) -> ('c     , 'r) fseq
+  | FLast : 'c sort * strloc * ('c var -> 'r box  ) -> ('c     , 'r) fseq
   | FMore : 'c sort * strloc * ('c var -> ('a,'r) fseq) -> ('c * 'a, 'r) fseq
 
 (** Binder substitution function. *)
@@ -320,11 +333,11 @@ type omvar = ovar array (** Ordinal multiple variable type. *)
 
 (** {5 Bindlib bindboxes containing expressions of base sort} *)
 
-type vbox = v box    (** Value   bindbox type. *)
-type tbox = t box    (** Term    bindbox type. *)
-type sbox = s box    (** Stack   bindbox type. *)
-type pbox = p box    (** Type    bindbox type. *)
-type obox = o box    (** Ordinal bindbox type. *)
+type vbox = v ebox   (** Value   box type. *)
+type tbox = t ebox   (** Term    box type. *)
+type sbox = s ebox   (** Stack   box type. *)
+type pbox = p ebox   (** Type    box type. *)
+type obox = o ebox   (** Ordinal box type. *)
 
 (** {6 Smart constructors} *)
 
@@ -333,16 +346,16 @@ let mk_free : 'a sort -> 'a var -> 'a ex =
 
 (** {5 Higher order stuff} *)
 
-let vari : type a. popt -> a var -> a ex loc bindbox =
-  fun p x -> box_apply (fun x -> Pos.make p x) (box_of_var x)
+let vari : type a. popt -> a var -> a ex loc box =
+  fun p x -> box_apply (fun x -> Pos.make p x) (box_var x)
 
-let hfun : type a b. popt -> a sort -> b sort -> strloc -> (a var -> b box)
-             -> (a -> b) box =
+let hfun : type a b. popt -> a sort -> b sort -> strloc -> (a var -> b ebox)
+             -> (a -> b) ebox =
   fun p sa sb x f ->
     let b = vbind (mk_free sa) x.elt f in
     box_apply (fun b -> Pos.make p (HFun(sa, sb, (x.pos, b)))) b
 
-let happ : type a b. popt -> a sort -> (a -> b) box -> a box -> b box =
+let happ : type a b. popt -> a sort -> (a -> b) ebox -> a ebox -> b ebox =
   fun p s -> box_apply2 (fun f a -> Pos.make p (HApp(s,f,a)))
 
 (** {5 Value constructors} *)
@@ -417,13 +430,13 @@ let repl : popt -> tbox -> tbox -> tbox -> tbox =
 
 (** {5 Type annotation constructors} *)
 
-let coer : type a. popt -> a v_or_t -> a box -> pbox -> a box =
+let coer : type a. popt -> a v_or_t -> a ebox -> pbox -> a ebox =
   fun p t -> box_apply2 (fun e a -> Pos.make p (Coer(t,e,a)))
 
-let such : type a b. popt -> a v_or_t -> b desc -> such_var bindbox
-           -> (b, prop * a ex loc) fseq -> a box =
+let such : type a b. popt -> a v_or_t -> b desc -> such_var box
+           -> (b, prop * a ex loc) fseq -> a ebox =
   let rec aux : type a c. (c, p ex loc * a ex loc) fseq
-      -> (c, prop * a ex loc) bseq bindbox = fun fs ->
+      -> (c, prop * a ex loc) bseq box = fun fs ->
     match fs with
     | FLast(s,x,f) ->
         box_apply (fun b -> BLast(s,b)) (vbind (mk_free s) x.elt f)
@@ -435,13 +448,13 @@ let such : type a b. popt -> a v_or_t -> b desc -> such_var bindbox
     let fn sv b = Pos.make p (Such(t,d,{opt_var = sv; binder = b})) in
     box_apply2 fn sv (aux f)
 
-let sv_none : such_var bindbox =
+let sv_none : such_var box =
   box SV_None
 
-let sv_valu : vbox -> such_var bindbox =
+let sv_valu : vbox -> such_var box =
   box_apply (fun v -> SV_Valu(v))
 
-let sv_stac : sbox -> such_var bindbox =
+let sv_stac : sbox -> such_var box =
   box_apply (fun s -> SV_Stac(s))
 
 (** {5 Stack constructors} *)
@@ -499,22 +512,22 @@ let fixn : popt -> obox -> strloc -> (pvar -> pbox) -> pbox =
 let memb : popt -> tbox -> pbox -> pbox =
   fun p -> box_apply2 (fun t a -> Pos.make p (Memb(t,a)))
 
-let rest : popt -> pbox -> rel bindbox -> pbox =
+let rest : popt -> pbox -> rel box -> pbox =
   fun p -> box_apply2 (fun a c -> Pos.make p (Rest(a,c)))
 
-let impl : popt -> rel bindbox -> pbox -> pbox =
+let impl : popt -> rel box -> pbox -> pbox =
   fun p -> box_apply2 (fun c a -> Pos.make p (Impl(c,a)))
 
 (** {5 Condition constructors} *)
 
-let equiv : tbox -> bool -> tbox -> rel bindbox =
+let equiv : tbox -> bool -> tbox -> rel box =
   fun t b u ->
     box_apply2 (fun t u -> Equiv(t,b,u)) t u
 
-let posit : obox -> rel bindbox =
+let posit : obox -> rel box =
   box_apply (fun o -> Posit(o))
 
-let nobox : vbox -> rel bindbox =
+let nobox : vbox -> rel box =
   box_apply (fun v -> NoBox(v))
 
 (** {5 Ordinal constructors} *)
@@ -527,7 +540,7 @@ let conv : popt -> obox =
 let succ : popt -> obox -> obox =
   fun p -> box_apply (fun o -> Pos.make p (Succ(o)))
 
-let goal : type a. popt -> a sort -> string -> a ex loc bindbox =
+let goal : type a. popt -> a sort -> string -> a ex loc box =
   fun p s str -> box (Pos.make p (Goal(s,str)))
 
 (** {5 syntactic sugars} *)

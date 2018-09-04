@@ -1,5 +1,17 @@
 (** Main type-checking and subtyping functions. *)
 
+(* FIXME FIXME FIXME temporary *)
+module Bindlib = struct
+  include Bindlib
+
+  let vbind : ('a var -> 'a) -> string -> ('a var -> 'b box)
+              -> ('a, 'b) binder box = fun mkfree name f ->
+    let x = new_var mkfree name in
+    bind_var x (f x)
+end
+
+
+
 open Extra
 open Bindlib
 open Sorts
@@ -206,7 +218,7 @@ let rec learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
            (** We know that o is positive and wit in a
                so we can build an eps < o *)
            let f o = bndr_subst f (FixM(Pos.none o, f)) in
-           let f = binder_from_fun "o" f in
+           let f = raw_binder "o" true 0 (fun _ -> assert false) f in
            let (o', ctx_names) = owmu ctx.ctx_names o twit (None, f) in
            (o', { ctx with ctx_names })
       in
@@ -257,7 +269,7 @@ let rec learn_neg_equivalences : ctxt -> valu -> term option -> prop -> ctxt =
            (** We know that o is positive and wit in a
                so we can build an eps < o *)
            let f o = bndr_subst f (FixN(Pos.none o, f)) in
-           let f = binder_from_fun "o" f in
+           let f = raw_binder "o" true 0 (fun _ -> assert false) f in
            let (o', ctx_names) = ownu ctx.ctx_names o twit (None, f) in
            (o', { ctx with ctx_names })
       in
@@ -385,7 +397,7 @@ and subtype =
               Succ o' -> (ctx, o')
             | _ ->
                let f o = bndr_subst f (FixM(Pos.none o, f)) in
-               let f = binder_from_fun "o" f in
+               let f = raw_binder "o" true 0 (fun _ -> assert false) f in
                let (o', ctx_names) = owmu ctx.ctx_names o t (None,f) in
                let ctx = { ctx with ctx_names } in
                (add_positive ctx o o', o')
@@ -409,7 +421,7 @@ and subtype =
               Succ o' -> (ctx, o')
             | _ ->
                let f o = bndr_subst f (FixN(Pos.none o, f)) in
-               let f = binder_from_fun "o" f in
+               let f = raw_binder "o" true 0 (fun _ -> assert false) f in
                let (o', ctx_names) = ownu ctx.ctx_names o t (None, f) in
                let ctx = { ctx with ctx_names } in
                (add_positive ctx o o', o')
@@ -876,7 +888,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
         end
     (* λ-abstraction. *)
     | LAbs(ao,f)  ->
-       let (x,tx) = unbind (mk_free V) (snd f) in
+       let (x,tx) = unbind (snd f) in
        begin
          match tx.elt with
          (* Fixpoint *)

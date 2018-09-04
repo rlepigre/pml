@@ -1,5 +1,18 @@
 (** Evaluation in an abstract machine. *)
 
+(* FIXME FIXME FIXME temporary *)
+module Bindlib = struct
+  include Bindlib
+
+  let vbind : ('a var -> 'a) -> string -> ('a var -> 'b box)
+              -> ('a, 'b) binder box = fun mkfree name f ->
+    let x = new_var mkfree name in
+    bind_var x (f x)
+
+  let binder_from_fun : string -> ('a -> 'b) -> ('a, 'b) binder =
+    fun x f -> raw_binder x true 0 (fun _ -> assert false) f
+end
+
 open Bindlib
 open Ast
 open Pos
@@ -10,9 +23,9 @@ type e_vvar = e_valu Bindlib.var
 type e_tvar = e_term Bindlib.var
 type e_svar = e_stac Bindlib.var
 
-type e_vbox = e_valu bindbox
-type e_tbox = e_term bindbox
-type e_sbox = e_stac bindbox
+type e_vbox = e_valu Bindlib.box
+type e_tbox = e_term Bindlib.box
+type e_sbox = e_stac Bindlib.box
 
 let mk_vvari : e_valu Bindlib.var -> e_valu =
   fun x -> VVari(x)
