@@ -442,7 +442,7 @@ let parser expr @(m : mode) =
       when m <<= Trm A
       -> deduce _loc a
   (* Term ("show" tactic) *)
-  | _show_ a:prop _using_ t:(expr (Trm R))
+  | _show_ a:prop _using_ t:{(expr (Trm R)) | '{' term '}'}
       when m <<= Trm R
       -> show_using _loc a t
   (* Term ("use" tactic) *)
@@ -760,7 +760,8 @@ and handle_file nodep fn =
 
 (** Main parsing function taking as input a file name. *)
 and parse_file : string -> toplevel list = fun fn ->
-  let parse = Earley.parse_file entry Blank.blank in
+  let blank = Blanks.line_comments "//" in
+  let parse = Earley.parse_file entry blank in
   try List.map (fun act -> act ()) (parse fn)
   with Parse_error(buf, pos) ->
     let pos = Pos.locate buf pos buf pos in

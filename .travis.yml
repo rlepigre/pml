@@ -19,7 +19,7 @@ before_install:
   - opam init --compiler=${OCAML_VERSION}
   - eval `opam config env`
   - opam install ocamlbuild ocamlfind
-  - opam install earley.1.0.2 earley-ocaml.1.0.2 bindlib.5.0.1
+  - opam install earley.1.1.0 earley-ocaml.1.1.0 bindlib.5.0.1
   - make
 install:
   - make install

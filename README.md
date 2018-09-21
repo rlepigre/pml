@@ -33,15 +33,15 @@ List of dependencies:
  - ocamlbuild,
  - findlib,
  - bindlib 5.0.1 (https://github.com/rlepigre/ocaml-bindlib),
- - earley 1.0.2 (https://github.com/rlepigre/ocaml-earley),
- - earley-ocaml 1.0.2 (https://github.com/rlepigre/ocaml-earley-ocaml).
+ - earley 1.1.0 (https://github.com/rlepigre/ocaml-earley),
+ - earley-ocaml 1.1.0 (https://github.com/rlepigre/ocaml-earley-ocaml).
 
 Using Opam, a suitable OCaml environment can be setup as follows.
 ```bash
 opam switch 4.05.0
 eval `opam config env`
 opam install ocamlfind ocamlbuild
-opam install bindlib.5.0.1 earley.1.0.2 earley-ocaml.1.0.2
+opam install bindlib.5.0.1 earley.1.1.0 earley-ocaml.1.1.0
 ```
 
 To compile PML₂, just run the command `make` in the source directory. This
