@@ -1,6 +1,7 @@
 (** Main parsing module. This module defines an [Earley] parser for the
     language. *)
 
+open Earley_core
 open Earley
 open Extra
 open Pos
