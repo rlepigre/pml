@@ -108,7 +108,7 @@ val other_isort : ∀a, ∀o∈total_order⟨a⟩, list⟨a⟩ ⇒ slist⟨a,o�
 // Prove that the elements are preserved (we could add the hypothesis that
 // the list we insert into is sorted. However, this is more general.
 
-val rec lemma1 : ∀a, ∀o∈total_order⟨a⟩, ∀x∈a, ∀e∈a, ∀l∈list⟨a⟩,
+val rec insert_count : ∀a, ∀o∈total_order⟨a⟩, ∀x∈a, ∀e∈a, ∀l∈list⟨a⟩,
     o.cmp x e && o.cmp e x ⇒ S[count o x l] ≡ count o x (insert o e l) =
   fun o x e l _ {
     case l {
@@ -120,7 +120,7 @@ val rec lemma1 : ∀a, ∀o∈total_order⟨a⟩, ∀x∈a, ∀e∈a, ∀l∈lis
           qed
         } else {
           show S[count o x tl] ≡ count o x (insert o e tl)
-            using lemma1 o x e tl {};
+            using insert_count o x e tl {};
           showing S[count o x (hd::tl)]
                 ≡ count o x (hd::insert o e tl);
           if o.cmp x hd && o.cmp hd x {
@@ -176,7 +176,7 @@ val rec lemma2 : ∀a, ∀o∈total_order⟨a⟩, ∀x∈a, ∀e∈a, ∀l∈lis
     }
   }
 
-val rec theorem : ∀a, ∀o∈total_order⟨a⟩, ∀e∈a, ∀l∈list⟨a⟩,
+val rec isort_count : ∀a, ∀o∈total_order⟨a⟩, ∀e∈a, ∀l∈list⟨a⟩,
     count o e l ≡ count o e (isort o l) =
   fun o e l {
     case l {
@@ -186,7 +186,7 @@ val rec theorem : ∀a, ∀o∈total_order⟨a⟩, ∀e∈a, ∀l∈list⟨a⟩,
         qed
       hd::tl → 
         show count o e tl ≡ count o e (isort o tl)
-          using theorem o e tl;
+          using isort_count o e tl;
         showing count o e (hd::tl)
               ≡ count o e (isort o (hd::tl));
         if o.cmp e hd && o.cmp hd e {
@@ -196,7 +196,7 @@ val rec theorem : ∀a, ∀o∈total_order⟨a⟩, ∀e∈a, ∀l∈list⟨a⟩,
                 ≡ count o e (isort o (hd::tl));
           showing S[count o e (isort o tl)]
                 ≡ count o e (insert o hd (isort o tl));
-          use lemma1 o e hd (isort o tl) {}
+          use insert_count o e hd (isort o tl) {}
         } else {
           showing count o e tl
                 ≡ count o e (isort o (hd::tl));
@@ -209,17 +209,3 @@ val rec theorem : ∀a, ∀o∈total_order⟨a⟩, ∀e∈a, ∀l∈list⟨a⟩,
         }
     }
   }
-
-// Full specification / implementation of the sorting algorithm.
-
-type sorting_algorithm =
-  ∃sort_fun,
-    { sort_fun   : sort_fun ∈ (∀a, total_order⟨a⟩ ⇒ list⟨a⟩ ⇒ list⟨a⟩)
-    ; sort_sorts : ∀a, ∀o∈total_order⟨a⟩, ∀l∈list⟨a⟩, sorted o (sort_fun o l)
-    ; sort_count : ∀a, ∀o∈total_order⟨a⟩, ∀e∈a, ∀l∈list⟨a⟩,
-                     count o e l ≡ count o e (sort_fun o l) }
-
-val insertion_sort : sorting_algorithm =
-  { sort_fun   = isort
-  ; sort_sorts = isort_sorts
-  ; sort_count = theorem }

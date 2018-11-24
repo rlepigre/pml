@@ -19,4 +19,4 @@ include lib.list_insert_sort
 val insert_sort : sorting_algorithm =
   { sort_fun   = isort
   ; sort_sorts = isort_sorts
-  ; sort_count = theorem }
+  ; sort_count = isort_count }
