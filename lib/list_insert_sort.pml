@@ -5,6 +5,7 @@ include lib.nat_proofs
 include lib.list
 include lib.list_proofs
 include lib.list_sorted
+include lib.list_count
 
 // Implementation of insertion sort.
 
@@ -47,9 +48,9 @@ val test : {} =
 
 // Prove that the produced list is sorted.
 
-val rec insert_sorted : ∀a, ∀o∈total_order⟨a⟩, ∀e∈a, ∀l∈list⟨a⟩,
-    sorted o l ⇒ sorted o (insert o e l) =
-  fun o e l _ {
+val rec insert_sorted : ∀a, ∀o∈total_order⟨a⟩, ∀e∈a, ∀l∈slist⟨a,o⟩,
+    sorted o (insert o e l) =
+  fun o e l {
     case l {
       []     →
         showing sorted o (insert o e []);
@@ -58,7 +59,7 @@ val rec insert_sorted : ∀a, ∀o∈total_order⟨a⟩, ∀e∈a, ∀l∈list�
       hd::tl →
         showing sorted o (insert o e (hd::tl));
         show sorted o tl using sorted_tail o hd tl {};
-        show sorted o (insert o e tl) using insert_sorted o e tl {};
+        show sorted o (insert o e tl) using insert_sorted o e tl;
         if o.cmp e hd { qed } else {
           show o.cmp hd e using o.total e hd;
           showing sorted o (hd :: insert o e tl);
@@ -91,49 +92,46 @@ val rec isort_sorts : ∀a, ∀o∈total_order⟨a⟩, ∀l∈list⟨a⟩,
         showing sorted o (isort o (hd::tl));
         showing sorted o (insert o hd (isort o tl));
         show sorted o (isort o tl) using isort_sorts o tl;
-        use insert_sorted o hd (isort o tl) {};
+        use insert_sorted o hd (isort o tl);
         qed
     }
   }
 
-// Prove that the elements are preserved.
+// We can redifine the sorting function to get a more precise type.
 
-val rec count : ∀a, (a⇒a⇒bool) ⇒ a ⇒ list⟨a⟩ ⇒ nat =
-  fun cmp x l {
-    case l {
-      []   → zero
-      y::l → if cmp x y && cmp y x { S[count cmp x l] }
-             else { count cmp x l }
-    }
+val other_isort : ∀a, ∀o∈total_order⟨a⟩, list⟨a⟩ ⇒ slist⟨a,o⟩ =
+  fun o l {
+    use isort_sorts o l;
+    isort o l
   }
 
-// Could add hypothesis that l is sorted.
+// Prove that the elements are preserved (we could add the hypothesis that
+// the list we insert into is sorted. However, this is more general.
 
 val rec lemma1 : ∀a, ∀o∈total_order⟨a⟩, ∀x∈a, ∀e∈a, ∀l∈list⟨a⟩,
-    o.cmp x e && o.cmp e x ⇒
-    S[count o.cmp x l] ≡ count o.cmp x (insert o e l) =
+    o.cmp x e && o.cmp e x ⇒ S[count o x l] ≡ count o x (insert o e l) =
   fun o x e l _ {
     case l {
       []     → qed
       hd::tl →
         if o.cmp e hd {
-          showing S[count o.cmp x (hd::tl)]
-                ≡ count o.cmp x (e::hd::tl);
+          showing S[count o x (hd::tl)]
+                ≡ count o x (e::hd::tl);
           qed
         } else {
-          show S[count o.cmp x tl] ≡ count o.cmp x (insert o e tl)
+          show S[count o x tl] ≡ count o x (insert o e tl)
             using lemma1 o x e tl {};
-          showing S[count o.cmp x (hd::tl)]
-                ≡ count o.cmp x (hd::insert o e tl);
+          showing S[count o x (hd::tl)]
+                ≡ count o x (hd::insert o e tl);
           if o.cmp x hd && o.cmp hd x {
-            showing S[S[count o.cmp x tl]]
-                  ≡ S[count o.cmp x (insert o e tl)];
-            showing S[count o.cmp x tl]
-                  ≡ count o.cmp x (insert o e tl);
+            showing S[S[count o x tl]]
+                  ≡ S[count o x (insert o e tl)];
+            showing S[count o x tl]
+                  ≡ count o x (insert o e tl);
             qed
           } else {
-            showing S[count o.cmp x tl]
-                  ≡ count o.cmp x (insert o e tl);
+            showing S[count o x tl]
+                  ≡ count o x (insert o e tl);
             qed
           }
         } 
@@ -142,35 +140,35 @@ val rec lemma1 : ∀a, ∀o∈total_order⟨a⟩, ∀x∈a, ∀e∈a, ∀l∈lis
 
 val rec lemma2 : ∀a, ∀o∈total_order⟨a⟩, ∀x∈a, ∀e∈a, ∀l∈list⟨a⟩,
     (o.cmp x e && o.cmp e x ⇒ ∀x,x) ⇒
-    count o.cmp x l ≡ count o.cmp x (insert o e l) =
+    count o x l ≡ count o x (insert o e l) =
   fun o x e l absurd {
     if o.cmp x e && o.cmp e x { absurd {} } else {
       case l {
         []     →
-          showing count o.cmp x [] ≡ count o.cmp x (insert o e []);
-          showing count o.cmp x [] ≡ count o.cmp x (e::[]);
+          showing count o x [] ≡ count o x (insert o e []);
+          showing count o x [] ≡ count o x (e::[]);
           qed
         hd::tl →
-          showing count o.cmp x (hd::tl)
-                ≡ count o.cmp x (insert o e (hd::tl));
+          showing count o x (hd::tl)
+                ≡ count o x (insert o e (hd::tl));
           if o.cmp e hd {
-            showing count o.cmp x (hd::tl)
-                  ≡ count o.cmp x (e::hd::tl);
+            showing count o x (hd::tl)
+                  ≡ count o x (e::hd::tl);
             qed
           } else {
-            show count o.cmp x tl ≡ count o.cmp x (insert o e tl)
+            show count o x tl ≡ count o x (insert o e tl)
               using lemma2 o x e tl absurd;
-            showing count o.cmp x (hd::tl)
-                  ≡ count o.cmp x (hd::insert o e tl);
+            showing count o x (hd::tl)
+                  ≡ count o x (hd::insert o e tl);
             if o.cmp x hd && o.cmp hd x {
-              showing S[count o.cmp x tl]
-                    ≡ S[count o.cmp x (insert o e tl)];
-              showing count o.cmp x tl
-                    ≡ count o.cmp x (insert o e tl);
+              showing S[count o x tl]
+                    ≡ S[count o x (insert o e tl)];
+              showing count o x tl
+                    ≡ count o x (insert o e tl);
               qed
             } else {
-              showing count o.cmp x tl
-                    ≡ count o.cmp x (insert o e tl);
+              showing count o x tl
+                    ≡ count o x (insert o e tl);
               qed
             }
           }
@@ -179,36 +177,49 @@ val rec lemma2 : ∀a, ∀o∈total_order⟨a⟩, ∀x∈a, ∀e∈a, ∀l∈lis
   }
 
 val rec theorem : ∀a, ∀o∈total_order⟨a⟩, ∀e∈a, ∀l∈list⟨a⟩,
-    count o.cmp e l ≡ count o.cmp e (isort o l) =
+    count o e l ≡ count o e (isort o l) =
   fun o e l {
     case l {
       []     →
-        showing count o.cmp e [] ≡ count o.cmp e (isort o []);
-        showing count o.cmp e [] ≡ count o.cmp e [];
+        showing count o e [] ≡ count o e (isort o []);
+        showing count o e [] ≡ count o e [];
         qed
       hd::tl → 
-        show count o.cmp e tl ≡ count o.cmp e (isort o tl)
+        show count o e tl ≡ count o e (isort o tl)
           using theorem o e tl;
-        showing count o.cmp e (hd::tl)
-              ≡ count o.cmp e (isort o (hd::tl));
+        showing count o e (hd::tl)
+              ≡ count o e (isort o (hd::tl));
         if o.cmp e hd && o.cmp hd e {
-          showing S[count o.cmp e tl]
-                ≡ count o.cmp e (isort o (hd::tl));
-          showing S[count o.cmp e (isort o tl)]
-                ≡ count o.cmp e (isort o (hd::tl));
-          showing S[count o.cmp e (isort o tl)]
-                ≡ count o.cmp e (insert o hd (isort o tl));
+          showing S[count o e tl]
+                ≡ count o e (isort o (hd::tl));
+          showing S[count o e (isort o tl)]
+                ≡ count o e (isort o (hd::tl));
+          showing S[count o e (isort o tl)]
+                ≡ count o e (insert o hd (isort o tl));
           use lemma1 o e hd (isort o tl) {}
         } else {
-          showing count o.cmp e tl
-                ≡ count o.cmp e (isort o (hd::tl));
-          showing count o.cmp e (isort o tl)
-                ≡ count o.cmp e (isort o (hd::tl));
-          showing count o.cmp e (isort o tl)
-                ≡ count o.cmp e (insert o hd (isort o tl));
+          showing count o e tl
+                ≡ count o e (isort o (hd::tl));
+          showing count o e (isort o tl)
+                ≡ count o e (isort o (hd::tl));
+          showing count o e (isort o tl)
+                ≡ count o e (insert o hd (isort o tl));
           let absurd : o.cmp e hd && o.cmp hd e ⇒ ∀x,x = fun _ { ✂ };
           use lemma2 o e hd (isort o tl) absurd
         }
     }
   }
 
+// Full specification / implementation of the sorting algorithm.
+
+type sorting_algorithm =
+  ∃sort_fun,
+    { sort_fun   : sort_fun ∈ (∀a, total_order⟨a⟩ ⇒ list⟨a⟩ ⇒ list⟨a⟩)
+    ; sort_sorts : ∀a, ∀o∈total_order⟨a⟩, ∀l∈list⟨a⟩, sorted o (sort_fun o l)
+    ; sort_count : ∀a, ∀o∈total_order⟨a⟩, ∀e∈a, ∀l∈list⟨a⟩,
+                     count o e l ≡ count o e (sort_fun o l) }
+
+val insertion_sort : sorting_algorithm =
+  { sort_fun   = isort
+  ; sort_sorts = isort_sorts
+  ; sort_count = theorem }
