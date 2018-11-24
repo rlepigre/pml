@@ -1,10 +1,10 @@
 include lib.bool
-include lib.nat
 include lib.order
-include lib.list
+include lib.nat
 include lib.nat_proofs
+include lib.list
 include lib.list_proofs
-include lib.sorted
+include lib.list_sorted
 
 // Implementation of insertion sort.
 
@@ -48,28 +48,28 @@ val test : {} =
 // Prove that the produced list is sorted.
 
 val rec insert_sorted : ∀a, ∀o∈total_order⟨a⟩, ∀e∈a, ∀l∈list⟨a⟩,
-    is_sorted o.cmp l ⇒ is_sorted o.cmp (insert o e l) =
+    sorted o l ⇒ sorted o (insert o e l) =
   fun o e l _ {
     case l {
       []     →
-        showing is_sorted o.cmp (insert o e []);
-        showing is_sorted o.cmp (e::[]);
+        showing sorted o (insert o e []);
+        showing sorted o (e::[]);
         qed
       hd::tl →
-        showing is_sorted o.cmp (insert o e (hd::tl));
-        show is_sorted o.cmp tl using sorted_tail o.cmp hd tl {};
-        show is_sorted o.cmp (insert o e tl) using insert_sorted o e tl {};
+        showing sorted o (insert o e (hd::tl));
+        show sorted o tl using sorted_tail o hd tl {};
+        show sorted o (insert o e tl) using insert_sorted o e tl {};
         if o.cmp e hd { qed } else {
           show o.cmp hd e using o.total e hd;
-          showing is_sorted o.cmp (hd :: insert o e tl);
+          showing sorted o (hd :: insert o e tl);
           case tl {
             []         →
-              showing is_sorted o.cmp (hd :: insert o e []);
-              showing is_sorted o.cmp (hd :: e :: []);
+              showing sorted o (hd :: insert o e []);
+              showing sorted o (hd :: e :: []);
               qed
             hdtl::tltl →
-              showing is_sorted o.cmp (hd :: insert o e (hdtl::tltl));
-              show o.cmp hd hdtl using sorted_ineq o.cmp hd hdtl tltl {};
+              showing sorted o (hd :: insert o e (hdtl::tltl));
+              show o.cmp hd hdtl using sorted_ineq o hd hdtl tltl {};
               if o.cmp e hdtl { qed } else {
                 show o.cmp hdtl e using o.total e hdtl;
                 qed
@@ -80,17 +80,17 @@ val rec insert_sorted : ∀a, ∀o∈total_order⟨a⟩, ∀e∈a, ∀l∈list�
   }
 
 val rec isort_sorts : ∀a, ∀o∈total_order⟨a⟩, ∀l∈list⟨a⟩,
-    is_sorted o.cmp (isort o l) =
+    sorted o (isort o l) =
   fun o l {
     case l {
       []     →
-        showing is_sorted o.cmp (isort o []);
-        showing is_sorted o.cmp [];
+        showing sorted o (isort o []);
+        showing sorted o [];
         qed
       hd::tl →
-        showing is_sorted o.cmp (isort o (hd::tl));
-        showing is_sorted o.cmp (insert o hd (isort o tl));
-        show is_sorted o.cmp (isort o tl) using isort_sorts o tl;
+        showing sorted o (isort o (hd::tl));
+        showing sorted o (insert o hd (isort o tl));
+        show sorted o (isort o tl) using isort_sorts o tl;
         use insert_sorted o hd (isort o tl) {};
         qed
     }
