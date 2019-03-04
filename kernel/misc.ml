@@ -1,15 +1,5 @@
 (** Function to retreive information from expression *)
 
-(* FIXME FIXME FIXME temporary *)
-module Bindlib = struct
-  include Bindlib
-
-  let mbinder_from_fun : ('a var -> 'a) -> string array -> ('a array -> 'b)
-      -> ('a,'b) mbinder =
-    fun mkfree xs f ->
-      raw_mbinder xs (Array.map (fun _ -> true) xs) 0 mkfree f
-end
-
 open Extra
 open Bindlib
 open Eq
@@ -159,16 +149,17 @@ let bind2_ordinals : p ex loc -> p ex loc
   let e = Pos.none (Prod m) in
   let (b, os) = bind_ordinals e in
   let names = mbinder_names b in
-  let fn xs =
-    match (msubst b xs).elt with
+  let xs = new_mvar (mk_free O) names in
+  let fn =
+    match (msubst b (Array.map (mk_free O) xs)).elt with
     | Prod m ->
        begin
-         try  (snd (A.find "1" m), snd (A.find "2" m))
+         try  box_pair (lift (snd (A.find "1" m))) (lift (snd (A.find "2" m)))
          with Not_found -> assert false
        end
     | _ -> assert false
   in
-  (mbinder_from_fun (mk_free O) names fn, os)
+  (unbox (bind_mvar xs fn), os)
 
 type occ = Pos | Neg | Any
 

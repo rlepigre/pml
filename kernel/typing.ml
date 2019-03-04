@@ -209,9 +209,8 @@ let learn_nobox : ctxt -> valu -> ctxt = fun ctx v ->
                             ineq = ctx.equations.ineq } }
 
 let learn_value : ctxt -> term -> prop -> valu * ctxt = fun ctx t a ->
-  let f = bndr_from_fun "x" (fun x -> Valu(Pos.none x)) in
   let ae = Pos.none (Memb(t,a)) in
-  let (vwit, ctx_names) = vwit ctx.ctx_names f ae Ast.bottom in
+  let (vwit, ctx_names) = vwit ctx.ctx_names idt_valu ae Ast.bottom in
   let ctx = { ctx with ctx_names } in
   let ctx = learn_nobox ctx vwit in
   let twit = Pos.none (Valu vwit) in
@@ -754,8 +753,7 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof * tot  =
 
 and gen_subtype : ctxt -> prop -> prop -> sub_rule =
   fun ctx a b ->
-    let f = bndr_from_fun "x" (fun x -> Valu(Pos.none x)) in
-    let (eps, ctx_names) = vwit ctx.ctx_names f a b in
+    let (eps, ctx_names) = vwit ctx.ctx_names idt_valu a b in
     let ctx = { ctx with ctx_names } in
     let ctx = learn_nobox ctx eps in
     let wit = Pos.none (Valu eps) in
