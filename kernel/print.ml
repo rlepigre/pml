@@ -338,8 +338,9 @@ let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
                        let (l,r) = if Prp R <= pr then ("(",")") else ("","")
                        in fprintf ch "(%s%a%s | %a)" l (ex (Prp R)) a r rel c
                    end
-  | Impl(e,a)   -> (* FIXME #36, no parsing for Impl ? *)
-                   fprintf ch "%a ↪ %a" rel e (ex (Prp R)) a
+  | Impl(e,a)   -> begin
+                     fprintf ch "%a if %a" (ex (Prp R)) a rel e
+                   end
   | LAbs(ao,b)  -> let (x,t) = unbind (snd b) in
                    begin
                      match ao with
