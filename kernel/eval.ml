@@ -1,15 +1,5 @@
 (** Evaluation in an abstract machine. *)
 
-(* FIXME FIXME FIXME temporary *)
-module Bindlib = struct
-  include Bindlib
-
-  let vbind : ('a var -> 'a) -> string -> ('a var -> 'b box)
-              -> ('a, 'b) binder box = fun mkfree name f ->
-    let x = new_var mkfree name in
-    bind_var x (f x)
-end
-
 open Bindlib
 open Ast
 open Pos
@@ -35,7 +25,9 @@ let mk_svari : e_stac Bindlib.var -> e_stac =
 
 (* Smart constructors for values. *)
 let vlabs : string -> (e_vvar -> e_tbox) -> e_vbox =
-  fun x f -> box_apply (fun b -> VLAbs(b)) (Bindlib.vbind mk_vvari x f)
+  fun x f -> box_apply (fun b -> VLAbs(b))
+                       (let v = new_var mk_vvari x in
+                        bind_var v (f v))
 
 let vcons : string -> e_vbox -> e_vbox =
   fun c -> box_apply (fun v -> VCons(c,v))
@@ -57,10 +49,14 @@ let tappl : e_tbox -> e_tbox -> e_tbox =
   box_apply2 (fun t u -> TAppl(t,u))
 
 let tfixy : string -> (e_tvar -> e_vbox) -> e_tbox =
-  fun x f -> box_apply (fun b -> TFixY(b)) (Bindlib.vbind mk_tvari x f)
+  fun x f -> box_apply (fun b -> TFixY(b))
+                       (let v = new_var mk_tvari x in
+                        bind_var v (f v))
 
 let tmabs : string -> (e_svar -> e_tbox) -> e_tbox =
-  fun x f -> box_apply (fun b -> TMAbs(b)) (vbind mk_svari x f)
+  fun x f -> box_apply (fun b -> TMAbs(b)) (
+                         let v = new_var mk_svari x in
+                         bind_var v (f v))
 
 let tname : e_sbox -> e_tbox -> e_tbox =
   box_apply2 (fun s t -> TName(s,t))
@@ -70,7 +66,10 @@ let tproj : e_vbox -> string -> e_tbox =
 
 let tcase : e_vbox -> (string * (e_vvar -> e_tbox)) A.t -> e_tbox =
   fun v m ->
-    let f (x,f) = vbind mk_vvari x f in
+    let f (x,f) =
+      let v = new_var mk_vvari x in
+      bind_var v (f v)
+    in
     box_apply2 (fun v m -> TCase(v,m)) v (A.map_box f m)
 
 let tprnt : string -> e_tbox =
