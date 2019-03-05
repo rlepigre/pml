@@ -1493,14 +1493,17 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
   | Failed_to_prove _ as e -> raise e
   | e                      -> type_error (E(S,s)) c e
 
+exception Unif_variables
+
 let type_check : term -> prop -> prop * typ_proof = fun t a ->
   try
     let ctx = empty_ctxt () in
     let (prf, _) = type_term ctx t a in
     List.iter (fun f -> f ()) (List.rev !(ctx.add_calls));
     if not (Scp.scp ctx.callgraph) then loops t;
-    let l = uvars a in
-    assert(l = []); (* FIXME #16 *)
+    (* there is no way to parse unif variables in type,
+       so [uvars a] hould be empty *)
+    assert (uvars a = []);
     reset_tbls ();
     (Norm.whnf a, prf)
   with e -> reset_tbls (); raise e
@@ -1511,10 +1514,8 @@ let is_subtype : prop -> prop -> bool = fun a b ->
   try
     let ctx = empty_ctxt () in
     let _ = gen_subtype ctx a b in
-    let la = uvars a in
-    let lb = uvars b in
-    assert(la = []); (* FIXME #16 *)
-    assert(lb = []); (* FIXME #16 *)
+    (* same as above *)
+    assert(uvars a = [] && uvars b = []);
     List.iter (fun f -> f ()) (List.rev !(ctx.add_calls));
     let res = Scp.scp ctx.callgraph in
     reset_tbls ();
