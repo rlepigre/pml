@@ -1247,19 +1247,24 @@ and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
         (* a fresh unif var for the type of u *)
         let a = new_uvar ctx P in
         let tot = ctx.totality in
-        let check_f ctx strong a =
+        let rec check_f ctx strong a0 =
           (* common code to check f *)
           if strong then (* strong application *)
-            let a = (* do not add singleton if it is one *)
-              if is_singleton a <> None then a else Pos.none (Memb(u,a))
+            let (a, strong) = (* do not add singleton if it is one *)
+              if is_singleton a <> None then (a0, false)
+              else (Pos.none (Memb(u,a0)), true)
             in
             let c = Pos.none (Func(tot,a,c)) in
+            let st = UTimed.Time.save () in
             try
               let (v,ctx) = learn_value ctx u a in
               let ctx = learn_equivalences ctx v a in
               type_term ctx f c
             with Contradiction ->
-              warn_unreachable ctx f; ((t,c,Typ_Scis), Tot)
+                 warn_unreachable ctx f; ((t,c,Typ_Scis), Tot)
+               | _ when strong ->
+                  UTimed.Time.rollback st;
+                  check_f ctx false a0
           else
             type_term ctx f (Pos.none (Func(tot,a,c)))
         in

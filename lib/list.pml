@@ -64,8 +64,7 @@ val rec fold_right : ∀a b, (b ⇒ a ⇒ a) ⇒ list⟨b⟩ ⇒ a ⇒ a =
   fun fn l acc {
     case l {
       []       → acc
-      hd :: tl → let fr = fold_right fn; // FIXME #37
-                 fn hd (fr tl acc)
+      hd :: tl → fn hd (fold_right fn tl acc)
     }
   }
 
