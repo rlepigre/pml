@@ -1176,8 +1176,20 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
         let (_, _, r) = type_valu ctx d.expr_def c in r
     (* Value definition. *)
     | VDef(d)     ->
-        let p = subtype ctx t d.value_type c in
-        Typ_VDef(d,p)
+        begin
+          let st = UTimed.Time.save () in
+          try
+            let p = subtype ctx t d.value_type c in
+            Typ_VDef(d,p)
+          with
+            (* NOTE: some times, defined values like 0 :nat = Zero
+               will fail for base case of sized function, this backtracking
+               solves the problem and is not too expensive for value only *)
+          | e -> match d.value_orig.elt with
+                 | Valu v -> UTimed.Time.rollback st;
+                             let (_,_,r) = type_valu ctx v c in r
+                 | _ -> raise e
+        end
     (* Goal *)
     | Goal(_,str) ->
         wrn_msg "goal %S %a" str Pos.print_short_pos_opt v.pos;
