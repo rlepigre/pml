@@ -82,7 +82,7 @@ let auto_empty () =
 (* Context. *)
 type ctxt  =
   { uvarcount : int ref
-  ; equations : eq_ctxt
+  ; equations : pool
   ; ctx_names : Bindlib.ctxt
   (* the first of the pair is positive, the second
      is stricly less than the first *)
@@ -97,7 +97,7 @@ type ctxt  =
 
 let empty_ctxt () =
   { uvarcount = ref 0
-  ; equations = empty_ctxt
+  ; equations = empty_pool
   ; ctx_names = Bindlib.empty_ctxt
   ; positives = []
   ; fix_ihs   = Buckets.empty (==)
@@ -205,8 +205,7 @@ and stk_proof = stac * prop * stk_rule
 and sub_proof = term * prop * prop * sub_rule
 
 let learn_nobox : ctxt -> valu -> ctxt = fun ctx v ->
-  { ctx with equations =  { pool = add_nobox v ctx.equations.pool;
-                            ineq = ctx.equations.ineq } }
+  { ctx with equations = add_nobox v ctx.equations }
 
 let learn_value : ctxt -> term -> prop -> valu * ctxt = fun ctx t a ->
   let ae = Pos.none (Memb(t,a)) in
@@ -237,14 +236,13 @@ let rec learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
     | Prod(fs)   ->
        A.fold (fun lbl (_, b) ctx ->
            let (v,pool,ctx_names) =
-             find_proj ctx.equations.pool ctx.ctx_names wit lbl
+             find_proj ctx.equations ctx.ctx_names wit lbl
            in
-           let ctx = { ctx with equations = { ctx.equations with pool };
-                                ctx_names } in
+           let ctx = { ctx with equations = pool; ctx_names } in
            fn ctx v b) fs ctx
     | DSum(fs)   ->
        begin
-         match find_sum ctx.equations.pool wit with
+         match find_sum ctx.equations wit with
          | None ->
             if A.length fs = 1 then
               A.fold (fun c (_,b) ctx ->
@@ -255,7 +253,7 @@ let rec learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
          | Some(s,v,pool) ->
             try
               let (_, b) = A.find s fs in
-              let ctx = { ctx with equations = { ctx.equations with pool } } in
+              let ctx = { ctx with equations = pool } in
               fn ctx v b
             with Not_found -> assert false (* NOTE check *)
        end
@@ -368,7 +366,7 @@ type check_sub =
 
 let rec unif_expr : type a. ctxt -> a ex loc -> a ex loc -> bool =
   fun ctx a b ->
-    eq_expr ~oracle:(oracle (ref ctx.equations.pool)) ~strict:false a b
+    eq_expr ~oracle:(oracle (ref ctx.equations)) ~strict:false a b
 
 and subtype =
   let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
@@ -1441,7 +1439,7 @@ and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
         (Typ_Repl(p1), tot)
     | Delm(t)     ->
        let pure = Pure.(pure t && pure c
-                        && Lazy.force ctx.equations.pool.pure)
+                        && Lazy.force ctx.equations.pure)
        in
        let ctx =
          if pure then { ctx with totality = new_tot () } else

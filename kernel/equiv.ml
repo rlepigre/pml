@@ -290,6 +290,7 @@ type pool =
   ; os       : (Ptr.t * t ex loc) list
   ; next     : int    (** counter to generate new nodes *)
   ; time     : Timed.Time.t (** Current time for references *)
+  ; ineq     : (ptr * ptr) list
   ; eq_map   : (ptr * ptr) list (* just for printing and debugging *)
   ; values   : (value * v_ptr) list
   ; v_defs   : (v expr * v_ptr) list
@@ -384,6 +385,7 @@ let empty_pool : pool =
   ; os     = []
   ; next   = 0
   ; time   = Timed.Time.save ()
+  ; ineq   = []
   ; eq_map = []
   ; values = []
   ; v_defs = []
@@ -771,6 +773,9 @@ let insert_t_node : bool -> t_node -> pool -> TPtr.t * pool =
 let insert_v_node nn po = Chrono.add_time inser_chrono (insert_v_node nn) po
 let insert_t_node nn po = Chrono.add_time inser_chrono (insert_t_node nn) po
 
+(** Unification of terms in the pool *)
+exception NoUnif
+
 (** Insertion and normalisation of actual terms and values to the pool. *)
 let rec add_term :  bool -> bool -> pool -> term
                          -> Ptr.t * pool = fun o free po t0 ->
@@ -1152,6 +1157,21 @@ and reinsert : Ptr.t -> pool -> pool = fun p po ->
        | _ -> po
      end
 
+and check_ineq pool =
+  (* NOTE: we could consider ineq as parents to avoid scanning the whole ineq
+     list *)
+  let fn (ineq,po) (pt, pu) =
+    let (pt,po) = find pt po in
+    let (pu,po) = find pu po in
+    try
+      ignore (UTimed.apply (unif_ptr po pt) pu);
+      log2 "add_inequiv: contradiction found";
+      bottom ()
+    with NoUnif -> ((pt,pu)::ineq, po)
+  in
+  let (ineq,pool) = List.fold_left fn ([], pool) pool.ineq in
+  { pool with ineq }
+
 (** Low level union operation. *)
 (** is called directly ONLY for TN_UVar and VN_UVar, when we detect
     they are set, otherwise it loops *)
@@ -1185,6 +1205,7 @@ and join : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
   let po = check_parents_eq nps pp2 po in
   let po = MapKey.fold (fun k l po ->
                if is_head k then PtrSet.fold reinsert l po else po) nps po in
+  let po = check_ineq po in
   po
 
 (* when the join can be arbitrary, better to point to
@@ -1247,7 +1268,7 @@ and union : ?no_rec:bool -> Ptr.t -> Ptr.t -> pool -> pool =
     Now only use to instanciate a unification variable. *)
 (* NOTE: the "clos" bool is here to not follow the union find map if
     under closure, otherwise if loops, for instance on "exp n" *)
-let rec canonical_term : bool -> TPtr.t -> pool -> term * pool
+and canonical_term : bool -> TPtr.t -> pool -> term * pool
   = fun clos p po ->
   let (p, po) = if clos then (Ptr.T_ptr p,po) else find (Ptr.T_ptr p) po in
   let cv = canonical_valu clos in
@@ -1374,14 +1395,8 @@ and canonical : bool -> Ptr.t -> pool -> term * pool = fun clos p po ->
   | Ptr.V_ptr p -> let (v, po) = canonical_valu clos p po in
                    (Pos.none (Valu v), po)
 
-let canonical_valu = canonical_valu false
-let canonical_term = canonical_term false
-let canonical      = canonical      false
 
-(** Unification of terms in the pool *)
-exception NoUnif
-
-let rec unif_cl
+and unif_cl
         : type a b.pool -> a sort -> (a,b) bndr_closure
                                   -> (a,b) bndr_closure -> pool =
   fun po s (f1,vs1,ts1) (f2,vs2,ts2 ) ->
@@ -1421,7 +1436,7 @@ and unif_ptr : pool -> Ptr.t -> Ptr.t -> pool = fun po p1 p2 ->
      begin
        match t1 with
        | TN_UVar v ->
-          let (p, po) = canonical_valu p2 po in
+          let (p, po) = canonical_valu false p2 po in
           if uvar_occurs v p then raise NoUnif;
           uvar_set v (Pos.none (Valu p));
           join (Ptr.T_ptr p1) (Ptr.V_ptr p2) po
@@ -1432,7 +1447,7 @@ and unif_ptr : pool -> Ptr.t -> Ptr.t -> pool = fun po p1 p2 ->
      begin
        match t2 with
        | TN_UVar v ->
-          let (p, po) = canonical_valu p1 po in
+          let (p, po) = canonical_valu false p1 po in
           if uvar_occurs v p then raise NoUnif;
           uvar_set v (Pos.none (Valu p));
           join (Ptr.T_ptr p2) (Ptr.V_ptr p1) po
@@ -1482,12 +1497,12 @@ and unif_v_nodes : pool -> VPtr.t -> v_node -> VPtr.t -> v_node -> pool =
     | (VN_UVar(v1)   , VN_UVar(v2)   )
         when v1.uvar_key = v2.uvar_key -> assert false
     | (VN_UVar(v1)   , _             ) ->
-       let (p, po) = canonical_valu p2 po in
+       let (p, po) = canonical_valu false p2 po in
        if uvar_occurs v1 p then raise NoUnif;
        uvar_set v1 p;
        join (Ptr.V_ptr p1) (Ptr.V_ptr p2) po
     | (_             , VN_UVar(v2)   ) ->
-       let (p, po) = canonical_valu p1 po in
+       let (p, po) = canonical_valu false p1 po in
        if uvar_occurs v2 p then raise NoUnif;
        uvar_set v2 p;
        join (Ptr.V_ptr p2) (Ptr.V_ptr p1) po
@@ -1549,12 +1564,12 @@ and unif_t_nodes : pool -> TPtr.t -> t_node -> TPtr.t -> t_node -> pool =
     | (TN_UVar(v1)   , TN_UVar(v2)   )
             when v1.uvar_key = v2.uvar_key -> assert false
     | (TN_UVar(v1)     , _               ) ->
-       let (p, po) = canonical_term p2 po in
+       let (p, po) = canonical_term false p2 po in
        if uvar_occurs v1 p then raise NoUnif;
        uvar_set v1 p;
        join (Ptr.T_ptr p1) (Ptr.T_ptr p2) po
     | (_               , TN_UVar(v2)     ) ->
-       let (p, po) = canonical_term p1 po in
+       let (p, po) = canonical_term false p1 po in
        if uvar_occurs v2 p then raise NoUnif;
        uvar_set v2 p;
        join (Ptr.T_ptr p2) (Ptr.T_ptr p1) po
@@ -1642,21 +1657,17 @@ and oracle pool = {
       Chrono.add_time equiv_chrono (eq_trm pool v1) v2)
   }
 
+let canonical_valu = canonical_valu false
+let canonical_term = canonical_term false
+let canonical      = canonical      false
+
 (** Here starts the higher level function call from typing *)
-
-(* Equational context type. *)
-type eq_ctxt =
-  { pool : pool; ineq : (term * term) list }
-
-let empty_ctxt : eq_ctxt =
-  { pool = empty_pool; ineq = [] }
-
 type equiv   = term * term
 type inequiv = term * term
 
 (* Adds an inequivalence to a context, producing a bigger context. The
    exception [Contradiction] is raised when expected. *)
-let add_inequiv : inequiv -> eq_ctxt -> eq_ctxt = fun (t,u) {pool;ineq} ->
+let add_inequiv : inequiv -> pool -> pool = fun (t,u) pool ->
   log2 "add_inequiv: inserting %a ≠ %a in context\n%a" Print.ex t
     Print.ex u (print_pool "        ") pool;
   if eq_expr t u then
@@ -1672,19 +1683,19 @@ let add_inequiv : inequiv -> eq_ctxt -> eq_ctxt = fun (t,u) {pool;ineq} ->
     ignore (UTimed.apply (unif_ptr pool pt) pu);
     log2 "add_inequiv: contradiction found";
     bottom ()
-  with NoUnif -> {pool;ineq=(t,u)::ineq}
+  with NoUnif -> {pool with ineq=(pt,pu)::pool.ineq}
 
 (* Main module interface. *)
 
 (* Adds an equivalence to a context, producing a bigger context. The
    exception [Contradiction] is raised when expected. *)
-let add_equiv : equiv -> eq_ctxt -> eq_ctxt = fun (t,u) {pool;ineq} ->
+let add_equiv : equiv -> pool -> pool = fun (t,u) pool ->
   log2 "add_equiv: inserting %a = %a in context\n%a" Print.ex t
     Print.ex u (print_pool "        ") pool;
   if eq_expr t u then
     begin
       log2 "add_equiv: trivial proof";
-      {pool; ineq}
+      pool
     end
   else
   let (pt, pool) = add_term true true pool t in
@@ -1693,7 +1704,7 @@ let add_equiv : equiv -> eq_ctxt -> eq_ctxt = fun (t,u) {pool;ineq} ->
   log2 "add_equiv: obtained context (1):\n%a" (print_pool "        ") pool;
   let pool = union pt pu pool in
   log2 "add_equiv: obtained context (2):\n%a" (print_pool "        ") pool;
-  List.fold_right add_inequiv ineq {pool;ineq=[]}
+  pool
 
 let add_vptr_nobox : VPtr.t -> pool -> pool = fun vp po ->
   let (vp, po) = find (Ptr.V_ptr vp) po in
@@ -1775,17 +1786,17 @@ let find_sum : pool -> valu -> (string * valu * pool) option = fun po v ->
   with Not_found -> None
 
 (* Adds no box to the bool *)
-let check_nobox : valu -> eq_ctxt -> bool * eq_ctxt = fun v {pool;ineq} ->
+let check_nobox : valu -> pool -> bool * pool = fun v pool ->
   log2 "inserting %a not box in context\n%a" Print.ex v
     (print_pool "        ") pool;
   let (vp, pool) = add_valu true pool v in
   let (vp, pool) = find (Ptr.V_ptr vp) pool in
   match vp with
-  | Ptr.T_ptr(_)  -> (false, {pool;ineq})
-  | Ptr.V_ptr(vp) -> (get_bs vp pool, { pool;ineq })
+  | Ptr.T_ptr(_)  -> (false, pool)
+  | Ptr.V_ptr(vp) -> (get_bs vp pool, pool)
 
 (* Test whether a term is equivalent to a value or not. *)
-let is_value : term -> eq_ctxt -> bool * bool * eq_ctxt = fun t {pool;ineq} ->
+let is_value : term -> pool -> bool * bool * pool = fun t pool ->
   log2 "inserting %a not box in context\n%a" Print.ex t
     (print_pool "        ") pool;
   let (pt, pool) = add_term true true pool t in
@@ -1799,24 +1810,24 @@ let is_value : term -> eq_ctxt -> bool * bool * eq_ctxt = fun t {pool;ineq} ->
   log "%a is%s a value and is%s box" Print.ex t
       (if is_val then "" else " not")
       (if no_box then " not" else "");
-  (is_val, no_box, {pool;ineq})
+  (is_val, no_box, pool)
 
 (* Test whether a term is equivalent to a value or not. *)
-let to_value : term -> eq_ctxt -> valu option * eq_ctxt = fun t {pool;ineq} ->
+let to_value : term -> pool -> valu option * pool = fun t pool ->
   let (pt, pool) = add_term true true pool t in
   match pt with
-  | Ptr.V_ptr(v) -> Some (Pos.none (VPtr v)), {pool;ineq}
-  | Ptr.T_ptr(_) -> None, {pool;ineq}
+  | Ptr.V_ptr(v) -> Some (Pos.none (VPtr v)), pool
+  | Ptr.T_ptr(_) -> None, pool
 
-let learn : eq_ctxt -> rel -> eq_ctxt = fun ctx rel ->
+let learn : pool -> rel -> pool = fun pool rel ->
   log "learning %a" Print.rel rel;
   try
     let ctx =
       match rel with
       | Equiv(t,b,u) ->
-         (if b then add_equiv else add_inequiv) (t,u) ctx
+         (if b then add_equiv else add_inequiv) (t,u) pool
       | NoBox(v) ->
-         {ctx with pool = add_nobox v ctx.pool}
+         add_nobox v pool
     in
     log "learned  %a" Print.rel rel; ctx
   with Contradiction ->
@@ -2002,27 +2013,27 @@ let get_blocked : pool -> blocked list = fun po ->
       end else acc
     ) [] po.ts
 
- let prove : eq_ctxt -> rel -> unit = fun ctx rel ->
+ let prove : pool -> rel -> unit = fun pool rel ->
   log "proving  %a" Print.rel rel;
   try
     let st = UTimed.Time.save () in
-    let ctx = match rel with
+    let pool = match rel with
       | Equiv(t,b,u) ->
-         (if b then add_inequiv else add_equiv) (t,u) ctx
+         (if b then add_inequiv else add_equiv) (t,u) pool
       | NoBox(v) ->
-         let (b, ctx) = check_nobox v ctx in
+         let (b, pool) = check_nobox v pool in
          if b then raise Contradiction;
-         ctx
+         pool
     in
     UTimed.Time.rollback st;
-    let bls = get_blocked ctx.pool in
+    let bls = get_blocked pool in
     log "failed to prove %a" Print.rel rel;
     equiv_error rel bls
   with Contradiction -> log "proved   %a" Print.rel rel
 
 
-let learn ctx rel     = Chrono.add_time equiv_chrono (learn ctx) rel
-let prove ctx rel     = Chrono.add_time equiv_chrono (prove ctx) rel
+let learn pool rel     = Chrono.add_time equiv_chrono (learn pool) rel
+let prove pool rel     = Chrono.add_time equiv_chrono (prove pool) rel
 let to_value t eqs    = Chrono.add_time equiv_chrono (to_value t) eqs
 let is_value t eqs    = Chrono.add_time equiv_chrono (is_value t) eqs
 let check_nobox v eqs = Chrono.add_time equiv_chrono (check_nobox v) eqs
