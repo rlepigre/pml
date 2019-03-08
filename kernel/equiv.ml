@@ -816,7 +816,7 @@ let rec add_term :  bool -> bool -> pool -> term
                      insert (TN_Case(pv,m)) po
     | FixY(_,b)   -> let (cl, po) = add_bndr_closure po T V b in
                      let ptr = Timed.tref Prep in
-                     let (pt, po) = insert_t_node false (TN_FixY(cl,ptr)) po in
+                     let (pt, po) = insert_t_node free (TN_FixY(cl,ptr)) po in
                      let pt = Ptr.T_ptr pt in
                      let po =
                        { po with time = Timed.set po.time ptr (Init pt) }
