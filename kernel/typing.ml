@@ -723,7 +723,7 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof * tot  =
             let t = unbox (appl None (valu None f) (Bindlib.box e)) in
             let (l1,l2) = ctx.auto.level in
             log_aut "totality (%d,%d) [%d]: %a"
-                    l1 l2 (List.length bls) Print.ex t;
+                    l1 l2 (List.length bls) Print.ex e;
             type_term ctx t ty
           with
           | Failed_to_prove _ as e -> type_error (E(T,t)) ty e

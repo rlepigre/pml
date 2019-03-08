@@ -21,8 +21,6 @@ val rec app : ∀a:ο, ∀n1 n2:ι, vec⟨a,n1⟩ ⇒ vec⟨a,n2⟩ ⇒ vec⟨a,
     case l1 {
       []    → l2
       h::l →
-        let a = length l; // NOTE: necessary ⋯ see lib.vec.pml
-        let x = add a (length l2);// FIXME #28
         vcns h (app l l2)
     }
   }

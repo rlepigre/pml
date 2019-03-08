@@ -1864,15 +1864,14 @@ let equiv_error : rel -> blocked list -> 'a =
     can still appear as sub terms.
     - Also excludes unset uvar.
     - and case with only one case (temporary fix to avoid subtyping witness) *)
-let rec not_uewit : type a. ?vwit:bool -> a ex loc -> bool =
-  fun ?(vwit=true) e ->
+let rec not_uewit : type a. a ex loc -> bool =
+  fun e ->
     match (Norm.whnf e).elt with
     | UWit _    -> false
     | EWit _    -> false
     | VPtr _    -> false
     | TPtr _    -> false
-    | VWit _    -> vwit
-    | Valu e    -> not_uewit ~vwit e
+    | Valu e    -> not_uewit e
     | Case(_,c) -> A.length c > 1 (* TODO #29: fix this issue and remove! *)
     | _         -> true
 
@@ -1925,12 +1924,12 @@ let test_value : Ptr.t -> pool -> bool = fun p po ->
 
 
 (** get one original term from the pool or their applications. *)
-let get_orig : ?vwit:bool -> Ptr.t -> pool -> term =
-  fun ?(vwit=true) p po ->
+let get_orig : Ptr.t -> pool -> term =
+  fun p po ->
     let rec fn p =
       try
         let l = List.find_all (fun (v',e) ->
-                    eq_ptr po p v' && not_uewit ~vwit e) po.os in
+                    eq_ptr po p v' && not_uewit e) po.os in
         if l = [] then raise Not_found;
         (*Printf.eprintf "coucou 2b\n%!";*)
         snd (List.hd (List.sort cmp_orig l))
@@ -1978,23 +1977,23 @@ let get_orig : ?vwit:bool -> Ptr.t -> pool -> term =
 
 (** get all blocked terms in the pool *)
 let get_blocked : pool -> blocked list = fun po ->
-  let adone = ref [] in
   (*Printf.eprintf "obtained context:\n%a\n\n" (print_pool "        ") po;*)
   (*Printf.eprintf "coucou 0 %d\n%!" (List.length !adone);*)
-  List.fold_left (fun acc (tp,tn) ->
+  let bl =
+    List.fold_left (fun (acc:blocked list) (tp,tn) ->
       (*Printf.eprintf "testing %a %a %b %b\n%!" TPtr.print tp print_t_node tn
                      (get_ns tp po) (get_fs tp po);*)
-      if not (get_ns tp po) && fst (is_free (Ptr.T_ptr tp) po) then
+      let u = Ptr.T_ptr tp in
+      if not (get_ns tp po) && fst (is_free u po) then
       begin
         (*Printf.eprintf "coucou 1 %d\n%!" (List.length !adone);*)
-        adone := tp :: !adone;
         try
           match tn with
-          | TN_Appl(u,v) when not (test_value v po) ->
+          | TN_Appl(_,v) when not (test_value v po) ->
              begin
                (*Printf.eprintf "coucou 2\n%!";*)
                try
-                 let e = get_orig ~vwit:false v po in
+                 let e = get_orig v po in
                  (*Printf.eprintf "coucou 3\n%!";*)
                  let b = BTot e in
                  if List.exists (eq_blocked b) acc then acc else
@@ -2019,6 +2018,34 @@ let get_blocked : pool -> blocked list = fun po ->
         with Not_found -> acc
       end else acc
     ) [] po.ts
+  in
+  let bl =
+    List.fold_left (fun acc (vp, vn) ->
+        if not (fst (is_nobox (Ptr.V_ptr vp) po)) then
+          match vn with
+          | VN_VWit(e) ->
+             let (_,a,_) = !(e.valu) in
+             let rec fn acc a =
+               match  a.elt with
+               | Memb(t,a) ->
+                  let b = BTot t in
+                  let acc =
+                    if List.exists (eq_blocked b) acc then acc else
+                      begin
+                        (*Printf.eprintf "coucou %a\n%!" Print.ex t;*)
+                        log "blocked arg vwit %a" Print.ex t;
+                        b :: acc
+                      end
+                  in
+                  fn acc a
+               | _ -> acc
+             in
+             fn acc a
+          | _ -> acc
+        else acc
+      ) bl po.vs
+  in
+  bl
 
  let prove : pool -> rel -> unit = fun pool rel ->
   log "proving  %a" Print.rel rel;
