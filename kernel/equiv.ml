@@ -998,7 +998,13 @@ and normalise_t_node : ?old:TPtr.t -> t_node -> pool -> Ptr.t  * pool =
       match old with
       | None   -> let (p, po) = insert_t_node true node po in
                   find (Ptr.T_ptr p) po
-      | Some p -> find (Ptr.T_ptr p) po
+      | Some p -> let (p, po) = find (Ptr.T_ptr p) po in
+                  let po =
+                    match p with
+                    | Ptr.V_ptr _ -> po
+                    | Ptr.T_ptr p -> set_fs p po
+                  in
+                  (p, po)
     in
     let set_ns po =
       match old with

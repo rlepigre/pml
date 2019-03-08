@@ -25,10 +25,9 @@ val ex : ∀a,∀b, (∀n∈nat, ∃m∈b, a⟨n,m⟩) ⇒
     };
     let rec lem : ∀n k∈nat, (nth k (fn n)).1 ≡ add n k = fun n k {
       case k {
-        Zero  → let x = g n; //FIXME #28
-                use add_n_zero n; qed
-        S[k'] → let x = g n; //FIXME #28
-                use add_n_succ n k';
+        Zero  → use add_n_zero n;
+                qed
+        S[k'] → use add_n_succ n k';
                 use lem S[n] k'; qed
       }
     };
