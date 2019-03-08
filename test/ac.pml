@@ -41,8 +41,7 @@ val ac : ∀a,∀b, (∀n∈nat, ∃m∈b, a⟨n,m⟩) ⇒
     let a,b such that g : ∀n∈nat, ∃m∈b, a⟨n,m⟩;
     let sp: ∃s∈stream⟨∃n∈nat, ∃m∈b, a⟨n,m⟩⟩, ∀m∈nat, (nth m s).1 ≡ m = ex g;
     let (s, lem) = sp;
-    let f : nat ⇒ b = fun n { let (n', q) = nth n s; q.1 };
-                              // FIXME #37: (nth n s).2.1 fails
+    let f : nat ⇒ b = fun n { (nth n s).2.1 };
     (f, fun n {
         let (n', q) = nth n s;
         show n' ≡ n using lem n;

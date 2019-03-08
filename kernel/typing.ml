@@ -550,7 +550,7 @@ and subtype =
               try snd (A.find l fs1) with Not_found ->
               subtype_msg p ("Product clash on label " ^ l ^ "...")
             in
-            let t = unbox (t_proj None (box t) (Pos.none l)) in
+            let t = unbox (t_proj None (box t) [None, Pos.none l]) in
             let p = subtype ctx t a1 a2 in
             p::ps
           in

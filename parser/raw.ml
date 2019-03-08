@@ -922,14 +922,21 @@ let unsugar_expr : raw_ex -> raw_sort -> boxed = fun e s ->
         let s = to_stac (unsugar env vars s _ss) in
         let t = to_term (unsugar env vars t _st) in
         Box(T, name e.pos s t)
-    | (EProj(v,r,l) , ST       ) ->
-        begin
-          match !r with
-          | `V -> let v = to_valu (unsugar env vars v _sv) in
-                  Box(T, proj e.pos v l)
-          | `T -> let t = to_term (unsugar env vars v _st) in
-                  Box(T, t_proj e.pos t l)
-        end
+    | (EProj(_)     , ST       ) ->
+         let rec fn ls e =
+           match e.elt with
+           | EProj(v,r,l) ->
+              begin
+                match !r with
+                | `V -> let v = to_valu (unsugar env vars v _sv) in
+                        Box(T, t_proj e.pos (proj e.pos v l) ls)
+                | `T -> fn ((e.pos,l)::ls) v
+              end
+           | _ ->
+              let t = to_term (unsugar env vars e _st) in
+              Box(T, t_proj e.pos t ls)
+         in
+         fn [] e
     | (ECase(v,r,l) , ST       ) ->
         begin
           let fn ((c, argo), t) =

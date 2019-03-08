@@ -551,12 +551,21 @@ let goal : type a. popt -> a sort -> string -> a ex loc box =
 
 (** {5 syntactic sugars} *)
 
-(** Syntactic sugar for the projection of a term. *)
-let t_proj : popt -> tbox -> strloc -> tbox =
-  fun p t l ->
-    let f x = proj p (v_vari None x) l in
-    let u = valu p (labs p None (Pos.none "x") f) in
-    appl p u t
+(** Syntactic sugar for projections of a term. *)
+let t_proj : popt -> tbox -> (popt * strloc) list -> tbox =
+  fun p t ls ->
+    if ls = [] then t else
+    let rec fn ls =
+      match ls with
+      | []    -> assert false
+      | [(p,l)]   ->
+         let f x = proj p (v_vari None x) l in
+         valu p (labs p None (Pos.none "x") f)
+      | (p,l)::ls ->
+         let f x = appl p (fn ls) (proj p (v_vari None x) l) in
+         valu p (labs p None (Pos.none "x") f)
+    in
+    appl p (fn ls) t
 
 (** Syntactic sugar to build redexes *)
 let rec redexes : pos option -> (vvar * tbox) list -> tbox -> tbox =
