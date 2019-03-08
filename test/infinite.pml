@@ -32,7 +32,6 @@ val rec aux : ∀a b, (csstream⟨a,even⟩ → bot) ⇒ (csstream⟨b,odd⟩ �
   fun fe fo s {
     let hd = (s {}).hd;
     let tl = (s {}).tl;
-    use total is_odd hd; //FIXME #33: use is_odd hd loops, should probably fail only
     if is_odd hd {
       fo {hd = hd; tl = fun _ { save o {
         abort (aux fe (fun x { restore o x }) tl) } }}
