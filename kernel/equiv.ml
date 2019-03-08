@@ -1919,17 +1919,15 @@ let valu_vwit : valu -> pool -> valu = fun t po ->
 (** test is a node is a nobox value *)
 let test_value : Ptr.t -> pool -> bool = fun p po ->
   let (p, po) = find p po in
-  let (no_box, po) = is_nobox p po in
-  let is_val = match p with
-    | Ptr.V_ptr(v) -> true
+  match p with
+    | Ptr.V_ptr(v) -> fst (is_nobox p po)
     | Ptr.T_ptr(_) -> false
-  in
-  is_val && no_box
+
 
 (** get one original term from the pool or their applications. *)
-let rec get_orig : ?vwit:bool -> Ptr.t -> pool -> term =
+let get_orig : ?vwit:bool -> Ptr.t -> pool -> term =
   fun ?(vwit=true) p po ->
-    let t =
+    let rec fn p =
       try
         let l = List.find_all (fun (v',e) ->
                     eq_ptr po p v' && not_uewit ~vwit e) po.os in
@@ -1943,13 +1941,14 @@ let rec get_orig : ?vwit:bool -> Ptr.t -> pool -> term =
         in
         match nn with
         | TN_Appl(u1,u2) ->
-           let u1 = get_orig u1 po in
-           let u2 = get_orig u2 po in
+           let u1 = fn u1 in
+           let u2 = fn u2 in
            Pos.none (Appl(u1, u2))
         | TN_Proj(u1,l) ->
            Pos.none (Proj(Pos.none (VPtr u1), l))
         | _ -> assert false
     in
+    let t = fn p in
     let open Mapper in
     let mapper : type a. recall -> a ex loc -> a ebox = fun r t ->
       match t.elt with
