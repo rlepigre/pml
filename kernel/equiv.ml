@@ -784,6 +784,14 @@ let rec add_term :  bool -> bool -> pool -> term
   let insert node po =
     if free then normalise_t_node node po
     else let (p, po) = insert_t_node false node po in find (Ptr.T_ptr p) po
+    (*
+    NOTE: insrting not normal term as the two line below do
+    can be faster by avoiding renpormalising the same terms, but
+    in case of big computation, the size of the pool may explode
+
+    let (p, po) = insert_t_node free node po in
+    if free then normalise (Ptr.T_ptr p) po else find (Ptr.T_ptr p) po
+    *)
   in
   (*log2 "add_term %b %a" free Print.ex t0;*)
   let t = Norm.whnf t0 in
