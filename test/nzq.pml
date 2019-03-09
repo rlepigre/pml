@@ -14,13 +14,13 @@ type reduced = { q ∈ fraction | gcd q.numer q.denom ≡ 1 }
 
 type rec q = [ Zero ; S of int ; N of nat ; F of reduced ]
 
-check nat ⊂ int
-check int ⊂ q
-check q ⊂ qnr
+assert nat ⊂ int
+assert int ⊂ q
+assert q ⊂ qnr
 
 val test1 : { b∈bool | b ≡ true } = 2 > 1
 
-check  { n∈nat | n > 1 } ⊂ [ S of [ S of nat ] ]
+assert  { n∈nat | n > 1 } ⊂ [ S of [ S of nat ] ]
 
 val plus2 : nat →  { n∈nat | n > 1 } = fun n { S[S[n]] }
 
@@ -28,4 +28,4 @@ val plus2 : nat →  { n∈nat | n > 1 } = fun n { S[S[n]] }
 
 //val plus1 : { n∈nat | n > 0 } →  { n∈nat | n > 1 } = fun n { S[n] }
 
-//check [ S of [ S of nat ] ] ⊂ { n∈nat | n > 1 }
+//assert [ S of [ S of nat ] ] ⊂ { n∈nat | n > 1 }

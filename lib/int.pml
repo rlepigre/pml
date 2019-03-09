@@ -5,7 +5,7 @@ type int = [Z; S of pos; P of neg]
 // Non normalised
 type rec nint = [Z; S of nint; P of nint]
 
-check int ⊂ nint
+assert int ⊂ nint
 
 val suc : int ⇒ int = fun n {
   case n {

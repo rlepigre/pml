@@ -55,6 +55,7 @@ let parser goal_name = s:''\([^-]\|\(-[^}]\)\)*''
 let parser goal = "{-" str:goal_name "-}" -> String.trim str
 
 (* Keywords. *)
+let _assert_  = Keyword.create "assert"
 let _assume_  = Keyword.create "assume"
 let _because_ = Keyword.create "because"
 let _bool_    = Keyword.create "bool"
@@ -595,7 +596,7 @@ let parser toplevel =
       -> fun () -> val_def r id a t
 
   (* Check of a subtyping relation. *)
-  | _check_ r:neg a:prop "⊂" b:prop
+  | _assert_ r:neg a:prop "⊂" b:prop
       -> fun () -> check_sub a r b
 
   (* Inclusion of a file. *)
