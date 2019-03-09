@@ -32,9 +32,14 @@ val rec pop : ∀a, list⟨a⟩ × list⟨a⟩ ⇒ option⟨a × (list⟨a⟩ ×
     }
   }
 
+val push :  ∀a, a ⇒ list⟨a⟩ × list⟨a⟩ ⇒ list⟨a⟩ × list⟨a⟩ =
+  fun e p { let (s1,s2) = p; ((e::s1), s2) }
+
+type pl⟨a⟩ = list⟨a⟩ × list⟨a⟩
+
 val fifo_pair : fifo_sig =
    { empty = ((nil, nil) : ∀a, list⟨a⟩ × list⟨a⟩)
-   ; push  = fun e p { let (s1,s2) = p; ((e::s1), s2) }
+   ; push  = push
    ; pop   = pop }
 
 def translate⟨f:τ⟩ = app f.1 (rev f.2)
@@ -118,7 +123,6 @@ val rec equiv_pop :
     }
   }
 
-
 type ope⟨a⟩ = [ Push of a ; Pop ]
 
 val rec apply_aux : ∀t,∀a, fifo_sig_aux⟨t⟩ ⇒ t⟨a⟩ ⇒ list⟨ope⟨a⟩⟩ ⇒ t⟨a⟩ =
@@ -128,13 +132,51 @@ val rec apply_aux : ∀t,∀a, fifo_sig_aux⟨t⟩ ⇒ t⟨a⟩ ⇒ list⟨ope�
     case ops {
       []      → f
       op::ops →
-        let f:t⟨a⟩ = apply_aux fifo (f:t⟨a⟩) ops;
-        case op {
+        let f:t⟨a⟩ = case op {
           Push[x] → fifo.push x f
           Pop     → case fifo.pop f {
-            None        → f
+            None        → fifo.empty
             Some[(e,f)] → f
           }
+        };
+        apply_aux fifo (f:t⟨a⟩) ops
+    }
+  }
+
+val rec equiv_apply_aux :
+  ∀a, ∀f∈list⟨a⟩ × list⟨a⟩, ∀ops∈list⟨ope⟨a⟩⟩,
+    translate⟨apply_aux fifo_pair f ops⟩ ≡
+      apply_aux fifo_simple translate⟨f⟩ ops =
+  fun f ops {
+    let a such that f : list⟨a⟩ × list⟨a⟩;
+    let (l1, l2) = f;
+    eqns f ≡ (l1, l2);
+    case ops {
+      []      → {}
+      op::ops' →
+        case op {
+          Pop     →
+            use equiv_pop f;
+            case fifo_pair.pop f {
+              None →
+                deduce apply_aux fifo_pair f ops ≡
+                         apply_aux fifo_pair ([], []) ops';
+                use equiv_apply_aux ([], []) ops';
+                {}
+              Some[(e,f1)] →
+                deduce apply_aux fifo_pair f ops ≡
+                         apply_aux fifo_pair f1 ops';
+                eqns translate⟨apply_aux fifo_pair f1 ops'⟩ ≡
+                  apply_aux fifo_simple translate⟨f1⟩ ops'
+                  by equiv_apply_aux f1 ops';
+                {}
+            }
+          Push[x] →
+            use equiv_push x f;
+            let f1:list⟨a⟩×list⟨a⟩ = ((x::l1), l2);
+            eqns translate⟨apply_aux fifo_pair f1 ops'⟩
+              ≡ apply_aux fifo_simple translate⟨f1⟩ ops' by equiv_apply_aux f1 ops';
+            {}
         }
     }
   }
@@ -155,49 +197,20 @@ val apply : ∀a, fifo_sig ⇒ list⟨ope⟨a⟩⟩ ⇒ option⟨a⟩ =
 def equiv_fifo⟨fifo1,fifo2⟩ =
   ∀a, ∀ops∈list⟨ope⟨a⟩⟩, apply fifo1 ops ≡ apply fifo2 ops
 
-// val rec fifo_pair_aux :
-//   ∀a, ∀ops∈list⟨ope⟨a⟩⟩,
-//      ∃l1 l2∈list⟨a⟩, apply_aux fifo_pair fifo_pair.empty ops ≡ (l1,l2) =
-//   fun ops {
-//     let a such that ops : list⟨ope⟨a⟩⟩;
-//     let fp = fifo_pair;
-//     let t such that fp : fifo_sig_aux⟨t⟩;
-//     let fp : fifo_sig_aux⟨t⟩ = fp;
-//     case ops {
-//       []      → (nil,nil, {})
-//       op::ops' →
-//         let (l1,l2,u) = fifo_pair_aux ops';
-//         let f : t⟨a⟩ = apply_aux fp fp.empty ops';
-//         deduce f ≡ (l1,l2);
-//         case op {
-//           Pop     →
-//             use apply_aux_total fp fp.empty ops';
-//             deduce apply_aux fp fp.empty ops ≡
-
-// (        let f:t⟨a⟩ = apply_aux fp fp.empty ops';
-//         case op {
-//           Push[x] → fp.push x f
-//           Pop     → case fp.pop f {
-//             None        → f
-//             Some[(e,f)] → f
-//           }
-//         });
-
-//            //   case fp.pop f { None → f | Some[(e,f)] → f };
-//             case fp.pop f {
-//               None        → deduce apply_aux fp fp.empty ops ≡ f;
-//                             (l1,l2,{})
-//               Some[(e,p)] → (p.1,p.2,{})
-//             }
-//           Push[x] → (x::l1,l2,{})
-//         }
-//     }
-//   }
-
 val rec th : equiv_fifo⟨fifo_pair,fifo_simple⟩ =
   fun ops {
-    case ops {
-      []      → {}
-      op::ops → {--}
+    let a such that ops:list⟨ope⟨a⟩⟩;
+    let fifo_pair : fifo_sig_aux⟨pl⟩ = fifo_pair;
+    let fp : pl⟨a⟩ = fifo_pair.empty;
+    let f1 = apply_aux fifo_pair fp ops; // FIXME: should work without the 2 previous lines
+    let fifo_simple : fifo_sig_aux⟨list⟩ = fifo_simple;
+    let fl : list⟨a⟩ = fifo_simple.empty;
+    let f2 = apply_aux fifo_simple fl ops; // FIXME: should work without the 2 previous lines
+    eqns translate⟨f1⟩ ≡ f2 by equiv_apply_aux fp ops;
+    eqns translate_opt⟨fifo_pair.pop f1⟩ ≡ fifo_simple.pop f2 by
+      equiv_pop f1;
+    case fifo_pair.pop f1 {
+      None        → {}
+      Some[(e,f)] → {}
     }
   }
