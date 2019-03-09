@@ -1270,9 +1270,8 @@ and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
               let (v,ctx) = learn_value ctx u a in
               let ctx = learn_equivalences ctx v a in
               type_term ctx f c
-            with Contradiction ->
-                 warn_unreachable ctx f; ((t,c,Typ_Scis), Tot)
-               | _ when strong ->
+            with Contradiction -> warn_unreachable ctx f; ((t,c,Typ_Scis), Tot)
+               | _ when strong && is_typed VoT_T f ->
                   UTimed.Time.rollback st;
                   check_f ctx false a0
           else
