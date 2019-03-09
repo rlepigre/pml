@@ -140,6 +140,7 @@ let rec instantiate : type a b. ctxt -> (a, b) bseq -> b =
 let extract_vwit_type : valu -> prop = fun v ->
   match (Norm.whnf v).elt with
   | VWit{valu={contents = (_,a,_)}} -> a
+  | VDef(v)                         -> v.value_type
   | _                  -> assert false (* should not happen *)
 
 let extract_swit_type : stac -> prop = fun s ->

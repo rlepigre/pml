@@ -614,7 +614,11 @@ let infer_sorts : raw_ex -> raw_sort -> unit = fun e s ->
               | SV _ | SS | SUni(_) -> ()
               | s'                 ->
                   sort_clash (Pos.make x.pos (EVari(x,s))) (Pos.none s')
-            with Not_found -> unbound_var x.elt x.pos
+            with Not_found ->
+              try
+                ignore (find_value x.elt)
+              with Not_found ->
+                unbound_var x.elt x.pos
           in
           Option.iter gn xo;
           let fn vars (x,s) = M.add x.elt (x.pos, s) vars in
@@ -1028,10 +1032,17 @@ let unsugar_expr : raw_ex -> raw_sort -> boxed = fun e s ->
           | None   -> sv_none
           | Some x ->
               begin
-                match snd (M.find x.elt vars) with
-                | Box(V,v) -> sv_valu v
-                | Box(S,s) -> sv_stac s
-                | Box(_,_) -> assert false (* should not happen *)
+                try
+                  match snd (M.find x.elt vars) with
+                  | Box(V,v) -> sv_valu v
+                  | Box(S,s) -> sv_stac s
+                  | Box(_,_) -> assert false (* should not happen *)
+                with Not_found ->
+                  try
+                    let v = Pos.make None (VDef (find_value x.elt)) in
+                    sv_valu (Bindlib.box v)
+                  with Not_found ->
+                    assert false (* should not happen *)
               end
         in
         begin
