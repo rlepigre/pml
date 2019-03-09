@@ -1184,6 +1184,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
             (* NOTE: some times, defined values like 0 :nat = Zero
                will fail for base case of sized function, this backtracking
                solves the problem and is not too expensive for value only *)
+          | Sys.Break -> raise Sys.Break
           | e -> match d.value_orig.elt with
                  | Valu v -> UTimed.Time.rollback st;
                              let (_,_,r) = type_valu ctx v c in r
@@ -1272,6 +1273,7 @@ and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
               let ctx = learn_equivalences ctx v a in
               type_term ctx f c
             with Contradiction -> warn_unreachable ctx f; ((t,c,Typ_Scis), Tot)
+               | Sys.Break -> raise Sys.Break
                | _ when strong && is_typed VoT_T f ->
                   UTimed.Time.rollback st;
                   check_f ctx false a0
