@@ -239,7 +239,8 @@ val rec fact1 : ∀m∈nat, ∀n∈(natbin | n ≡ nat_to_natbin m), (fact2 n)�
 }
 
 val rec fact : natbin → natbin = fun n {
-  check use bij2 n; fact1 (natbin_to_nat n) n for fact2 n
+    check { use bij2 n; fact1 (natbin_to_nat n) n }
+    for { fact2 n }
 }
 
 val test1 : ∀n∈natbin, fact n ≡ fact2 n = fun n { qed }

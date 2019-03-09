@@ -390,7 +390,7 @@ let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
                    let sf = if sf then "" else "unsafe " in
                    fprintf ch "fix %s%s {%a}" sf (name_of x) ext t
   | Prnt(s)     -> fprintf ch "print(%S)" s
-  | Repl(t,u)   -> fprintf ch "(check %a for %a)" ext t ext u (* FIXME #38 *)
+  | Repl(t,u)   -> fprintf ch "check {%a} for {%a}" ext t ext u
   | Delm(t)     -> fprintf ch "delim {%a}" ext t
   | Conv        -> output_string ch "∞"
   | Succ(o)     -> fprintf ch "%a+1" exo o
@@ -408,13 +408,13 @@ let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
               | SV_Valu(v) -> ext ch v
               | SV_Stac(s) -> exa ch s
             in
-            fprintf ch " : %a in %a" exp a ext t
+            fprintf ch " : %a; %a" exp a ext t
         | BMore(s,b) ->
             let (x,seq) = unbind b in
             fprintf ch "%s:%a, " (name_of x) sort s;
             aux seq
       in aux r.binder
-  | PSet(l,s,e) -> fprintf ch "%a; %a" print_set_param l ext e (* FIXME #38 *)
+  | PSet(l,s,e) -> fprintf ch "%a; %a" print_set_param l ext e
   | ITag(_,i)   -> fprintf ch "#%i" i
   | Dumm(_)     -> output_string ch "∅"
   | VWit(w)     -> fprintf ch "%s%a" w.name print_vars e

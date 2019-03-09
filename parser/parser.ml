@@ -437,8 +437,9 @@ let parser expr @(m : mode) =
       when m <<= Trm A
       -> if_then_else _loc c t e
   (* Term (replacement) *)
-  | _check_ u:term _for_ t:term b:{_:_because_ t:(expr (Trm R))}?
-      when m <<= Trm R
+  | _check_ '{' u:term '}' _for_ '{' t:term '}'
+    b:{_:_because_ '{' term '}' }?
+      when m <<= Trm A
       -> in_pos _loc (ERepl(t,u,b))
   (* Term (totality by purity) *)
   | _delim_ '{' u:term '}'
