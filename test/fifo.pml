@@ -13,13 +13,13 @@ include lib.list_proofs
 val take_last : ∀a, list⟨a⟩ ⇒ option⟨a × list⟨a⟩⟩ =
   fun s { case rev s { [] → None | e :: s → Some[(e,rev s)] } }
 
-val fifo_simple : fifo_sig =
+val fifo_simple_open : fifo_sig_aux⟨list⟩ =
    { empty = nil
    ; push  = fun e s { e::s }
    ; pop   = take_last
    }
 
-type slist⟨a,s⟩ = μ_s list, [ Nil ; Cons of { hd : a; tl : list}  ]
+val fifo_simple : fifo_sig = fifo_simple_open
 
 val rec pop : ∀a, list⟨a⟩ × list⟨a⟩ ⇒ option⟨a × (list⟨a⟩ × list⟨a⟩)⟩ =
   fun p {
@@ -35,19 +35,21 @@ val rec pop : ∀a, list⟨a⟩ × list⟨a⟩ ⇒ option⟨a × (list⟨a⟩ ×
 val push :  ∀a, a ⇒ list⟨a⟩ × list⟨a⟩ ⇒ list⟨a⟩ × list⟨a⟩ =
   fun e p { let (s1,s2) = p; ((e::s1), s2) }
 
-type pl⟨a⟩ = list⟨a⟩ × list⟨a⟩
+type list2⟨a⟩ = list⟨a⟩ × list⟨a⟩
 
-val fifo_pair : fifo_sig =
-   { empty = ((nil, nil) : ∀a, list⟨a⟩ × list⟨a⟩)
+val fifo_pair_open : fifo_sig_aux⟨list2⟩ =
+   { empty = ((nil, nil) : ∀a, list2⟨a⟩)
    ; push  = push
    ; pop   = pop }
+
+val fifo_pair : fifo_sig = fifo_pair_open
 
 def translate⟨f:τ⟩ = app f.1 (rev f.2)
 
 val equiv_empty : translate⟨fifo_pair.empty⟩ ≡ fifo_simple.empty = {}
 
 val equiv_push :
-  ∀a, ∀x∈a, ∀f∈list⟨a⟩ × list⟨a⟩,
+  ∀a, ∀x∈a, ∀f∈list2⟨a⟩,
     translate⟨fifo_pair.push x f⟩ ≡ fifo_simple.push x translate⟨f⟩ =
   fun x f {
     let (s1,s2) = f;
@@ -96,10 +98,10 @@ val rec lemma2 : ∀a, ∀s1∈list⟨a⟩,
   = fun s1 { use app_nil s1; use rev_rev s1 }
 
 val rec equiv_pop :
-  ∀a, ∀f∈list⟨a⟩ × list⟨a⟩,
+  ∀a, ∀f∈list2⟨a⟩,
       translate_opt⟨fifo_pair.pop f⟩ ≡ fifo_simple.pop translate⟨f⟩ =
   fun f {
-    let a such that f : (list⟨a⟩ × list⟨a⟩);
+    let a such that f : list2⟨a⟩;
     let (s1,s2) = f;
     case s2 {
       x::s2' →
@@ -200,13 +202,14 @@ def equiv_fifo⟨fifo1,fifo2⟩ =
 val rec th : equiv_fifo⟨fifo_pair,fifo_simple⟩ =
   fun ops {
     let a such that ops:list⟨ope⟨a⟩⟩;
-    let fifo_pair : fifo_sig_aux⟨pl⟩ = fifo_pair;
-    let fp : pl⟨a⟩ = fifo_pair.empty;
-    let f1 = apply_aux fifo_pair fp ops; // FIXME: should work without the 2 previous lines
-    let fifo_simple : fifo_sig_aux⟨list⟩ = fifo_simple;
-    let fl : list⟨a⟩ = fifo_simple.empty;
-    let f2 = apply_aux fifo_simple fl ops; // FIXME: should work without the 2 previous lines
-    eqns translate⟨f1⟩ ≡ f2 by equiv_apply_aux fp ops;
+    let fifo_pair = fifo_pair_open;
+    let fifo_simple = fifo_simple_open;
+    // need the type annotation of .empty because otherwise, a
+    // constant parametric type is inferred for the type of fifo in
+    // apply_aux
+    let f1 = apply_aux fifo_pair (fifo_pair.empty:list2⟨a⟩) ops;
+    let f2 = apply_aux fifo_simple (fifo_simple.empty:list⟨a⟩) ops;
+    eqns translate⟨f1⟩ ≡ f2 by equiv_apply_aux fifo_pair.empty ops;
     eqns translate_opt⟨fifo_pair.pop f1⟩ ≡ fifo_simple.pop f2 by
       equiv_pop f1;
     case fifo_pair.pop f1 {
