@@ -146,13 +146,13 @@ val rec apply_aux : ∀t,∀a, fifo_sig_aux⟨t⟩ ⇒ t⟨a⟩ ⇒ list⟨ope�
   }
 
 val rec equiv_apply_aux :
-  ∀a, ∀f∈list⟨a⟩ × list⟨a⟩, ∀ops∈list⟨ope⟨a⟩⟩,
+  ∀a, ∀f∈list2⟨a⟩, ∀ops∈list⟨ope⟨a⟩⟩,
     translate⟨apply_aux fifo_pair f ops⟩ ≡
       apply_aux fifo_simple translate⟨f⟩ ops =
   fun f ops {
-    let a such that f : list⟨a⟩ × list⟨a⟩;
+    let fifo_pair = fifo_pair_open;
+    let a such that f : list2⟨a⟩;
     let (l1, l2) = f;
-    eqns f ≡ (l1, l2);
     case ops {
       []      → {}
       op::ops' →
