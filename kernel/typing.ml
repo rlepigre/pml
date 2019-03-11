@@ -1183,11 +1183,17 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
           with
             (* NOTE: some times, defined values like 0 :nat = Zero
                will fail for base case of sized function, this backtracking
-               solves the problem and is not too expensive for value only *)
+               solves the problem and is not too expensive for value only.
+               We do not do it for function *)
           | Sys.Break -> raise Sys.Break
           | e -> match d.value_orig.elt with
-                 | Valu v -> UTimed.Time.rollback st;
-                             let (_,_,r) = type_valu ctx v c in r
+                 | Valu { elt = LAbs _ } -> raise e
+                 | Valu v ->
+                    begin
+                      UTimed.Time.rollback st;
+                      try let (_,_,r) = type_valu ctx v c in r
+                      with _ -> raise e
+                    end
                  | _ -> raise e
         end
     (* Goal *)
