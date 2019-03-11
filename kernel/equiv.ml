@@ -1177,7 +1177,7 @@ and check_ineq pool =
     let (pu,po) = find pu po in
     try
       ignore (UTimed.apply (unif_ptr po pt) pu);
-      log2 "add_inequiv: contradiction found";
+      log_edp2 "add_inequiv: contradiction found";
       bottom ()
     with NoUnif -> ((pt,pu)::ineq, po)
   in
@@ -1706,7 +1706,7 @@ let add_equiv : equiv -> pool -> pool = fun (t,u) pool ->
     Print.ex u (print_pool "        ") pool;
   if eq_expr t u then
     begin
-      log2 "add_equiv: trivial proof";
+      log_edp2 "add_equiv: trivial proof";
       pool
     end
   else
@@ -2037,7 +2037,7 @@ let get_blocked : pool -> blocked list = fun po ->
                     if List.exists (eq_blocked b) acc then acc else
                       begin
                         (*Printf.eprintf "coucou %a\n%!" Print.ex t;*)
-                        log "blocked arg vwit %a" Print.ex t;
+                        log_edp1 "blocked arg vwit %a" Print.ex t;
                         b :: acc
                       end
                   in
