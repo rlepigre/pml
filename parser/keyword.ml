@@ -2,6 +2,7 @@
     and for checking whether a given string is a keyword. It is mainly used to
     make sure that identifiers are not keywords. *)
 
+open Earley_core
 
 (** List containing all the declared keywords. *)
 let keywords : string list ref = ref []

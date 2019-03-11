@@ -1,9 +1,6 @@
-*.pmi
-_build
-*.native
-pml2/config.ml
-*.vo
-*.vo_aux
-*.agdai
-*.glob
 *~
+#*
+*.pmi
+main.native
+_build/
+pml2/config.ml

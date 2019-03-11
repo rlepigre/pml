@@ -6,18 +6,33 @@ val head : ∀a, stream⟨a⟩ ⇒ a =
   fun s { (s {}).hd }
 
 // Tail of a stream.
-val tail : ∀a, stream⟨a⟩ ⇒ stream⟨a⟩ =
+val tail : ∀a, ∀s, stream^(s+1)⟨a⟩ ⇒ stream^s⟨a⟩ =
   fun s { (s {}).tl }
 
+// Head and tail of a string together.
+val get : ∀a, ∀s, stream^(s+1)⟨a⟩ ⇒ a × stream^s⟨a⟩ =
+  fun s {
+    let {hd; tl} = s {};
+    (hd, tl)
+  }
+
+// Construction function.
+val cons : ∀a, ∀s, a ⇒ stream^s⟨a⟩ ⇒ stream^(s+1)⟨a⟩ =
+  fun hd tl _ { {hd; tl} }
+
+// Build a stream containing only the given element.
+val rec repeat : ∀a, a ⇒ stream⟨a⟩ =
+  fun hd _ { {hd; tl = repeat hd} }
+
 // Identity function.
-val rec id : ∀a, stream⟨a⟩ ⇒ stream⟨a⟩ =
+val rec id : ∀a, ∀s, stream^s⟨a⟩ ⇒ stream^s⟨a⟩ =
   fun s _ {
     let c = s {};
     {hd = c.hd ; tl = id c.tl}
   }
 
 // Map function.
-val rec map : ∀a b, (a ⇒ b) ⇒ stream⟨a⟩ ⇒ stream⟨b⟩ =
+val rec map : ∀a b, ∀s, (a ⇒ b) ⇒ stream^s⟨a⟩ ⇒ stream^s⟨b⟩ =
   fun f s _ {
     let {hd ; tl} = s {};
     {hd = f hd ; tl = map f tl}

@@ -1,5 +1,6 @@
-include lib.list
 include lib.order
+include lib.list
+include lib.list_sorted
 // remark: we do not use transitivity in the example
 
 val rec insert : ∀a:ο, rel⟨a⟩ ⇒ a ⇒ list⟨a⟩ ⇒ list⟨a⟩ =

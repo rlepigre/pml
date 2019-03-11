@@ -1,7 +1,7 @@
 (** Parser level abstract syntax tree. This module defines the low level (raw)
     AST for the language. This is where most syntactic sugars are applied. *)
 
-
+open Earley_core
 open Output
 open Extra
 open Sorts
