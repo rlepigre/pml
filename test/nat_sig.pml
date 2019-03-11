@@ -40,3 +40,8 @@ val zero : nat_sig ⇒ ∀p,(p ⇒ p) ⇒ (p ⇒ p) =
 
 val deux : nat_sig ⇒ ∀p,(p ⇒ p) ⇒ (p ⇒ p) =
   fun s f a { s.r (s.s (s.s s.z)) f a }
+
+val succ : ∀a, nat_sig_aux⟨a⟩ ⇒ a ⇒ cnat =
+  fun s x { s.r (s.s x) }
+
+val test : cnat = succ nat_nat nat_nat.z
