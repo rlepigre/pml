@@ -862,10 +862,7 @@ and check_fix
       add_call ctx (sch.fsch_index, os) false;
       (* Recording of the new induction hypothesis. *)
       log_typ "the schema has %i arguments" (Array.length os);
-      let ctx =
-        if os = [||] then ctx
-        else { ctx with fix_ihs = Buckets.add b sch ctx.fix_ihs }
-      in
+      let ctx = { ctx with fix_ihs = Buckets.add b sch ctx.fix_ihs } in
       (* Instantiation of the schema. *)
       let (spe, ctx) = inst_fix_schema ctx sch os in
       let ctx = {ctx with top_ih = (sch.fsch_index, spe.fspe_param)} in
@@ -1247,9 +1244,9 @@ and warn_unreachable ctx t =
     end;
 
 and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
-  log_typ "proving the term judgment:\n  %a\n  ⊢(%a) %a\n  : %a"
+  log_typ "proving the term judgment:\n  %a\n  ⊢(%a) %a\n  : %a [%d]"
           print_pos ctx.positives Print.arrow ctx.totality
-          Print.ex t Print.ex c;
+          Print.ex t Print.ex c (Buckets.length ctx.fix_ihs);
   let st = UTimed.Time.save () in
   try
   let (r, tot) =
