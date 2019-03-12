@@ -6,3 +6,10 @@ pml.install
 src/config.ml
 */*.merlin
 local/
+book/pml_book.aux
+book/pml_book.bbl
+book/pml_book.blg
+book/pml_book.log
+book/pml_book.out
+book/pml_book.pdf
+book/pml_book.toc

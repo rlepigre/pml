@@ -1,0 +1,482 @@
+The notion of computation, or evaluation, is at the heart of the (classical)
+realizability techniques that are used for the formal definition of the \pml
+language. In this chapter, we give the syntax and the operational semantics
+of the language as a pure, untyped, calculus. It will be expressed using a
+\emph{Krivine Abstract Machine}, which will allow us to account for control
+operators, as well as observational equivalence of programs.\footnote{This
+notion of program equivalence will play an very important role as it will be
+partially reflected in the type system of the language through ``equivalence
+types''.}
+
+\section{Syntax of the abstract machine}
+
+The abstract machine we will consider has the peculiarity of having a
+call-by-value reduction strategy, which requires a syntax formed with four
+entities: values, terms, stacks and processes. Note that the distinction
+between terms and values is specific to our call-by-value presentation, they
+would be collapsed in call-by-name.
+\begin{definition}[variables]
+  We require three disjoint, countable sets of variables $\mathcal{V}_{ι}$,
+  $\mathcal{V}_{σ}$ and $\mathcal{V}_{τ}$ for $λ$-variables, $μ$-variables
+  and terms variables respectively.
+  $$
+    \mathcal{V}_{ι} = \{x, y, z ...\}
+    \quad\quad\quad
+    \mathcal{V}_{σ} = \{α, β, γ ...\}
+    \quad\quad\quad
+    \mathcal{V}_{τ} = \{a, b, c ...\}
+  $$
+\end{definition}
+As usual, $λ$-variables and $μ$-variables will be bound in terms to
+respectively form functions and capture continuations. Term variables
+are intended to be substituted by (unevaluated) terms, and not only
+values. They will be bound by our fixpoint operator in terms, and they
+will also be bound by quantifiers in formulas to express properties
+ranging over the set of all terms.
+
+\begin{figure}
+  \begin{align*}
+    (Λ_{ι})\quad\quad \makebox[1.8em]{v,w}
+      \bnfeq &x                     \tag{$λ$-variable}\\
+      \bnfor &λx.t                  \tag{$λ$-abstraction}\\
+      \bnfor &C_k[v]                \tag{constructor, $k∈\mathbb{N}$}\\
+      \bnfor &\{(l_i = v_i)_{i∈I}\}
+                            \tag{record, $I ⊆_\text{fin} \mathbb{N}$}\\
+      \bnfor &\square               \tag{box, invalid value}\\[10pt]
+    (Λ)\quad\quad \makebox[1.8em]{t,u}
+      \bnfeq &a                     \tag{term variable}\\
+      \bnfor &v                     \tag{value as a term}\\
+      \bnfor &t\,u                  \tag{application}\\
+      \bnfor &μα.t                  \tag{$μ$-abstraction}\\
+      \bnfor &[π]t                  \tag{named term}\\
+      \bnfor &v.l_k                 \tag{record projection, $k∈\mathbb{N}$}\\
+      \bnfor &[v\,| (C_i[x_i] → t_i)_{i∈I}]
+                            \tag{case analysis, $I ⊆_\text{fin} \mathbb{N}$}\\
+      \bnfor &φa.v                  \tag{fixpoint}\\
+      \bnfor &R(v,t)                \tag{special instruction}\\
+      \bnfor &δ(v,w,t)              \tag{special instruction}\\[10pt]
+    (Π)\quad\quad \makebox[1.8em]{π,ξ}
+      \bnfeq &ε                     \tag{empty stack}\\
+      \bnfor &α                     \tag{$μ$-variable}\\
+      \bnfor &[{-}\;v]π             \tag{pushed argument}\\
+      \bnfor &[t\;\,{-}]π           \tag{pushed function}\\[10pt]
+    (Λ \times Π)\quad\quad \makebox[1.8em]{p,q}
+      \bnfeq &t∗π                   \tag{processe}
+  \end{align*}
+  \caption{Syntax of the untyped calculus.}
+  \label{fig:untyped_syntax}
+\end{figure}
+
+\begin{definition}[untyped calculus]
+  Values, terms, stacks and processes are mutually inductively defined by the
+  \emph{BNF grammar} of Figure~\ref{fig:untyped_syntax}. The names of the
+  corresponding sets are displayed on the left: $(Λ_{ι})$ for values, $(Λ)$
+  for terms, $(Π)$ for stacks, and $(Λ \times Π)$ for processes.
+\end{definition}
+
+Terms and values form a variation of the $λμ$-calculus \cite{Parigot1992},
+enriched with records, variants and a fixpoint operator. Values of the form
+$C_k[v]$ (where $k ∈ \mathbb{N}$) correspond to variants, or constructors.
+Note that they always have exactly one argument in our language. Case analysis
+on variants is performed using the syntax $[v\,| (C_i[x_i] → t_i)_{i∈I}]$,
+where the pattern $C_i[x_i]$ is mapped to the term $t_i$ for all index $i$ in
+the finite set $I$. Similarly, values of the form $\{(l_i = v_i)_{i∈I}\}$
+correspond to records, which are tuples with named fields. The projection
+operation $v.l_k$ can be used to access the value labelled $l_k$ in a record
+$v$.
+\begin{remark}
+  The syntax $[v\,| (C_i[x_i] → t_i)_{i∈I}]$ for case analyses and the syntax
+  $\{(l_i = v_i)_{i∈I}\}$ for records are part of our meta-language. We only
+  use them as a short notation for arbitrary lists of patterns or record
+  fields. In the language, the full list of patterns or fields always needs
+  to be specified. We would thus, for example, write $\{l_1=v_1; l_2=v_2\}$ or
+  $[v\,| C_1[x_1] → t_1 | C_2[x_2] → t_2]$ in the case where $I = \{1, 2\}$.
+\end{remark}
+Terms of the form $φa.v$ denote a fixpoint, which can be used for general
+recursion. They roughly corresponds to the \verb#let rec# construct of the
+OCaml language. However, binding a term in a value will allow us to encode
+mutually recursive functions with records.
+%
+The value $\square$ and terms of form $R(v,t)$ or $δ(v,w,t)$ are only
+included for a technical purpose. In particular, they are not intended
+to be used for programming. The value $\square$ will be used in the
+definition of our semantics, terms of the form $R(v,t)$ will allow us
+to distinguish records from other sorts of values in our definition of
+observational equivalence, and terms of the form $δ(v,w,t)$ will be
+used to ensure that our model has an essential property (again related
+to equivalence).
+
+\begin{remark}
+  We enforce values in constructors, record fields, projections and case
+  analyses. This makes the calculus simpler because only $β$-reduction
+  will need to manipulate the stack. Syntactic sugar such as the following
+  can be defined to hide these restrictions to the user.
+  $$
+    t.l_k := (λx.x.l_k)\,t
+    \quad\quad\quad\quad
+    C_k[t] := (λx.C_k[x])\,t
+  $$
+  Note that the elimination of such syntactic sugar corresponds to a form of
+  partial \verb#let#-normalization \cite{Moggi1989} or \verb#A#-normalization
+  \cite{Flanagan1993}. The translation can hence be seen as a natural
+  compilation step \cite{Tarditi1996, Chlipala2005}.
+\end{remark}
+
+\section{Substitution and base evaluation}
+
+\begin{definition}
+  Given a value, term, stack or process $ψ$ we denote $FV_ι(ψ)$ (resp.
+  $FV_σ(ψ)$, resp. $FV_τ(ψ)$) the set of free $λ$-variables (resp. free
+  $μ$-variables, resp. free term variables) of $ψ$. We also denote
+  $FV(ψ) = FV_ι(ψ) ∪ FV_σ(ψ) ∪ FV_τ(ψ)$ the set of all the free variables
+  of $ψ$. We say that $ψ$ is closed if $FV(ψ) = ∅$. We denote $Λ_{ι}^{*}$
+  the set of all the closed values, $Λ^{*}$ the set of all the closed terms
+  and $Π^{*}$ the set of all the closed stacks.
+\end{definition}
+
+\begin{definition}
+  A substitution is a map $ρ$ such that for all $x ∈ \mathcal{V}_{ι}$ we have
+  $ρ(x) ∈ Λ_{ι}$, for all $α ∈ \mathcal{V}_{σ}$ we have $ρ(α) ∈ Π$ and for all
+  $a ∈ \mathcal{V}_{τ}$ we have $ρ(a) ∈ Λ$. For $ρ$ to be a substitution, we
+  also require that $ρ(χ) ≠ χ$ for only finitely many $χ ∈ \mathcal{V}_ι ∪
+  \mathcal{V}_{σ} ∪ \mathcal{V}_{τ}$. We denote $\mathcal{S}$ the set of all
+  the substitutions and $dom(ρ) = \{χ \st ρ(χ) ≠ χ\}$ the domain of the
+  substitution $ρ$. In particular, the substitution $ρ_{id} ∈ \mathcal{S}$ is
+  called the identity substitution and is defined as $ρ_{id}(χ) = χ$ for all
+  $χ ∈ \mathcal{V}_{ι} ∪ \mathcal{V}_{σ} ∪ \mathcal{V}_{τ}$.
+\end{definition}
+\begin{definition}
+  For every $ρ ∈ \mathcal{S}$ we denote $ρ[x := v]$ (resp. $ρ[α := π]$, resp.
+  $ρ[a := t]$) the substitution remapping the variable $x ∈ \mathcal{V}_ι$
+  (resp. $α ∈ \mathcal{V}_{σ}$, resp. $a ∈ \mathcal{V}_{τ}$) to the value
+  $v ∈ Λ_{ι}$ (resp. stack $π ∈ Π$, resp. term $t ∈ Λ$) in $ρ$. In the case
+  where $ρ = ρ_{id}$ we will write $[x := v]$, $[α := π]$ and $[a := t]$.
+\end{definition}
+\begin{definition}
+  Let $ρ ∈ \mathcal{S}$ be a substitution and $ψ$ be a value, term, stack
+  or process. We denote $ψρ$ the value, term, stack or process formed by
+  simultaneously substituting (without capture) every variable $χ ∈ FV(ψ)$
+  with $ρ(χ)$ in $ψ$.
+\end{definition}
+\begin{definition}
+  Given $ρ_1$, $ρ_2 ∈ \mathcal{S}$ we denote $ρ_1 ∘ ρ_2$ the substitution
+  formed by composing $ρ_1$ and $ρ_2$. It is defined by taking
+  $(ρ_1 ∘ ρ_2)(χ) = (ρ_1(χ))ρ_2$ for all $χ ∈ dom(ρ_1)$ and it coincides
+  with $ρ_2$ on every other variables. In particular, if $ψ$ is a value,
+  term, stack or process we will have $ψ(ρ_1 ∘ ρ_2) = (ψρ_1)ρ_2$.
+\end{definition}
+
+\begin{figure}
+  \begin{align*}
+    t\,u ∗ π          &\quad\;≻\quad  u ∗ [t\;\,{-}]π   \tag{Push}\\
+    v ∗ [t\;\,{-}]π   &\quad\;≻\quad  \,t ∗ [{-}\;v]π  
+                         \tag{if $v ≠ \square$, Swap}\\
+    λx.t ∗ [{-}\;v]π  &\quad\;≻\quad  t[x := v] ∗ π     \tag{Pop} \\
+    μα.t ∗ π          &\quad\;≻\quad  t[α := π] ∗ π     \tag{Save}\\
+    [ξ]t ∗ π          &\quad\;≻\quad  t ∗ ξ             \tag{Restore}\\
+    \{(l_i = v_i)_{i∈I∪\{k\}}\}.l_k ∗ π
+                      &\quad\;≻\quad  v_k ∗ π           \tag{Find}\\
+    [C_k[v]\,| (C_i[x_i] → t_i)_{i∈I∪\{k\}}] ∗ π
+                      &\quad\;≻\quad  t_k[x_k := v] ∗ π \tag{Match}\\
+    φa.v ∗ π          &\quad\;≻\quad  v[a := φa.v] ∗ π  \tag{Unfold}\\
+    R(\{(l_i = v_i)_{i∈I}\},t) * π
+                      &\quad\;≻\quad  t ∗ π             \tag{R-Rule}\\
+    \square ∗ [t\;\,{-}]π
+                      &\quad\;≻\quad  \square ∗ π       \tag{Erase 1}\\
+    \square ∗ [{-}\;v]π
+                      &\quad\;≻\quad  \square ∗ π       \tag{Erase 2}\\
+    [\square\,| (C_i[x_i] → t_i)_{i∈I}]
+                      &\quad\;≻\quad  \square ∗ π       \tag{Erase 3}\\
+    \square.l_k ∗ π   &\quad\;≻\quad  \square ∗ π       \tag{Erase 4}
+  \end{align*}
+  \caption{Base reduction relation for the abstract machine.}
+  \label{fig:base_red}
+\end{figure}
+
+Processes form the internal state of our abstract machine. They are to be
+thought of as a term put in some evaluation context represented using a
+stack. Intuitively, the stack $π$ in the process $t∗π$ contains the
+arguments to be fed to $t$. Since we are in call-by-value the stack also
+handles the storing of functions while their arguments are being evaluated.
+The operational semantics of our language is given by a relation $(≻)$
+over processes.
+\begin{definition}
+  The relation $(≻) ⊆ (Λ×Π) × (Λ×Π)$ is defined as the smallest relation
+  satisfying the reduction rules of Figure~\ref{fig:base_red}. We denote
+  $(≻^{+})$ its transitive closure, $(≻^{*})$ its reflexive-transitive
+  closure and $(≻^k)$ its $k$-fold application.
+\end{definition}
+
+The rules (Push), (Swap) and (Pop) are those that handle $β$-reduction. When
+the abstract machine encounters an application, the term that is in function
+position is stored on the stack to evaluate its argument first. Once the
+argument has been completely computed, a value faces the stack containing the
+function. The function can then be evaluated with the computed (value)
+argument stored on the stack, ready to be consumed by the function as soon as
+it evaluates to a $λ$-abstraction. A capture-avoiding substitution can then be
+performed to effectively apply the argument to the function.
+
+The (Save) and (Restore) rules handle the classical part of computation. When
+a $μ$-abstraction is reached, the current stack is captured and substituted
+for the corresponding $μ$-variable. Conversely, when a term of the form $[ξ]t$
+is reached, the current stack is discarded and evaluation resumes with the
+process $t ∗ ξ$. The rules (Find), (Match) and (Unfold) are provided to handle
+record projection, case analysis and recursion respectively.
+
+A rule is then provided for reducing processes of the form $R(v,t) ∗ π$ to
+$t ∗ π$ when the value $v$ is a record. Note that if $v$ is not a record then
+no reduction rule apply on processes of the form $R(v,t) ∗ π$. These facts
+will be used in to show that records, $λ$-abstractions and other forms of
+values have a different computational behaviour in our abstract machine.
+The last four rules are used to handle the special value $□$, which consumes
+the surrounding part of its computational environment. This will be discussed
+further when defining the semantical interpretation of our type system.
+\begin{remark}
+  The reduction relation $(≻)$ does not provide any way of reducing processes
+  of the form $δ(v,w,t) ∗ π$. We will give a reduction rule for such processes
+  shortly.
+\end{remark}
+
+\begin{theorem}\label{redcompatall}
+  Let $ρ ∈ \mathcal{S}$ be a substitution and $p$, $q ∈ Λ×Π$ be two processes.
+  If $p ≻ q$ (resp. $p ≻^{*} q$, resp. $p ≻^{+} q$, resp. $p ≻^k q$) then
+  $pρ ≻ qρ$ (resp. $pρ ≻^{*} qρ$, resp $pρ ≻^{+} qρ$, resp. $pρ ≻^k qρ$).
+  \begin{proof}
+    Immediate case analysis (and induction), all rules being local.
+  \end{proof}
+\end{theorem}
+
+\section{Classification of processes}
+
+We are now going to give the vocabulary that will be used to describe some
+specific classes of processes. In particular we need to identify processes
+that are to be considered as the evidence of a successful computation, and
+those that are to be recognised as the expression of a failure of the
+machine (i.e., a crash).
+\begin{definition}
+  A process $p ∈ Λ×Π$ is said to be:
+  \begin{itemize}
+    \item \emph{final} if $p = v∗ε$ for some $v ∈ Λ_{ι}$,
+    \item \emph{$δ$-like} if $p = δ(v,w,t) ∗ π$ for some $v,w ∈ Λ_{ι}$,
+      $t ∈ Λ$ and $π ∈ Π$,
+    \item \emph{blocked} if there is no $q ∈ Λ×Π$ such that $p ≻ q$,
+    \item \emph{stuck} if it is not final nor $δ$-like and if $pρ$ is
+      blocked for all $ρ ∈ \mathcal{S}$,
+    \item \emph{non-terminating} if there is an infinite sequence of
+      processes $(p_i)_{i∈\mathbb{N}}$ such that $p_0 = p$ and for all
+      $i∈\mathbb{N}$ we have $p_i ≻ p_{i+1}$.
+  \end{itemize}
+\end{definition}
+
+When a process becomes stuck, non-terminating or $δ$-like during its
+reduction, it will remain so forever. In particular, no substitution
+will ever be able to turn it into a process that might lead to a
+successful end of computation (i.e., reduce to a final process).
+\begin{lemma}
+  Let $p ∈ Λ×Π$ be a process and $ρ ∈ \mathcal{S}$ be a substitution. If $p$
+  is final (resp. $δ$-like, stuck, non-terminating), then so is $pρ$.
+  \begin{proof}
+    If $p$ is final then $p = v∗ε$ for some $v ∈ Λ_{ι}$. Since $(v∗ε)ρ =
+    vρ∗ερ = vρ∗ε$ the process $pρ$ is also final. If $p$ is $δ$-like then
+    $p = δ(v,w,t)∗π$ for some $v$, $w ∈ Λ_{ι}$, $t ∈ Λ$ and $π ∈ Π$. Since
+    $(δ(v,w,t)∗π)ρ = (δ(v,w,t))ρ ∗ πρ = δ(vρ,wρ,tρ) ∗ πρ$ the process $pρ$
+    is also $δ$-like. If $p$ is stuck, then we suppose that there is a
+    substitution $ρ_0 ∈ \mathcal{S}$ such that $(pρ)ρ_0$ is not blocked.
+    This contradicts the fact that $p$ is stuck since $p(ρ_0 ∘ ρ) = (pρ)ρ_0$
+    is not blocked, and hence $pρ$ must be stuck. Finally, if $p$ is
+    non-terminating then we have a sequence $(p_i)_{i∈\mathbb{N}}$ such that
+    $p_0 = p$ and $p_i ≻ p_{i+1}$ for all $i ∈ \mathbb{N}$. To show that
+    $pρ$ is non-terminating we need to construct a sequence
+    $(q_i)_{i∈\mathbb{N}}$ such that $q_0 = pρ$ and $q_i ≻ q_{i+1}$ for
+    all $i ∈ \mathbb{N}$. We can take $q_i = p_iρ$ for all $i ∈ \mathbb{N}$.
+    Indeed, we have $q_0 = pρ$ since $p₀ = p$ and for all $i ∈ \mathbb{N}$ we
+    have $p_iρ ≻ p_{i+1}ρ$ by Lemma~\ref{redcompatall} as $p_i ≻ p_{i+1}$.
+  \end{proof}
+\end{lemma}
+
+\begin{lemma}\label{remark}
+  A process is stuck if and only if it is of one of the following forms,
+  where $n$, $m$, $k ∈ \mathbb{N}$ and $I$, $J$, $K ⊆_{fin} \mathbb{N}$ such
+  that $k ∉ K$.
+  $$
+    C_n[v].l_m ∗ π
+    \quad\quad
+    (λx.t).l_m ∗ π
+    \quad\quad
+    C_n[v] ∗ [{-}\;w]π
+    \quad\quad
+    \{(l_i = v_i)_{i∈I}\} ∗ [{-}\;v]π
+  $$
+  $$
+    [λx.t\,| (C_i[x_i] → t_i)_{i∈I}] ∗ π
+    \quad\quad
+    [\{(l_i = v_i)_{i∈I}\}\,| (C_j[x_j] → t_j)_{j∈J}] ∗ π
+  $$
+  $$
+    [C_k[v]\,|(C_i[x_i] → t_i)_{i∈K}] ∗ π
+    \quad\quad
+    \{(l_i = v_i)_{i∈K}\}.l_k ∗ π
+  $$
+  $$
+    R(λx.t,u) ∗ π
+    \quad\quad
+    R(C_n[v],u) ∗ π
+    \quad\quad
+    R(□,u) ∗ π
+  $$
+  \begin{proof}
+    Using a simple case analysis we first rule out the thirteen forms of
+    processes that immediately reduce using $(≻)$. As stuck processes are
+    neither final nor $δ$-like, we can again rule out two forms of processes.
+    We are now left with eighteen forms of processes, among which seven
+    are not stuck (see the proof of Lemma~\ref{possibilities}). It is easy to
+    see that the eleven remaining forms of processes are stuck. Indeed, given
+    their structure no reduction rule will ever apply to them, even after a
+    substitution.
+  \end{proof}
+\end{lemma}
+The proof of Lemma~\ref{remark} has been (partially) checked using OCaml's
+exhaustivity checker for patterns. Indeed, the abstract syntax tree
+corresponding to our language can be encoded into OCaml data types easily.
+It is then possible to use pattern matching to enumerate possible forms of
+processes in such a way that it is neither redundant nor incomplete (i.e.,
+that the OCaml compiler does not complain with a warning). The OCaml source
+file used for this purpose is available online
+\url{https://lepigre.fr/these/classification.ml}.
+
+\begin{lemma}\label{possibilities}
+  A blocked process $p ∈ Λ×Π$ is either stuck, final, $δ$-like, or of one of
+  the following seven forms.
+  $$
+    x.l_k ∗ π
+    \quad\quad
+    x ∗ [{-}\;v]π
+    \quad\quad
+    [x\,| (C_i[x_i] → t_i)_{i∈I}] ∗ π
+  $$
+  $$
+    x ∗ [t\;\,{-}]π
+    \quad\quad
+    R(x,u) ∗ π
+    \quad\quad
+    a ∗ π
+    \quad\quad
+    v ∗ α
+  $$
+  \begin{proof}
+    As for Lemma~\ref{remark}, we can rule out the thirteen forms of
+    processes that immediately reduce using $(≻)$, final processes and
+    $δ$-like processes. After ruling out the eleven forms of stuck processes
+    of Lemma~\ref{remark} we are left with seven forms of processes. It
+    remains to show that they are not stuck by finding a substitution
+    $ρ ∈ \mathcal{S}$ unlocking their reduction.
+
+    For processes of the first four forms we can take $ρ = [x := □]$
+    since we have $□.l_k ∗ πρ ≻ □ ∗ πρ$, $□ ∗ [{-}\;vρ]πρ ≻ □ ∗ πρ$,
+    $[□\,| (C_i[x_i] → t_iρ)_{i∈I}] ∗ π ≻ □ ∗ πρ$ and
+    $□ ∗ [tρ\;\,{-}]πρ ≻ □ ∗ πρ$ respectively.
+    %
+    For a process of the form $R(x,u) ∗ π$ we can take $ρ = [x := \{\}]$ as
+    $R({},uρ) ∗ πρ ≻ uρ ∗ πρ$.
+    %
+    For a process of the form $a ∗ π$ we can take
+    $ρ = [a := \{l_k = \{\}\}.l_k]$ as $\{l_k = \{\}\}.l_k ∗ πρ ≻ \{\} ∗ πρ$.
+    %
+    Finally, for a process of the form $v ∗ α$ we can take
+    $ρ = [α := [\{\}\;{-}]ε]$ as we will have
+    $vρ ∗ [\{\}\;{-}]ε ≻ \{\} ∗ [{-}\;vρ]ε$ if $v ≠ □$ and
+    $vρ ∗ [\{\}\;{-}]ε ≻ □ ∗ ε$ otherwise.
+  \end{proof}
+\end{lemma}
+
+\section{Equivalence and reduction}
+
+\begin{definition}
+  Let $R ⊆ (Λ×Π) × (Λ×Π)$ be a relation such that for every final
+  process $p ∈ Λ×Π$, there is no $q ∈ Λ×Π$ such that $p R q$. We
+  say that a process $p ∈ Λ×Π$ converges for the relation $R$,
+  and we write $p {⇓}_R$, if there is a final process $q ∈ Λ×Π$
+  such that $p R^{∗} q$. If $p$ does not converge we say that it
+  diverges (for the relation $R$) and we write $p {⇑}_R$.
+\end{definition}
+
+The idea now is to extend our reduction relation $(≻)$ with a new,
+surprising reduction rule. It will reduce processes of the form
+$δ(v,w,t)∗π$ to $t∗π$ in the case where $v \not\equiv w$ for some
+equivalence relation $(≡)$, and remain stuck otherwise. With such a
+reduction rule, it is not possible to use the natural definition of
+observational equivalence bellow.
+$$
+  (≡) = \{(t,u) \st ∀π∈Π, ∀ρ∈\mathcal{S}, tρ∗π {⇓}_{≻} ⇔ uρ∗π {⇓}_{≻}\}
+$$
+Indeed, this would make the definitions of reduction and equivalence
+circular. Consequently, we need to be very careful so that everything
+remains well-defined. We will rely on a stratified construction of both
+reduction and equivalence.
+\begin{definition}
+  For all $i ∈ \mathbb{N}$ we define two relations $(↠_i)$ and $(≡_i)$ as
+  follows.
+  \begin{align*}
+    (↠_i) &= (≻) ∪ \{(δ(v,w,t)∗π, t∗π) \st ∃j<i, v \not\equiv_j w\}\\[6pt]
+    (≡_i) &= \{(t,u) \st ∀j≤i, ∀π∈Π, ∀ρ∈\mathcal{S}, tρ∗π {⇓}_j ⇔ uρ∗π {⇓}_j\}
+  \end{align*}
+  Here, all the relations are well-defined as there is no circularity. In
+  particular, we have $(↠_0) = ({≻})$ as there is no $i < 0$.
+\end{definition}
+\begin{lemma}\label{isequiv}
+  For all $i ∈ \mathbb{N}$, $(≡_i)$ is an equivalence relation.
+  \begin{proof}
+    Immediate.
+  \end{proof}
+\end{lemma}
+
+We can then define our actual reduction relation and equivalence relation
+as a union and an intersection over the previously defined relations.
+\begin{definition}
+  The relations $(↠)$ and $(≡)$ are defined as follows.
+  $$
+    (↠) = \bigcup_{i∈\mathbb{N}} (↠_i)
+    \quad\quad\quad\quad
+    (≡) = \bigcap_{i∈\mathbb{N}} (≡_i)
+  $$
+\end{definition}
+
+\begin{remark}
+  We have $(↠_i) ⊆ (↠_{i+1})$ and $(≡_{i+1}) ⊆ (≡_i)$. Consequently, the
+  construction of $(↠_i)_{i∈\mathbb{N}}$ and $(≡_i)_{i∈\mathbb{N}}$ forms
+  a fixpoint at the ordinal $ω$. Surprisingly, this property will not be
+  explicitly required in the following.
+\end{remark}
+\begin{lemma}
+  $(≡)$ is an equivalence relation.
+  \begin{proof}
+    Immediate using Lemma~\ref{isequiv} since an intersection of equivalence
+    relations is itself an equivalence relation.
+  \end{proof}
+\end{lemma}
+
+For convenience, the definition of our new reduction and equivalence
+relations can be expressed in the following way, where $(\not\equiv)$
+denotes the negation of $(≡)$.
+\begin{align*}
+  (≡) &= \{(t,u) \st ∀i∈\mathbb{N}, ∀π∈Π, ∀ρ∈\mathcal{S},
+                     tρ∗π {⇓}_i ⇔ uρ∗π {⇓}_i\} \\[6pt]
+  (\not\equiv) &= \{(t,u), (u,t) \st ∃i∈\mathbb{N}, ∃π∈Π, ∃ρ∈\mathcal{S},
+                     tρ∗π {⇓}_i ∧ uρ∗π {⇑}_i\} \\[6pt]
+  (↠) &= (≻) ∪ \{(δ(v,w,t)∗π, t∗π) \st v \not\equiv w\}
+\end{align*}
+Note that the definition of $(↠)$ corresponds exactly to what we aimed
+for: an extension of $(≻)$ with a reduction rule for $δ$-like terms
+carrying two non-equivalent values.
+
+\section{Substitutivity and extensionality}
+
+% TODO
+
+\section{Properties of equivalence}
+
+% TODO
+
+\section{Canonical values}
+
+% TODO

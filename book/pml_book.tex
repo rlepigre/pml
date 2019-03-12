@@ -1,0 +1,83 @@
+\documentclass[oneside,a4]{book}
+
+\usepackage{amssymb,amsmath,amsthm}
+\usepackage[mathletters]{ucs}
+\usepackage[utf8x]{inputenc}
+\usepackage{bussproofs}
+\usepackage{enumitem}
+\usepackage{caption}
+\usepackage{xspace}
+\usepackage{subcaption}
+\usepackage{stmaryrd}
+\usepackage{hyperref}
+\usepackage{geometry}
+
+\newcommand{\bnfeq}{\,\mathrel{::=}\;\,}
+\newcommand{\bnfor}{\;\mathrel{\vert}\;}
+\newcommand{\bnfst}{\\&\vert\;}
+\renewcommand{\emptyset}{\varnothing}
+\newcommand{\st}{\mid}
+\newcommand{\pml}{$\text{PML}_2$\xspace}
+\renewcommand\labelitemi{---}
+\setlist[itemize]{noitemsep,nolistsep}
+
+\newcommand*{\minw}[2]{%
+  \makebox[#2]{#1}%
+}
+
+\newcommand{\vars}{\mathcal{V}}
+\newcommand{\lvars}{\mathcal{V}_{ι}}
+\newcommand{\tvars}{\mathcal{V}_{τ}}
+\newcommand{\kvars}{\mathcal{V}_{κ}}
+\newcommand{\svars}{\mathcal{V}_{σ}}
+\newcommand{\ovars}{\mathcal{V}_{ο}}
+\newcommand{\cnsts}{\mathcal{C}}
+\newcommand{\props}{\mathcal{P}}
+\newcommand{\sorts}{\mathcal{S}}
+\newcommand{\terms}{\Lambda}
+\newcommand{\types}{\mathcal{F}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\arf}[1]{\lvert #1 \rvert_1}
+\newcommand{\ars}[1]{\lvert #1 \rvert_2}
+\newcommand{\sem}[1]{\ensuremath{\llbracket #1 \rrbracket}}
+
+\newtheorem{definition}{Definition}
+\newtheorem{example}{Example}
+\newtheorem{lemma}{Lemma}
+\newtheorem{theorem}{Theorem}
+\newtheorem{remark}{Remark}
+
+\begin{document}
+
+\title{Syntax and Semantics of the \pml Language}
+\author{Rodolphe Lepigre \& Christophe Raffalli}
+\date{}
+
+\maketitle
+
+This document is intended as a reference for the current implementation of
+the \pml language and its theory, but it is still work in progress. It is
+based on the first author's PhD thesis~\cite{Lepigre2017PhD}, as well as a
+joint work of the two authors~\cite{LepRaf2018a}. The present document is
+nonetheless intended to be as self-contained as possible.
+
+\tableofcontents
+
+\mainmatter
+
+\part{The language}
+
+\input{part1_intro/intro.tex}
+
+\part{The theory}
+
+\input{part2_theory/theory.tex}
+
+\part{The implementation}
+
+\input{part3_implem/implem.tex}
+
+\bibliographystyle{plain}
+\bibliography{biblio}
+
+\end{document}
