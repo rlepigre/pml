@@ -4,7 +4,6 @@ open Bindlib
 open Sorts
 open Ast
 open Pos
-open Output
 open Totality
 
 (** type for the hashtbl below *)

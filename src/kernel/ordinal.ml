@@ -2,7 +2,6 @@ open Extra
 open Ast
 open Pos
 open Compare
-open Sorts
 open Output
 
 (* Log functions registration. *)

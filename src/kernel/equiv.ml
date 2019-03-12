@@ -443,7 +443,7 @@ let children_bndr_closure
     (i0, !res)
 
 let children_closure
-    : type a b. a closure -> (int -> par_key) ->
+    : type a. a closure -> (int -> par_key) ->
            int * (par_key * Ptr.t) list -> int * (par_key * Ptr.t) list
   = fun (_,vs,ts) fn (i0, acc) ->
     let res = ref acc in
@@ -683,7 +683,8 @@ let insert_v_node : v_node -> pool -> VPtr.t * pool = fun nn po ->
        let possible =
          List.fold_left (fun acc (k, n) -> PtrSet.inter (f k n) acc) (f k n) l
        in
-       let rec fn po n = match n with
+       let fn po n =
+         match n with
          | Ptr.V_ptr n ->
             let node = find_v_node n po in
             if eq_v_nodes po node nn then raise (FoundV (n,po))
@@ -726,7 +727,8 @@ let insert_t_node : bool -> t_node -> pool -> TPtr.t * pool =
          let possible =
            List.fold_left (fun acc (k,n) -> PtrSet.inter (f k n) acc) (f k n) l
          in
-         let rec fn po n = match n with
+         let fn po n =
+           match n with
            | Ptr.V_ptr _ -> ()
            | Ptr.T_ptr n ->
               let node = find_t_node n po in

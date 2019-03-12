@@ -1,5 +1,4 @@
 open Sorts
-open Eval
 open Ast
 open Pos
 

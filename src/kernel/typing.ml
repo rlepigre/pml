@@ -221,7 +221,7 @@ let learn_value : ctxt -> term -> prop -> valu * ctxt = fun ctx t a ->
    A condition c is added if c false implies wit in a is false.
    as wit may be assumed not box, if c false implies a = Box,
    c can be added *)
-let rec learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
+let learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
   let adone = ref [] in
   let rec fn ctx wit a =
     let twit = Pos.none (Valu wit) in
@@ -299,7 +299,7 @@ let rec is_singleton : prop -> term option = fun t ->
 let rec learn_neg_equivalences : ctxt -> valu -> term option -> prop -> ctxt =
   let adone = ref [] in
   fun ctx wit arg a ->
-    let rec fn ctx wit arg a =
+    let fn ctx wit arg a =
       let twit = Pos.none (Valu wit) in
       match (Norm.whnf a).elt, arg with
       | HDef(_,e), _ -> learn_neg_equivalences ctx wit arg e.expr_def
@@ -964,7 +964,7 @@ and inst_fix_schema : ctxt -> fix_schema -> ordi array
     let arity = mbinder_arity (snd sch.fsch_judge) in
     let (eps, ctx_names) = cwit ctx.ctx_names (FixSch sch) in
     let ctx = { ctx with ctx_names } in
-    let rec fn i = osch i None eps in
+    let fn i = osch i None eps in
     let fspe_param = Array.init arity fn in
     let xs = Array.map (fun e -> e.elt) fspe_param in
     let a = msubst (snd sch.fsch_judge) xs in

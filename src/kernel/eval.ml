@@ -2,7 +2,6 @@
 
 open Bindlib
 open Ast
-open Pos
 
 module A = Assoc
 

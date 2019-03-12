@@ -2,11 +2,9 @@
 
 open Extra
 open Bindlib
-open Eq
 open Sorts
 open Pos
 open Ast
-open Output
 open Mapper
 open Compare
 
@@ -254,11 +252,9 @@ type 'a closure =
   (v ex, (t ex, 'a) mbinder) mbinder * v ex loc array * t ex loc array
 
 
-let make_closure
-    : type a b. a ex loc -> a ex loc closure
-  = fun e ->
-    let (e,tv,vv,tl,vl) = box_closure e in
-    (unbox (bind_mvar vv (bind_mvar tv e)), vl, tl)
+let make_closure : type a. a ex loc -> a ex loc closure = fun e ->
+  let (e,tv,vv,tl,vl) = box_closure e in
+  (unbox (bind_mvar vv (bind_mvar tv e)), vl, tl)
 
 let make_bndr_closure
     : type a b. a sort -> (a, b) bndr -> (a, b) bndr closure

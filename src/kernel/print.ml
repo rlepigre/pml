@@ -171,7 +171,6 @@ let is_def : type a. a ex loc -> a sugar = fun e ->
     match s with
     | V ->
        Env.SMap.fold (fun k v acc ->
-           let open Env in
            match acc with
            | NoSugar when feq_expr.eq e v.value_eras ->
               Def(Pos.none (VDef v))
@@ -202,7 +201,6 @@ let is_def : type a. a ex loc -> a sugar = fun e ->
     fn (fun _ -> true) (Pos.none (HDef(s',e'))) s'
   in
   Env.SMap.fold (fun k e acc ->
-      let open Env in
       match acc with NoSugar -> is_expr e | _ -> acc)
     !(Env.env).Env.global_exprs NoSugar
 

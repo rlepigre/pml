@@ -6,12 +6,12 @@ exception Bad_time
     enables the restoration of a previously saved state  by  "undoing"
     the updates. *)
 
-module Time :
 (** [Time] submodule allows to [save] the current time and [rollback]
     the references. If the time is not accessible.
 
-    old values are collected by the GC if no time are accessible
+    Old values are collected by the GC if no time are accessible
     that would allow to rollback to this value. *)
+module Time :
   sig
     (** Type representing a precise time in the program execution. *)
     type t

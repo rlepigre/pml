@@ -1,11 +1,7 @@
-open Bindlib
 open Parser
 open Pos
-open Raw
 open Typing
 open Output
-open Eval
-open Config
 
 let _ = Printexc.record_backtrace true
 let _ = Sys.catch_break true

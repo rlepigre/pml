@@ -1,11 +1,9 @@
 (** Expression hashing. *)
 
 open Bindlib
-open Eq
 open Sorts
 open Pos
 open Ast
-open Mapper
 
 type hash =
   { hash_expr     : 'a. 'a ex loc -> int

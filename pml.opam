@@ -1,0 +1,26 @@
+synopsis: "ML-like language and proof assistant with classical logic."
+description:
+"""
+PML (or “Polynesia ML”) is an ML-like language, similar to OCaml, in
+which equational properties of programs can be specified and proved.
+"""
+opam-version: "2.0"
+maintainer: "lepigre@mpi-sws.org"
+bug-reports: "https://github.com/rlepigre/pml/issues"
+homepage: "https://github.com/rlepigre/pml"
+dev-repo: "git+https://github.com/rlepigre/pml.git"
+authors: [
+  "Rodolphe Lepigre <lepigre@mpi-sws.org>"
+  "Christophe Raffalli <christophe@raffalli.eu>"
+]
+license: "MIT"
+
+depends: [
+  "ocaml"        {         >= "4.04.0" }
+  "dune"         { build & >= "1.3.0"  }
+  "bindlib"      { >= "5.0.0" }
+  "earley"       { >= "2.0.0" }
+]
+
+build: [ [ "dune" "build" "-p" name "-j" jobs ] ]
+run-test: [ [ "dune" "runtest" "-p" name "-j" jobs ] ]

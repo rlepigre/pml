@@ -124,7 +124,7 @@ let replace h key info =
 let mem h key =
   let rec mem_in_bucket = function
   | Nil              -> false
-  | Cons(k, d, rest) -> compare k key || mem_in_bucket rest
+  | Cons(k, _, rest) -> compare k key || mem_in_bucket rest
   in mem_in_bucket h.data.(key_index h key)
 
 let iter f h =

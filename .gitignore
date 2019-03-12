@@ -1,7 +1,8 @@
 *~
 #*
 *.pmi
-main.native
 _build/
-pml2/config.ml
+pml.install
+src/config.ml
+*/*.merlin
 local/

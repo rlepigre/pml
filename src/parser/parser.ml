@@ -530,8 +530,6 @@ let parser expr @(m : mode) =
       when m <<= Stk || m <<= Trm A
       -> in_pos _loc (EGoal(s))
 
-and in_par_expr (m:mode) = expr (to_full m)
-
 (* Higher-order variable arguments. *)
 and parser ho_args = {_:langle (list1 any comma) _:rangle}
 

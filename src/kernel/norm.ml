@@ -3,7 +3,6 @@
     can be used to reduce higher-order types and to unfold unifications
     variables. *)
 
-open Bindlib
 open Pos
 open Ast
 

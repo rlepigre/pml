@@ -646,7 +646,7 @@ type boxed = Box : 'a sort * 'a ex loc Bindlib.box -> boxed
 let box_set_pos : boxed -> Pos.popt -> boxed = fun (Box(s,e)) pos ->
   Box(s, Bindlib.box_apply (fun e -> {e with pos}) e)
 
-let rec sort_filter : type a b. a sort -> boxed -> a ebox =
+let sort_filter : type a. a sort -> boxed -> a ebox =
   fun s bx ->
     match (s, bx) with
     | (T, Box(V,e)) -> valu (Bindlib.unbox e).pos e

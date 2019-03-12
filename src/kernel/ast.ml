@@ -618,7 +618,7 @@ let rec bseq_dummy : type a b. (a, prop * b) bseq -> b = fun seq ->
   | BLast(s,f) -> snd (subst f (Dumm s))
   | BMore(s,f) -> bseq_dummy (subst f (Dumm s))
 
-let rec sort : type a b. a ex loc -> a sort * a ex loc = fun e ->
+let rec sort : type a. a ex loc -> a sort * a ex loc = fun e ->
   match e.elt with
   | HDef(s,_)       -> (s, e)
   | HApp(d,u,v)     -> let (F(_,s),_) = sort u in (s,e)
