@@ -19,3 +19,6 @@ val add : 'a -> 'b -> ('a, 'b) t -> ('a, 'b) t
     Note that this operation cannot fails and returns [[]] in the case where
     no value is assocaited to [key] in [bcks]. *)
 val find : 'a -> ('a, 'b) t -> 'b list
+
+(** length of the buckets *)
+val length : ('a, 'b) t -> int
