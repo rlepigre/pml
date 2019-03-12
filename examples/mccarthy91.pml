@@ -77,7 +77,8 @@ val mccarthy91_easy : nat ⇒ nat =
 
 val hard_lemma : ∀n∈nat, n > u100 ≡ false ⇒ mccarthy91_hard n ≡ u91 =
   fun n eq {
-    set auto 101 1; {}
+    {- takes too lonk -}
+    //set auto 101 1; {}
   }
 
 
@@ -107,12 +108,11 @@ val hard_is_easy : ∀n∈nat, mccarthy91_easy n ≡ mccarthy91_hard n =
 
 val mccarthy91 : nat ⇒ nat =
   fun n {
-    check mccarthy91_easy n  // Term used for type-checking.
-      for mccarthy91_hard n  // Actual term used in the definition.
-      because hard_is_easy n // Proof that they are equal.
+    check { mccarthy91_easy n }  // Term used for type-checking.
+      for { mccarthy91_hard n }  // Actual term used in the definition.
+      because { hard_is_easy n } // Proof that they are equal.
     // The above really is "mccarthy91_hard n" (up to erasure).
   }
 
 
-// FIXME Should work
-//val ok : mccarthy91 ≡ mccarthy91_hard = {}
+val ok : mccarthy91 ≡ fun n { mccarthy91_hard n } = {}

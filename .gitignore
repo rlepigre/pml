@@ -4,3 +4,4 @@
 main.native
 _build/
 pml2/config.ml
+local/
