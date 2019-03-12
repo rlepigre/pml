@@ -1244,9 +1244,9 @@ and warn_unreachable ctx t =
     end;
 
 and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
-  log_typ "proving the term judgment:\n  %a\n  ⊢(%a) %a\n  : %a [%d]"
+  log_typ "proving the term judgment:\n  %a\n  ⊢(%a) %a\n  : %a"
           print_pos ctx.positives Print.arrow ctx.totality
-          Print.ex t Print.ex c (Buckets.length ctx.fix_ihs);
+          Print.ex t Print.ex c;
   let st = UTimed.Time.save () in
   try
   let (r, tot) =
