@@ -66,7 +66,7 @@ infix (-) = minus priority 3 right associative
 val rec (-) : ∀s, nat^s ⇒ nat ⇒ nat^s =
   fun n m {
     case n {
-      0    → Zero // FIXME #37 cannot use 0 here, wrong type.
+      0    → 0
       S[p] → case m {
         0    → n
         S[q] → p - q

@@ -82,7 +82,7 @@ let auto_empty () =
 (* Context. *)
 type ctxt  =
   { uvarcount : int ref
-  ; equations : eq_ctxt
+  ; equations : pool
   ; ctx_names : Bindlib.ctxt
   (* the first of the pair is positive, the second
      is stricly less than the first *)
@@ -97,7 +97,7 @@ type ctxt  =
 
 let empty_ctxt () =
   { uvarcount = ref 0
-  ; equations = empty_ctxt
+  ; equations = empty_pool
   ; ctx_names = Bindlib.empty_ctxt
   ; positives = []
   ; fix_ihs   = Buckets.empty (==)
@@ -140,6 +140,7 @@ let rec instantiate : type a b. ctxt -> (a, b) bseq -> b =
 let extract_vwit_type : valu -> prop = fun v ->
   match (Norm.whnf v).elt with
   | VWit{valu={contents = (_,a,_)}} -> a
+  | VDef(v)                         -> v.value_type
   | _                  -> assert false (* should not happen *)
 
 let extract_swit_type : stac -> prop = fun s ->
@@ -205,13 +206,11 @@ and stk_proof = stac * prop * stk_rule
 and sub_proof = term * prop * prop * sub_rule
 
 let learn_nobox : ctxt -> valu -> ctxt = fun ctx v ->
-  { ctx with equations =  { pool = add_nobox v ctx.equations.pool;
-                            ineq = ctx.equations.ineq } }
+  { ctx with equations = add_nobox v ctx.equations }
 
 let learn_value : ctxt -> term -> prop -> valu * ctxt = fun ctx t a ->
-  let f = bndr_from_fun "x" (fun x -> Valu(Pos.none x)) in
   let ae = Pos.none (Memb(t,a)) in
-  let (vwit, ctx_names) = vwit ctx.ctx_names f ae Ast.bottom in
+  let (vwit, ctx_names) = vwit ctx.ctx_names idt_valu ae Ast.bottom in
   let ctx = { ctx with ctx_names } in
   let ctx = learn_nobox ctx vwit in
   let twit = Pos.none (Valu vwit) in
@@ -238,14 +237,13 @@ let rec learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
     | Prod(fs)   ->
        A.fold (fun lbl (_, b) ctx ->
            let (v,pool,ctx_names) =
-             find_proj ctx.equations.pool ctx.ctx_names wit lbl
+             find_proj ctx.equations ctx.ctx_names wit lbl
            in
-           let ctx = { ctx with equations = { ctx.equations with pool };
-                                ctx_names } in
+           let ctx = { ctx with equations = pool; ctx_names } in
            fn ctx v b) fs ctx
     | DSum(fs)   ->
        begin
-         match find_sum ctx.equations.pool wit with
+         match find_sum ctx.equations wit with
          | None ->
             if A.length fs = 1 then
               A.fold (fun c (_,b) ctx ->
@@ -256,7 +254,7 @@ let rec learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
          | Some(s,v,pool) ->
             try
               let (_, b) = A.find s fs in
-              let ctx = { ctx with equations = { ctx.equations with pool } } in
+              let ctx = { ctx with equations = pool } in
               fn ctx v b
             with Not_found -> assert false (* NOTE check *)
        end
@@ -369,7 +367,7 @@ type check_sub =
 
 let rec unif_expr : type a. ctxt -> a ex loc -> a ex loc -> bool =
   fun ctx a b ->
-    eq_expr ~oracle:(oracle (ref ctx.equations.pool)) ~strict:false a b
+    eq_expr ~oracle:(oracle (ref ctx.equations)) ~strict:false a b
 
 and subtype =
   let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
@@ -553,7 +551,7 @@ and subtype =
               try snd (A.find l fs1) with Not_found ->
               subtype_msg p ("Product clash on label " ^ l ^ "...")
             in
-            let t = unbox (t_proj None (box t) (Pos.none l)) in
+            let t = unbox (t_proj None (box t) [None, Pos.none l]) in
             let p = subtype ctx t a1 a2 in
             p::ps
           in
@@ -726,7 +724,7 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof * tot  =
             let t = unbox (appl None (valu None f) (Bindlib.box e)) in
             let (l1,l2) = ctx.auto.level in
             log_aut "totality (%d,%d) [%d]: %a"
-                    l1 l2 (List.length bls) Print.ex t;
+                    l1 l2 (List.length bls) Print.ex e;
             type_term ctx t ty
           with
           | Failed_to_prove _ as e -> type_error (E(T,t)) ty e
@@ -754,8 +752,7 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof * tot  =
 
 and gen_subtype : ctxt -> prop -> prop -> sub_rule =
   fun ctx a b ->
-    let f = bndr_from_fun "x" (fun x -> Valu(Pos.none x)) in
-    let (eps, ctx_names) = vwit ctx.ctx_names f a b in
+    let (eps, ctx_names) = vwit ctx.ctx_names idt_valu a b in
     let ctx = { ctx with ctx_names } in
     let ctx = learn_nobox ctx eps in
     let wit = Pos.none (Valu eps) in
@@ -865,10 +862,7 @@ and check_fix
       add_call ctx (sch.fsch_index, os) false;
       (* Recording of the new induction hypothesis. *)
       log_typ "the schema has %i arguments" (Array.length os);
-      let ctx =
-        if os = [||] then ctx
-        else { ctx with fix_ihs = Buckets.add b sch ctx.fix_ihs }
-      in
+      let ctx = { ctx with fix_ihs = Buckets.add b sch ctx.fix_ihs } in
       (* Instantiation of the schema. *)
       let (spe, ctx) = inst_fix_schema ctx sch os in
       let ctx = {ctx with top_ih = (sch.fsch_index, spe.fspe_param)} in
@@ -1178,8 +1172,27 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
         let (_, _, r) = type_valu ctx d.expr_def c in r
     (* Value definition. *)
     | VDef(d)     ->
-        let p = subtype ctx t d.value_type c in
-        Typ_VDef(d,p)
+        begin
+          let st = UTimed.Time.save () in
+          try
+            let p = subtype ctx t d.value_type c in
+            Typ_VDef(d,p)
+          with
+            (* NOTE: some times, defined values like 0 :nat = Zero
+               will fail for base case of sized function, this backtracking
+               solves the problem and is not too expensive for value only.
+               We do not do it for function *)
+          | Sys.Break -> raise Sys.Break
+          | e -> match d.value_orig.elt with
+                 | Valu { elt = LAbs _ } -> raise e
+                 | Valu v ->
+                    begin
+                      UTimed.Time.rollback st;
+                      try let (_,_,r) = type_valu ctx v c in r
+                      with _ -> raise e
+                    end
+                 | _ -> raise e
+        end
     (* Goal *)
     | Goal(_,str) ->
         wrn_msg "goal %S %a" str Pos.print_short_pos_opt v.pos;
@@ -1249,19 +1262,24 @@ and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
         (* a fresh unif var for the type of u *)
         let a = new_uvar ctx P in
         let tot = ctx.totality in
-        let check_f ctx strong a =
+        let rec check_f ctx strong a0 =
           (* common code to check f *)
           if strong then (* strong application *)
-            let a = (* do not add singleton if it is one *)
-              if is_singleton a <> None then a else Pos.none (Memb(u,a))
+            let (a, strong) = (* do not add singleton if it is one *)
+              if is_singleton a <> None then (a0, false)
+              else (Pos.none (Memb(u,a0)), true)
             in
             let c = Pos.none (Func(tot,a,c)) in
+            let st = UTimed.Time.save () in
             try
               let (v,ctx) = learn_value ctx u a in
               let ctx = learn_equivalences ctx v a in
               type_term ctx f c
-            with Contradiction ->
-              warn_unreachable ctx f; ((t,c,Typ_Scis), Tot)
+            with Contradiction -> warn_unreachable ctx f; ((t,c,Typ_Scis), Tot)
+               | Sys.Break -> raise Sys.Break
+               | _ when strong && is_typed VoT_T f ->
+                  UTimed.Time.rollback st;
+                  check_f ctx false a0
           else
             type_term ctx f (Pos.none (Func(tot,a,c)))
         in
@@ -1426,7 +1444,7 @@ and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
         (Typ_Repl(p1), tot)
     | Delm(t)     ->
        let pure = Pure.(pure t && pure c
-                        && Lazy.force ctx.equations.pool.pure)
+                        && Lazy.force ctx.equations.pure)
        in
        let ctx =
          if pure then { ctx with totality = new_tot () } else
@@ -1490,14 +1508,17 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
   | Failed_to_prove _ as e -> raise e
   | e                      -> type_error (E(S,s)) c e
 
+exception Unif_variables
+
 let type_check : term -> prop -> prop * typ_proof = fun t a ->
   try
     let ctx = empty_ctxt () in
     let (prf, _) = type_term ctx t a in
     List.iter (fun f -> f ()) (List.rev !(ctx.add_calls));
     if not (Scp.scp ctx.callgraph) then loops t;
-    let l = uvars a in
-    assert(l = []); (* FIXME #16 *)
+    (* there is no way to parse unif variables in type,
+       so [uvars a] hould be empty *)
+    assert (uvars a = []);
     reset_tbls ();
     (Norm.whnf a, prf)
   with e -> reset_tbls (); raise e
@@ -1508,10 +1529,8 @@ let is_subtype : prop -> prop -> bool = fun a b ->
   try
     let ctx = empty_ctxt () in
     let _ = gen_subtype ctx a b in
-    let la = uvars a in
-    let lb = uvars b in
-    assert(la = []); (* FIXME #16 *)
-    assert(lb = []); (* FIXME #16 *)
+    (* same as above *)
+    assert(uvars a = [] && uvars b = []);
     List.iter (fun f -> f ()) (List.rev !(ctx.add_calls));
     let res = Scp.scp ctx.callgraph in
     reset_tbls ();

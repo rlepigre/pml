@@ -1,14 +1,14 @@
-check [A] ⊂ [A;B]
-check ¬ [A;B] ⊂ [A]
+assert [A] ⊂ [A;B]
+assert ¬ [A;B] ⊂ [A]
 
 
-check μx, [A of x ; B] ⊂ μx, [A of x ; B ; C]
-check ¬ μx, [A of x ; B; C] ⊂ μx, [A of x ; B]
+assert μx, [A of x ; B] ⊂ μx, [A of x ; B ; C]
+assert ¬ μx, [A of x ; B; C] ⊂ μx, [A of x ; B]
 
-check μx, [A of x ; B] ⊂ νx, [A of x ; B]
-check μx, [A of x ; B] ⊂ νx, [A of x ; B ; C]
-check ¬ νx, [A of x ; B] ⊂ μx, [A of x ; B]
-check ¬ νx, [A of x ; B] ⊂ μx, [A of x ; B ; C]
+assert μx, [A of x ; B] ⊂ νx, [A of x ; B]
+assert μx, [A of x ; B] ⊂ νx, [A of x ; B ; C]
+assert ¬ νx, [A of x ; B] ⊂ μx, [A of x ; B]
+assert ¬ νx, [A of x ; B] ⊂ μx, [A of x ; B ; C]
 
-check μx, νy, [A of x ; B of y] ⊂ νy, μx, [A of x ; B of y]
-check ¬ νy, μx, [A of x ; B of y] ⊂ μx, νy, [A of x ; B of y]
+assert μx, νy, [A of x ; B of y] ⊂ νy, μx, [A of x ; B of y]
+assert ¬ νy, μx, [A of x ; B of y] ⊂ μx, νy, [A of x ; B of y]

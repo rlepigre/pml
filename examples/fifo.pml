@@ -1,19 +1,24 @@
 include lib.option
 
-type fifo_sig_aux⟨fifo:ο→ο⟩ =
+// fifo signature with a parametric type as parameter for the
+// internal representation.
+type fifo_sig_open⟨fifo:ο→ο⟩ =
   { empty : ∀a, fifo⟨a⟩
   ; push  : ∀a, a ⇒ fifo⟨a⟩ ⇒ fifo⟨a⟩
   ; pop   : ∀a, fifo⟨a⟩ ⇒ option⟨a × fifo⟨a⟩⟩ }
 
-type fifo_sig = ∃fifo:ο→ο, fifo_sig_aux⟨fifo⟩
+// fifo signature with the type abstracted by an existential.
+type fifo_sig = ∃fifo:ο→ο, fifo_sig_open⟨fifo⟩
 
 include lib.list
 include lib.list_proofs
 
+// fifo as list
 val take_last : ∀a, list⟨a⟩ ⇒ option⟨a × list⟨a⟩⟩ =
   fun s { case rev s { [] → None | e :: s → Some[(e,rev s)] } }
 
-val fifo_simple_open : fifo_sig_aux⟨list⟩ =
+// one value with two types (open and abstracted*)
+val fifo_simple_open : fifo_sig_open⟨list⟩ =
    { empty = nil
    ; push  = fun e s { e::s }
    ; pop   = take_last
@@ -21,7 +26,10 @@ val fifo_simple_open : fifo_sig_aux⟨list⟩ =
 
 val fifo_simple : fifo_sig = fifo_simple_open
 
-val rec pop : ∀a, list⟨a⟩ × list⟨a⟩ ⇒ option⟨a × (list⟨a⟩ × list⟨a⟩)⟩ =
+// fifo as pair of lists
+type list2⟨a⟩ = list⟨a⟩ × list⟨a⟩
+
+val rec pop : ∀a, list2⟨a⟩ ⇒ option⟨a × list2⟨a⟩⟩ =
   fun p {
     case p.2 {
       x::s2 → Some[(x,(p.1,s2))]
@@ -32,22 +40,26 @@ val rec pop : ∀a, list⟨a⟩ × list⟨a⟩ ⇒ option⟨a × (list⟨a⟩ ×
     }
   }
 
-val push :  ∀a, a ⇒ list⟨a⟩ × list⟨a⟩ ⇒ list⟨a⟩ × list⟨a⟩ =
+val push :  ∀a, a ⇒ list2⟨a⟩ ⇒ list2⟨a⟩ =
   fun e p { let (s1,s2) = p; ((e::s1), s2) }
 
-type list2⟨a⟩ = list⟨a⟩ × list⟨a⟩
-
-val fifo_pair_open : fifo_sig_aux⟨list2⟩ =
+// one value with two types (open and abstracted*)
+val fifo_pair_open : fifo_sig_open⟨list2⟩ =
    { empty = ((nil, nil) : ∀a, list2⟨a⟩)
    ; push  = push
    ; pop   = pop }
 
 val fifo_pair : fifo_sig = fifo_pair_open
 
+// now we prove the equivalence of the two implementation
+
+// translation as an untyped macro
 def translate⟨f:τ⟩ = app f.1 (rev f.2)
 
+// lemma for the empty fifo (computation only)
 val equiv_empty : translate⟨fifo_pair.empty⟩ ≡ fifo_simple.empty = {}
 
+// lemma for push
 val equiv_push :
   ∀a, ∀x∈a, ∀f∈list2⟨a⟩,
     translate⟨fifo_pair.push x f⟩ ≡ fifo_simple.push x translate⟨f⟩ =
@@ -60,6 +72,7 @@ val equiv_push :
     {}
   }
 
+// lemma for po, the crucial case (needs a definition, and a few intermediate lemmas)
 def translate_opt⟨o:τ⟩ =
   case o { None → None | Some[(x,f)] → Some[(x,translate⟨f⟩)] }
 
@@ -125,11 +138,13 @@ val rec equiv_pop :
     }
   }
 
+// to define equivalence, we define the type of operation on fifo
+// and the application of a list of operations.
 type ope⟨a⟩ = [ Push of a ; Pop ]
 
-val rec apply_aux : ∀t,∀a, fifo_sig_aux⟨t⟩ ⇒ t⟨a⟩ ⇒ list⟨ope⟨a⟩⟩ ⇒ t⟨a⟩ =
+val rec apply_aux : ∀t,∀a, fifo_sig_open⟨t⟩ ⇒ t⟨a⟩ ⇒ list⟨ope⟨a⟩⟩ ⇒ t⟨a⟩ =
   fun fifo f ops {
-    let t such that fifo:fifo_sig_aux⟨t⟩;
+    let t such that fifo:fifo_sig_open⟨t⟩;
     let a such that f:t⟨a⟩;
     case ops {
       []      → f
@@ -145,6 +160,24 @@ val rec apply_aux : ∀t,∀a, fifo_sig_aux⟨t⟩ ⇒ t⟨a⟩ ⇒ list⟨ope�
     }
   }
 
+// apply a sequence of operations and performs a last "pop"
+val apply : ∀a, fifo_sig ⇒ list⟨ope⟨a⟩⟩ ⇒ option⟨a⟩ =
+  fun fifo ops {
+    let a such that _ : option⟨a⟩;
+    let t such that fifo : fifo_sig_open⟨t⟩;
+    let fifo:fifo_sig_open⟨t⟩ = fifo;
+    let f : t⟨a⟩ = apply_aux fifo fifo.empty ops;
+    case fifo.pop f {
+      None        → None
+      Some[(e,f)] → Some[e]
+    }
+  }
+
+//which gives the following type for equivalence of fifo implementations
+def equiv_fifo⟨fifo1,fifo2⟩ =
+  ∀a, ∀ops∈list⟨ope⟨a⟩⟩, apply fifo1 ops ≡ apply fifo2 ops
+
+// and we prove the main theorem from a lemma
 val rec equiv_apply_aux :
   ∀a, ∀f∈list2⟨a⟩, ∀ops∈list⟨ope⟨a⟩⟩,
     translate⟨apply_aux fifo_pair f ops⟩ ≡
@@ -182,22 +215,6 @@ val rec equiv_apply_aux :
         }
     }
   }
-
-// apply a sequence of operations and performs a last "pop"
-val apply : ∀a, fifo_sig ⇒ list⟨ope⟨a⟩⟩ ⇒ option⟨a⟩ =
-  fun fifo ops {
-    let a such that _ : option⟨a⟩;
-    let t such that fifo : fifo_sig_aux⟨t⟩;
-    let fifo:fifo_sig_aux⟨t⟩ = fifo;
-    let f : t⟨a⟩ = apply_aux fifo fifo.empty ops;
-    case fifo.pop f {
-      None        → None
-      Some[(e,f)] → Some[e]
-    }
-  }
-
-def equiv_fifo⟨fifo1,fifo2⟩ =
-  ∀a, ∀ops∈list⟨ope⟨a⟩⟩, apply fifo1 ops ≡ apply fifo2 ops
 
 val rec th : equiv_fifo⟨fifo_pair,fifo_simple⟩ =
   fun ops {

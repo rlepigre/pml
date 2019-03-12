@@ -25,10 +25,9 @@ val ex : ∀a,∀b, (∀n∈nat, ∃m∈b, a⟨n,m⟩) ⇒
     };
     let rec lem : ∀n k∈nat, (nth k (fn n)).1 ≡ add n k = fun n k {
       case k {
-        Zero  → let x = g n; //FIXME #28
-                use add_n_zero n; qed
-        S[k'] → let x = g n; //FIXME #28
-                use add_n_succ n k';
+        Zero  → use add_n_zero n;
+                qed
+        S[k'] → use add_n_succ n k';
                 use lem S[n] k'; qed
       }
     };
@@ -42,8 +41,7 @@ val ac : ∀a,∀b, (∀n∈nat, ∃m∈b, a⟨n,m⟩) ⇒
     let a,b such that g : ∀n∈nat, ∃m∈b, a⟨n,m⟩;
     let sp: ∃s∈stream⟨∃n∈nat, ∃m∈b, a⟨n,m⟩⟩, ∀m∈nat, (nth m s).1 ≡ m = ex g;
     let (s, lem) = sp;
-    let f : nat ⇒ b = fun n { let (n', q) = nth n s; q.1 };
-                              // FIXME #37: (nth n s).2.1 fails
+    let f : nat ⇒ b = fun n { (nth n s).2.1 };
     (f, fun n {
         let (n', q) = nth n s;
         show n' ≡ n using lem n;
@@ -100,8 +98,7 @@ val ac : ∀a,∀b, (∀n∈nat, ∃m∈b, a⟨n,m⟩) ⇒
 //     let a,b such that g : ∀n, n∈nat → ∃m∈b, a⟨n,m⟩;
 //     let sp: ∃s∈cstream⟨∃n∈nat, ∃m∈b, a⟨n,m⟩⟩, ∀m, m∈nat → (nth m s).1 ≡ m = exc g;
 //     let (s, lem) = sp;
-//     let f : nat → b = fun n { let (n', q) = nthc n s; q.1 };
-//                               // FIXME #37: (nth n s).2.1 fails
+//     let f : nat → b = fun n { (nth n s).2.1 };
 //     (f, fun n {
 //         let (n', q) = nthc n s;
 //         show n' ≡ n using lem n;

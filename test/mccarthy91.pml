@@ -49,6 +49,7 @@ val hard_is_easy : ∀n∈nat, mccarthy91_easy n ≡ mccarthy91 n =
 // Real function.
 val mccarthy91 : nat ⇒ nat =
   fun n {
-    check mccarthy91_easy n for mccarthy91 n
-      because hard_is_easy n
+      check { mccarthy91_easy n }
+      for { mccarthy91 n }
+      because { hard_is_easy n }
   }

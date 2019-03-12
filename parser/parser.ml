@@ -56,6 +56,7 @@ let parser goal_name = s:''\([^-]\|\(-[^}]\)\)*''
 let parser goal = "{-" str:goal_name "-}" -> String.trim str
 
 (* Keywords. *)
+let _assert_  = Keyword.create "assert"
 let _assume_  = Keyword.create "assume"
 let _because_ = Keyword.create "because"
 let _bool_    = Keyword.create "bool"
@@ -334,6 +335,13 @@ let parser expr @(m : mode) =
   | t:(expr (Trm I)) b:eq u:(expr (Trm I))
       when m <<= Prp A
       -> in_pos _loc (ERest(None,EEquiv(t,b,u)))
+  (* Proposition (implication) *)
+  | a:(expr (Prp M)) _if_ t:(expr (Trm I)) bu:{eq (expr (Trm I))}?
+      when m <<= Prp R
+      -> let (b,u) = match bu with
+           | Some(b,u) -> (b,u)
+           | None      -> (true, Pos.none (ECons(Pos.none "true", None)))
+         in in_pos _loc (EImpl(EEquiv(t,b,u), Some a))
   (* Proposition (parentheses) *)
   | "(" e:(expr (Prp F')) ")"
       when m <<= Prp A
@@ -431,8 +439,9 @@ let parser expr @(m : mode) =
       when m <<= Trm A
       -> if_then_else _loc c t e
   (* Term (replacement) *)
-  | _check_ u:term _for_ t:term b:{_:_because_ t:(expr (Trm R))}?
-      when m <<= Trm R
+  | _check_ '{' u:term '}' _for_ '{' t:term '}'
+    b:{_:_because_ '{' term '}' }?
+      when m <<= Trm A
       -> in_pos _loc (ERepl(t,u,b))
   (* Term (totality by purity) *)
   | _delim_ '{' u:term '}'
@@ -588,7 +597,7 @@ let parser toplevel =
       -> fun () -> val_def r id a t
 
   (* Check of a subtyping relation. *)
-  | _check_ r:neg a:prop "⊂" b:prop
+  | _assert_ r:neg a:prop "⊂" b:prop
       -> fun () -> check_sub a r b
 
   (* Inclusion of a file. *)

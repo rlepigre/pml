@@ -66,12 +66,10 @@ val rec mul_succ : ∀n m∈nat, mul n Succ[m] ≡ add (mul n m) n =
   fun n m {
     case n {
       Zero    → {}
-      Succ[k] → set auto 0 2;
+      Succ[k] → set auto 0 3;
                 let lem = mul_succ k m;
                 let lem = add_succ (add m (mul k m)) k;
                 let lem = add_asso m (mul k m) k;
-                //set log "a";
-                let _ = add m (mul k m); // FIXME #28
                 {}
     }
   }

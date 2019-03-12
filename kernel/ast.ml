@@ -1,19 +1,6 @@
 (** Abstract syntax tree. This module defined the internal representation of
     PML's programs and higher-order type. *)
 
-(* FIXME FIXME FIXME temporary *)
-module Bindlib = struct
-  include Bindlib
-
-  let vbind : ('a var -> 'a) -> string -> ('a var -> 'b box)
-              -> ('a, 'b) binder box = fun mkfree name f ->
-    let x = new_var mkfree name in
-    bind_var x (f x)
-
-  let binder_from_fun : string -> ('a -> 'b) -> ('a, 'b) binder =
-    fun x f -> raw_binder x true 0 (fun _ -> assert false) f
-end
-
 open Extra
 open Bindlib
 open Ptr
@@ -306,11 +293,6 @@ let bndr_subst : ('a, 'b) bndr -> 'a ex -> 'b ex loc =
 let bndr_name : ('a, 'b) bndr -> strloc =
   fun (p, b) -> Pos.make p (binder_name b)
 
-(** [bndr_from_fun x f] builds a binder using [x] as a name  for  the  bound
-    variable, and the function [f] as a definition. *)
-let bndr_from_fun : string -> ('a ex -> 'b ex) -> ('a,'b) bndr =
-  fun x f -> (None, binder_from_fun x (fun x -> none (f x)))
-
 (** [bndr_closed f] tells whether the binder [b] is closed. *)
 let bndr_closed : ('a, 'b) bndr -> bool =
   fun (_,b) -> binder_closed b
@@ -354,7 +336,8 @@ let vari : type a. popt -> a var -> a ex loc box =
 let hfun : type a b. popt -> a sort -> b sort -> strloc -> (a var -> b ebox)
              -> (a -> b) ebox =
   fun p sa sb x f ->
-    let b = vbind (mk_free sa) x.elt f in
+    let v = new_var (mk_free sa) x.elt in
+    let b = bind_var v (f v) in
     box_apply (fun b -> Pos.make p (HFun(sa, sb, (x.pos, b)))) b
 
 let happ : type a b. popt -> a sort -> (a -> b) ebox -> a ebox -> b ebox =
@@ -366,7 +349,8 @@ let v_vari : popt -> vvar -> vbox = vari
 
 let labs : popt -> pbox option -> strloc -> (vvar -> tbox) -> vbox =
   fun p ao x f ->
-    let b = vbind (mk_free V) x.elt f in
+    let v = new_var (mk_free V) x.elt in
+    let b = bind_var v (f v) in
     box_apply2 (fun ao b -> Pos.make p (LAbs(ao, (x.pos, b)))) (box_opt ao) b
 
 let lvabs : popt -> pbox option -> vvar -> tbox -> vbox =
@@ -393,6 +377,10 @@ let t_vari : popt -> tvar -> tbox = vari
 let valu : popt -> vbox -> tbox =
   fun p -> box_apply (fun v -> Pos.make p (Valu v))
 
+let idt_valu : (v, t) bndr =
+  let x = new_var (mk_free V) "x" in
+  (None, Bindlib.unbox (Bindlib.bind_var x (valu None (vari None x))))
+
 let appl : popt -> tbox -> tbox -> tbox =
   fun p -> box_apply2 (fun t u -> Pos.make p (Appl(t,u)))
 
@@ -402,7 +390,8 @@ let sequ : popt -> tbox -> tbox -> tbox =
 
 let mabs : popt -> strloc -> (svar -> tbox) -> tbox =
   fun p x f ->
-    let b = vbind (mk_free S) x.elt f in
+    let v = new_var (mk_free S) x.elt in
+    let b = bind_var v (f v) in
     box_apply (fun b -> Pos.make p (MAbs(x.pos, b))) b
 
 let name : popt -> sbox -> tbox -> tbox =
@@ -413,15 +402,17 @@ let proj : popt -> vbox -> strloc -> tbox =
 
 let case : popt -> vbox -> (popt * strloc * (vvar -> tbox)) A.t -> tbox =
   fun p v m ->
-    let f (cpos, x, f) =
-      let b = vbind (mk_free V) x.elt f in
+  let f (cpos, x, f) =
+      let v = new_var (mk_free V) x.elt in
+      let b = bind_var v (f v) in
       box_apply (fun b -> (cpos, (x.pos, b))) b
     in
     box_apply2 (fun v m -> Pos.make p (Case(v,m))) v (A.map_box f m)
 
 let fixy : popt -> bool -> strloc -> (tvar -> vbox) -> tbox =
   fun p safe x f ->
-    let b = vbind (mk_free T) x.elt f in
+    let v = new_var (mk_free T) x.elt in
+    let b = bind_var v (f v) in
     box_apply (fun b -> Pos.make p (FixY(safe, (x.pos, b)))) b
 
 let prnt : popt -> string -> tbox =
@@ -451,9 +442,11 @@ let such : type a b. popt -> a v_or_t -> b desc -> such_var box
       -> (c, prop * a ex loc) bseq box = fun fs ->
     match fs with
     | FLast(s,x,f) ->
-        box_apply (fun b -> BLast(s,b)) (vbind (mk_free s) x.elt f)
+        let v = new_var (mk_free s) x.elt in
+        box_apply (fun b -> BLast(s,b)) (bind_var v (f v))
     | FMore(s,x,f) ->
-        let b = vbind (mk_free s) x.elt (fun x -> aux (f x)) in
+        let v = new_var (mk_free s) x.elt in
+        let b = bind_var v (aux (f v)) in
         box_apply (fun b -> BMore(s,b)) b
   in
   fun p t d sv f ->
@@ -499,26 +492,30 @@ let dsum : popt -> (popt * pbox) A.t -> pbox =
 
 let univ : type a. popt -> strloc -> a sort -> (a var -> pbox) -> pbox =
   fun p x s f ->
-    let b = vbind (mk_free s) x.elt f in
+    let v = new_var (mk_free s) x.elt in
+    let b = bind_var v (f v) in
     box_apply (fun b -> Pos.make p (Univ(s, (x.pos, b)))) b
 
 let bottom : prop = unbox (univ None (Pos.none "x") P (fun x -> p_vari None x))
 
 let exis : type a. popt -> strloc -> a sort -> (a var -> pbox) -> pbox =
   fun p x s f ->
-    let b = vbind (mk_free s) x.elt f in
+    let v = new_var (mk_free s) x.elt in
+    let b = bind_var v (f v) in
     box_apply (fun b -> Pos.make p (Exis(s, (x.pos, b)))) b
 
 let top : prop = unbox (exis None (Pos.none "x") P (fun x -> p_vari None x))
 
 let fixm : popt -> obox -> strloc -> (pvar -> pbox) -> pbox =
   fun p o x f ->
-    let b = vbind (mk_free P) x.elt f in
+    let v = new_var (mk_free P) x.elt in
+    let b = bind_var v (f v) in
     box_apply2 (fun o b -> Pos.make p (FixM(o, (x.pos, b)))) o b
 
 let fixn : popt -> obox -> strloc -> (pvar -> pbox) -> pbox =
   fun p o x f ->
-    let b = vbind (mk_free P) x.elt f in
+    let v = new_var (mk_free P) x.elt in
+    let b = bind_var v (f v) in
     box_apply2 (fun o b -> Pos.make p (FixN(o, (x.pos, b)))) o b
 
 let memb : popt -> tbox -> pbox -> pbox =
@@ -554,12 +551,21 @@ let goal : type a. popt -> a sort -> string -> a ex loc box =
 
 (** {5 syntactic sugars} *)
 
-(** Syntactic sugar for the projection of a term. *)
-let t_proj : popt -> tbox -> strloc -> tbox =
-  fun p t l ->
-    let f x = proj p (v_vari None x) l in
-    let u = valu p (labs p None (Pos.none "x") f) in
-    appl p u t
+(** Syntactic sugar for projections of a term. *)
+let t_proj : popt -> tbox -> (popt * strloc) list -> tbox =
+  fun p t ls ->
+    if ls = [] then t else
+    let rec fn ls =
+      match ls with
+      | []    -> assert false
+      | [(p,l)]   ->
+         let f x = proj p (v_vari None x) l in
+         valu p (labs p None (Pos.none "x") f)
+      | (p,l)::ls ->
+         let f x = appl p (fn ls) (proj p (v_vari None x) l) in
+         valu p (labs p None (Pos.none "x") f)
+    in
+    appl p (fn ls) t
 
 (** Syntactic sugar to build redexes *)
 let rec redexes : pos option -> (vvar * tbox) list -> tbox -> tbox =

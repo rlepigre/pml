@@ -613,25 +613,23 @@ val test5 : test1 ≡ test4 = qed
 
 val exp : nat ⇒ nat ⇒ nat = exp_ring semi_nat
 
-val test_binome : ∀x y∈nat, exp (add x y) 2 ≡ add (exp x 2) (add (mul 2 (mul x y)) (exp y 2)) =
+val test_binome : ∀x y∈nat, (x + y) ** 2 ≡ x ** 2 + 2 * x * y + y ** 2 =
   fun a b {
     let x = Var[0];
     let y = Var[1];
     let env : nat ⇒ nat = fun v { case v { Zero → a | S[p] → b } };
     use eval_cor semi_nat Exp[(Add[(x,y)],2)] env;
-    use eval_cor semi_nat Add[(Exp[(x,2)],Add[(Mul[(Cst[2],Mul[(x,y)])],Exp[(y,2)])])] env;
+    use eval_cor semi_nat Add[(Add[(Exp[(x,2)],Mul[(Mul[(Cst[2],x)],y)])],Exp[(y,2)])] env;
     qed
   }
 
-val test_trinome : ∀x y∈nat, exp (add x y) 3 ≡ add (exp x 3) (add (mul 3 (mul (exp x 2)  y))
-                                                            (add (mul 3 (mul x (exp y 2)))
-                                                                (exp y 3))) =
+val test_trinome : ∀x y∈nat, (x + y) ** 3 ≡ x ** 3 + 3 * x ** 2 * y + 3 * x * y ** 2 + y ** 3 =
   fun a b {
     let x = Var[0];
     let y = Var[1];
     let env : nat ⇒ nat = fun v { case v { Zero → a | S[p] → b } };
     use eval_cor semi_nat Exp[(Add[(x,y)],3)] env;
-    use eval_cor semi_nat Add[(Exp[(x,3)],Add[(Mul[(Cst[3],Mul[(Exp[(x,2)],y)])],
-                         Add[(Mul[(Cst[3],Mul[(x,Exp[(y,2)])])],Exp[(y,3)])])])] env;
+    use eval_cor semi_nat Add[(Add[(Add[(Exp[(x,3)],Mul[(Mul[(Cst[3],Exp[(x,2)])],y)])],
+                          Mul[(Mul[(Cst[3],x)],Exp[(y,2)])])],Exp[(y,3)])] env;
     qed
   }
