@@ -101,7 +101,7 @@ val rec sorted_prefix : ∀a, ∀r∈rel⟨a⟩, ∀l1 l2∈list⟨a⟩,
 //        deduce is_sorted leq ((x::xs) @ (p::l2));
 //        deduce is_sorted leq (x::(xs @ (p::l2)));
 //        show is_sorted leq (xs @ (p::l2)) using {
-//          {- FIXME -}
+//          {- goal. -}
 //          //sorted_tail leq x (xs @ (p::l2)) {}
 //        };
 //        show is_sorted leq (xs @ l2) using sorted_remove leq xs p l2 {};
@@ -113,7 +113,7 @@ val rec sorted_prefix : ∀a, ∀r∈rel⟨a⟩, ∀l1 l2∈list⟨a⟩,
 //              z::zs →
 //                showing is_sorted leq (x::z::zs);
 //                showing leq x z;
-//                {- TODO -}
+//                {- goal -}
 //            }
 //          y::ys →
 //            showing is_sorted leq ((x::y::ys) @ l2);

@@ -45,7 +45,6 @@ val test : {} =
   print "    = ";
   println_list print_nat (isort nat_order l)
 
-
 // Prove that the produced list is sorted.
 
 val rec insert_sorted : ∀a, ∀o∈total_order⟨a⟩, ∀e∈a, ∀l∈slist⟨a,o⟩,
@@ -108,7 +107,7 @@ val other_isort : ∀a, ∀o∈total_order⟨a⟩, list⟨a⟩ ⇒ slist⟨a,o�
 // Prove that the elements are preserved (we could add the hypothesis that
 // the list we insert into is sorted. However, this is more general.
 
-val rec insert_count : ∀a, ∀o∈total_order⟨a⟩, ∀x∈a, ∀e∈a, ∀l∈list⟨a⟩,
+val rec insert_count_eq : ∀a, ∀o∈total_order⟨a⟩, ∀x∈a, ∀e∈a, ∀l∈list⟨a⟩,
     o.cmp x e && o.cmp e x ⇒ S[count o x l] ≡ count o x (insert o e l) =
   fun o x e l _ {
     case l {
@@ -120,7 +119,7 @@ val rec insert_count : ∀a, ∀o∈total_order⟨a⟩, ∀x∈a, ∀e∈a, ∀l
           qed
         } else {
           show S[count o x tl] ≡ count o x (insert o e tl)
-            using insert_count o x e tl {};
+            using insert_count_eq o x e tl {};
           showing S[count o x (hd::tl)]
                 ≡ count o x (hd::insert o e tl);
           if o.cmp x hd && o.cmp hd x {
@@ -134,11 +133,11 @@ val rec insert_count : ∀a, ∀o∈total_order⟨a⟩, ∀x∈a, ∀e∈a, ∀l
                   ≡ count o x (insert o e tl);
             qed
           }
-        } 
+        }
     }
   }
 
-val rec lemma2 : ∀a, ∀o∈total_order⟨a⟩, ∀x∈a, ∀e∈a, ∀l∈list⟨a⟩,
+val rec insert_count_ne : ∀a, ∀o∈total_order⟨a⟩, ∀x∈a, ∀e∈a, ∀l∈list⟨a⟩,
     (o.cmp x e && o.cmp e x ⇒ ∀x,x) ⇒
     count o x l ≡ count o x (insert o e l) =
   fun o x e l absurd {
@@ -157,7 +156,7 @@ val rec lemma2 : ∀a, ∀o∈total_order⟨a⟩, ∀x∈a, ∀e∈a, ∀l∈lis
             qed
           } else {
             show count o x tl ≡ count o x (insert o e tl)
-              using lemma2 o x e tl absurd;
+              using insert_count_ne o x e tl absurd;
             showing count o x (hd::tl)
                   ≡ count o x (hd::insert o e tl);
             if o.cmp x hd && o.cmp hd x {
@@ -184,7 +183,7 @@ val rec isort_count : ∀a, ∀o∈total_order⟨a⟩, ∀e∈a, ∀l∈list⟨a
         showing count o e [] ≡ count o e (isort o []);
         showing count o e [] ≡ count o e [];
         qed
-      hd::tl → 
+      hd::tl →
         show count o e tl ≡ count o e (isort o tl)
           using isort_count o e tl;
         showing count o e (hd::tl)
@@ -196,7 +195,7 @@ val rec isort_count : ∀a, ∀o∈total_order⟨a⟩, ∀e∈a, ∀l∈list⟨a
                 ≡ count o e (isort o (hd::tl));
           showing S[count o e (isort o tl)]
                 ≡ count o e (insert o hd (isort o tl));
-          use insert_count o e hd (isort o tl) {}
+          use insert_count_eq o e hd (isort o tl) {}
         } else {
           showing count o e tl
                 ≡ count o e (isort o (hd::tl));
@@ -205,7 +204,7 @@ val rec isort_count : ∀a, ∀o∈total_order⟨a⟩, ∀e∈a, ∀l∈list⟨a
           showing count o e (isort o tl)
                 ≡ count o e (insert o hd (isort o tl));
           let absurd : o.cmp e hd && o.cmp hd e ⇒ ∀x,x = fun _ { ✂ };
-          use lemma2 o e hd (isort o tl) absurd
+          use insert_count_ne o e hd (isort o tl) absurd
         }
     }
   }
