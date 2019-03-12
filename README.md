@@ -29,18 +29,16 @@ with "bash on Windows").
 
 List of dependencies:
  - GNU make,
- - OCaml (at least 4.04.0),
- - ocamlbuild,
- - findlib,
+ - OCaml (at least 4.04.0) with Opam,
+ - dune (at least 1.2.0),
  - bindlib 5.0.1 (https://github.com/rlepigre/ocaml-bindlib),
- - earley 2.0.0 (https://github.com/rlepigre/ocaml-earley),
+ - earley 2.0.0 (https://github.com/rlepigre/ocaml-earley).
 
 Using Opam, a suitable OCaml environment can be setup as follows.
 ```bash
 opam switch 4.05.0
 eval `opam config env`
-opam install ocamlfind ocamlbuild
-opam install bindlib.5.0.1 earley.2.0.0
+opam install dune bindlib.5.0.1 earley.2.0.0
 ```
 
 To compile PML₂, just run the command `make` in the source directory. This
@@ -59,10 +57,10 @@ Organization of the repository
 This folder contains files related to the PML2 project.
 
 The source files can be found in the following folders:
- - `util` contains a set of libraries not directly related to PML2,
- - `parser` contains a low level AST of the language and the parser,
- - `kernel` contains the core of PML2 (type checking, equivalence, AST...),
- - `pml2` contains the main program.
+ - `src/util` contains a set of libraries not directly related to PML2,
+ - `src/parser` contains a low level AST of the language and the parser,
+ - `src/kernel` contains the core of PML2 (type checking, equivalence, AST...),
+ - `src/pml.ml` is the main program.
 
 Other directories:
  - `editors` contains PML2 modes for editors (vim and emacs only),
@@ -78,12 +76,12 @@ Where to start in the code
 
 My advice to start looking at the code would be to take a look at the three
 different abstract syntax representations.
- - The main abstract syntax is implemented as a GADT in `kernel/ast.ml`,
- - The abstract syntax after parsing can be found in `parser/raw.ml`, together
-   with the first level of type checking (sorting),
+ - The main abstract syntax is implemented as a GADT in `src/kernel/ast.ml`,
+ - The abstract syntax after parsing can be found in `src/parser/raw.ml`,
+   together with the first level of type checking (sorting),
  - The graph representation of terms for the decision of equivalence can be
-   found in `ast/equiv.ml`.
+   found in `src/kernel/equiv.ml`.
 
-The implementation of type checking can be found in `kernel/typing.ml`, and
-the function for comparing expressions (including the unification functions)
-are in `kernel/compare.ml`.
+The implementation of type checking can be found in `src/kernel/typing.ml`,
+and the function for comparing expressions (including the unification
+functions) are in `src/kernel/compare.ml`.
