@@ -19,4 +19,4 @@ let add : 'a -> 'b -> ('a, 'b) t -> ('a, 'b) t = fun key v bcks ->
   { bcks with data = find_and_add [] bcks.data }
 
 let find : 'a -> ('a, 'b) t -> 'b list = fun key bcks ->
-  try assq key bcks.data with Not_found -> []
+  try snd (List.find (fun (x,_) ->  bcks.eq key x) bcks.data) with Not_found -> []
