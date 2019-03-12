@@ -30,7 +30,7 @@ with "bash on Windows").
 List of dependencies:
  - GNU make,
  - OCaml (at least 4.04.0) with Opam,
- - dune (at least 1.2.0),
+ - dune (at least 1.7.0),
  - bindlib 5.0.1 (https://github.com/rlepigre/ocaml-bindlib),
  - earley 2.0.0 (https://github.com/rlepigre/ocaml-earley).
 
@@ -38,7 +38,7 @@ Using Opam, a suitable OCaml environment can be setup as follows.
 ```bash
 opam switch 4.05.0
 eval `opam config env`
-opam install dune bindlib.5.0.1 earley.2.0.0
+opam install dune>=1.7.0 bindlib.5.0.1 earley.2.0.0
 ```
 
 To compile PML₂, just run the command `make` in the source directory. This

@@ -29,7 +29,7 @@ before_install:
   - opam update
   - opam switch "$OCAML_VERSION"
   - eval $(opam env)
-  - opam install earley.2.0.0 bindlib.5.0.1
+  - opam install dune>=1.7.0 earley.2.0.0 bindlib.5.0.1
 
 install:
   - make
@@ -40,4 +40,4 @@ script:
 
 notifications:
   email:
-    - rodolphe.lepigre@inria.fr
+    - lepigre@mpi-sws.org
