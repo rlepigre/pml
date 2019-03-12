@@ -462,7 +462,7 @@ let children_v_node : v_node -> (par_key * Ptr.t) list = fun n ->
   | VN_LAbs b     -> let kn n = KV_LAbs n in
                      snd (children_bndr_closure b kn (0, []))
   | VN_Cons(a,pv) -> [(KV_Cons a.elt, Ptr.V_ptr pv)]
-  | VN_Reco(m)    -> A.fold (fun a p s -> ((KV_Reco a, Ptr.V_ptr p) :: s)) m []
+  | VN_Reco(m)    -> A.fold (fun a p s -> ((KV_Reco a, Ptr.V_ptr p)::s)) m []
   | VN_VWit _
   | VN_UWit _
   | VN_EWit _
@@ -725,7 +725,8 @@ let insert_t_node : bool -> t_node -> pool -> TPtr.t * pool =
       | (k,n)::l ->
          let f k n = MapKey.find k (parents n po) in
          let possible =
-           List.fold_left (fun acc (k,n) -> PtrSet.inter (f k n) acc) (f k n) l
+           let fn acc (k,n) = PtrSet.inter (f k n) acc in
+           List.fold_left fn (f k n) l
          in
          let fn po n =
            match n with
@@ -810,8 +811,8 @@ let rec add_term :  bool -> bool -> pool -> term
                      insert (TN_Proj(pv,l)) po
     | Case(v,m)   -> let (pv, po) = add_valu po v in
                      let (m,  po) =
-                       A.fold_map (fun _ (_,x) po -> add_bndr_closure po V T x)
-                                  m po
+                       let fn _ (_,x) po = add_bndr_closure po V T x in
+                       A.fold_map fn m po
                      in
                      insert (TN_Case(pv,m)) po
     | FixY(_,b)   -> let (cl, po) = add_bndr_closure po T V b in
@@ -1715,9 +1716,11 @@ let add_equiv : equiv -> pool -> pool = fun (t,u) pool ->
   let (pt, pool) = add_term true true pool t in
   let (pu, pool) = add_term true true pool u in
   log_edp2 "add_equiv: insertion at %a and %a" Ptr.print pt Ptr.print pu;
-  log_edp2 "add_equiv: obtained context (1):\n%a" (print_pool "        ") pool;
+  log_edp2 "add_equiv: obtained context (1):\n%a"
+    (print_pool "        ") pool;
   let pool = union pt pu pool in
-  log_edp2 "add_equiv: obtained context (2):\n%a" (print_pool "        ") pool;
+  log_edp2 "add_equiv: obtained context (2):\n%a"
+    (print_pool "        ") pool;
   pool
 
 let add_vptr_nobox : VPtr.t -> pool -> pool = fun vp po ->
@@ -1869,7 +1872,8 @@ let equiv_error : rel -> blocked list -> 'a =
 (** avoid UWit and EWit, that makes duplicate. However, UWit and EWit
     can still appear as sub terms.
     - Also excludes unset uvar.
-    - and case with only one case (temporary fix to avoid subtyping witness) *)
+    - and case with only one case (temporary fix to avoid subtyping
+      witness) *)
 let rec not_uewit : type a. a ex loc -> bool =
   fun e ->
     match (Norm.whnf e).elt with

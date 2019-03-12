@@ -137,21 +137,22 @@ type _ ex =
 (** This is a structure to represent hash consed epsilon.
     See epsilon.ml for more comments *)
 and ('a,'b) eps =
-  { hash : int ref         (* hash of this epsilon *)
-  ; name : 'b              (* name, for printing epsilons *)
-  ; vars : s_elt list ref  (* lists of unifiation variables used *)
-  ; refr : unit -> unit    (* function to refresh the epsilon when unificaltion
-                              variables are instanciated *)
-  ; valu : 'a ref          (* value of the epsilon *)
-  ; pure : bool Lazy.t ref (* purity means using only intuitionistic (a.k.a.
-                              total) arrows.
-                              It must be lazy, otherwise we would infer total
-                              arrows for all arrows used in epsilon. We lazy,
-                              we only force the arrow to be total when the
-                              purity of the epsilon is required.
-
-                              It must be a ref, because if should be updated
-                              when unification variables are instanciated. *)
+  { hash : int ref
+  (** Hash of this epsilon. *)
+  ; name : 'b
+  (** Name, for printing the epsilons. *)
+  ; vars : s_elt list ref
+  (** List of unifiation variables used. *)
+  ; refr : unit -> unit
+  (** Refresh the epsilon on unificalion variables instanciation. *)
+  ; valu : 'a ref
+  (** Value of the epsilon. *)
+  ; pure : bool Lazy.t ref
+  (** Purity means using only intuitionistic (a.k.a. total) arrows. It must be
+      lazy, otherwise we would infer total arrows for every arrows used inside
+      epsilons.  Using laziness,  we only force the arrow to be total when the
+      purity of the epsilon is required.  A reference must be used because the
+      value should be updated on unification variables are instanciation. *)
   }
 
 and vwit = (v, t) bndr * p ex loc * p ex loc
@@ -228,12 +229,12 @@ and 'a uvar =
                                    pure i.e. using only total arrows *)
 
 and 'a uvar_val =
-  | Unset of (unit -> unit) list (* when the unification variable is not set,
-                                    we can register a list of functions to call
-                                    when we set it. Currently it is used to
-                                    rehash epsilons using the unification
-                                    variables. *)
-  | Set of 'a ex loc  (* The value of the unification variable when set *)
+  | Set   of 'a ex loc
+  (** The value of the unification variable when set *)
+  | Unset of (unit -> unit) list
+  (** When a unification variable is not set, we can register a list of
+      functions to call on its instantiation. Currently, this is used to
+      rehash epsilons using the unification variables. *)
 
 and set_param =
   | Alvl of int * int
@@ -496,7 +497,8 @@ let univ : type a. popt -> strloc -> a sort -> (a var -> pbox) -> pbox =
     let b = bind_var v (f v) in
     box_apply (fun b -> Pos.make p (Univ(s, (x.pos, b)))) b
 
-let bottom : prop = unbox (univ None (Pos.none "x") P (fun x -> p_vari None x))
+let bottom : prop =
+  unbox (univ None (Pos.none "x") P (fun x -> p_vari None x))
 
 let exis : type a. popt -> strloc -> a sort -> (a var -> pbox) -> pbox =
   fun p x s f ->

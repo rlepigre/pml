@@ -284,10 +284,11 @@ let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
                      in fprintf ch "{%a}" (print_map pelt "; ") m
   | Tuple ls      -> fprintf ch "(%a)" (print_list ext ", ") ls
   | TupleType ls  -> let (l,r) = if Prp P < pr then ("(",")") else ("","") in
-                     fprintf ch "%s%a%s" l (print_list (ex (Prp R)) " × ") ls r
+                     fprintf ch "%s%a%s" l
+                       (print_list (ex (Prp R)) " × ") ls r
   | DepSum(l,a,p) -> let pelt ch x = fprintf ch "%s" (name_of x) in
                      fprintf ch "∃%a∈%a, %a"
-                             (print_list pelt " ") l exp a exp p
+                       (print_list pelt " ") l exp a exp p
   | Compr(x,p,r)  -> fprintf ch "{ %s ∈ %a | %a }" (name_of x) exp p rel r
   | Def e         -> ex pr ch e
   | NoSugar       ->

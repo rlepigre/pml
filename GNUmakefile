@@ -36,20 +36,7 @@ src/config.ml: GNUmakefile
 
 # Checks on the source code.
 check:
-	# FIXMES/TODOS
-	@f=`grep FIXME */*.ml */*.mli */*.pml */*/*.pml  | wc -l`;\
-	 ft=`grep FIXME */*.ml */*.mli */*.pml */*/*.pml | grep -P -v '#[0-9]+' | wc -l`;\
-	 echo FIXME: $$ft/$$f '(without ticket/all)'
-	@grep FIXME */*.ml */*.mli */*.pml */*/*.pml -n | grep -P -v '#[0-9]+' || true
-	@f=`grep TODO */*.ml */*.mli */*.pml */*/*.pml | wc -l`;\
-	 ft=`grep TODO */*.ml */*.mli */*.pml */*/*.pml | grep -P -v '#[0-9]+' | wc -l`;\
-	 echo TODO: $$ft/$$f '(without ticket/all)'
-	@grep TODO */*.ml */*.mli */*.pml */*/*.pml -n | grep -P -v '#[0-9]+' || true
-	# TAB/LINES TOO LONG
-	@echo Lines with TAB:
-	@grep -P "\t" */*.ml */*.mli; true
-	@echo Lines too long:
-	@grep -n '^.\{80\}' */*.ml */*.mli; true
+	@sh tools/sanity_check.sh
 
 # Lib target (PML handles the dependencies).
 .PHONY: lib
@@ -58,9 +45,9 @@ lib: bin $(LIB_FILES)
 	@for f in $(LIB_FILES); do dune exec -- pml --quiet $$f || break ; done
 
 # Test target.
-.PHONY: test
-TEST_FILES = $(wildcard examples/*.pml test/*.pml test/*/*.pml)
-test: bin lib $(TEST_FILES)
+.PHONY: tests
+TEST_FILES = $(wildcard examples/*.pml tests/*.pml tests/*/*.pml)
+tests: bin lib $(TEST_FILES)
 	@for f in $(TEST_FILES); do echo $$f; dune exec -- pml --quiet $$f || break ; done
 
 # target to mesure time

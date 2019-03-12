@@ -10,6 +10,9 @@ type cmp = Min1 | Zero | Infi
 let cmp_to_string : cmp -> string =
   function Min1 -> "<" | Zero -> "=" | Infi -> "?"
 
+let pp_cmp : out_channel -> cmp -> unit = fun oc c ->
+  output_string oc (cmp_to_string c)
+
 (** Addition operation (minimum) *)
 let (<+>) : cmp -> cmp -> cmp = min
 
@@ -166,9 +169,9 @@ open Output
 let log_scp = Log.register 'y' (Some "scp") "size change principle"
 let log_scp = Log.(log_scp.p)
 
-let print_call : out_channel -> symbol IMap.t -> call -> unit = fun ff tbl c ->
-  let caller_sym = IMap.find c.caller tbl in
-  let callee_sym = IMap.find c.callee tbl in
+let print_call : out_channel -> symbol IMap.t -> call -> unit = fun ff m c ->
+  let caller_sym = IMap.find c.caller m in
+  let callee_sym = IMap.find c.callee m in
   let print_args = print_array output_string "," in
   Printf.fprintf ff "%s%d(%a%!) <- %s%d%!(" caller_sym.name c.caller
     print_args caller_sym.args callee_sym.name c.callee;
@@ -180,7 +183,7 @@ let print_call : out_channel -> symbol IMap.t -> call -> unit = fun ff tbl c ->
       if c <> Infi then
         begin
           let sep = if !some then " " else "" in
-          Printf.fprintf ff "%s%s%s" sep (cmp_to_string c) caller_sym.args.(j);
+          Printf.fprintf ff "%s%a%s" sep pp_cmp c caller_sym.args.(j);
           some := true
         end
     done

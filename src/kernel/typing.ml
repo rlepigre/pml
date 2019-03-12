@@ -227,8 +227,8 @@ let learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
     let twit = Pos.none (Valu wit) in
     match (Norm.whnf a).elt with
     | HDef(_,e)  -> fn ctx wit e.expr_def
-    | Memb(t,a)  -> let equations = learn ctx.equations (Equiv(twit,true,t)) in
-                    fn {ctx with equations} wit a
+    | Memb(t,a)  -> let eq = learn ctx.equations (Equiv(twit,true,t)) in
+                    fn {ctx with equations = eq} wit a
     | Rest(a,c)  -> let equations = learn ctx.equations c in
                     fn {ctx with equations} wit a
     | Exis(s, f) -> let (t, ctx_names) = ewit ctx.ctx_names s twit f in
@@ -779,10 +779,9 @@ and check_sub : ctxt -> prop -> prop -> check_sub = fun ctx a b ->
             then raise Exit;
             (* Check positivity of ordinals. *)
             let ok =
-              List.for_all (fun (o,_) -> Ordinal.is_pos ctx.positives o)
-                           spe.sspe_relat &&
-              List.for_all (fun (o,o') -> Ordinal.less_ordi ctx.positives o' o)
-                           spe.sspe_relat
+              let fn (o,_) = Ordinal.is_pos ctx.positives o in
+              let gn (o1,o2) = Ordinal.less_ordi ctx.positives o2 o1 in
+              List.for_all fn spe.sspe_relat && List.for_all gn spe.sspe_relat
             in
             if not ok then raise Exit;
             (* Add call to call-graph and build the proof. *)
@@ -840,7 +839,8 @@ and check_fix
            log_typ "an induction hypothesis has been found, trying";
            log_typ "   %a\n < %a" Print.ex (snd spe.fspe_judge) Print.ex c;
            let prf =
-             Chrono.add_time type_chrono (subtype ctx t (snd spe.fspe_judge)) c
+             Chrono.add_time type_chrono
+               (subtype ctx t (snd spe.fspe_judge)) c
            in
            log_typ "it matches\n%!";
            (* Add call to call-graph and build the proof. *)
@@ -1275,7 +1275,7 @@ and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
               let (v,ctx) = learn_value ctx u a in
               let ctx = learn_equivalences ctx v a in
               type_term ctx f c
-            with Contradiction -> warn_unreachable ctx f; ((t,c,Typ_Scis), Tot)
+            with Contradiction -> warn_unreachable ctx f; ((t,c,Typ_Scis),Tot)
                | Sys.Break -> raise Sys.Break
                | _ when strong && is_typed VoT_T f ->
                   UTimed.Time.rollback st;
@@ -1286,8 +1286,8 @@ and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
         let (p1,p2,tot1,strong) =
           (* when u is not typed and f is, typecheck f first *)
           if is_typed VoT_T f && not (is_typed VoT_T u) then
-            (* f will be of type ae => c, with ae = u∈a if we know the function
-               will be total (otherwise it is illegal) *)
+            (* f will be of type ae => c, with ae = u∈a if we know the
+               function will be total (otherwise it is illegal) *)
             let strong = know_tot tot in
             (* type check f *)
             let (p1,tot1) = check_f ctx strong a in
@@ -1401,9 +1401,9 @@ and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
         let (a,t) = instantiate ctx r.binder in
         let (b,wopt,rev) =
           match r.opt_var with
-          | SV_None    -> (c                  , Some(t), true)
-          | SV_Valu(v) -> (extract_vwit_type v, Some(Pos.none (Valu v)), false)
-          | SV_Stac(s) -> (extract_swit_type s, None, false)
+          | SV_None   -> (c                  , Some(t)                , true )
+          | SV_Valu v -> (extract_vwit_type v, Some(Pos.none (Valu v)), false)
+          | SV_Stac s -> (extract_swit_type s, None                   , false)
         in
         let _ =
           try

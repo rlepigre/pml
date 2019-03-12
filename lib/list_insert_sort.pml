@@ -133,7 +133,7 @@ val rec insert_count_eq : ∀a, ∀o∈total_order⟨a⟩, ∀x∈a, ∀e∈a, �
                   ≡ count o x (insert o e tl);
             qed
           }
-        } 
+        }
     }
   }
 
@@ -183,7 +183,7 @@ val rec isort_count : ∀a, ∀o∈total_order⟨a⟩, ∀e∈a, ∀l∈list⟨a
         showing count o e [] ≡ count o e (isort o []);
         showing count o e [] ≡ count o e [];
         qed
-      hd::tl → 
+      hd::tl →
         show count o e tl ≡ count o e (isort o tl)
           using isort_count o e tl;
         showing count o e (hd::tl)

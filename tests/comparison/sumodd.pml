@@ -1,5 +1,5 @@
 include lib.nat
-include test.polynomials
+include tests.polynomials
 
 val rec sum_odd : nat ⇒ nat = fun n {
   case n {

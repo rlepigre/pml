@@ -1129,7 +1129,8 @@ let type_def : Pos.pos -> [`Non | `Rec | `CoRec] -> strloc
 
 type rec_t = [ `Non | `Rec | `Unsafe ]
 
-let val_def : rec_t -> strloc -> raw_ex -> raw_ex -> toplevel = fun r id a t ->
+let val_def : rec_t -> strloc -> raw_ex -> raw_ex -> toplevel =
+    fun r id a t ->
   let t = if r = `Non then t else Pos.make t.pos (EFixY(r=`Rec,id, t)) in
   Valu_def(id, a, t)
 
@@ -1227,7 +1228,7 @@ let let_binding _loc r arg t u =
       in
       in_pos _loc (EAppl(Pos.make u.pos (ELAbs(((id, ao), []), u)), t))
   | `LetArgRec(fs)    ->
-      if r <> `Non then Earley.give_up (); (* "let rec" is meaningless here. *)
+      if r <> `Non then Earley.give_up (); (* "let rec" meaningless here. *)
       let xs = List.map snd fs in
       let u = Pos.make u.pos (ELAbs((List.hd xs, List.tl xs), u)) in
       let x = Pos.none "$rec$" in
@@ -1238,7 +1239,7 @@ let let_binding _loc r arg t u =
       let u = List.fold_left fn u fs in
       in_pos _loc (EAppl(Pos.make u.pos (ELAbs(((x, None), []), u)), t))
   | `LetArgTup(fs)    ->
-      if r <> `Non then Earley.give_up (); (* "let rec" is meaningless here. *)
+      if r <> `Non then Earley.give_up (); (* "let rec" meaningless here. *)
       let u = Pos.make u.pos (ELAbs((List.hd fs, List.tl fs), u)) in
       let x = Pos.none "$tup$" in
       let is = List.mapi (fun i _ -> Pos.none (string_of_int (i+1))) fs in
@@ -1352,9 +1353,11 @@ let suppose _loc props t =
   in_pos _loc (ELAbs((List.hd args, List.tl args),t))
 
 let assume _loc t u =
-  in_pos _loc (ECase(t, ref `T, [((Pos.none "false", None), in_pos _loc EUnit);
-                                 ((Pos.none "true" , None), u)]))
+  in_pos _loc (ECase(t, ref `T,
+    [ ((Pos.none "false", None), in_pos _loc EUnit)
+    ; ((Pos.none "true" , None), u) ]))
 
 let know _loc t u =
-  in_pos _loc (ECase(t, ref `T, [((Pos.none "false", None), in_pos _loc EScis);
-                                 ((Pos.none "true" , None), u)]))
+  in_pos _loc (ECase(t, ref `T,
+    [ ((Pos.none "false", None), in_pos _loc EScis)
+    ; ((Pos.none "true" , None), u) ]))

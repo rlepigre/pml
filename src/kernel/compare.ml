@@ -104,7 +104,7 @@ let {eq_expr; eq_bndr} =
     (** bind_args sa args b, uses our ast mapper to bind all the arguments
         present in the list args in b. This is the main auxiliary function for
         immitate *)
-    let bind_args : type a b. a sort -> (a -> b) args -> b ex loc -> a ex loc =
+    let bind_args : type a b.a sort -> (a -> b) args -> b ex loc -> a ex loc =
       fun sa args b ->
         let b' : b ebox =
           let mapper : type a. recall -> a ex loc -> a ebox =

@@ -49,7 +49,7 @@ val itl : stream⟨nat⟩ ⇒ either⟨stream⟨even⟩, stream⟨odd⟩⟩ =
     }
   }
 
-include test.stream_nat
+include tests.stream_nat
 
 // Compute the list of the first n elements of a stream.
 val rec takes : ∀a, nat ⇒ stream⟨a⟩ → list⟨a⟩ =
