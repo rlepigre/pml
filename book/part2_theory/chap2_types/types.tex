@@ -21,30 +21,697 @@
   \end{align*}
 \end{definition}
 
-\begin{definition}[syntax]
+
+
+
+One of the singularities of the \pml language is that it is built on
+semantic intuitions. In particular, the interpretation of types precedes
+the typing and subtyping rules. This means that we give ourselves a
+semantics, and then only consider typing rules that are adequate with
+respect to this semantics.
+
+\begin{figure}
   \begin{align*}
-    A,B \bnfeq
-      &χ \bnfor (χ^s ↦ A) \bnfor A \langle B \rangle
-        \tag{higher-order $λ$-calculus} \\
-      \bnfor &(A, B) \bnfor A.1 \bnfor A.2 % FIXME notation
-        \tag{higher-order product} \\
-      \bnfor &∀χ^s.A \bnfor ∃χ^s.A
-        \tag{quantifiers} \\
-      \bnfor &ε_{χ^s}(t∉A) \bnfor ε_{χ^s}(t∈A)
-        \tag{choice operators} \\
-      \bnfor &μ_A χ^s.B \bnfor ν_A χ^s.B
-        \tag{fixpoints} \\
-      \bnfor &\{(l_i : A_i)_{i∈I}\}
-        \tag{product type} \\
-      \bnfor &[(C_i : A_i)_{i∈I}]
-        \tag{disjoint sum type} \\
-      \bnfor &A ⇒ B
-        \tag{function type} \\
-      \bnfor &λx.A \bnfor A\,B
-        \tag{$λ$-abstraction and application} \\
-      \bnfor &\{(l_i = A_i)_{i∈I}\} \bnfor C_k[A]
-        \tag{records and variants} \\
-      \bnfor &[A \,|\, (C_i[x_i] → A_i)_{i∈I}] \bnfor A.l_k
-        \tag{matching and projection} \\
+    E,F \bnfeq&\\
+    &\hspace{-1cm}\text{(Higher-order components)}\\
+    \bnfor &\Phi                   \tag{element of a semantic domain}\\
+    \bnfor &\chi                   \tag{variable}\\
+    \bnfor &(\chi:s \mapsto E)     \tag{higher-order function}\\
+    \bnfor &E\langle F \rangle     \tag{higher-order application}\\
+    \bnfor &\varepsilon_{\chi:s}(E \in F) \bnfor
+      \varepsilon_{\chi:s}(E \notin F)
+      \tag{Choice operators for quantifiers}\\
+    &\hspace{-1cm}\text{(Value components)}\\
+    \bnfor &\lambda \chi.E
+      \tag{$\lambda$-abstraction, $\chi \in \mathcal{V}_\iota$}\\
+    \bnfor &C_k[E]                 \tag{constructor, $k \in \mathbb{N}$}\\
+    \bnfor &\{(l_i=E_i)_{i \in I}\}\tag{record, $I \subset_{fin} \mathbb{N}$}\\
+    \bnfor &\varepsilon_{\chi \in E_1}(F \notin E_2)
+      \tag{value choice operator, $\chi \in \mathcal{V}_\iota$}\\
+    &\hspace{-1cm}\text{(Term components)}\\
+    \bnfor &E\;F                   \tag{application}\\
+    \bnfor &\mu\chi.E
+      \tag{$\mu$-abstraction, $\chi \in \mathcal{V}_\sigma$}\\
+    \bnfor &[E]F                   \tag{named term}\\
+    \bnfor &E.l_k                  \tag{record projection, $k \in \mathbb{N}$}\\
+    \bnfor &[E|(C_i[\chi_i] \to E_i)_{i \in I}]
+      \tag{pattern matching, $I \subset_{fin} \mathbb{N}$, $\chi_i \in
+      \mathcal{V}_\iota$}\\
+    \bnfor &\varphi \chi.E
+      \tag{fixed-point for recursion, $\chi \in \mathcal{V}_\tau$}\\
+    &\hspace{-1cm}\text{(Stack components)}\\
+    \bnfor &\varepsilon            \tag{empty stack}\\
+    \bnfor &[-\;E]F                \tag{pushed value argument}\\
+    \bnfor &[E\;-]F                \tag{pushed function}\\
+    \bnfor &\varepsilon_{\chi \in \lnot E}(F \notin E)
+      \tag{value choice operator, $\chi \in \mathcal{V}_\sigma$}\\
+    &\hspace{-1cm}\text{(Ordinal components)}\\
+    \bnfor &\infty                 \tag{converging ordinal}\\
+    \bnfor &E+1                    \tag{successor ordinal}\\
+    \bnfor &\varepsilon_{\chi<E}(F_1 \in F_2) \bnfor
+      \varepsilon_{\chi<E}(F_1 \notin F_2)
+      \tag{Choice operators for ordinals}\\
+    &\hspace{-1cm}\text{(Proposition components)}\\
+    \bnfor &E \Rightarrow F        \tag{function type}\\
+    \bnfor &[(C_i : A_i)_{i \in I}]
+      \tag{sum type, $I \subset_{fin} \mathbb{N}$}\\
+    \bnfor &\{(l_i : A_i)_{i \in I}; \dots\} \bnfor \{(l_i : A_i)_{i \in I}\}
+      \tag{(extensible) product type, $I \subset_{fin} \mathbb{N}$}\\
+    \bnfor &\forall \chi:s.E \bnfor \exists \chi:s.E
+      \tag{Quantifiers}\\
+    \bnfor &\mu_E \chi.F \bnfor \nu_E \chi.E
+      \tag{sized (co-)inductive type}\\
+    \bnfor &E \in F                \tag{membership type}\\
+    \bnfor &E \restriction F_1 \equiv F_2 \tag{restriction type}
+  \end{align*}
+  \caption{Full syntax of expressions.}
+  \label{expr}
+\end{figure}
+\begin{figure}
+  \begin{prooftree}
+    \AxiomC{}
+    \UnaryInfC{$\Gamma, \chi : s \vdash \chi : s$}
+    \DisplayProof\hfill
+    \AxiomC{$\Gamma, \chi : s \vdash E : t$}
+    \UnaryInfC{$\Gamma \vdash (\chi : s \mapsto t) : s \to t$}
+    \DisplayProof\hfill
+    \AxiomC{$\Gamma \vdash E : s \to t$}
+    \AxiomC{$\Gamma \vdash F : s$}
+    \BinaryInfC{$\Gamma \vdash E \langle F \rangle : t$}
+  \end{prooftree}
+  \begin{prooftree}
+    \AxiomC{$\Phi \in \llbracket s \rrbracket$}
+    \UnaryInfC{$\Gamma \vdash \Phi : s$}
+    \DisplayProof\hfill
+    \AxiomC{$\Gamma \vdash E : \tau$}
+    \AxiomC{$\Gamma, \chi:s \vdash F : o$}
+    \BinaryInfC{$\Gamma \vdash \varepsilon_{\chi:s}(E \in F) : s$}
+    \DisplayProof\hfill
+    \AxiomC{$\Gamma \vdash E : \tau$}
+    \AxiomC{$\Gamma, \chi:s \vdash F : o$}
+    \BinaryInfC{$\Gamma \vdash \varepsilon_{\chi:s}(E \notin F) : s$}
+  \end{prooftree}
+  \begin{prooftree}
+    \AxiomC{$\Gamma, \chi : \iota \vdash E : \tau$}
+    \UnaryInfC{$\Gamma \vdash \lambda \chi E : \iota$}
+    \DisplayProof\hfill
+    \AxiomC{$\Gamma \vdash E : \iota$}
+    \UnaryInfC{$\Gamma \vdash C_k[E] : \iota$}
+    \DisplayProof\hfill
+    \AxiomC{$(\Gamma \vdash E_i : \iota)_{i \in I}$}
+    \UnaryInfC{$\Gamma \vdash \{(l_i = E_i)_{i \in I}\} : \iota$}
+  \end{prooftree}
+  \begin{prooftree}
+    \AxiomC{$\Gamma \vdash E_1 : o$}
+    \AxiomC{$\Gamma \vdash E_2 : o$}
+    \AxiomC{$\Gamma, \chi : \iota \vdash F : \tau$}
+    \TrinaryInfC{$\Gamma\vdash\varepsilon_{\chi\in E_1}(F\notin E_2) : \iota$}
+    \DisplayProof\hfill
+    \AxiomC{$\Gamma \vdash E : \iota$}
+    \UnaryInfC{$\Gamma \vdash E : \tau$}
+  \end{prooftree}
+  \begin{prooftree}
+    \AxiomC{$\Gamma \vdash E : \tau$}
+    \AxiomC{$\Gamma \vdash F : \tau$}
+    \BinaryInfC{$\Gamma \vdash E\;F : \tau$}
+    \DisplayProof\hfill
+    \AxiomC{$\Gamma, \chi : \sigma \vdash E : \tau$}
+    \UnaryInfC{$\Gamma \vdash \mu \chi.E : \tau$}
+    \DisplayProof\hfill
+    \AxiomC{$\Gamma \vdash E : \sigma$}
+    \AxiomC{$\Gamma \vdash F : \tau$}
+    \BinaryInfC{$\Gamma \vdash [E]F : \tau$}
+  \end{prooftree}
+  \begin{prooftree}
+    \AxiomC{$\Gamma \vdash E : \iota$}
+    \UnaryInfC{$\Gamma \vdash E.l_k : \tau$}
+    \DisplayProof\hfill
+    \AxiomC{$\Gamma \vdash E : \iota$}
+    \AxiomC{$(\Gamma, \chi_i : \iota \vdash E_i : \tau)_{i \in I}$}
+    \BinaryInfC{$\Gamma \vdash [E|(C_i[\chi_i] \to E_i)_{i \in I}] : \tau$}
+    \DisplayProof\hfill
+    \AxiomC{$\Gamma, \chi : \tau \vdash E : \iota$}
+    \UnaryInfC{$\Gamma \vdash \varphi \chi.E : \tau$}
+  \end{prooftree}
+  \begin{prooftree}
+    \AxiomC{}
+    \UnaryInfC{$\Gamma \vdash \varepsilon : \sigma$}
+    \DisplayProof\hfill
+    \AxiomC{$\Gamma \vdash E : \iota$}
+    \AxiomC{$\Gamma \vdash F : \sigma$}
+    \BinaryInfC{$\Gamma \vdash [-\;E]F : \sigma$}
+    \DisplayProof\hfill
+    \AxiomC{$\Gamma \vdash E : \tau$}
+    \AxiomC{$\Gamma \vdash F : \sigma$}
+    \BinaryInfC{$\Gamma \vdash [E\;-]F : \sigma$}
+  \end{prooftree}
+  \begin{prooftree}
+    \AxiomC{$\Gamma \vdash E : o$}
+    \AxiomC{$\Gamma, \chi : \sigma \vdash F : \tau$}
+    \BinaryInfC{$\Gamma \vdash \varepsilon_{\chi \in \lnot E}(F \notin E)
+      : \sigma$}
+    \DisplayProof\hfill
+    \AxiomC{}
+    \UnaryInfC{$\Gamma \vdash \infty : \kappa$}
+    \DisplayProof\hfill
+    \AxiomC{$\Gamma \vdash E : \kappa$}
+    \UnaryInfC{$\Gamma \vdash E+1 : \kappa$}
+  \end{prooftree}
+  \begin{prooftree}
+    \AxiomC{$\Gamma \vdash E : \kappa$}
+    \AxiomC{$\Gamma \vdash F_1 : \tau$}
+    \AxiomC{$\Gamma, \chi : \kappa \vdash F_2 : o$}
+    \TrinaryInfC{$\Gamma \vdash \varepsilon_{\chi<E}(F_1 \in F_2) : \kappa$}
+    \DisplayProof\hfill
+    \AxiomC{$\Gamma, \chi : s \vdash E : o$}
+    \UnaryInfC{$\Gamma \vdash \forall \chi:s.E : o$}
+  \end{prooftree}
+  \begin{prooftree}
+    \AxiomC{$\Gamma \vdash E : \kappa$}
+    \AxiomC{$\Gamma \vdash F_1 : \tau$}
+    \AxiomC{$\Gamma, \chi : \kappa \vdash F_2 : o$}
+    \TrinaryInfC{$\Gamma \vdash \varepsilon_{\chi<E}(F_1 \notin F_2):\kappa$}
+    \DisplayProof\hfill
+    \AxiomC{$\Gamma, \chi : s \vdash E : o$}
+    \UnaryInfC{$\Gamma \vdash \exists \chi:s.E : o$}
+  \end{prooftree}
+  \begin{prooftree}
+    \AxiomC{$\Gamma \vdash E : o$}
+    \AxiomC{$\Gamma \vdash F : o$}
+    \BinaryInfC{$\Gamma \vdash E \Rightarrow F : o$}
+    \DisplayProof\hfill
+    \AxiomC{$\Gamma \vdash E : o$}
+    \AxiomC{$\Gamma \vdash F_1 : \tau$}
+    \AxiomC{$\Gamma \vdash F_2 : \tau$}
+    \TrinaryInfC{$\Gamma \vdash E \restriction F_1 \equiv F_2 : o$}
+  \end{prooftree}
+  \begin{prooftree}
+    \AxiomC{$(\Gamma \vdash A_i : o)_{i \in I}$}
+    \UnaryInfC{$\Gamma \vdash \{(l_i : A_i)_{i \in I}; \dots\} : o$}
+    \DisplayProof\hfill
+    \AxiomC{$(\Gamma \vdash A_i : o)_{i \in I}$}
+    \UnaryInfC{$\Gamma \vdash \{(l_i : A_i)_{i \in I}\} : o$}
+    \DisplayProof\hfill
+    \AxiomC{$\Gamma \vdash E : \tau$}
+    \AxiomC{$\Gamma \vdash F : o$}
+    \BinaryInfC{$\Gamma \vdash E \in F : o$}
+  \end{prooftree}
+  \begin{prooftree}
+    \AxiomC{$(\Gamma \vdash A_i : o)_{i \in I}$}
+    \UnaryInfC{$\Gamma \vdash [(C_i : A_i)_{i \in I}] : o$}
+    \DisplayProof\hfill
+    \AxiomC{$\Gamma \vdash E : \kappa$}
+    \AxiomC{$\Gamma, \chi : o \vdash F : o$}
+    \BinaryInfC{$\Gamma \vdash \mu_E \chi.F : o$}
+    \DisplayProof\hfill
+    \AxiomC{$\Gamma \vdash E : \kappa$}
+    \AxiomC{$\Gamma, \chi : o \vdash F : o$}
+    \BinaryInfC{$\Gamma \vdash \nu_E \chi.F : o$}
+  \end{prooftree}
+  \caption{Sorting rules of the language.}
+  \label{sorting}
+\end{figure}
+As the type system of \pml is higher-order, we first need to define the
+syntax of expressions. It will gather the types, but also the terms and
+several sort of first-order objects. This will include pre-values, pre-terms,
+pre-stacks, syntactic ordinals and propositions.
+\begin{definition}[sorts]
+  Our language is built with expressions of several base sorts: $\iota$ for
+  values, $\tau$ for terms, $\sigma$ for stacks, $\kappa$ for ordinals, and
+  $o$ for propositions (or types). There is also a function sort to
+  build parametric expressions. The set of all sorts $\mathcal{S}$ is
+  generated by the following BNF grammar.
+  \begin{align*}
+    s,r \bnfeq &\iota \bnfor \tau \bnfor \sigma \bnfor \kappa
+        \bnfor o \bnfor s \to t
   \end{align*}
 \end{definition}
+\begin{definition}[semantic domain]
+  For every sort $s$ we define a set $\llbracket s \rrbracket$ called its
+  semantic domain. It is defined inductively as follows.
+  $$
+    \llbracket \iota  \rrbracket = \Lambda_\iota
+    \quad\quad
+    \llbracket \tau   \rrbracket = \Lambda_\tau
+    \quad\quad
+    \llbracket \sigma \rrbracket = \Pi
+    \quad\quad
+    \llbracket \kappa \rrbracket = \Omega + \omega
+    \quad\quad
+    \llbracket s \to r \rrbracket =
+      \llbracket r \rrbracket^{\llbracket s \rrbracket}
+  $$
+  $$
+    \llbracket o      \rrbracket =
+      \{P \in \mathcal{P}(\Lambda_\iota / \equiv) \;|\; \square \in P\}
+  $$
+  Note that $\Omega$ denotes an ordinal that is large enough for semantics
+  of our inductive and coinductive type to reach a stationary point. It must
+  exist by a cardinality argument (see previous work \cite{subml}).
+\end{definition}
+\begin{definition}[higher-order expressions]
+  The syntax of higher-order expressions is defined in Figure~\ref{expr},
+  and valid expressions are those that can be assigned a sort using the
+  rules of Figure~\ref{sorting}. An expression of sort $o$ will be called
+  a type.
+\end{definition}
+
+\begin{definition}[semantics of closed parametric expressions]
+  Let $E$ be a higher-order expression such that $\Gamma \vdash E : s$ is
+  derivable using the rules of Figure~\ref{sorting}. Given a semantical
+  map $\rho$ associating every $\chi \in FV(E)$ to an element of
+  $\llbracket \Gamma(\chi) \rrbracket$, the expression $E\rho$ is called
+  a closed parametric expression. Every such closed parametric expression is
+  given a semantic interpretation $\llbracket E\rho \rrbracket$ according to
+  Figures~\ref{semany}, \ref{semiota}, \ref{semtau}, \ref{semsigma},
+  \ref{semkappa} or \ref{semomicron} depending on the sort $s$.
+\end{definition}
+
+\begin{lemma}[semantics of sorted expressions]
+  If $\Gamma \vdash E : s$ is derivable using the rules of
+  Figure~\ref{sorting} and if $\rho$ is a semantical map corresponding to
+  $\Gamma$, then $\llbracket E\rho \rrbracket \in \llbracket s \rrbracket$.
+\end{lemma}
+\begin{proof}
+  See the author's PhD thesis \cite[Chapter~4]{lepigrePhD}.
+\end{proof}
+
+\begin{figure}
+  \begin{align*}
+    \llbracket \Phi \rrbracket &= \Phi\\
+    \llbracket \chi \rrbracket &= \chi\\
+    \llbracket (\chi:s \mapsto E) \rrbracket
+      &= (\chi:s \mapsto \llbracket E \rrbracket)\\
+    \llbracket E\langle F \rangle \rrbracket
+      &= \llbracket E \rrbracket \langle \llbracket F \rrbracket \rangle\\
+    \llbracket \varepsilon_{\chi:s}(t \in A) \rrbracket
+      &= \begin{cases}
+           \Phi \in \llbracket s \rrbracket \text{ such that }
+             \llbracket t \rrbracket \in \llbracket A[\chi := \Phi]
+             \rrbracket^{\bot\bot} \text{ if any}\\
+           \text{ an arbitrary element of } \llbracket s \rrbracket
+             \text { otherwise}
+         \end{cases}\\
+    \llbracket \varepsilon_{\chi:s}(t \notin A) \rrbracket
+      &= \begin{cases}
+           \Phi \in \llbracket s \rrbracket \text{ such that }
+             \llbracket t \rrbracket \notin \llbracket A[\chi := \Phi]
+             \rrbracket^{\bot\bot} \text{ if any}\\
+           \text{ an arbitrary element of } \llbracket s \rrbracket
+             \text { otherwise}
+         \end{cases}
+  \end{align*}
+  \caption{Semantics for elements of arbitrary sort.}\label{semany}
+\end{figure}
+
+\begin{figure}
+  \begin{align*}
+    \llbracket \lambda x.t \rrbracket
+      &= \lambda x.\llbracket t \rrbracket\\
+    \llbracket C_k[v] \rrbracket
+      &= C_k[\llbracket v \rrbracket]\\
+    \llbracket \{(l_i=v_i)_{i \in I}\} \rrbracket
+      &= \{(l_i = \llbracket v_i \rrbracket)_{i \in I}\}\\
+    \llbracket \varepsilon_{x \in A}(t \notin B) \rrbracket
+      &= \begin{cases}
+           v \in \llbracket A \rrbracket \setminus \{\square\}
+             \text{ such that } \llbracket t[x := v] \rrbracket \notin
+             \llbracket B \rrbracket^{\bot\bot} \text{ if any}\\
+           \square \text { otherwise}
+         \end{cases}
+  \end{align*}
+  \caption{Semantics for values (of sort $\iota$).}
+  \label{semiota}
+\end{figure}
+
+\begin{figure}
+  \begin{align*}
+    \llbracket t\;u \rrbracket
+      &= \llbracket t \rrbracket\; \llbracket u \rrbracket\\
+    \llbracket \mu\alpha.t \rrbracket
+      &= \mu \alpha.\llbracket t \rrbracket\\
+    \llbracket [\pi]t \rrbracket
+      &= [\llbracket \pi \rrbracket]\llbracket t \rrbracket\\
+    \llbracket v.l_k \rrbracket
+      &= \llbracket v \rrbracket.l_k\\
+    \llbracket [v|(C_i[x_i] \to t_i)_{i \in I}] \rrbracket
+      &= [\llbracket v \rrbracket | (C_i[x_i]
+         \to \llbracket t_i \rrbracket)_{i \in I}]\\
+    \llbracket \varphi a.v \rrbracket
+      &= \varphi a.\llbracket v \rrbracket
+  \end{align*}
+  \caption{Semantics for terms (of sort $\tau$).}
+  \label{semtau}
+\end{figure}
+
+\begin{figure}
+  \begin{align*}
+    \llbracket \varepsilon \rrbracket &= \varepsilon\\
+    \llbracket [-\;v]\pi \rrbracket
+      &= [-\;\llbracket v \rrbracket]\llbracket \pi \rrbracket\\
+    \llbracket [t\;-]\pi \rrbracket
+      &= [\llbracket t \rrbracket\;-]\llbracket \pi \rrbracket\\
+    \llbracket \varepsilon_{\alpha \in \lnot A}(t \notin A) \rrbracket
+      &= \begin{cases}
+           \pi \in \llbracket A \rrbracket^\bot \text{ such that }
+             \llbracket t[\alpha := \pi] \rrbracket \notin
+             \llbracket B \rrbracket^{\bot\bot} \text{ if any}\\
+           [\square\;-]\varepsilon \text { otherwise}
+         \end{cases}
+  \end{align*}
+  \caption{Semantics for stacks (of sort $\sigma$).}
+  \label{semsigma}
+\end{figure}
+
+\begin{figure}
+  \begin{align*}
+    \llbracket \infty \rrbracket &= \Omega\\
+    \llbracket \tau+1 \rrbracket &= \llbracket \tau \rrbracket + 1\\
+    \llbracket \varepsilon_{\theta<\tau}(t \in A) \rrbracket
+      &= \begin{cases}
+            o < \llbracket \tau \rrbracket \text{ such that }
+              \llbracket t \rrbracket \in \llbracket A[\theta := o]
+              \rrbracket^{\bot\bot}\\
+            0 \text{ otherwise}
+         \end{cases}\\
+    \llbracket \varepsilon_{\theta<\tau}(t \notin A) \rrbracket
+      &= \begin{cases}
+            o < \llbracket \tau \rrbracket \text{ such that }
+              \llbracket t \rrbracket \notin \llbracket A[\theta := o]
+              \rrbracket^{\bot\bot}\\
+            0 \text{ otherwise}
+         \end{cases}
+  \end{align*}
+  \caption{Semantics for syntactic ordinals (of sort $\kappa$).}
+  \label{semkappa}
+\end{figure}
+
+\begin{figure}
+  \begin{align*}
+    \llbracket A \Rightarrow B \rrbracket &=
+      \{\lambda x.t \;|\; \forall v \in \llbracket A \rrbracket \setminus
+      \{\square\},
+      t[x := v] \in \llbracket B \rrbracket^{\bot\bot}\} \cup \{\square\}\\
+    \llbracket [(C_i : A_i)_{i \in I}] \rrbracket
+      &= \bigcup_{i \in I} \{C_i[v] \;|\; v \in \llbracket A_i \rrbracket
+           \setminus \{\square\}\} \cup \{\square\}\\
+    \llbracket \{(l_i : A_i)_{i \in I}; \dots\} \rrbracket
+      &= \{\{(l_i = v_i)_{i \in I \cup K}\} \;|\; \forall i \in I, v_i \in A_i
+           \setminus \{\square\}\} \cup \{\square\}\\
+    \llbracket \{(l_i : A_i)_{i \in I}\} \rrbracket
+      &= \{\{(l_i = v_i)_{i \in I}\} \;|\; \forall i \in I, v_i \in A_i
+           \setminus \{\square\}\} \cup \{\square\}\\
+    \llbracket \forall \chi:s.A \rrbracket
+      &= \bigcap_{\Phi \in \llbracket s \rrbracket}
+           \llbracket A[\chi := \Phi] \rrbracket\\
+    \llbracket \exists \chi:s.A \rrbracket
+      &= \bigcup_{\Phi \in \llbracket s \rrbracket}
+           \llbracket A[\chi := \Phi] \rrbracket\\
+    \llbracket \mu_\tau X.A \rrbracket
+      &= \bigcup_{o < \llbracket \tau \rrbracket}
+            \llbracket A[X := \mu_o X.A] \rrbracket \cup \{\square\}\\
+    \llbracket \nu_\tau X.A \rrbracket
+      &= \bigcap_{o < \llbracket \tau \rrbracket}
+            \llbracket A[X := \nu_o X.A] \rrbracket\\
+    \llbracket t \in A \rrbracket
+      &= \{v \in \llbracket A \rrbracket \;|\; \llbracket t \rrbracket
+      \equiv v\} \cup \{\square\}\\
+    \llbracket A \restriction t \equiv u \rrbracket
+      &= \begin{cases}
+           \llbracket A \rrbracket \text{ if } \llbracket t \rrbracket
+             \equiv \llbracket u \rrbracket\\
+           \{\square\} \text{ otherwise}
+         \end{cases}
+  \end{align*}
+  \caption{Semantics for proposition (of sort $o$).}\label{semomicron}
+\end{figure}
+
+\begin{definition}[judgements]
+  The type system of \pml relies on four forms of judgements, where $\gamma$
+  denotes a positivity context (a set of syntactic ordinals assumed to be
+  non-zero), and $\Xi$ denotes an equational context (a set of program
+  equivalences assumed to be correct).
+  \begin{itemize}
+    \item Typing judgments of the form $\gamma; \Xi \vdash t : A$, derived
+          using the rules of Figure~\ref{typing}.
+    \item Local subtyping judgements of the form $\gamma; \Xi \vdash t : A
+          \subseteq B$, derived using the rules of Figure~\ref{subtyping}
+          (and we use the notation $\gamma; \Xi \vdash A \subseteq B$ for
+          $\gamma;\Xi\vdash\varepsilon_{x \in a}(x \notin B):A \subseteq B$).
+    \item Equivalence decision judgements of the form $\Xi \vdash t \equiv u$
+          (and we use the notation $\Xi \vdash v \not\equiv \square$ as a
+          shorthand for $\Xi \vdash (\lambda x.\{\})\;v \equiv \{\}$). Such
+          a judgement is not proved using derivation rules, but using an
+          abstract decision procedure (that is necessarily incomplete).
+    \item Syntactic ordinal ordering judgements of the form $\gamma \vdash
+          \upsilon < \tau$ derived using similar rules as in previous work
+          \cite{subml}.
+  \end{itemize}
+  Note that we implicitly consider that every syntactic element in our
+  judgements is well-sorted, according to the rules of Figure~\ref{sorting}.
+\end{definition}
+
+\begin{figure}
+  \begin{prooftree}
+    \AxiomC{$\gamma; \Xi \vdash \varepsilon_{x \in A}(t \notin B) : A
+      \subseteq C$}
+    \AxiomC{$\Xi \vdash \varepsilon_{x \in A}(t \notin B) \not= \square$}
+    \RightLabel{$\varepsilon$-axiom}
+    \BinaryInfC{$\gamma; \Xi \vdash \varepsilon_{x \in A}(t \notin B) : C$}
+  \end{prooftree}
+  \begin{prooftree}
+    \AxiomC{$\gamma; \Xi \vdash \lambda x.t : A \Rightarrow B \subseteq C$}
+    \AxiomC{$\gamma; \Xi, \varepsilon_{x \in A}(t \notin B) \not=
+      \square \vdash t[x := \varepsilon_{x \in A}(t \notin B)] : B$}
+    \RightLabel{$\Rightarrow$-intro}
+    \BinaryInfC{$\gamma; \Xi \vdash \lambda x.t : C$}
+  \end{prooftree}
+  \begin{prooftree}
+    \AxiomC{$\gamma; \Xi \vdash t : A \Rightarrow B$}
+    \AxiomC{$\gamma; \Xi \vdash u : A$}
+    \RightLabel{$\Rightarrow$-elim}
+    \BinaryInfC{$\gamma; \Xi \vdash t\;u : B$}
+  \end{prooftree}
+  \begin{prooftree}
+    \AxiomC{$\gamma; \Xi \vdash t : (u \in A) \Rightarrow B$}
+    \AxiomC{$\gamma; \Xi \vdash u : A$}
+    \AxiomC{$\Xi \vdash u \equiv v$}
+    \RightLabel{$\Rightarrow$-strong-elim}
+    \TrinaryInfC{$\gamma; \Xi \vdash t\;u : B$}
+  \end{prooftree}
+  \begin{prooftree}
+    \AxiomC{$\gamma; \Xi \vdash t[\alpha := \varepsilon_{\alpha \in
+      \lnot A}(t \notin A)] : A$}
+    \RightLabel{save}
+    \UnaryInfC{$\gamma; \Xi \vdash \mu \alpha.t : A$}
+    \DisplayProof\hfill
+    \AxiomC{$\gamma; \Xi \vdash u : A$}
+    \RightLabel{restore}
+    \UnaryInfC{$\gamma; \Xi \vdash [\varepsilon_{\alpha\in\lnot A}(t \notin
+      A)]u : B$}
+  \end{prooftree}
+  \begin{prooftree}
+    \AxiomC{$\gamma; \Xi \vdash v[a := \varphi a.v] : A$}
+    \RightLabel{unfold}
+    \UnaryInfC{$\gamma; \Xi \vdash \varphi a.v : A$}
+    \DisplayProof\hfill
+    \AxiomC{$\gamma; \Xi \vdash v : \{l_k : A; \dots\}$}
+    \RightLabel{$\times$-elim}
+    \UnaryInfC{$\gamma; \Xi \vdash v.l_k : A$}
+  \end{prooftree}
+  \begin{prooftree}
+    \AxiomC{$\gamma; \Xi \vdash \{(l_i = v_i)_{i \in I}\} :
+      \{(l_i : A_i)_{i \in I}\} \subseteq C$}
+    \AxiomC{$(\gamma; \Xi \vdash v_i : A_i)_{i \in I}$}
+    \RightLabel{$\times$-intro}
+    \BinaryInfC{$\gamma; \Xi \vdash \{(l_i = v_i)_{i \in I}\} : C$}
+  \end{prooftree}
+  \begin{prooftree}
+    \AxiomC{$\gamma; \Xi \vdash v : A$}
+    \AxiomC{$\gamma; \Xi \vdash C_k[v] : [C_k : A] \subseteq B$}
+    \RightLabel{$+$-intro}
+    \BinaryInfC{$\gamma; \Xi \vdash C_k[v] : B$}
+  \end{prooftree}
+  \begin{prooftree}
+    \AxiomC{$\gamma; \Xi \vdash v : [(C_i : A_i)_{i \in I}]$}
+    \AxiomC{$(\gamma; \Xi, w_i \not= \square
+      \vdash t_i[x_i := w_i] : C)_{i \in I}$}
+    \RightLabel{$+$-elim}
+    \BinaryInfC{$\gamma; \Xi \vdash [v|(C_i[x_i] \to t_i)_{i \in I}] : C$}
+  \end{prooftree}
+  \begin{center}
+    \vspace{-2mm}
+    where $w_i = \varepsilon_{x_i \in A_i \restriction {C_i[x_i] \,\equiv\,
+    v}}(t_i \notin C)$ for all $i \in I$
+  \end{center}
+  \begin{prooftree}
+    \AxiomC{$\gamma; \Xi \vdash u : A$}
+    \AxiomC{$\Xi \vdash t \equiv u$}
+    \RightLabel{replace}
+    \BinaryInfC{$\gamma; \Xi \vdash t : A$}
+  \end{prooftree}
+  \caption{Typing rules for terms (including values).}\label{typing}
+\end{figure}
+
+\begin{figure}
+  \begin{prooftree}
+    \AxiomC{$(\Xi \vdash \rho_1(\chi) \equiv \rho_2(\chi))_{\chi \in FV(A)}$}
+    \RightLabel{$\subseteq$-refl}
+    \UnaryInfC{$\gamma; \Xi \vdash t : A\rho_1 \subseteq A\rho_2$}
+    \DisplayProof\hfill
+    \AxiomC{$\gamma; \Xi \vdash A \subseteq B$}
+    \RightLabel{gen}
+    \UnaryInfC{$\gamma; \Xi \vdash t : A \subseteq B$}
+  \end{prooftree}
+  \begin{prooftree}
+    \AxiomC{$\gamma; \Xi, w \not= \square \vdash w : A_2 \subseteq A_1$}
+    \AxiomC{$\gamma; \Xi, w \not= \square \vdash t\;w : B_1 \subseteq B_2$}
+    \AxiomC{$\Xi \vdash t \equiv v$}
+    \RightLabel{$\Rightarrow$-sub}
+    \TrinaryInfC{$\gamma; \Xi \vdash t : A_1 \Rightarrow B_1
+      \subseteq A_2 \Rightarrow B_2$}
+  \end{prooftree}
+  \begin{center}
+    \vspace{-2mm}
+    where $w = \varepsilon_{x \in A_2}(t\;x \notin B_2)$
+  \end{center}
+  \begin{prooftree}
+    \AxiomC{$I_1 \subseteq I_2$}
+    \AxiomC{$(\gamma; \Xi \vdash (\lambda x.[x | C_i[x_i] \to x_i])\;t : A_i
+      \subseteq B_i)_{i \in I_1}$}
+    \AxiomC{$\Xi \vdash t \equiv v$}
+    \RightLabel{$+$-sub}
+    \TrinaryInfC{$\gamma; \Xi \vdash t : [(C_i : A_i)_{i \in I_1}]
+      \subseteq [(C_i : B_i)_{i \in I_2}]$}
+  \end{prooftree}
+  \begin{prooftree}
+    \AxiomC{$(\gamma; \Xi \vdash (\lambda x.x.l_i)\;t : A_i
+      \subseteq B_i)_{i \in I}$}
+    \AxiomC{$\Xi \vdash t \equiv v$}
+    \RightLabel{$\times$-sub-strict}
+    \BinaryInfC{$\gamma; \Xi \vdash t : \{(l_i : A_i)_{i \in I}\}
+      \subseteq \{(l_i : B_i)_{i \in I}\}$}
+  \end{prooftree}
+  \begin{prooftree}
+    \AxiomC{$I_2 \subseteq I_1$}
+    \AxiomC{$(\gamma; \Xi \vdash (\lambda x.x.l_i)\;t:A_i
+      \subseteq B_i)_{i \in I_2}$}
+    \AxiomC{$\Xi \vdash t \equiv v$}
+    \RightLabel{$\times$-sub-ext / $\times$-sub-mixed}
+    \TrinaryInfC{$\gamma; \Xi \vdash t : \{(l_i : A_i)_{i \in I_1}; \dots\}
+      \subseteq \{(l_i : B_i)_{i \in I_2} [; \dots]\}$}
+  \end{prooftree}
+  \begin{prooftree}
+    \AxiomC{$\gamma; \Xi \vdash t : A[\chi := \psi] \subseteq B$}
+    \RightLabel{$\forall$-left}
+    \UnaryInfC{$\gamma; \Xi \vdash t : \forall \chi^s.A \subseteq B$}
+    \DisplayProof\hfill
+    \AxiomC{$\gamma; \Xi \vdash t : A \subseteq B[\chi := \psi]$}
+    \RightLabel{$\exists$-right}
+    \UnaryInfC{$\gamma; \Xi \vdash t : A \subseteq \exists \chi^s.B$}
+  \end{prooftree}
+  \begin{prooftree}
+    \AxiomC{$\gamma; \Xi \vdash t : A \subseteq
+      B[\chi := \varepsilon_{\chi:s}(t \notin B)]$}
+    \AxiomC{$\Xi \vdash t \equiv v$}
+    \RightLabel{$\forall$-right}
+    \BinaryInfC{$\gamma; \Xi \vdash t : A \subseteq \forall \chi^s.B$}
+  \end{prooftree}
+  \begin{prooftree}
+    \AxiomC{$\gamma; \Xi \vdash
+      t : A[\chi := \varepsilon_{\chi:s}(t \notin A)] \subseteq B$}
+    \AxiomC{$\Xi \vdash t \equiv v$}
+    \RightLabel{$\exists$-left}
+    \BinaryInfC{$\gamma; \Xi \vdash t : \exists \chi^s.A \subseteq B$}
+  \end{prooftree}
+  \begin{prooftree}
+    \AxiomC{$\gamma; \Xi, u_1 \equiv u_2 \vdash t : A \subseteq B$}
+    \AxiomC{$\Xi \vdash t \equiv v$}
+    \RightLabel{$\restriction$-left}
+    \BinaryInfC{$\gamma; \Xi \vdash
+      t : A \restriction u_1 \equiv u_2 \subseteq B$}
+    \DisplayProof\hfill
+    \AxiomC{$\gamma; \Xi \vdash t : A \subseteq B$}
+    \AxiomC{$\Xi \vdash u_1 \equiv u_2$}
+    \RightLabel{$\restriction$-right}
+    \BinaryInfC{$\gamma; \Xi \vdash t : A \subseteq
+      B \restriction u_1 \equiv u_2$}
+  \end{prooftree}
+  \begin{prooftree}
+    \AxiomC{$\gamma; \Xi, t \equiv u \vdash t : A \subseteq B$}
+    \AxiomC{$\Xi \vdash t \equiv v$}
+    \RightLabel{$\in$-left}
+    \BinaryInfC{$\gamma; \Xi \vdash t : u \in A \subseteq B$}
+    \DisplayProof\hfill
+    \AxiomC{$\gamma; \Xi \vdash t : A \subseteq B$}
+    \AxiomC{$\Xi \vdash t \equiv u$}
+    \RightLabel{$\in$-right}
+    \BinaryInfC{$\gamma; \Xi \vdash t : A \subseteq u \in B$}
+  \end{prooftree}
+  \begin{prooftree}
+    \AxiomC{$\gamma; \Xi \vdash t : A \subseteq B[X := \mu_\infty X.B]$}
+    \RightLabel{$\mu_\infty$-left}
+    \UnaryInfC{$\gamma; \Xi \vdash t : A \subseteq \mu_\infty X.B$}
+    \DisplayProof\hfill
+    \AxiomC{$\gamma; \Xi \vdash t : A[X := \nu_\infty X.A] \subseteq B$}
+    \RightLabel{$\nu_\infty$-right}
+    \UnaryInfC{$\gamma; \Xi \vdash t : \nu_\infty X.A \subseteq B$}
+  \end{prooftree}
+  \begin{prooftree}
+    \AxiomC{$\gamma; \Xi \vdash t : A \subseteq B[X := \mu_\upsilon X.B]$}
+    \AxiomC{$\gamma \vdash \upsilon < \tau$}
+    \RightLabel{$\mu$-right}
+    \BinaryInfC{$\gamma; \Xi \vdash t : A \subseteq \mu_\tau X.B$}
+  \end{prooftree}
+  \begin{prooftree}
+    \AxiomC{$\gamma; \Xi \vdash t : A[X := \nu_\upsilon X.A] \subseteq B$}
+    \AxiomC{$\gamma \vdash \upsilon < \tau$}
+    \RightLabel{$\nu$-left}
+    \BinaryInfC{$\gamma; \Xi \vdash t : \nu_\tau X.A \subseteq B$}
+  \end{prooftree}
+  \begin{prooftree}
+    \AxiomC{$\gamma, \tau; \Xi \vdash t : A[X := \mu_{\varepsilon_{\theta <
+      \tau}(t \in A[X := \mu_\theta X.A])}X.A] \subseteq B$}
+    \AxiomC{$\Xi \vdash t \equiv v$}
+    \RightLabel{$\mu$-left}
+    \BinaryInfC{$\gamma; \Xi \vdash t : \mu_\tau X.A \subseteq B$}
+  \end{prooftree}
+  \begin{prooftree}
+    \AxiomC{$\gamma, \tau; \Xi \vdash t : A \subseteq B[X :=
+      \nu_{\varepsilon_{\theta < \tau}(t \notin B[X := \nu_\theta X.B])}X.B]$}
+    \AxiomC{$\Xi \vdash t \equiv v$}
+    \RightLabel{$\nu$-right}
+    \BinaryInfC{$\gamma; \Xi \vdash t : A \subseteq \nu_\tau X.B$}
+  \end{prooftree}
+  \caption{Local subtyping rules.}\label{subtyping}
+\end{figure}
+
+\begin{theorem}[adequacy]
+  We have the following adequacy properties.
+  \begin{itemize}
+    \item If $\gamma; \Xi \vdash t : A$ is derivable and if the contexts
+          $\gamma$ and $\Xi$ are realized, then $\llbracket t \rrbracket
+          \in \llbracket A \rrbracket^{\bot\bot}$. Moreover, if $t$ is a
+          value then $\llbracket t \rrbracket \not= \square$.
+    \item If $\gamma; \Xi \vdash t : A \subseteq B$ is derivable, the contexts
+          $\gamma$ and $\Xi$ are realized, and $\llbracket t \rrbracket
+          \in \llbracket A \rrbracket^{\bot\bot}$, then $\llbracket t
+          \rrbracket \in \llbracket B \rrbracket^{\bot\bot}$, In particular,
+          if the judgment is of the form $\gamma; \Xi \vdash A \subseteq B$
+          then $\llbracket A \rrbracket \subseteq \llbracket B \rrbracket$.
+  \end{itemize}
+\end{theorem}
+\begin{proof}
+  See the author's PhD thesis \cite[Chapter~4]{lepigrePhD}. An essential
+  point of the semantics is that the bi-orthogonal completion operator
+  $\Psi \mapsto \Psi^{\bot\bot}$ on the elements of $\llbracket o \rrbracket$
+  is closed for values (i.e., any value in $\Psi^{\bot\bot}$ already appears
+  in $\Psi$). The complex definitions of reduction and observational
+  equivalence allow us to construct a model with this property (see previous
+  work for more details \cite{lepigre2016,lepigrePhD}).
+\end{proof}
+\begin{corollary}[proof of equivalence]
+  If $\vdash t : \{\} \restriction u_1 \equiv u_2$ is derivable for
+  user-accessible terms $t$, $u_1$ and $u_2$, then the equivalence
+  $u_1 \equiv u_2$ holds.
+\end{corollary}

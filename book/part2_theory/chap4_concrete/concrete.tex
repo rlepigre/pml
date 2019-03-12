@@ -1,0 +1,67 @@
+\begin{figure}
+  \begin{minipage}{0.5\textwidth}
+  \begin{align*}
+    \overline{\mathtt{x}}
+      &= x\\[1mm]
+    \overline{\mathtt{\mathbf{fun}\;x\;\{\;t\;\}}}
+      &= \lambda x.\overline{\mathtt{t}}\\[1mm]
+    \overline{\mathtt{t\;u}}
+      &= \overline{\mathtt{t}}\;\overline{\mathtt{u}}\;\\[1mm]
+    \overline{\mathtt{\mathbf{fun}\;x\;y\;z\;\{\;t\;\}}}
+      &= \lambda x.\lambda y.\lambda z.\overline{\mathtt{t}}\\[1mm]
+    \overline{\mathtt{\mathbf{save}\;alpha\;\{\;t\;\}}}
+      &= \mu \alpha.\overline{\mathtt{t}}\\[1mm]
+    \overline{\mathtt{\mathbf{restore}\;alpha\;t}}
+      &= [\alpha]\overline{\mathtt{t}}\\[1mm]
+    \overline{\mathtt{v.label}}
+      &= \overline{\mathtt{v}}.l_{code(\mathtt{label})}\\[1mm]
+    \overline{\mathtt{t.label}}
+      &= (\lambda x.x.l_{code(\mathtt{label})})\;\overline{\mathtt{t}}
+  \end{align*}
+  \end{minipage}
+  \begin{minipage}{0.5\textwidth}
+  \begin{align*}
+    \overline{\mathtt{Cons[v]}}
+      &= C_{code(\mathtt{Cons})}[\overline{\mathtt{v}}]\\[1mm]
+    \overline{\mathtt{Cons[t]}}
+      &= (\lambda x.C_{code(\mathtt{Cons})}[x])\;\overline{\mathtt{t}}\\[1mm]
+    \overline{\mathtt{\mathbf{let}\;x\;=\;t\;;\;u}}
+      &= (\lambda x.\overline{\mathtt{u}})\;\overline{\mathtt{t}}\\[1mm]
+    \overline{\mathtt{t\;;\;u}}
+      &= (\lambda {-}.\overline{\mathtt{u}})\;\overline{\mathtt{t}}\\[1mm]
+    \overline{\mathtt{a}}
+      &= a\\[1mm]
+    \overline{\mathtt{\mathbf{fix}\;\mathbf{fun}\;a\;x\;\{\;t\;\}}}
+      &= \varphi a.\lambda x.\overline{\mathtt{t}}\\[1mm]
+    \overline{\mathtt{\mathbf{fix}\;\mathbf{fun}\;a\;x\;y\;z\;\{\;t\;\}}}
+      &= \varphi a.\lambda x.\lambda y.\lambda z.\overline{\mathtt{t}}\\[1mm]
+    \overline{\mathtt{\{lx\;=\;vx\;;\dots\}}}
+      &= \{l_{code(\mathbf{lx})} = \overline{\mathtt{vx}}; \;\dots\}
+  \end{align*}
+  \end{minipage}
+  \begin{center}
+  \begin{align*}
+    \overline{\mathtt{\mathbf{case}\;v\;\{ Cons[x] ⇒ t\;|\;\dots\}}}
+      &= [\overline{\mathtt{v}}\;|\; C_{code(\mathtt{Cons})}[x] →
+         \overline{\mathtt{t}}\;|\; \dots]\\[1mm]
+    \overline{\mathtt{\mathbf{case}\;u\;\{ Cons[x] ⇒ t\;|\;\dots\}}}
+      &= (\lambda y.[y\;|\; C_{code(\mathtt{Cons})}[x] →
+         \overline{\mathtt{t}}\;|\; \dots])\;\overline{\mathtt{u}}
+  \end{align*}
+  \end{center}
+  \caption{Elements of the translation of the concrete syntax into the
+  abstract syntax.}
+  \label{fig:desugar}
+\end{figure}
+
+The concrete syntax of \pml that was used in the examples can be translated
+to the formal syntax of Figure~\ref{fig:untyped_syntax} in a straightforward
+ways. This transformation mostly amounts to eliminating syntactic sugar in an
+uninteresting way. Although we do not give the formal definition of the
+concrete syntax, we highlight parts of the translation in an informal way
+in Figure~\ref{fig:desugar}. Note that we use elipses to save space, and the
+translation relies on a coding function $code$, which injects the
+identifiers used for record field names and constructor names into the
+natural numbers.
+
+
