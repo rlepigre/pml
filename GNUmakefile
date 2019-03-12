@@ -30,6 +30,12 @@ bin: src/config.ml
 doc:
 	@dune build @doc
 
+.PHONY: book
+book: book/pml_book.pdf
+
+book/pml_book.pdf: book/biblio.bib $(shell find book -name "*.tex")
+	@cd book && rubber --pdf pml_book.tex
+
 # Configuration file.
 src/config.ml: GNUmakefile
 	@echo "let path = [\"$(LIBDIR)/pml2\"]" > $@
@@ -72,6 +78,7 @@ distclean: clean
 	@find . -type f -name \#\* -exec rm {} \;
 	@find . -type f -name .\#\* -exec rm {} \;
 	@rm -f src/config.ml
+	@cd book && rubber --clean --pdf pml_book.tex
 
 # Install for the vim mode (in the user's directory).
 .PHONY: install_vim

@@ -1,0 +1,50 @@
+\begin{definition}[atomic sorts]
+  We denote $\sorts₀ = \{ι,τ,σ,κ,ο\}$ the set of our five atomic sorts. It
+  contains the sort of values $ι$, the sort of terms $τ$, the sort of stacks
+  $σ$, the sort of ordinals $κ$ and the sort of propositions $ο$.
+\end{definition}
+
+\begin{definition}[sorts]
+  The set of all sorts $\sorts$ is generated from the set of atomic sorts
+  $\sorts₀$ using the following grammar.
+  \begin{align*}
+    s,r &\bnfeq φ \bnfor s→r \bnfor s×r \tag{$φ ∈ \sorts$}
+  \end{align*}
+\end{definition}
+
+\begin{definition}[variables]
+  For every sort $s ∈ \sorts$ we require a (distinct) countable set of
+  variables $\vars_s$. In particular, we will use the following sets.
+  \begin{align*} %
+    \lvars &= \{x,y,z\dots\} \tag{value variables} \\
+    \svars &= \{α,β,γ\dots\} \tag{stack variables}
+  \end{align*}
+\end{definition}
+
+\begin{definition}[syntax]
+  \begin{align*}
+    A,B \bnfeq
+      &χ \bnfor (χ^s ↦ A) \bnfor A \langle B \rangle
+        \tag{higher-order $λ$-calculus} \\
+      \bnfor &(A, B) \bnfor A.1 \bnfor A.2 % FIXME notation
+        \tag{higher-order product} \\
+      \bnfor &∀χ^s.A \bnfor ∃χ^s.A
+        \tag{quantifiers} \\
+      \bnfor &ε_{χ^s}(t∉A) \bnfor ε_{χ^s}(t∈A)
+        \tag{choice operators} \\
+      \bnfor &μ_A χ^s.B \bnfor ν_A χ^s.B
+        \tag{fixpoints} \\
+      \bnfor &\{(l_i : A_i)_{i∈I}\}
+        \tag{product type} \\
+      \bnfor &[(C_i : A_i)_{i∈I}]
+        \tag{disjoint sum type} \\
+      \bnfor &A ⇒ B
+        \tag{function type} \\
+      \bnfor &λx.A \bnfor A\,B
+        \tag{$λ$-abstraction and application} \\
+      \bnfor &\{(l_i = A_i)_{i∈I}\} \bnfor C_k[A]
+        \tag{records and variants} \\
+      \bnfor &[A \,|\, (C_i[x_i] → A_i)_{i∈I}] \bnfor A.l_k
+        \tag{matching and projection} \\
+  \end{align*}
+\end{definition}
