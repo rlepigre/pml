@@ -38,12 +38,12 @@ val u7 : nat = succ u6
 val u8 : nat = succ u7
 val u9 : nat = succ u8
 
-val test : {} =
-  let l : list⟨nat⟩ = (u3::u7::u1::u2::u9::u0::u0::u1::[]);
-  print "isort ";
-  println_list print_nat l;
-  print "    = ";
-  println_list print_nat (isort nat_order l)
+//val test : {} =
+//  let l : list⟨nat⟩ = (u3::u7::u1::u2::u9::u0::u0::u1::[]);
+//  print "isort ";
+//  println_list print_nat l;
+//  print "    = ";
+//  println_list print_nat (isort nat_order l)
 
 // Prove that the produced list is sorted.
 

@@ -24,11 +24,8 @@ all: bin
 .PHONY: bin
 bin:
 	@dune build
-# Documentation target.
-.PHONY: doc
-doc:
-	@dune build @doc
 
+# Documentation.
 .PHONY: book
 book: book/pml_book.pdf
 
