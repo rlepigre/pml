@@ -293,6 +293,7 @@ type pool =
   ; values   : (value * v_ptr) list
   ; v_defs   : (v expr * v_ptr) list
   ; e_defs   : (t expr * Ptr.t) list
+  ; in_uni   : Ptr2Set.t (* to avoid loop un unif_ptr, see note there *)
   (* purity should be lazy, otherwise we infer total arrows
      for arrow which are not total *)
   ; pure     : bool Lazy.t
@@ -388,6 +389,7 @@ let empty_pool : pool =
   ; values = []
   ; v_defs = []
   ; e_defs = []
+  ; in_uni = Ptr2Set.empty
   ; pure   = Lazy.from_val true
   }
 
@@ -1438,6 +1440,12 @@ and unif_ptr : pool -> Ptr.t -> Ptr.t -> pool = fun po p1 p2 ->
   let (p2, po) = find p2 po in
   log_edp2 "unif_ptr %a %a" Ptr.print p1 Ptr.print p2;
   if eq_ptr po p1 p2 then po else
+  (* NOTE: could do [po = union p1 p2 po] but one should detect creation
+     of cycle in the pool. remembering unification done or being done is
+     simpler to avoid looping *)
+  if Ptr2Set.mem (p1,p2) po.in_uni || Ptr2Set.mem (p2,p1) po.in_uni
+  then po else
+  let po = { po with in_uni = Ptr2Set.add (p1, p2) po.in_uni } in
   match p1, p2 with
   | (Ptr.V_ptr vp1, Ptr.V_ptr vp2) ->
      let v1 = find_v_node vp1 po in
