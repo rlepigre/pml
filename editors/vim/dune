@@ -1,0 +1,8 @@
+(install
+  (package pml)
+  (section share)
+  (files
+    (ftdetect/pml.vim as vim/ftdetect/pml.vim)
+    (indent/pml.vim as vim/indent/pml.vim)
+    (syntax/pml.vim as vim/syntax/pml.vim)))
+        

@@ -1,7 +1,9 @@
 (install
+  (package pml)
   (section share_root)
   (files (pml-mode.el as emacs/site-lisp/pml-mode.el)))
 
 (install
+  (package pml)
   (section bin)
   (files (pml-indent.sh as pml-indent)))

@@ -55,22 +55,39 @@ make doc       # optionally produce the ocamldoc documentation
 Organization of the repository
 ------------------------------
 
-This folder contains files related to the PML2 project.
+This folder contains files related to the PML project.
 
 The source files can be found in the following folders:
- - `src/util` contains a set of libraries not directly related to PML2,
+ - `src/util` contains a set of libraries not directly related to PML,
  - `src/parser` contains a low level AST of the language and the parser,
- - `src/kernel` contains the core of PML2 (type checking, equivalence, AST...),
+ - `src/kernel` contains the core of PML (type checking, equivalence, AST...),
  - `src/pml.ml` is the main program.
 
 Other directories:
- - `editors` contains PML2 modes for editors (vim and emacs only),
- - `lib` contains the PML2 standard library (very small),
- - `test` contains most of our examples of PML2 programs,
+ - `editors` contains PML modes for editors (vim and emacs only),
+ - `lib` contains the PML standard library (very small),
+ - `test` contains most of our examples of PML programs,
 
 The directories `tmp` and `attic` are not relevant as the contain files used
 for debugging the newest features including termination checking and old code
 that we want to keep somewhere.
+
+Editor setup: Vim / Neovim
+--------------------------
+
+After installing PML (with `make install`), you will need to add the
+following lines to you `.vimrc` file (if they are not already present).
+```vim
+" PML stuff
+let g:opamshare = substitute(system('opam config var share'),'\n$','','''')
+execute "set rtp+=" . g:opamshare . "/pml/vim"
+```
+
+Note that it may be necessary for these lines to appear before the
+following line.
+```vim
+filetype plugin indent on
+```
 
 Where to start in the code
 --------------------------

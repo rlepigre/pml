@@ -59,25 +59,14 @@ distclean: clean
 	@rm -f src/config.ml
 	@cd book && rubber --clean --pdf pml_book.tex
 
-# Install for the vim mode (in the user's directory).
-.PHONY: install_vim
-install_vim: editors/vim/indent/pml.vim editors/vim/syntax/pml.vim
-ifeq ($(wildcard $(VIMDIR)/.),)
-	@echo -e "\e[36mWill not install vim mode.\e[39m"
-else
-	install -d $(VIMDIR)/syntax
-	install -d $(VIMDIR)/indent
-	install -d $(VIMDIR)/ftdetect
-	install -m 644 editors/vim/syntax/pml.vim $(VIMDIR)/syntax
-	install -m 644 editors/vim/indent/pml.vim $(VIMDIR)/indent
-	install -m 644 editors/vim/ftdetect/pml.vim $(VIMDIR)/ftdetect
-	@echo -e "\e[36mVim mode installed.\e[39m"
-endif
-
 # Install.
 .PHONY: install
 install: bin
 	@dune install
+
+.PHONY: uninstall
+uninstall:
+	@dune uninstall
 
 # Release.
 .PHONY: release
