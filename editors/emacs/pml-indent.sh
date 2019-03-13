@@ -5,9 +5,9 @@
 # file named emacs-format-file.
 
 
-echo "(require 'pml2-mode)
+echo "(require 'pml-mode)
    (defun emacs-format-function ()
-   (pml2-mode)
+   (pml-mode)
    (indent-region (point-min) (point-max) nil)
    (untabify (point-min) (point-max))
    (save-buffer))" > /tmp/emacs-indent.el
