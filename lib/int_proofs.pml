@@ -75,3 +75,28 @@ val rec add_commutative : ∀n m∈int, n + m ≡ m + n = fun n m {
     P[s] → add_pre_right m s; add_commutative s m
   }
 }
+
+val rec add_suc_left : ∀n m∈int, suc n + m ≡ suc (n + m) = fun n m {
+  case n {
+    Zero → {}
+    S[p] → {}
+    P[s] → suc_pre (s + m)
+  }
+}
+
+val rec add_pre_left : ∀n m∈int, pre n + m ≡ pre (n + m) = fun n m {
+  case n {
+    Zero → {}
+    S[p] → pre_suc (p + m)
+    P[s] → {}
+  }
+}
+
+val rec add_associative : ∀m n p∈int, (m + n) + p ≡ m + (n + p) =
+  fun m n q {
+    case m {
+      Zero → {}
+      S[p] → add_suc_left (p + n) q; add_associative p n q
+      P[s] → add_pre_left (s + n) q; add_associative s n q
+    }
+  }
