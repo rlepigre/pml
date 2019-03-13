@@ -1,2 +1,0 @@
-<toplevel> ::= def <ident> {( <ident> : <sort> )}* : <sort> = <expr>
-             | val <ident> : <expr> = <expr>
