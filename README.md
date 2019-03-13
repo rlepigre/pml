@@ -15,9 +15,10 @@ writing proofs mostly amounts to applying lemmas (possibly recursive function
 calls), and to perform case analyses (pattern matchings).
 
 Related documents and prototypes:
- - http://lepigre.fr/files/docs/lepigre2017_pml2.pdf (introductory paper),
- - https://tel.archives-ouvertes.fr/tel-01590363 (R. Lepigre's PhD thesis),
+ - https://doi.org/10.4230/LIPIcs.TYPES.2017.4 (introductory paper),
+ - https://tel.archives-ouvertes.fr/tel-01682908 (R. Lepigre's PhD thesis),
  - https://doi.org/10.1007/978-3-662-49498-1_19 (paper related to the model),
+ - https://doi.org/10.1145/3285955 (paper related to subtyping),
  - https://github.com/rlepigre/subml (the SubML language).
 
 Dependencies and compilation
