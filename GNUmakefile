@@ -22,9 +22,8 @@ VERSION  = devel
 all: bin
 
 .PHONY: bin
-bin: src/config.ml
+bin:
 	@dune build
-
 # Documentation target.
 .PHONY: doc
 doc:
@@ -35,10 +34,6 @@ book: book/pml_book.pdf
 
 book/pml_book.pdf: book/biblio.bib $(shell find book -name "*.tex")
 	@cd book && rubber --pdf pml_book.tex
-
-# Configuration file.
-src/config.ml: GNUmakefile
-	@echo "let path = [\"$(LIBDIR)/pml2\"]" > $@
 
 # Checks on the source code.
 check:

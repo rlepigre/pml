@@ -15,6 +15,11 @@ let files =
     Printf.sprintf "Usage: %s [args] [f1.pml] ... [fn.pml]" Sys.argv.(0)
   in
 
+  let show_config () =
+    Printf.printf "The PML library search path contains:\n%!";
+    List.iter (Printf.printf " - %S\n%!") Config.path
+  in
+
   let r_spec = ref [] in
   let help f =
     let act () = raise (Arg.Help (Arg.usage_string !r_spec usage_msg)) in
@@ -44,6 +49,9 @@ let files =
     ; ( "--quiet"
       , Arg.Clear verbose
       , " Disables the printing definition data.")
+    ; ( "--config"
+      , Arg.Unit(show_config)
+      , " Prints local configuration." )
     ] @ List.map help ["--help" ; "-help" ; "-h" ]
   in
   let spec = Arg.align spec in
