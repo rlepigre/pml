@@ -293,7 +293,7 @@ type pool =
   ; values   : (value * v_ptr) list
   ; v_defs   : (v expr * v_ptr) list
   ; e_defs   : (t expr * Ptr.t) list
-  ; in_uni   : (Ptr.t * Ptr.t) list(* to avoid loop un unif_ptr, see note there *)
+  ; in_uni   : (Ptr.t * Ptr.t) list(* to avoid loop un unif_ptr, see note *)
   (* purity should be lazy, otherwise we infer total arrows
      for arrow which are not total *)
   ; pure     : bool Lazy.t
@@ -1457,7 +1457,7 @@ and unif_ptr : pool -> Ptr.t -> Ptr.t -> pool = fun po p1 p2 ->
   (* NOTE: could do [po = union p1 p2 po] but one should detect creation
      of cycle in the pool. remembering unification done or being done is
      simpler to avoid looping *)
-  if test_uni p1 p2 po then po else
+  if test_uni p1 p2 po then raise NoUnif else
   let po = push_uni p1 p2 po in
   let po = match p1, p2 with
   | (Ptr.V_ptr vp1, Ptr.V_ptr vp2) ->
