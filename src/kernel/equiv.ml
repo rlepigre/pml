@@ -1436,6 +1436,7 @@ and unif_tptr : pool -> TPtr.t -> TPtr.t -> pool = fun po p1 p2 ->
 and unif_ptr : pool -> Ptr.t -> Ptr.t -> pool = fun po p1 p2 ->
   let (p1, po) = find p1 po in
   let (p2, po) = find p2 po in
+  log_edp2 "unif_ptr %a %a" Ptr.print p1 Ptr.print p2;
   if eq_ptr po p1 p2 then po else
   match p1, p2 with
   | (Ptr.V_ptr vp1, Ptr.V_ptr vp2) ->
@@ -1471,12 +1472,14 @@ and unif_ptr : pool -> Ptr.t -> Ptr.t -> pool = fun po p1 p2 ->
 
 and unif_expr : type a.pool -> a ex loc -> a ex loc -> pool =
   fun po e1 e2 ->
+    log_edp2 "unif_expr %a %a" Print.ex e1 Print.ex e2;
     let po = ref po in
     if eq_expr ~oracle:(oracle po) ~strict:false e1 e2 then !po
     else raise NoUnif
 
 and unif_bndr: type a b. pool -> a sort -> (a,b) bndr -> (a,b) bndr -> pool =
   fun po s e1 e2 ->
+    log_edp2 "unif_bndr %a %a" Print.bndr e1 Print.bndr e2;
     let po = ref po in
     if eq_bndr ~oracle:(oracle po) ~strict:false s e1 e2 then !po
     else raise NoUnif
@@ -1501,7 +1504,9 @@ and unif_ho_appl : type a. pool -> a ho_appl -> a ho_appl -> pool =
 
 (** Equality functions on nodes. *)
 and unif_v_nodes : pool -> VPtr.t -> v_node -> VPtr.t -> v_node -> pool =
-  fun po p1 n1 p2 n2 -> if n1 == n2 then po else begin
+  fun po p1 n1 p2 n2 ->
+    log_edp2 "unif_v_nodes %a %a" print_v_node n1 print_v_node n2;
+    if n1 == n2 then po else begin
     match (n1, n2) with
     | (VN_UVar({uvar_val = {contents = Set v}}), _) ->
        let po = reinsert (Ptr.V_ptr p1) po in
@@ -1569,6 +1574,7 @@ and unif_v_nodes : pool -> VPtr.t -> v_node -> VPtr.t -> v_node -> pool =
 
 and unif_t_nodes : pool -> TPtr.t -> t_node -> TPtr.t -> t_node -> pool =
   fun po p1 n1 p2 n2 -> if n1 == n2 then po else begin
+    log_edp2 "unif_t_nodes %a %a" print_t_node n1 print_t_node n2;
     match (n1, n2) with
     | (TN_UVar({uvar_val = {contents = Set v}}), _) ->
        let po = reinsert (Ptr.T_ptr p1) po in
