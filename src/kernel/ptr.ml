@@ -121,16 +121,6 @@ type par_map = Ptr.par_map
 
 let eq_ptr p1 p2 = Ptr.compare p1 p2 = 0
 
-module Ptr2 = struct
-  type t = ptr * ptr
-  let compare (p1,p2) (q1,q2) =
-    match Ptr.compare p1 q1 with
-    | 0 -> Ptr.compare p2 q2
-    | c -> c
-end
-
-module Ptr2Set = Set.Make(Ptr2)
-
 let add_ptr_key k p m =
   let old = try MapKey.find k m with Not_found -> PtrSet.empty in
   MapKey.add k (PtrSet.add p old) m

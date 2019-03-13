@@ -293,7 +293,7 @@ type pool =
   ; values   : (value * v_ptr) list
   ; v_defs   : (v expr * v_ptr) list
   ; e_defs   : (t expr * Ptr.t) list
-  ; in_uni   : Ptr2Set.t (* to avoid loop un unif_ptr, see note there *)
+  ; in_uni   : (Ptr.t * Ptr.t) list(* to avoid loop un unif_ptr, see note there *)
   (* purity should be lazy, otherwise we infer total arrows
      for arrow which are not total *)
   ; pure     : bool Lazy.t
@@ -389,7 +389,7 @@ let empty_pool : pool =
   ; values = []
   ; v_defs = []
   ; e_defs = []
-  ; in_uni = Ptr2Set.empty
+  ; in_uni = []
   ; pure   = Lazy.from_val true
   }
 
@@ -430,6 +430,20 @@ let get_fs : TPtr.t -> pool -> bool = fun p po ->
 let set_fs : TPtr.t -> pool -> pool = fun p po ->
   let open Ptr in
   { po with time = Timed.set po.time p.fs true }
+
+let push_uni : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
+  { po with in_uni = (p1, p2) :: po.in_uni }
+
+let test_uni : Ptr.t -> Ptr.t -> pool -> bool = fun p1 p2 po ->
+  List.exists (fun (q1,q2) -> eq_ptr p1 q1 && eq_ptr p2 q2) po.in_uni
+
+let pop_uni : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
+  match po.in_uni with
+  | [] -> assert false
+  | (q1, q2) :: in_uni ->
+     assert (eq_ptr p1 q1);
+     assert (eq_ptr p2 q2);
+     { po with in_uni }
 
 (** Geting the children sons of a node. *)
 
@@ -1443,10 +1457,9 @@ and unif_ptr : pool -> Ptr.t -> Ptr.t -> pool = fun po p1 p2 ->
   (* NOTE: could do [po = union p1 p2 po] but one should detect creation
      of cycle in the pool. remembering unification done or being done is
      simpler to avoid looping *)
-  if Ptr2Set.mem (p1,p2) po.in_uni || Ptr2Set.mem (p2,p1) po.in_uni
-  then po else
-  let po = { po with in_uni = Ptr2Set.add (p1, p2) po.in_uni } in
-  match p1, p2 with
+  if test_uni p1 p2 po then po else
+  let po = push_uni p1 p2 po in
+  let po = match p1, p2 with
   | (Ptr.V_ptr vp1, Ptr.V_ptr vp2) ->
      let v1 = find_v_node vp1 po in
      let v2 = find_v_node vp2 po in
@@ -1477,6 +1490,8 @@ and unif_ptr : pool -> Ptr.t -> Ptr.t -> pool = fun po p1 p2 ->
           join (Ptr.T_ptr p2) (Ptr.V_ptr p1) po
        | _ -> raise NoUnif
      end
+  in
+  pop_uni p1 p2 po
 
 and unif_expr : type a.pool -> a ex loc -> a ex loc -> pool =
   fun po e1 e2 ->
