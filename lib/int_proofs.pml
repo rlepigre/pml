@@ -28,7 +28,8 @@ val rec add_zero_right : ∀n∈int, n + Zero ≡ n = fun n {
            }
     P[s] → eqns s + Zero ≡ s by add_zero_right s;
            showing pre(s+Zero) ≡ P[s];
-           //showing suc(s+Zero) ≡ S[s]; // FIXME: wrong but loops!
+           //showing suc(s+Zero) ≡ S[s]; // FIXME #24: wrong but loops,
+              //probably a cyclic value in the pool!
            case s { //FIXME #30 too
              Zero → {}
              P[_] → {}
