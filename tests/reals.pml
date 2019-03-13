@@ -1,5 +1,7 @@
 include lib.stream
+include lib.nat
 include lib.int
+include lib.int_proofs
 
 // Signed binary digit, element of {-1, 0, 1}.
 type sbit = [P; Z; S]
@@ -48,15 +50,15 @@ val rec average_aux : ∀s, int ⇒ sreal⟨s+1⟩ ⇒ sreal⟨s+1⟩ ⇒ sreal�
   fun carry x y _ {
     let {hd = x0; tl = x} = x {};
     let {hd = y0; tl = y} = y {};
-    let d0 = add (dbl carry) (add (sbit_to_int x0) (sbit_to_int y0));
+    let d0 = dbl carry + (sbit_to_int x0 + sbit_to_int y0);
     if even d0 {
-      {hd = sgn d0; tl = average_aux Z x y}
+      {hd = sgn d0; tl = average_aux Zero x y}
     } else {
       let {hd = x1} = x {};
       let {hd = y1} = y {};
-      let d1 = add (dbl d0) (add (sbit_to_int x1) (sbit_to_int y1));
+      let d1 = dbl d0 + (sbit_to_int x1 + sbit_to_int y1);
       let e : sbit = if ge d1 p2 { S } else { if le d1 n2 { P } else { Z } };
-      let carry = sub d0 (dbl (sbit_to_int e));
+      let carry = d0 - (dbl (sbit_to_int e));
       {hd = e; tl = average_aux carry x y}
     }
   }
@@ -64,24 +66,52 @@ val rec average_aux : ∀s, int ⇒ sreal⟨s+1⟩ ⇒ sreal⟨s+1⟩ ⇒ sreal�
 // Actual average function.
 infix (⊕) = average priority 3 left associative
 val average : real ⇒ real ⇒ real =
-  average_aux Z
+  average_aux Zero
 
-type corec eq_stream⟨s1:τ,s2:τ⟩ =
-  {} ⇒ { hd : s1.hd ≡ s2.hd; tl : eq_stream }
+type eq_stream⟨s1:τ,s2:τ⟩ = ∀n∈nat, nth n s1 ≡ nth n s2
 
-// should work, but must prove a property of average_aux ⋯
-val rec average_aux_idempotent : ∀x∈real, eq_stream⟨x, average_aux Z x x⟩ =
-  fun x _ {
+val rec average_aux_idempotent : ∀x∈real, eq_stream⟨x, average_aux Zero x x⟩ =
+  fun x n {
     let {hd; tl} = x {};
-    use average_aux_idempotent tl;
-    case hd {
-      P → {--}
-      Z → {--}
-      S → {--}
+    set auto 2 2;
+    case n {
+      Zero → {}
+      S[p] → use average_aux_idempotent tl p; {}
     }
   }
 
-//val average_idempotent : ∀a, a ⊕ a ≡ a =
-//  fun a {
-//    {- -}
-//  }
+
+val average_idempotent : ∀x∈real, eq_stream⟨x, x ⊕ x⟩ =
+  fun x { average_aux_idempotent x }
+
+val rec average_aux_commutative :  ∀c∈int, ∀x y∈real,
+                                    eq_stream⟨average_aux c x y, average_aux c y x⟩ =
+  fun c x y n {
+    let {hd=x0; tl=xs} = x {};
+    let {hd=y0; tl=ys} = y {};
+    let d0 = dbl c + (sbit_to_int x0 + sbit_to_int y0);
+    use add_commutative (sbit_to_int x0) (sbit_to_int y0);
+    if even d0 {
+      eqns average_aux c x y {} ≡ { hd = sgn d0; tl = average_aux Zero xs ys };
+      eqns average_aux c y x {} ≡ { hd = sgn d0; tl = average_aux Zero ys xs };
+      case n {
+        Zero → {}
+        S[p] → average_aux_commutative Zero xs ys p
+      }
+    } else {
+      set auto 0 2;
+      let {hd = x1} = xs {};
+      let {hd = y1} = ys {};
+      let d1 = dbl d0 + (sbit_to_int x1 + sbit_to_int y1);
+      let d2 = dbl d0 + (sbit_to_int y1 + sbit_to_int x1);
+      eqns d1 ≡ d2 by add_commutative (sbit_to_int x1) (sbit_to_int y1);
+      let e : sbit = if ge d1 p2 { S } else { if le d1 n2 { P } else { Z } };
+      let c1 = d0 - (dbl (sbit_to_int e));
+      eqns average_aux c x y {} ≡ { hd = e; tl = average_aux c1 xs ys };
+      eqns average_aux c y x {} ≡ { hd = e; tl = average_aux c1 ys xs };
+      case n {
+        Zero → {}
+        S[p] → average_aux_commutative c1 xs ys p
+      }
+    }
+  }

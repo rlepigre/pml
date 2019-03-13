@@ -19,18 +19,18 @@ val rec average' : ∀s, int ⇒ sinter⟨s+1⟩ ⇒ sinter⟨s+1⟩ ⇒ sinter�
     let (b0,b') = b {};
     let d' = add (dbl c) (add (d2i a0) (d2i b0));
     if even d' {
-      (sgn d', average' Z a' b')
+      (sgn d', average' Zero a' b')
     } else {
       let (a1,a'') = a' {};
       let (b1,b'') = b' {};
       let d = add (dbl d') (add (d2i a1) (d2i b1));
       let e : digit = if ge d p2 { S } else { if le d n2 { P } else { Z } };
-      let c' = sub d' (dbl (d2i e));
+      let c' = d' - (dbl (d2i e));
       (e, average' c' a' b')
     }
   }
 
-val average : ∀s, sinter⟨s+1⟩ ⇒ sinter⟨s+1⟩ ⇒ sinter⟨s⟩ = average' Z
+val average : ∀s, sinter⟨s+1⟩ ⇒ sinter⟨s+1⟩ ⇒ sinter⟨s⟩ = average' Zero
 
 val oppD : digit ⇒ digit = fun d {
   case d {

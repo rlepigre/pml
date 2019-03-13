@@ -1,15 +1,15 @@
 // Normalized integers
-type rec pos = [Z; S of pos]
-type rec neg = [Z; P of neg]
-type int = [Z; S of pos; P of neg]
+type rec pos = [Zero; S of pos]
+type rec neg = [Zero; P of neg]
+type int = [Zero; S of pos; P of neg]
 // Non normalised
-type rec nint = [Z; S of nint; P of nint]
+type rec nint = [Zero; S of nint; P of nint]
 
 assert int ⊂ nint
 
 val suc : int ⇒ int = fun n {
   case n {
-    Z    → S[Z]
+    Zero → S[Zero]
     S[n] → S[S[n]]
     P[n] → n
   }
@@ -17,41 +17,24 @@ val suc : int ⇒ int = fun n {
 
 val pre : int ⇒ int = fun n {
   case n {
-    Z    → P[Z]
+    Zero → P[Zero]
     P[n] → P[P[n]]
     S[n] → n
   }
 }
 
-def icase⟨p:ι→τ,q:ι→τ,n:ι⟩ = case n { Z → {} | S[n] → p⟨n⟩ | P[n] → q⟨n⟩ }
-def ncase⟨p:ι→τ,n:ι⟩ = case n { Z → {} | S[n] → p⟨n⟩ }
-def pcase⟨p:ι→τ,n:ι⟩ = case n { Z → {} | P[n] → p⟨n⟩ }
+def icase⟨p:ι→τ,q:ι→τ,n:ι⟩ = case n { Zero → {} | S[n] → p⟨n⟩ | P[n] → q⟨n⟩ }
+def ncase⟨p:ι→τ,n:ι⟩ = case n { Zero → {} | S[n] → p⟨n⟩ }
+def pcase⟨p:ι→τ,n:ι⟩ = case n { Zero → {} | P[n] → p⟨n⟩ }
 
 val suc_pre : ∀n∈int, suc (pre n) ≡ n =
   fun n { icase⟨ncase⟨(x:ι↦{})⟩,(x:ι↦{}),n⟩ }
 
-def icase⟨n⟩ = case n { Z → {} | S[_] → {} | P[_] → {} }
-def ncase⟨n⟩ = case n { Z → {} | S[_] → {} }
-def pcase⟨n⟩ = case n { Z → {} | P[_] → {} }
+def icase⟨n⟩ = case n { Zero → {} | S[_] → {} | P[_] → {} }
+def ncase⟨n⟩ = case n { Zero → {} | S[_] → {} }
+def pcase⟨n⟩ = case n { Zero → {} | P[_] → {} }
 
-// FIXME #30: auto fails because two cases are impossible by typing
-// because p is positive below.
-val suc_pre : ∀n∈int, suc (pre n) ≡ n = fun n {
-  case n {
-    Z → {}
-    S[p] → ncase⟨p⟩
-    P[_] → {}
-  }
-}
-val pre_suc : ∀n∈int, pre (suc n) ≡ n = fun n {
-  case n {
-    Z → {}
-    S[_] → {}
-    P[p] → pcase⟨p⟩
-  }
-}
-
-val p0 : int = Z
+val p0 : int = Zero
 val p1 : int = suc p0
 val p2 : int = suc p1
 val p3 : int = suc p2
@@ -63,59 +46,71 @@ val n3 : int = pre n2
 val n4 : int = pre n3
 val n5 : int = pre n4
 
-val rec add : int ⇒ int ⇒ int = fun n m {
+// Addition function.
+infix (+) = add priority 3 left associative
+
+val rec (+) : int ⇒ int ⇒ int = fun n m {
   case n {
-    Z    → m
-    S[n] → suc (add n m)
-    P[n] → pre (add n m)
+    Zero → m
+    S[n] → suc (n + m)
+    P[n] → pre (n + m)
   }
 }
 
-val rec sub : int ⇒ int ⇒ int = fun n m {
+// Difference function.
+infix (-) = minus priority 3 left associative
+
+val rec (-) : int ⇒ int ⇒ int = fun n m {
   case m {
-    Z    → n
-    S[m] → pre (sub n m)
-    P[m] → suc (sub n m)
+    Zero → n
+    S[m] → pre (n - m)
+    P[m] → suc (n - m)
   }
 }
+
+// double
 val rec dbl : int ⇒ int = fun n {
   case n {
-    Z → Z
+    Zero → Zero
     S[n] → suc (suc (dbl n))
     P[n] → pre (pre (dbl n))
   }
 }
-val rec mul : int ⇒ int ⇒ int = fun n m {
+
+// Multiplication function.
+infix (*) = mul priority 2 left associative
+
+val rec (*) : int ⇒ int ⇒ int = fun n m {
   case m {
-    Z → Z
-    S[m] → add (mul n m) n
-    P[m] → sub (mul n m) n
+    Zero → Zero
+    S[m] → n * m + n
+    P[m] → n * m - n
   }
 }
 val sgn : int ⇒ [P;Z;S] = fun n {
   case n {
-    Z → Z
+    Zero → Z
     S[_] → S
     P[_] → P
   }
 }
 val rec even : int ⇒ bool = fun n {
   case n {
-    Z → true
+    Zero → true
     S[n] → case n {
-      Z → false
+      Zero → false
       S[n] → even n
     }
     P[n] → case n {
-      Z → false
+      Zero → false
       P[n] → even n
     }
   }
 }
 val rec le : int ⇒ int ⇒ bool = fun n m {
-  let d = sub m n;
+  let d = m - n;
   case d {
-    Z → true
+    Zero → true
     S[_] → true
     P[_] → false
   }
@@ -124,11 +119,15 @@ val rec le : int ⇒ int ⇒ bool = fun n m {
 val rec ge : int ⇒ int ⇒ bool = fun n m { le m n }
 
 val rec lt : int ⇒ int ⇒ bool = fun n m {
-  let d = sub m n;
+  let d = m - n;
   case d {
-    Z → false
+    Zero → false
     S[_] → true
     P[_] → false
   }
 }
 val rec gt : int ⇒ int ⇒ bool = fun n m { lt m n }
+
+include lib.nat
+
+assert nat ⊂ int

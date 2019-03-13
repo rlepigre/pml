@@ -61,7 +61,7 @@ val rec (**) : nat ⇒ nat ⇒ nat =
   }
 
 // Difference function.
-infix (-) = minus priority 3 right associative
+infix (-) = minus priority 3 left associative
 
 val rec (-) : ∀s, nat^s ⇒ nat ⇒ nat^s =
   fun n m {
