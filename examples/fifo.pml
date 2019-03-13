@@ -72,12 +72,13 @@ val equiv_push :
     {}
   }
 
-// lemma for po, the crucial case (needs a definition, and a few intermediate lemmas)
+// lemma for po, the crucial case (needs a definition,
+// and a few intermediate lemmas)
 def translate_opt⟨o:τ⟩ =
   case o { None → None | Some[(x,f)] → Some[(x,translate⟨f⟩)] }
 
 val rec lemma1 : ∀a, ∀x∈a, ∀s1∈list⟨a⟩, ∀s2∈list⟨a⟩,
-                   take_last (app s1 (rev (x::s2))) ≡ Some[(x,app s1 (rev s2))] =
+    take_last (app s1 (rev (x::s2))) ≡ Some[(x,app s1 (rev s2))] =
   fun x s1 s2 {
     let a such that s2 : list⟨a⟩;
     let s2':list⟨a⟩ = Cons[{hd=x; tl=s2}];
@@ -121,7 +122,8 @@ val rec equiv_pop :
         deduce fifo_pair.pop f ≡ Some[(x,(s1,s2'))];
         deduce translate⟨f⟩ ≡ app s1 (rev (x::s2'));
         deduce translate_opt⟨fifo_pair.pop f⟩ ≡ Some[(x,app s1 (rev s2'))];
-        deduce fifo_simple.pop translate⟨f⟩ ≡ take_last (app s1 (rev (x::s2')));
+        deduce fifo_simple.pop translate⟨f⟩
+          ≡ take_last (app s1 (rev (x::s2')));
         use lemma1 x s1 s2'
       [] →
         case s1 {
@@ -210,7 +212,8 @@ val rec equiv_apply_aux :
             use equiv_push x f;
             let f1:list⟨a⟩×list⟨a⟩ = ((x::l1), l2);
             eqns translate⟨apply_aux fifo_pair f1 ops'⟩
-              ≡ apply_aux fifo_simple translate⟨f1⟩ ops' by equiv_apply_aux f1 ops';
+              ≡ apply_aux fifo_simple translate⟨f1⟩ ops'
+              by equiv_apply_aux f1 ops';
             {}
         }
     }

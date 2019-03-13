@@ -59,7 +59,9 @@ val rec mulDI : ∀s, digit ⇒ sinter⟨s⟩ ⇒ sinter⟨s⟩ = fun a1 b _ {
 }
 
 // work in progress ⋯
-// (1/2 x0 + 1/2 x) * y = 1/2 x0*y + 1/2 x*y = av(x0*y, x*y)                                            // (1/2 x0 + 1/2 x) * (1/2 y0 + 1/2 y) = 1/4 x0 y0 + 1/4 (x0 y + y0 x) + 1/4 x y
+// (1/2 x0 + 1/2 x) * y = 1/2 x0*y + 1/2 x*y = av(x0*y, x*y)
+// (1/2 x0 + 1/2 x) * (1/2 y0 + 1/2 y)
+//    = 1/4 x0 y0 + 1/4 (x0 y + y0 x) + 1/4 x y
 //    = av(av(x0 y, y0 x), 1/2 x0 y0 + 1/2 x y)
 // (x0 + 1/2x1 + 1/4 x) * (y0 + 1/2 y1 + 1/4 y) =
 //    x0 y0 + 1/2 x0 y1 + 1/2 x1 y0 + 1/4 x1 y1 + 1/4 x0 y + 1/4 y0 x  +
