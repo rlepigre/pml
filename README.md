@@ -72,8 +72,8 @@ The directories `tmp` and `attic` are not relevant as the contain files used
 for debugging the newest features including termination checking and old code
 that we want to keep somewhere.
 
-Editor setup: Vim / Neovim
---------------------------
+Support for the Vim (or Neovim) editor
+--------------------------------------
 
 After installing PML (with `make install`), you will need to add the
 following lines to you `.vimrc` file (if they are not already present).
@@ -87,6 +87,16 @@ Note that it may be necessary for these lines to appear before the
 following line.
 ```vim
 filetype plugin indent on
+```
+
+Support for the Emacs editor
+----------------------------
+
+After installing PML (with `make install`), you will need to add the
+following lines to you `.emacs` file.
+```elisp
+;; PML stuff
+(load "pml-mode")
 ```
 
 Where to start in the code
