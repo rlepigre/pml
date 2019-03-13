@@ -78,7 +78,10 @@ exception Compile
 
 let output_value ch v = Marshal.(to_channel ch v [Closures])
 let input_value ch =
-  try Marshal.from_channel ch with Failure s -> raise Compile
+  try Marshal.from_channel ch
+  (* NOTE End_of_file should happen only when pml is interrupted *)
+  (* while saving. *)
+  with Failure _ | End_of_file -> raise Compile
 
 let save_file : string -> unit = fun fn ->
   let cfn = Filename.chop_suffix fn ".pml" ^ ".pmi" in
