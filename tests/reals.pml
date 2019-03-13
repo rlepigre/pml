@@ -83,5 +83,5 @@ val rec average_aux_idempotent : ∀x∈real, eq_stream⟨x, average_aux Z x x�
 
 //val average_idempotent : ∀a, a ⊕ a ≡ a =
 //  fun a {
-//    {- TODO -}
+//    {- -}
 //  }
