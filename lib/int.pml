@@ -68,6 +68,28 @@ val rec (-) : int ⇒ int ⇒ int = fun n m {
   }
 }
 
+val rec opp_pos : pos ⇒ neg = fun n {
+  case n {
+    Zero → Zero
+    S[p] → P[opp_pos p]
+  }
+}
+
+val rec opp_neg : neg ⇒ pos = fun n {
+  case n {
+    Zero → Zero
+    P[s] → S[opp_neg s]
+  }
+}
+
+val rec opp : int ⇒ int = fun n {
+  case n {
+    Zero → Zero
+    S[p] → P[opp_pos p]
+    P[s] → S[opp_neg s]
+  }
+}
+
 // double
 val rec dbl : int ⇒ int = fun n {
   case n {
