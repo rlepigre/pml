@@ -441,6 +441,10 @@ and rel ch cnd =
 
 let ex ch t = ex Any ch t
 
+let bndr ch b =
+  let (x, t) = unbind (snd b) in
+  fprintf ch "%s.%a" (name_of x) ex t
+
 let print_fix_sch ch sch =
   let (x,t) = unbind (snd (fst sch.fsch_judge)) in
   let (vars,k) = unmbind (snd sch.fsch_judge) in
