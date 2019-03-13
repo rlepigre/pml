@@ -1,8 +1,4 @@
-# Editors directory.
-VIMDIR   = $(HOME)/.vim
-
-# Version.
-VERSION  = devel
+VERSION = devel
 
 # Main target.
 .PHONY: all
@@ -25,38 +21,34 @@ check:
 
 # Lib target (PML handles the dependencies).
 .PHONY: lib
-LIB_FILES = $(wildcard lib/*.pml)
+LIB_FILES = $(shell find lib -name "*.pml")
 lib: bin $(LIB_FILES)
 	@for f in $(LIB_FILES); do dune exec -- pml --quiet $$f || break ; done
 
 # Test target.
 .PHONY: tests
-TEST_FILES = $(wildcard examples/*.pml tests/*.pml tests/*/*.pml)
+TEST_FILES = $(shell find examples tests -name "*.pml")
 tests: bin lib $(TEST_FILES)
-	@for f in $(TEST_FILES); do echo $$f; dune exec -- pml --quiet $$f || break ; done
+	@for f in $(TEST_FILES); do \
+     echo $$f; \
+     dune exec -- pml --quiet $$f || break ; \
+   done
 
 # target to mesure time
 .PHONY: time
-time:
-	make libclean
-	time make lib test
+time: bin
+	@find . -name \*.pmi -exec rm {} \;
+	@/usr/bin/time -f "Finished in %E at %P with %MKb of RAM" make -s tests
 
 # Cleaning targets.
-clean: libclean
-	@dune clean
-
-libclean:
+clean:
 	@find . -name \*.pmi -exec rm {} \;
-	@find . -name \*.vo -exec rm {} \;
-	@find . -name \*.vo.aux -exec rm {} \;
-	@find . -name \*.glob -exec rm {} \;
-	@find . -name \*.agdai -exec rm {} \;
+	@dune clean
 
 distclean: clean
 	@find . -type f -name "*~" -exec rm {} \;
 	@find . -type f -name \#\* -exec rm {} \;
 	@find . -type f -name .\#\* -exec rm {} \;
-	@rm -f src/config.ml
 	@cd book && rubber --clean --pdf pml_book.tex
 
 # Install.
