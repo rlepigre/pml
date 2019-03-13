@@ -6,3 +6,10 @@
   (modules :standard)
   (preprocess (per_module ((action (run pa_ocaml %{input-file})) parser)))
   (libraries bindlib earley.core earley.str))
+
+(rule
+  (targets config.ml)
+  (action (with-stdout-to config.ml (progn
+    (echo "let path = [ String.trim \"") ; hack to remove newline.
+    (run opam config var lib)
+    (echo "\"]\n")))))

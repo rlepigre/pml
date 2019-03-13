@@ -1,9 +1,0 @@
-S pml2
-S kernel
-S parser
-S util
-B _build/pml2
-B _build/kernel
-B _build/parser
-B _build/util
-PKG unix earley bindlib
