@@ -31,32 +31,33 @@ val sbit_to_int : sbit ⇒ int =
 
 // Representation of a real number in the interval [-1,1].
 // The stream of binary digits d₁∷d₂∷... corresponds to the sum Σₖ (dₖ / 2ᵏ).
-type mantisse = stream⟨sbit⟩
+// used as mantissa to represent reals
+type man = stream⟨sbit⟩
 
 // Mantisse with size.
-type smantisse⟨s⟩ = stream^s⟨sbit⟩
+type sman⟨s⟩ = stream^s⟨sbit⟩
 
 // Type of real numbers
-type real = { man : mantisse; exp : int }
+type real = { man : man; exp : int }
 
 // Unique representation of -1 and 1.
-val neg1 : mantisse = repeat P
-val pos1 : mantisse = repeat S
+val neg1 : man = repeat P
+val pos1 : man = repeat S
 
 // To compute the opposite, we juste take the opposite of every digit.
-val opp_man : mantisse ⇒ mantisse =
+val opp_man : man ⇒ man =
   map opp_sbit
 
 val opp : real ⇒ real = fun x {
   { man = opp_man x.man; exp = x.exp }
 }
 
-// Average of a single sbit and a mantisse.
-val sbit_average : sbit ⇒ mantisse ⇒ mantisse =
+// Average of a single sbit and a man.
+val sbit_average : sbit ⇒ man ⇒ man =
   fun d r { cons d r }
 
 // Average function with a carry.
-val rec average_aux : ∀s, int ⇒ smantisse⟨s+ₒ1⟩ ⇒ smantisse⟨s+ₒ1⟩ ⇒ smantisse⟨s⟩ =
+val rec average_aux : ∀s, int ⇒ sman⟨s+ₒ1⟩ ⇒ sman⟨s+ₒ1⟩ ⇒ sman⟨s⟩ =
   fun carry x y _ {
     let {hd = x0; tl = x} = x {};
     let {hd = y0; tl = y} = y {};
@@ -75,17 +76,17 @@ val rec average_aux : ∀s, int ⇒ smantisse⟨s+ₒ1⟩ ⇒ smantisse⟨s+ₒ1
 
 // Actual average function, keeping size information (for multiplication).
 infix (⊕) = average priority 3 left associative
-val average : ∀s, smantisse⟨s+ₒ1⟩ ⇒ smantisse⟨s+ₒ1⟩ ⇒ smantisse⟨s⟩ =
+val average : ∀s, sman⟨s+ₒ1⟩ ⇒ sman⟨s+ₒ1⟩ ⇒ sman⟨s⟩ =
   average_aux Zero
 
 // check that with subtyping type is general enough
-val test : mantisse ⇒ mantisse ⇒ mantisse = average
+val test : man ⇒ man ⇒ man = average
 
 // equality on streams: probably equivalent to ≡ and stronger than
 // equality on reals
 type eq_stream⟨s1:τ,s2:τ⟩ = ∀n∈nat, nth n s1 ≡ nth n s2
 
-val rec average_aux_idempotent : ∀x∈mantisse, eq_stream⟨x, average_aux Zero x x⟩ =
+val rec average_aux_idempotent : ∀x∈man, eq_stream⟨x, average_aux Zero x x⟩ =
   fun x n {
     let {hd; tl} = x {};
     set auto 2 2;
@@ -95,19 +96,19 @@ val rec average_aux_idempotent : ∀x∈mantisse, eq_stream⟨x, average_aux Zer
     }
   }
 
-val average_idempotent : ∀x∈mantisse, eq_stream⟨x, x ⊕ x⟩ =
+val average_idempotent : ∀x∈man, eq_stream⟨x, x ⊕ x⟩ =
   fun x { average_aux_idempotent x }
 
-val rec average_aux_commutative :  ∀c∈int, ∀x y∈mantisse,
-                                    eq_stream⟨average_aux c x y, average_aux c y x⟩ =
+val rec average_aux_commutative :  ∀c∈int, ∀x y∈man,
+       eq_stream⟨average_aux c x y, average_aux c y x⟩ =
   fun c x y n {
     let {hd=x0; tl=xs} = x {};
     let {hd=y0; tl=ys} = y {};
     let d0 = dbl c + (sbit_to_int x0 + sbit_to_int y0);
     use add_commutative (sbit_to_int x0) (sbit_to_int y0);
     if even d0 {
-      eqns average_aux c x y {} ≡ { hd = sgn d0; tl = average_aux Zero xs ys };
-      eqns average_aux c y x {} ≡ { hd = sgn d0; tl = average_aux Zero ys xs };
+      eqns average_aux c x y {} ≡ { hd = sgn d0; tl = average_aux p0 xs ys };
+      eqns average_aux c y x {} ≡ { hd = sgn d0; tl = average_aux p0 ys xs };
       case n {
         Zero → {}
         S[p] → average_aux_commutative Zero xs ys p
@@ -130,14 +131,14 @@ val rec average_aux_commutative :  ∀c∈int, ∀x y∈mantisse,
     }
   }
 
-val rec average_commutative :  ∀x y∈mantisse,
+val rec average_commutative :  ∀x y∈man,
                                     eq_stream⟨x ⊕ y, y ⊕ x⟩ =
   fun x y { average_aux_commutative Zero x y }
 
 // From average we get addition using a few extra function
 
 // shift n x is x / 2^n
-val rec shift : nat ⇒ mantisse ⇒ mantisse = fun n x {
+val rec shift : nat ⇒ man ⇒ man = fun n x {
   case n {
     Zero → x
     S[p] → fun _ { { hd = Z; tl = shift p x } }
@@ -199,25 +200,24 @@ val mul_sbit : sbit ⇒ sbit ⇒ sbit = fun a b {
   }
 }
 
-val rec mul_sbit_mantisse : ∀s, sbit ⇒ smantisse⟨s⟩ ⇒ smantisse⟨s⟩ = fun b x _ {
+val rec mul_sbit_man : ∀s, sbit ⇒ sman⟨s⟩ ⇒ sman⟨s⟩ = fun b x _ {
   let { hd = x0; tl = x } = x {};
-  { hd = mul_sbit b x0; tl = mul_sbit_mantisse b x }
+  { hd = mul_sbit b x0; tl = mul_sbit_man b x }
 }
 
-val rec mul_man : mantisse ⇒ mantisse ⇒ mantisse = fun x y {
-  let s such that _ : smantisse⟨s⟩;
+val rec mul_man : man ⇒ man ⇒ man = fun x y {
+  let s such that _ : sman⟨s⟩;
   fun  _ {
     let { hd = x0; tl = x } = x {};
     let { hd = y0; tl = y } = y {};
     let { hd = y1; tl = y } = y {};
-    let p : smantisse⟨s+ₒ1⟩ =
-      mul_sbit_mantisse y0 x ⊕ (mul_sbit_mantisse x0 y ⊕ mul_sbit_mantisse y1 x);
-    let q : smantisse⟨s+ₒ1⟩ =
+    let p : sman⟨s+ₒ1⟩ =
+      mul_sbit_man y0 x ⊕ (mul_sbit_man x0 y ⊕ mul_sbit_man y1 x);
+    let q : sman⟨s+ₒ1⟩ =
       fun (_ :{}){ { hd = mul_sbit x0 y0
                    ; tl = fun (_:{}) { { hd = mul_sbit x0 y1
                                        ; tl = mul_man x y } } } };
-    let r = p ⊕ q; // FIXME: applying directly unit fails
-    r {}
+    (p ⊕ q : sman⟨s⟩) {}
   }
 }
 
