@@ -365,6 +365,7 @@ let infer_sorts : raw_ex -> raw_sort -> unit = fun e s ->
          leq sx s
     | (EInfx(t,_)   , ST       )
     | (EInfx(t,_)   , SP       ) -> infer vars t _st
+    | (EInfx _      , SUni(r)  ) -> sort_uvar_set r _st; infer vars e s
     | (EInfx _      , _        ) -> sort_clash e s
     | (EHOFn(x,k,f) , SFun(a,b)) -> leq a k;
                                     let vars = M.add x.elt (x.pos, k) vars in

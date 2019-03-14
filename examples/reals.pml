@@ -210,15 +210,14 @@ val rec mul_man : mantisse ⇒ mantisse ⇒ mantisse = fun x y {
     let { hd = x0; tl = x } = x {};
     let { hd = y0; tl = y } = y {};
     let { hd = y1; tl = y } = y {};
-    // FIXME: using infix notation gives a strange ortage error
-    let p : smantisse⟨s+ₒ1⟩ = average (mul_sbit_mantisse y0 x)
-                            (average (mul_sbit_mantisse x0 y) (mul_sbit_mantisse y1 x));
+    let p : smantisse⟨s+ₒ1⟩ =
+      mul_sbit_mantisse y0 x ⊕ (mul_sbit_mantisse x0 y ⊕ mul_sbit_mantisse y1 x);
     let q : smantisse⟨s+ₒ1⟩ =
       fun (_ :{}){ { hd = mul_sbit x0 y0
                    ; tl = fun (_:{}) { { hd = mul_sbit x0 y1
                                        ; tl = mul_man x y } } } };
-    let r = average p q; // FIXME: applying directly unit fails
-     r {}
+    let r = p ⊕ q; // FIXME: applying directly unit fails
+    r {}
   }
 }
 
