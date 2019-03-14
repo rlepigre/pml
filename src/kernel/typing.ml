@@ -673,6 +673,7 @@ and subtype =
     in
     (t, a, b, r)
     with
+    | Contradiction          -> (t,a,b,Sub_Scis)
     | e                      -> subtype_error t a b e
   in
   fun ctx t a b -> Chrono.add_time sub_chrono (subtype ctx t a) b
