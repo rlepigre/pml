@@ -209,7 +209,11 @@ let learn_nobox : ctxt -> valu -> ctxt = fun ctx v ->
   { ctx with equations = add_nobox v ctx.equations }
 
 let learn_value : ctxt -> term -> prop -> valu * ctxt = fun ctx t a ->
-  let ae = Pos.none (Memb(t,a)) in
+  let ae =
+    match (Norm.whnf a).elt with
+    | Memb(u,_) when eq_expr t u -> a
+    | _ -> Pos.none (Memb(t,a))
+  in
   let (vwit, ctx_names) = vwit ctx.ctx_names idt_valu ae Ast.bottom in
   let ctx = { ctx with ctx_names } in
   let ctx = learn_nobox ctx vwit in
