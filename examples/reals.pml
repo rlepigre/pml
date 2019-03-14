@@ -144,9 +144,8 @@ val rec mul : real ⇒ real ⇒ real = fun x y {
     let { hd = x0; tl = x } = x {};
     let { hd = y0; tl = y } = y {};
     let { hd = y1; tl = y } = y {};
-    // FIXME: using infix notation gives a strange ortage error
-    let p : sreal⟨s+ₒ1⟩ = average (mul_sbit_real y0 x)
-                            (average (mul_sbit_real x0 y) (mul_sbit_real y1 x));
+    let p : sreal⟨s+ₒ1⟩ =
+      (mul_sbit_real y0 x) ⊕ ((mul_sbit_real x0 y) ⊕ (mul_sbit_real y1 x));
     let q : sreal⟨s+ₒ1⟩ =
       fun (_ :{}){ { hd = mul_sbit x0 y0
                    ; tl = fun (_:{}) { { hd = mul_sbit x0 y1
