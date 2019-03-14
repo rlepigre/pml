@@ -46,10 +46,7 @@ let rec leq_i_ordi : positives -> ordi -> int -> ordi -> bool =
     | (_       , Vari(_) ) -> assert false (* Should not happen. *)
     (* TODO #54 use oracle for eq_expr *)
     | (_       , _       )
-         when i >= 0 && eq_expr ~strict:false (oadd o1 i) o2
-                           -> true
-    | (_       , _       )
-         when i <  0 && eq_expr ~strict:false o1 (oadd o2 (-i))
+         when (i = 0 && eq_expr ~strict:false o1 o2)
                            -> true
     | (_       , Succ(o2)) -> leq_i_ordi pos o1 (i-1) o2
     | (Succ(o1), _       ) -> leq_i_ordi pos o1 (i+1) o2
@@ -58,10 +55,13 @@ let rec leq_i_ordi : positives -> ordi -> int -> ordi -> bool =
     | (OSch(_,Some o,_), _)-> let i = if is_pos pos o then i-1 else i in
                               leq_i_ordi pos o i o2
     | (_       , _       ) ->
-       try
-         let (_,o) = List.find (fun (o,_) -> eq_expr o o2) pos in
-         leq_i_ordi pos o1 (i-1) o
-       with Not_found -> false
+       List.exists
+         (UTimed.pure_test
+            (fun (o,oo) -> eq_expr ~strict:false o o2
+                           && leq_i_ordi pos o1 (i-1) oo))
+         pos
+       || (i < 0 && eq_expr ~strict:false o1 (oadd o2 (-i)))
+       || (i > 0 && eq_expr ~strict:false (oadd o1 i) o2)
 
 let ordi_chrono = Chrono.create "ordi"
 

@@ -119,7 +119,7 @@ let new_uvar : type a. ctxt -> a sort -> a ex loc = fun ctx s ->
 let opred ctx o =
   match (Norm.whnf o).elt with
   | Succ o' -> o'
-  | _       -> new_uvar ctx O
+  | _       -> new_uvar ctx O (* NOTE: Ordinal.less is always tested later *)
 
 let add_positive : ctxt -> ordi -> ordi -> ctxt = fun ctx o oo ->
   let o = Norm.whnf o in

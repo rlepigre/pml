@@ -217,7 +217,7 @@ val rec mul_man : man ⇒ man ⇒ man = fun x y {
       fun (_ :{}){ { hd = mul_sbit x0 y0
                    ; tl = fun (_:{}) { { hd = mul_sbit x0 y1
                                        ; tl = mul_man x y } } } };
-    (p ⊕ q : sman⟨s⟩) {}
+    (p ⊕ q) {}
   }
 }
 
