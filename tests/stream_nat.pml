@@ -31,7 +31,7 @@ val rec map : ∀o, ∀a b, (a ⇒ b) ⇒ stream^o⟨a⟩ ⇒ stream^o⟨b⟩ =
   }
 
 
-val cons : ∀o, ∀a, a ⇒ stream^o⟨a⟩ ⇒ stream^(o+1)⟨a⟩ =
+val cons : ∀o, ∀a, a ⇒ stream^o⟨a⟩ ⇒ stream^(o+ₒ1)⟨a⟩ =
   fun a s _ {
     { hd = a; tl = s }
   }

@@ -13,7 +13,7 @@ val d2i : digit ⇒ int = fun n {
   }
 }
 
-val rec average' : ∀s, int ⇒ sinter⟨s+1⟩ ⇒ sinter⟨s+1⟩ ⇒ sinter⟨s⟩ =
+val rec average' : ∀s, int ⇒ sinter⟨s+ₒ1⟩ ⇒ sinter⟨s+ₒ1⟩ ⇒ sinter⟨s⟩ =
   fun c a b _ {
     let (a0,a') = a {};
     let (b0,b') = b {};
@@ -30,7 +30,7 @@ val rec average' : ∀s, int ⇒ sinter⟨s+1⟩ ⇒ sinter⟨s+1⟩ ⇒ sinter�
     }
   }
 
-val average : ∀s, sinter⟨s+1⟩ ⇒ sinter⟨s+1⟩ ⇒ sinter⟨s⟩ = average' Zero
+val average : ∀s, sinter⟨s+ₒ1⟩ ⇒ sinter⟨s+ₒ1⟩ ⇒ sinter⟨s⟩ = average' Zero
 
 val oppD : digit ⇒ digit = fun d {
   case d {

@@ -7,14 +7,14 @@ type rec rose⟨a⟩ = list⟨rose⟩
 
 val rec size : ∀a, rose⟨a⟩ ⇒ nat =
   fun l {
-    let o,a such that l : rose^(o+1)⟨a⟩;
+    let o,a such that l : rose^(o+ₒ1)⟨a⟩;
     let fn : nat ⇒ rose^(o)⟨a⟩ ⇒ nat = fun acc e { acc + (size e) };
     fold_left fn 1 (l:list⟨rose^o⟨a⟩⟩)
   }
 
 val rec height : ∀a, rose⟨a⟩ ⇒ nat =
   fun l {
-    let o,a such that l : rose^(o+1)⟨a⟩;
+    let o,a such that l : rose^(o+ₒ1)⟨a⟩;
     let fn : nat ⇒ rose^(o)⟨a⟩ ⇒ nat = fun acc e { max acc S[height e] };
     fold_left fn 0 (l:list⟨rose^o⟨a⟩⟩)
   }

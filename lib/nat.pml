@@ -167,12 +167,12 @@ include lib.either
 //    either return n with a sized type less or equal than the size of m
 //    or return n - S[m] with a sized type less that the size of n
 
-val rec sub_size : ∀o1 o2, ∀n∈nat^(o1+1), ∀m∈[S of nat^o2],
+val rec sub_size : ∀o1 o2, ∀n∈nat^(o1+ₒ1), ∀m∈[S of nat^o2],
                      either⟨n∈nat^o2 | n < m, {p∈nat^o1 | n ≡ m + p}⟩ =
   fun n m {
     case m {
       S[m'] →
-        let rec sub_aux : ∀o1 o2, ∀n∈nat^(o1+1), ∀m∈nat^o2,
+        let rec sub_aux : ∀o1 o2, ∀n∈nat^(o1+ₒ1), ∀m∈nat^o2,
                       either⟨n∈nat^o2 | n < S[m], {p∈nat^o1 | n ≡ S[m] + p}⟩ =
           fun n m {
             case n {

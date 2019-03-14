@@ -46,7 +46,7 @@ val sbit_average : sbit ⇒ real ⇒ real =
   fun d r { cons d r }
 
 // Average function with a carry.
-val rec average_aux : ∀s, int ⇒ sreal⟨s+1⟩ ⇒ sreal⟨s+1⟩ ⇒ sreal⟨s⟩ =
+val rec average_aux : ∀s, int ⇒ sreal⟨s+ₒ1⟩ ⇒ sreal⟨s+ₒ1⟩ ⇒ sreal⟨s⟩ =
   fun carry x y _ {
     let {hd = x0; tl = x} = x {};
     let {hd = y0; tl = y} = y {};

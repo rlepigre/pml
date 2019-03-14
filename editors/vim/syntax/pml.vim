@@ -36,6 +36,7 @@ syntax match   Keyword "\^"
 syntax match   Keyword "⟨"
 syntax match   Keyword "⟩"
 syntax match   Keyword "⋯"
+syntax match   Keyword "+ₒ"
 
 " Constructors
 syntax match Constant "\<\u\w*\>"
@@ -101,6 +102,7 @@ command! -nargs=+ ABBackslashEat call s:DefABEat(<f-args>)
 ab -> →
 ab => ⇒
 ab *  ×
+ab +o +ₒ
 
 " Abbreviations starting with backslash.
 ABBackslashEat langle  ⟨

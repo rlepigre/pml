@@ -517,7 +517,7 @@ let parser expr @(m : mode) =
       when m <<= Ord E
       -> in_pos _loc EConv
   (* Ordinal (successor) *)
-  | o:ordinal "+" n:int
+  | o:ordinal "+ₒ" n:int
       when m <<= Ord F
       -> in_pos _loc (ESucc(o,n))
   (* Ordinal (parenthesis) *)

@@ -6,7 +6,7 @@ type min⟨n,f⟩ = ∀p, p ∈ nat → leq (f n) (f p)
 
 type bot = ∀x:ο,x
 
-val rec leq_size : ∀o, ∀m∈nat^(o+1), ∀n∈nat, either⟨leq m n, n∈nat^o⟩ =
+val rec leq_size : ∀o, ∀m∈nat^(o+ₒ1), ∀n∈nat, either⟨leq m n, n∈nat^o⟩ =
   fun m n {
     case m {
       Zero → case n {
@@ -32,10 +32,10 @@ val rec leq_size : ∀o, ∀m∈nat^(o+1), ∀n∈nat, either⟨leq m n, n∈nat
 val rec fn : ∀f∈(nat ⇒ nat), ∀n∈nat, ∀q∈(nat | q ≡ f n),
     (∀n∈ nat, min⟨n,f⟩ → bot) → bot =
   fun f n q k {
-    let o such that q : nat^(o+1);
+    let o such that q : nat^(o+ₒ1);
     k (n:nat) (fun p {
         let fp = f p;
-        case leq_size (q:nat^(o+1)) fp {
+        case leq_size (q:nat^(o+ₒ1)) fp {
           InL     → {}
           InR[fp] → fn f p fp k
         }} : min⟨n,f⟩)

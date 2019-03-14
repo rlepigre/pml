@@ -6,18 +6,18 @@ val head : ∀a, stream⟨a⟩ ⇒ a =
   fun s { (s {}).hd }
 
 // Tail of a stream.
-val tail : ∀a, ∀s, stream^(s+1)⟨a⟩ ⇒ stream^s⟨a⟩ =
+val tail : ∀a, ∀s, stream^(s+ₒ1)⟨a⟩ ⇒ stream^s⟨a⟩ =
   fun s { (s {}).tl }
 
 // Head and tail of a string together.
-val get : ∀a, ∀s, stream^(s+1)⟨a⟩ ⇒ a × stream^s⟨a⟩ =
+val get : ∀a, ∀s, stream^(s+ₒ1)⟨a⟩ ⇒ a × stream^s⟨a⟩ =
   fun s {
     let {hd; tl} = s {};
     (hd, tl)
   }
 
 // Construction function.
-val cons : ∀a, ∀s, a ⇒ stream^s⟨a⟩ ⇒ stream^(s+1)⟨a⟩ =
+val cons : ∀a, ∀s, a ⇒ stream^s⟨a⟩ ⇒ stream^(s+ₒ1)⟨a⟩ =
   fun hd tl _ { {hd; tl} }
 
 // Build a stream containing only the given element.
