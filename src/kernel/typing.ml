@@ -1112,16 +1112,16 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
                     Pos.none (Memb(Pos.none (Valu (snd t)), a))
                   else a
           in
-          A.add l (None, a) m
+          A.add l (None, box a) m
         in
         let pm = A.fold fn m A.empty in
-        let c' = Pos.none (Prod(pm)) in
+        let c' = unbox (strict_prod None pm) in
         let p1 = subtype ctx t c' c in
         let ctx_a = learn_neg_equivalences ctx v None c in
         let fn l (p, v) ps =
           log_typ "Checking case %s." l;
           let (_,a) = A.find l pm in
-          let p = type_valu ctx_a v a in
+          let p = type_valu ctx_a v (unbox a) in
           p::ps
         in
         let p2s = A.fold fn m [] in
