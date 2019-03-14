@@ -7,7 +7,7 @@ include lib.int_proofs
 type sbit = [P; Z; S]
 
 // Opposite operation on binary digits.
-val op_sbit : sbit ⇒ sbit =
+val opp_sbit : sbit ⇒ sbit =
   fun d {
     case d {
       P → S
@@ -39,7 +39,7 @@ val pos1 : real = repeat S
 
 // To compute the opposite, we juste take the opposite of every digit.
 val opp : real ⇒ real =
-  map op_sbit
+  map opp_sbit
 
 // Average of a single sbit real and a real.
 val sbit_average : sbit ⇒ real ⇒ real =
@@ -63,11 +63,16 @@ val rec average_aux : ∀s, int ⇒ sreal⟨s+ₒ1⟩ ⇒ sreal⟨s+ₒ1⟩ ⇒ 
     }
   }
 
-// Actual average function.
+// Actual average function, keeping size information (for multiplication).
 infix (⊕) = average priority 3 left associative
-val average : real ⇒ real ⇒ real =
+val average : ∀s, sreal⟨s+ₒ1⟩ ⇒ sreal⟨s+ₒ1⟩ ⇒ sreal⟨s⟩ =
   average_aux Zero
 
+// check that with subtyping type is general enough
+val test : real ⇒ real ⇒ real = average
+
+// equality on streams: prob&bly equivalent to ≡ and stronger than
+// equality on reals
 type eq_stream⟨s1:τ,s2:τ⟩ = ∀n∈nat, nth n s1 ≡ nth n s2
 
 val rec average_aux_idempotent : ∀x∈real, eq_stream⟨x, average_aux Zero x x⟩ =
@@ -115,3 +120,38 @@ val rec average_aux_commutative :  ∀c∈int, ∀x y∈real,
       }
     }
   }
+
+val rec average_commutative :  ∀x y∈real,
+                                    eq_stream⟨x ⊕ y, y ⊕ x⟩ =
+  fun x y { average_aux_commutative Zero x y }
+
+val mul_sbit : sbit ⇒ sbit ⇒ sbit = fun a b {
+  case a {
+    Z → Z
+    S → b
+    P → opp_sbit b
+  }
+}
+
+val rec mul_sbit_real : ∀s, sbit ⇒ sreal⟨s⟩ ⇒ sreal⟨s⟩ = fun b x _ {
+  let { hd = x0; tl = x } = x {};
+  { hd = mul_sbit b x0; tl = mul_sbit_real b x }
+}
+
+val rec mul : real ⇒ real ⇒ real = fun x y {
+  let s such that _ : sreal⟨s⟩;
+  fun  _ {
+    let { hd = x0; tl = x } = x {};
+    let { hd = y0; tl = y } = y {};
+    let { hd = y1; tl = y } = y {};
+    // FIXME: using infix notation gives a strange ortage error
+    let p : sreal⟨s+ₒ1⟩ = average (mul_sbit_real y0 x)
+                            (average (mul_sbit_real x0 y) (mul_sbit_real y1 x));
+    let q : sreal⟨s+ₒ1⟩ =
+      fun (_ :{}){ { hd = mul_sbit x0 y0
+                   ; tl = fun (_:{}) { { hd = mul_sbit x0 y1
+                                       ; tl = mul x y } } } };
+    let r = average p q; // FIXME: applying directly unit fails
+     r {}
+  }
+}
