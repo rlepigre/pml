@@ -149,18 +149,18 @@ let extract_swit_type : stac -> prop = fun s ->
   | _               -> assert false (* should not happen *)
 
 type typ_rule =
-  | Typ_VTyp   of sub_proof * typ_proof
-  | Typ_TTyp   of sub_proof * typ_proof
+  | Typ_VTyp   of sub_proof * typ_proof option
+  | Typ_TTyp   of sub_proof * typ_proof option
   | Typ_TSuch  of typ_proof
   | Typ_VSuch  of typ_proof
   | Typ_VWit   of sub_proof
   | Typ_VDef   of value * sub_proof
-  | Typ_DSum_i of sub_proof * typ_proof
+  | Typ_DSum_i of sub_proof * typ_proof option
   | Typ_DSum_e of typ_proof * typ_proof list
   | Typ_Func_i of sub_proof * typ_proof option
   | Typ_Func_e of typ_proof * typ_proof
   | Typ_Func_s of typ_proof * typ_proof
-  | Typ_Prod_i of sub_proof * typ_proof list
+  | Typ_Prod_i of sub_proof * typ_proof list option
   | Typ_Prod_e of typ_proof
   | Typ_Name   of typ_proof * stk_proof
   | Typ_Mu     of typ_proof
@@ -180,7 +180,7 @@ and  stk_rule =
 
 and  sub_rule =
   | Sub_Equal
-  | Sub_Func   of sub_proof * sub_proof
+  | Sub_Func   of (sub_proof * sub_proof option) option
   | Sub_Prod   of sub_proof list
   | Sub_DSum   of sub_proof list
   | Sub_Univ_l of sub_proof
@@ -503,10 +503,14 @@ and subtype =
          (* check that totality agree *)
          if not (sub t1 t2) then subtype_msg a.pos "Arrow clash";
          (* build the nobox value witness *)
+         begin try
          let w =
            let x = new_var (mk_free V) (Print.get_lambda_name t) in
            unbox (bind_var x (appl None (box t) (valu None (vari None x))))
          in
+         (* NOTE : if the "let in" below raise Contradiction, this means that
+                   a2 is empty, a2 => b2 is then at least all function and no need
+                   to check b1 < b2 *)
          let (wit, ctx) =
            match is_singleton a2 with
            | Some(wit) ->
@@ -527,27 +531,33 @@ and subtype =
             the above witness is a value.
             NOTE: we can not build ctf_f now, because we need to use
             ctx first below and is would trigger reset of the pool *)
-         let mk_ctx_f () =
-           if know_tot t1 then
-             let (v,ctx) = learn_value ctx rwit top in
-             (Pos.none (Valu v), ctx)
-           else (rwit, ctx)
+         let check_right () =
+           try
+             let (rwit,ctx_f) =
+               if know_tot t1 then
+                 let (v,ctx) = learn_value ctx rwit top in
+                 (Pos.none (Valu v), ctx)
+               else (rwit, ctx)
+             in
+             Some(subtype ctx_f rwit b1 b2)
+           with
+             Contradiction -> None
          in
          let p1, p2 =
            (* heuristic to choose what to check first *)
            match is_singleton a1 with
            | Some _ ->
               let p1 = subtype ctx wit a2 a1 in
-              let (rwit,ctx_f) = mk_ctx_f () in
-              let p2 = subtype ctx_f rwit b1 b2 in
+              let p2 = check_right () in
               (p1,p2)
            | None ->
-              let (rwit,ctx_f) = mk_ctx_f () in
-              let p2 = subtype ctx_f rwit b1 b2 in
+              let p2 = check_right () in
               let p1 = subtype ctx wit a2 a1 in
               (p1,p2)
          in
-         Sub_Func(p1,p2)
+         Sub_Func(Some(p1,p2))
+         with Contradiction -> Sub_Func(None)
+         end
       (* Product (record) types. *)
       | (Prod(fs1)  , Prod(fs2)  ) when t_is_val ->
           let check_field l (_,p,a2) ps =
@@ -571,6 +581,7 @@ and subtype =
           Sub_Prod(ps)
       (* Disjoint sum types. *)
       | (DSum(cs1)  , DSum(cs2)  ) when t_is_val ->
+          (* NOTE: then next line can not raise contradiction, t_is_val !*)
           let (wit, ctx) = learn_value ctx t a in
           let check_variant c (_,p,a1) ps =
             try
@@ -673,8 +684,8 @@ and subtype =
     in
     (t, a, b, r)
     with
-    | Contradiction          -> (t,a,b,Sub_Scis)
-    | e                      -> subtype_error t a b e
+    | Contradiction -> assert false
+    | e             -> subtype_error t a b e
   in
   fun ctx t a b -> Chrono.add_time sub_chrono (subtype ctx t a) b
 
@@ -1088,8 +1099,12 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
         let a = new_uvar ctx P in
         let c' = Pos.none (DSum(A.singleton d.elt (None, a))) in
         let p1 = subtype ctx t c' c in
-        let ctx = learn_neg_equivalences ctx v None c in
-        let p2 = type_valu ctx w a in
+        let p2 =
+          try
+            let ctx = learn_neg_equivalences ctx v None c in
+            Some(type_valu ctx w a)
+          with Contradiction -> None (* in fact, c is top type!*)
+        in
         Typ_DSum_i(p1,p2)
     (* Record. *)
     | Reco(m)     ->
@@ -1122,14 +1137,18 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
         let pm = A.fold fn m A.empty in
         let c' = unbox (strict_prod None pm) in
         let p1 = subtype ctx t c' c in
-        let ctx_a = learn_neg_equivalences ctx v None c in
-        let fn l (p, v) ps =
-          log_typ "Checking case %s." l;
-          let (_,a) = A.find l pm in
-          let p = type_valu ctx_a v (unbox a) in
-          p::ps
+        let p2s =
+          try
+            let ctx_a = learn_neg_equivalences ctx v None c in
+            let fn l (p, v) ps =
+              log_typ "Checking case %s." l;
+              let (_,a) = A.find l pm in
+              let p = type_valu ctx_a v (unbox a) in
+              p::ps
+            in
+            Some(A.fold fn m [])
+          with Contradiction -> None
         in
-        let p2s = A.fold fn m [] in
         Typ_Prod_i(p1,p2s)
     (* Scissors. *)
     | Scis        ->
@@ -1138,8 +1157,12 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
     | Coer(_,v,a) ->
         let t = Pos.make v.pos (Valu(v)) in
         let p1 = subtype ctx t a c in
-        let ctx = learn_neg_equivalences ctx v None c in
-        let p2 = type_valu ctx v a in
+        let p2 =
+          try
+            let ctx = learn_neg_equivalences ctx v None c in
+            Some(type_valu ctx v a)
+          with Contradiction -> None (* c is top *)
+        in
         Typ_VTyp(p1,p2)
     (* Such that. *)
     | Such(_,_,r) ->
@@ -1212,6 +1235,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
     | ITag(_)     -> unexpected "ITag during typing..."
   in (Pos.make v.pos (Valu(v)), c, r)
   with
+  | Contradiction          -> assert false
   | Failed_to_prove _ as e -> UTimed.Time.rollback st;
                               fst (auto_prove ctx e (Pos.none (Valu v)) c)
   | e                      -> type_error (E(V,v)) c e
@@ -1392,14 +1416,22 @@ and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
     (* Coercion. *)
     | Coer(_,t,a)   ->
         let p1= subtype ctx t a c in
-        let ctx =
-          match to_value t ctx.equations with
-          | (None, equations)    -> { ctx with equations }
-          | (Some(v), equations) ->
-             let ctx = { ctx with equations } in
-             learn_neg_equivalences ctx v None c
+        let (p2, tot) =
+          try
+            let ctx =
+              match to_value t ctx.equations with
+              | (None, equations)    -> { ctx with equations }
+              | (Some(v), equations) ->
+                 let ctx = { ctx with equations } in
+                 learn_neg_equivalences ctx v None c
+            in
+            let (p2,tot) = type_term ctx t a in
+            (Some p2, tot)
+          with Contradiction ->
+            (* NOTE Tot is ok, can raise contradiction only if to_value t
+               returned Some _ *)
+            (None, Tot)
         in
-        let (p2,tot) = type_term ctx t a in
         (Typ_TTyp(p1,p2), tot)
     (* Such that. *)
     | Such(_,_,r) ->
@@ -1469,6 +1501,7 @@ and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
     | ITag(_)     -> unexpected "ITag during typing..."
   in ((t, c, r), tot)
   with
+  | Contradiction          -> assert false
   | Failed_to_prove _ as e -> UTimed.Time.rollback st; auto_prove ctx e t c
   | e                      -> type_error (E(T,t)) c e
 
