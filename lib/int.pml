@@ -103,10 +103,10 @@ val rec dbl : int ⇒ int = fun n {
 infix (*) = mul priority 2 left associative
 
 val rec (*) : int ⇒ int ⇒ int = fun n m {
-  case m {
+  case n {
     Zero → Zero
-    S[m] → n * m + n
-    P[m] → n * m - n
+    S[n] → n * m + m
+    P[n] → n * m - m
   }
 }
 val sgn : int ⇒ [P;Z;S] = fun n {
@@ -129,8 +129,8 @@ val rec even : int ⇒ bool = fun n {
     }
   }
 }
-val rec le : int ⇒ int ⇒ bool = fun n m {
-  let d = m - n;
+
+val non_negative : int ⇒ bool = fun d {
   case d {
     Zero → true
     S[_] → true
@@ -138,16 +138,20 @@ val rec le : int ⇒ int ⇒ bool = fun n m {
   }
 }
 
-val rec ge : int ⇒ int ⇒ bool = fun n m { le m n }
-
-val rec lt : int ⇒ int ⇒ bool = fun n m {
-  let d = m - n;
+val positive : int ⇒ bool = fun d {
   case d {
     Zero → false
     S[_] → true
     P[_] → false
   }
 }
+
+val le : int ⇒ int ⇒ bool = fun n m { non_negative (m - n) }
+
+val rec ge : int ⇒ int ⇒ bool = fun n m { le m n }
+
+val rec lt : int ⇒ int ⇒ bool = fun n m { positive (m - n) }
+
 val rec gt : int ⇒ int ⇒ bool = fun n m { lt m n }
 
 include lib.nat

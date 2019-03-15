@@ -102,6 +102,22 @@ val rec add_associative : ∀m n p∈int, (m + n) + p ≡ m + (n + p) =
     }
   }
 
+val rec add_inv : ∀m∈int, m + opp m ≡ Zero = fun m {
+  case m {
+    Zero → {}
+    S[p] → eqns m + opp m
+           ≡ suc (pre (p + opp_pos p)) by add_P_right p (opp_pos p)
+           ≡ suc (pre (p + opp p)) by (case p {Zero → {} S[_] → {}})
+           ≡ p + opp p by suc_pre (p + opp p);
+           add_inv p
+    P[s] → eqns m + opp m
+           ≡ pre (suc (s + opp_neg s)) by add_S_right s (opp_neg s)
+           ≡ pre (suc (s + opp s)) by (case s {Zero → {} P[_] → {}})
+           ≡ s + opp s by pre_suc (s + opp s);
+           add_inv s
+  }
+}
+
 val rec opp_pos_idempotent : ∀n∈pos, opp_neg (opp_pos n) ≡ n = fun n {
   case n {
     Zero → {}
@@ -138,13 +154,16 @@ val rec add_opp_neg : ∀n∈int, ∀m∈neg, n + opp_neg m ≡ n - m = fun n m 
   }
 }
 
- val add_opp : ∀n m∈int, n + opp m ≡ n - m = fun n m {
+val add_opp : ∀n m∈int, n + opp m ≡ n - m = fun n m {
    case m {
      Zero → add_zero_right n
      S[p] → add_P_right n (opp_pos p); add_opp_pos n p
      P[s] → add_S_right n (opp_neg s); add_opp_neg n s
    }
  }
+
+val add_inv2 : ∀m∈int, m - m ≡ Zero = fun m { add_inv m; add_opp m m }
+
 
 val rec opp_pos_suc : ∀n∈pos, opp_pos (suc n) ≡ pre (opp_pos n) = fun n {
   case n {
@@ -215,3 +234,60 @@ val rec sub_associative3 : ∀m n p∈int, m + (n - p) ≡ (m + n) - p =
     add_associative m n (opp p);
     {}
   }
+
+val rec non_neg_add : ∀m n∈{ x ∈ int | non_negative x}, non_negative (m + n) = fun m n {
+  case m {
+    Zero  → {}
+    S[pm] → eqns non_negative pm ≡ true by (case pm { Zero → {} S[_] → {} });
+            non_neg_add pm n; set auto 1 2; {}
+    P[sm] → ✂
+  }
+}
+
+val rec add_increasing : ∀m n p q∈int, le m n ⇒ le p q ⇒ le (m + p) (n + q) =
+  fun m n p q _ _ {
+    showing non_negative ((n + q) - (m + p));
+    eqns (n + q) - (m + p)
+      ≡ n + (q - (m + p)) by sub_associative3 n q (m + p)
+      ≡ n + ((q - m) - p) by sub_associative  q m p
+      ≡ n + ((opp m + q) - p) by (add_opp q m; add_commutative (opp m) q)
+      ≡ n + (opp m + (q - p)) by sub_associative3 (opp m) q p
+      ≡ (n - m) + (q - p) by (add_associative n (opp m) (q - p); add_opp n m);
+    deduce non_negative (n - m);
+    deduce non_negative (q - p);
+    non_neg_add (n - m) (q - p)
+  }
+
+val le_reflexive : ∀m∈int, le m m = fun m { add_inv2 m }
+
+val not_le_is_gt : ∀m n∈int, le m n ≡ false ⇒ gt m n = fun m n _ {
+  eqns n - m ≡ opp (m - n) by (add_opp n m; add_opp m n;
+                               add_commutative n (opp m);
+                               add_opp_opp m (opp n); opp_idempotent n);
+  case (m - n) {
+    Zero → ✂
+    S[_] → {}
+    P[x] → deduce (n - m) ≡ S[opp_neg x]; deduce non_negative (n - m); ✂
+  }
+}
+
+val lt_is_le : ∀m n∈int, lt m n ⇒ le m n = fun m n _ {
+  case (n - m) {
+    Zero → deduce positive (n - m) ≡ false; ✂
+    S[_] → {}
+    P[_] → ✂
+  }
+}
+
+val not_ge_is_lt : ∀m n∈int, ge m n ≡ false ⇒ lt m n = fun m n { not_le_is_gt n m }
+
+val gt_is_ge : ∀m n∈int, gt m n ⇒ ge m n = fun m n { lt_is_le n m }
+
+
+val rec add_increasing_left : ∀m n p∈int, le m n ⇒ le (m + p) (n + p) = fun m n p _ {
+  le_reflexive p; add_increasing m n p p {} {}
+}
+
+val rec add_increasing_right : ∀m n p∈int, le m n ⇒ le (p + m) (p + n) = fun m n p _ {
+  le_reflexive p; add_increasing p p m n {} {}
+}
