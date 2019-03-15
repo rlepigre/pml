@@ -41,8 +41,9 @@ type man = stream⟨sbit⟩
 type sman⟨s⟩ = stream^s⟨sbit⟩
 
 // Unique representation of -1 and 1.
-val neg1 : man = repeat P
-val pos1 : man = repeat S
+val mann1 : man = repeat P
+val man1 : man = repeat S
+val man0 : man = repeat Z
 
 // To compute the opposite, we juste take the opposite of every digit.
 val opp_man : man ⇒ man =
@@ -174,7 +175,7 @@ val big_average : stream⟨man⟩ ⇒ man = fun xs {
   divideBy p4 (big_average_aux xs)
 }
 
-val rec affine_aux : man ⇒ man ⇒ man ⇒ man ⇒ stream⟨man⟩ = fun x y xy z _ {
+val rec affine_aux : man ⇒ man ⇒ man ⇒ man ⇒ stream⟨man⟩ = fun x xy y z _ {
   let { hd = z0; tl = z } = z {};
   let d = case z0 {
     P → x
@@ -189,7 +190,7 @@ val affine : man ⇒ man ⇒ man ⇒ man = fun x y z {
   big_average (affine_aux x xy y z)
 }
 
-val mul_man : man ⇒ man ⇒ man = fun x y { affine x (opp_man x) y }
+val mul_man : man ⇒ man ⇒ man = fun x y { affine (opp_man x) x y }
 
 
 // From mantissa, i.e. [-1,1] we get real
@@ -321,7 +322,7 @@ val rec sign_approx : nat ⇒ man ⇒ sbit = fun n x {
     Zero → Z
     S[p] → let {hd = x0; tl = x'} = x {};
            case x0 {
-             Z → sign_approx p x
+             Z → sign_approx p x'
              S → let { hd = x1; tl = x'} = x' {};
                  case x1 {
                    Z → S
@@ -339,9 +340,92 @@ val rec sign_approx : nat ⇒ man ⇒ sbit = fun n x {
 }
 
 //type for sign of real numbers
-type non_zero⟨x:τ⟩ = ∃n∈nat, sign_approx (add x.exp n) x.man ≠ Z
-type is_zero⟨x:τ⟩ = ∀n∈nat, sign_approx (add x.exp n) x.man ≡ Z
-type positive⟨x:τ⟩ = ∃n∈nat, sign_approx (add x.exp n) x.man ≡ S
-type negative⟨x:τ⟩ = ∃n∈nat, sign_approx (add x.exp n) x.man ≡ P
+type neg⟨a⟩ = a → ∀x,x
+type non_zero⟨x:τ⟩ = ∃n∈nat, sign_approx n x.man ≠ Z
+type is_zero⟨x:τ⟩ = ∀n∈nat, sign_approx n x.man ≡ Z
+type cis_zero⟨x:τ⟩ = ∀n∈nat, neg⟨sign_approx n x.man ≠ Z⟩
+type positive⟨x:τ⟩ = ∃n∈nat, sign_approx n x.man ≡ S
+type negative⟨x:τ⟩ = ∃n∈nat, sign_approx n x.man ≡ P
 type diff_reals⟨x:τ,y:τ⟩ = non_zero⟨x - y⟩
 type eq_reals⟨x:τ,y:τ⟩ = is_zero⟨x - y⟩
+
+// i2 x = 1 / (2 - x)
+val rec power_stream_aux : man ⇒ man ⇒ stream⟨man⟩ = fun x y _ {
+  { hd = y; tl = power_stream_aux x (mul_man x y) }
+}
+val power_stream : man ⇒ stream⟨man⟩ = fun x { power_stream_aux x man1 }
+val i2 : man ⇒ man = fun x { big_average (power_stream x) }
+
+val rec inv_aux : ∀n m∈nat, ∀x, x ∈ man | sign_approx n x ≠ Z ⇒ real
+  = fun n m x {
+    // invariant X = 2^{-m} x
+    case n {
+      Zero → ✂
+      S[p] →
+        let {hd = x0; tl = x'} = x {};
+        case x0 {
+          Z → inv_aux p S[m] x'
+          S → let { hd = x1; tl = x'} = x' {};
+              case x1 {
+                Z → // X = 2^(-m-2) + 2 + x1
+                    //   = 2^(-m-2) + 2 - (-x1)
+                    { exp = S[S[m]]; man = i2 (opp_man x') }
+                S → // X = 2^(-m-1) + 1 + 1/2 + x1
+                    //   = 2^(-m-1) + 2 - (1/2 - x1)
+                    { exp = S[m]; man = i2 (fun _ { { hd = S; tl = opp_man x' } })}
+                P → inv_aux p S[m] (fun _ { {hd = S; tl = x'} })
+              }
+          P → let { hd = x1; tl = x'} = x' {};
+              case x1 {
+                Z → // X = 2^(-m-2) - (2 - x1)
+                    { exp = S[S[m]]; man = opp_man (i2 x') }
+                P → // X = 2^(-m-1) - 1 - 1/2 + x1
+                    //   = 2^(-m-1) - (2 - (-1/2 + x1))
+                    { exp = S[m]; man = opp_man (i2 (fun _ { { hd = P; tl = x' } }))}
+                S → inv_aux p S[m] (fun _ { {hd = P; tl = x'} })
+              }
+        }
+    }
+  }
+
+val inv : ∀x∈ real, non_zero⟨x⟩ ⇒ real
+  = fun x h {
+    let y = inv_aux h.1 Zero x.man;
+    case nat_cmp y.exp x.exp {
+      Left[e]  → { exp = e; man = y.man }
+      Right[e] → { exp = 0; man = shift e y.man }
+      Eq       → { exp = 0; man = y.man }
+    }
+  }
+
+include lib.either
+
+val zero_or_inv : ∀x, x∈real ⇒ either⟨cis_zero⟨x⟩, ∃h∈non_zero⟨x⟩, { y ∈ real | y ≡ inv x h}⟩ = fun x {
+  save a {
+    InL[fun n h { restore a (let nz = (n,h); InR[(nz, inv x nz)])}]
+  }
+}
+
+val rec print_man : ∀n∈nat, ∀x∈man, {} = fun n x {
+  case n {
+    Zero → {}
+    S[p] → let { hd = x0; tl = x } = x {};
+           case x0 {
+             S → print "1"; print_man p x
+             Z → print "0"; print_man p x
+             P → print "(-1)"; print_man p x
+           }
+  }
+}
+
+val rec print_bds : ∀n∈nat, ∀k, ∀x∈bds⟨k⟩, {} = fun n x {
+  case n {
+    Zero → {}
+    S[p] → let { hd = x0; tl = x } = x {};
+           print_int x0; print " "; print_bds p x
+  }
+}
+
+val print_real : ∀n∈nat, ∀x∈real, {} = fun n x {
+  print "0."; print_man n x.man; print "E"; print_nat x.exp
+}
