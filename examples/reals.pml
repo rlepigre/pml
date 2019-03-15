@@ -266,9 +266,9 @@ val mul : real ⇒ real ⇒ real = fun x y {
 
 // non zero exponent only for mantissa starting with "10" "11" or "-10" "-1-1"
 
-val rec norm_aux : nat ⇒ mantissa ⇒ real = fun n x {
+val rec norm_aux : nat ⇒ man ⇒ real = fun n x {
   case n {
-    Zero → (Zero, x)
+    Zero → { exp = n; man = x }
     S[p] → let {hd = x0; tl = x'} = x {};
            case x0 {
              Z → norm_aux p x
