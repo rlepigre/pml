@@ -31,6 +31,7 @@ def comp⟨f,g⟩ = fun x { f (g x) }
 // from here we study a form of axiom of choice that could be usefull ⋯
 
 type top = ∃x, x
+type bot = ∀x, x
 
 def id = fun x { x }
 
@@ -55,4 +56,22 @@ val comp_neut_right : ∀a b, ∀f ∈ a ↝ b, comp⟨f, id⟩ ≡ f =
 val comp_neut_left : ∀a b, ∀f ∈ a ↝ b, comp⟨id, f⟩ ≡ f =
   fun f {
     eq_fun_axiom comp⟨id,f⟩ f {}
+  }
+
+include lib.nat
+
+val rec id_nat : nat ⇒ nat = fun n {
+  case n {
+    Zero → Zero
+    S[p] → S[id_nat p]
+  }
+}
+
+val equiv_nat
+  : ∀a, ∀f g∈ nat ⇒ a, comp⟨f,id_nat⟩ ≠ comp⟨g,id_nat⟩ ⇒ ∃n∈nat, f n ≠ g n
+  = fun f g p {
+    let (x,q) = eq_fun_axiom comp⟨f,id_nat⟩ comp⟨g,id_nat⟩ p;
+    let lem : x ≠ Zero ⇒ (∀v:ι, x ≠ S[v]) ⇒ bot =
+      fun z s { {--} };
+    {--}
   }

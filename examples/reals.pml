@@ -1,7 +1,9 @@
 include lib.stream
 include lib.nat
+include lib.nat_proofs
 
-val add_nat : nat ⇒ nat ⇒ nat = add
+def add_nat_comm = add_comm
+def add_nat = add
 
 include lib.int
 include lib.int_proofs
@@ -83,8 +85,9 @@ val average : ∀s, sman⟨s+ₒ1⟩ ⇒ sman⟨s+ₒ1⟩ ⇒ sman⟨s⟩ =
 val test : man ⇒ man ⇒ man = average
 
 // equality on streams: probably equivalent to ≡ and stronger than
-// equality on reals
+// equality on reals, but ok for commutativity
 type eq_stream⟨s1:τ,s2:τ⟩ = ∀n∈nat, nth n s1 ≡ nth n s2
+type eq_real⟨x:τ,y:τ⟩ = eq_stream⟨x.man,y.man⟩ × x.exp ≡ y.exp
 
 val rec average_aux_idempotent : ∀x∈man, eq_stream⟨x, average_aux Zero x x⟩ =
   fun x n {
@@ -147,12 +150,12 @@ val rec shift : nat ⇒ man ⇒ man = fun n x {
 
 // tell which argument is the maximum and the absolute value of
 // the difference
-val rec int_cmp : int ⇒ int ⇒ [ Left of nat; Right of nat ] =
+val rec int_cmp : ∀n m ∈ int, [ Eq of n ≡ m; Left of nat; Right of nat ] =
   fun n m {
     case n {
       Zero →
         case m {
-          Zero → Left[Zero]
+          Zero → Eq
           S[m] → Right[S[m]]
           P[m] → Left[S[opp_neg m]]
         }
@@ -180,12 +183,66 @@ val add_int : int ⇒ int ⇒ int = add
 // remark : removing all zeros is non terminating !
 val rec add : real ⇒ real ⇒ real = fun x y {
   case int_cmp x.exp y.exp {
+    Eq       → { man = average x.man y.man
+               ; exp = suc x.exp }
     Left[n]  → { man = average x.man (shift n y.man)
                ; exp = suc x.exp }
     Right[n] → { man = average (shift n x.man) y.man
                ; exp = suc y.exp }
   }
 }
+
+val opp_cmp : [ Eq; Left of nat; Right of nat ] ⇒ [ Eq; Left of nat; Right of nat ] =
+  fun a {
+    case a {
+      Eq       → Eq
+      Left[x]  → Right[x]
+      Right[x] → Left[x]
+    }
+  }
+
+val rec int_cmp_comm : ∀n m∈int, int_cmp m n ≡ opp_cmp(int_cmp n m) =
+  fun n m {
+    case n {
+      Zero →
+        case m {
+          Zero → {}
+          S[_] → {}
+          P[s] → eqns int_cmp n m ≡ Left[S[opp_neg s]];
+                 eqns int_cmp m n ≡ Right[S[opp_neg s]];
+                 {}
+        }
+      S[n] →
+        case m {
+          Zero → {}
+          S[m] → int_cmp_comm n m
+          P[m] → add_comm n (opp_neg m); {}
+        }
+      P[s] →
+        case m {
+          Zero → eqns int_cmp n m ≡ Right[S[opp_neg s]];
+                 eqns int_cmp m n ≡ Left[S[opp_neg s]];
+                 {}
+          S[m] → add_comm (opp_neg s) m; {}
+          P[m] → int_cmp_comm s m
+        }
+    }
+  }
+
+val rec add_commutative : ∀x y∈real, eq_real⟨add x y, add y x⟩ =
+  fun x y {
+    use int_cmp_comm x.exp y.exp;
+    set auto 1 2;
+    //let se = suc x.exp;
+    case int_cmp x.exp y.exp {
+      Eq       → let p = average_commutative x.man y.man;
+                 (p, {})
+      Left[n]  → let p = average_commutative x.man (shift n y.man);
+                 (p, {})
+      Right[n] → let p = average_commutative (shift n x.man) y.man;
+                 (p, {})
+    }
+  }
 
 val rec minus : real ⇒ real ⇒ real = fun x y {
   x + opp y
