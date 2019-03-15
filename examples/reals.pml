@@ -315,7 +315,8 @@ val rec sign_approx : nat ⇒ man ⇒ sbit = fun n x {
 
 //type for sign of real numbers
 type non_zero⟨x:τ⟩ = ∃n∈nat, sign_approx (add x.exp n) x.man ≠ Z
+type is_zero⟨x:τ⟩ = ∀n∈nat, sign_approx (add x.exp n) x.man ≡ Z
 type positive⟨x:τ⟩ = ∃n∈nat, sign_approx (add x.exp n) x.man ≡ S
 type negative⟨x:τ⟩ = ∃n∈nat, sign_approx (add x.exp n) x.man ≡ P
 type diff_reals⟨x:τ,y:τ⟩ = non_zero⟨x - y⟩
-type eq_reals⟨x:τ,y:τ⟩ = diff_reals⟨x,y⟩ ⇒ ∀x,x
+type eq_reals⟨x:τ,y:τ⟩ = is_zero⟨x - y⟩
