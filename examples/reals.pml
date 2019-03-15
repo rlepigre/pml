@@ -243,7 +243,7 @@ val rec nat_cmp_comm : ∀n m∈nat, nat_cmp m n ≡ opp_cmp(nat_cmp n m) =
 val rec add_commutative : ∀x y∈real, eq_real⟨add x y, add y x⟩ =
   fun x y {
     use nat_cmp_comm x.exp y.exp;
-    set auto 1 2;
+    //set auto 1 2;
     //let se = suc x.exp; Why 1 2 and not 0 2 or 0 1 ???
     case nat_cmp x.exp y.exp {
       Eq       → let p = average_commutative x.man y.man;
