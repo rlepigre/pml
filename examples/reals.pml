@@ -289,3 +289,33 @@ val rec norm_aux : nat ⇒ man ⇒ real = fun n x {
 }
 
 val rec norm : real ⇒ real = fun x { norm_aux x.exp x.man }
+
+// same kind of function allows to define non zero
+val rec sign_approx : nat ⇒ man ⇒ sbit = fun n x {
+  case n {
+    Zero → Z
+    S[p] → let {hd = x0; tl = x'} = x {};
+           case x0 {
+             Z → sign_approx p x
+             S → let { hd = x1; tl = x'} = x' {};
+                 case x1 {
+                   Z → S
+                   S → S
+                   P → sign_approx p (fun _ { {hd = S; tl = x'} })
+                 }
+             P → let { hd = x1; tl = x'} = x' {};
+                 case x1 {
+                   Z → P
+                   P → P
+                   S → sign_approx p (fun _ { {hd = P; tl = x'} })
+                 }
+           }
+  }
+}
+
+//type for sign of real numbers
+type non_zero⟨x:τ⟩ = ∃n∈nat, sign_approx (add x.exp n) x.man ≠ Z
+type positive⟨x:τ⟩ = ∃n∈nat, sign_approx (add x.exp n) x.man ≡ S
+type negative⟨x:τ⟩ = ∃n∈nat, sign_approx (add x.exp n) x.man ≡ P
+type diff_reals⟨x:τ,y:τ⟩ = non_zero⟨x - y⟩
+type eq_reals⟨x:τ,y:τ⟩ = diff_reals⟨x,y⟩ ⇒ ∀x,x
