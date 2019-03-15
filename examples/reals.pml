@@ -263,3 +263,29 @@ include lib.nat_proofs
 val mul : real ⇒ real ⇒ real = fun x y {
   { man = mul_man x.man y.man; exp = add_nat x.exp y.exp }
 }
+
+// non zero exponent only for mantissa starting with "10" "11" or "-10" "-1-1"
+
+val rec norm_aux : nat ⇒ mantissa ⇒ real = fun n x {
+  case n {
+    Zero → (Zero, x)
+    S[p] → let {hd = x0; tl = x'} = x {};
+           case x0 {
+             Z → norm_aux p x
+             S → let { hd = x1; tl = x'} = x' {};
+                 case x1 {
+                   Z → { exp = n; man = x }
+                   S → { exp = n; man = x }
+                   P → norm_aux p (fun _ { {hd = S; tl = x'} })
+                 }
+             P → let { hd = x1; tl = x'} = x' {};
+                 case x1 {
+                   Z → { exp = n; man = x }
+                   P → { exp = n; man = x }
+                   S → norm_aux p (fun _ { {hd = P; tl = x'} })
+                 }
+           }
+  }
+}
+
+val rec norm : real ⇒ real = fun x { norm_aux x.exp x.man }
