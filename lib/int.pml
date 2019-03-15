@@ -157,3 +157,13 @@ val rec gt : int ⇒ int ⇒ bool = fun n m { lt m n }
 include lib.nat
 
 assert nat ⊂ int
+
+// Print a natural number.
+val rec print_int : int ⇒ {} =
+  fun n {
+    case n {
+      0    → print "0"
+      S[k] → print "S"; print_int k
+      P[k] → print "P"; print_int k
+    }
+  }
