@@ -107,7 +107,7 @@ let stac_erasure : stac -> e_stac =
 let rec to_valu : e_valu -> vbox = fun v ->
   match v with
   | VVari(x)   -> vari None (copy_var x (mk_free V) (name_of x))
-  | VLAbs(b)   -> let f x =
+  | VLAbs(b,_) -> let f x =
                     let x = copy_var x mk_vvari (name_of x) in
                     to_term (subst b (mk_vvari x))
                   in labs None None (Pos.none (binder_name b)) f

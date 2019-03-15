@@ -256,7 +256,7 @@ and 'a ebox = 'a ex loc box
 
 and e_valu =
   | VVari of e_valu Bindlib.var
-  | VLAbs of (e_valu, e_term) binder
+  | VLAbs of (e_valu, e_term) binder * e_valu option ref option
   | VCons of string * e_valu
   | VReco of e_valu A.t
   | VVdef of value

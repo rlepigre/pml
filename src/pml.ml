@@ -52,6 +52,9 @@ let files =
     ; ( "--config"
       , Arg.Unit(show_config)
       , " Prints local configuration." )
+    ; ( "--no-lazy"
+      , Arg.Set Eval.use_lazy
+      , " Use lazy evaluation.")
     ] @ List.map help ["--help" ; "-help" ; "-h" ]
   in
   let spec = Arg.align spec in
