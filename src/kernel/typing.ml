@@ -1064,7 +1064,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
     | HApp(_,_,_) ->
        let (_, _, r) = type_valu ctx (Norm.whnf v) c in r
     (* λ-abstraction. *)
-    | LAbs(ao,f)  ->
+    | LAbs(ao,f,tot)  ->
        (* build the function type a => b with totality annotation
           tot as a fresh totality variable *)
        let a =
@@ -1073,7 +1073,6 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
          | Some a -> a
        in
        let b = new_uvar ctx P in
-       let tot = new_tot () in
        let c' = Pos.none (Func(tot,a,b)) in
        (* check subtyping *)
        let p1 = subtype ctx t c' c in
@@ -1366,7 +1365,7 @@ and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
         (Typ_Mu(p),tot)
     (* Named term. *)
     | Name(pi,u)  ->
-        let ctx = check_total ctx t c in
+        if not (sub Ter ctx.totality) then type_error (E(T,t)) c Not_total;
         let a = new_uvar ctx P in
         (* type stack before seems better, generate subtyping
            constraints in the correct direction *)
@@ -1471,9 +1470,10 @@ and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
         (Typ_Goal(str), Tot)
     (* Printing. *)
     | Prnt(_)     ->
+        if not (sub Ter ctx.totality) then type_error (E(T,t)) c Not_total;
         let a = unbox (strict_prod None A.empty) in
         let p = gen_subtype ctx a c in
-        (Typ_Prnt(t, a, c, p), Tot)
+        (Typ_Prnt(t, a, c, p), Ter)
     (* Replacement. *)
     | Repl(t,u) ->
         let c = Pos.none (Memb(t,c)) in
@@ -1504,13 +1504,6 @@ and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
   | Contradiction          -> assert false
   | Failed_to_prove _ as e -> UTimed.Time.rollback st; auto_prove ctx e t c
   | e                      -> type_error (E(T,t)) c e
-
-and check_total : ctxt -> term -> prop -> ctxt =
-  fun ctx t c ->
-    let (is_val, no_box, ctx) = term_is_value t ctx in
-    if (not is_val && not no_box && is_tot ctx.totality)
-    then type_error (E(T,t)) c Not_total
-    else ctx
 
 and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
   log_typ "proving the stack judgment:\n  %a\n  stk ⊢ %a\n  : %a"

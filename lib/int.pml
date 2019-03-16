@@ -159,7 +159,7 @@ include lib.nat
 assert nat ⊂ int
 
 // Print a natural number.
-val rec print_int : int ⇒ {} =
+val rec print_int : int → {} =
   fun n {
     case n {
       0    → print "0"

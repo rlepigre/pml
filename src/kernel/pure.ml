@@ -56,7 +56,7 @@ let pure : type a. a ex loc -> bool =
     | Rest(a,c)   -> iter a; iter_cond c
     | Impl(c,a)   -> iter_cond c; iter a
     (* NOTE type annotation ignored. *)
-    | LAbs(_,b)   -> biter V b
+    | LAbs(_,b,_) -> biter V b
     | Cons(_,v)   -> iter v
     | Reco(m)     -> A.iter (fun _ (_,a) -> iter a) m
     | Scis        -> ()

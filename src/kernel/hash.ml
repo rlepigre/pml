@@ -56,7 +56,7 @@ let {hash_expr; hash_bndr; hash_ombinder; hash_vwit
     | Rest(a,c)   -> khash2 `Rest (hash_expr a) (hash_cond c)
     | Impl(c,a)   -> khash2 `Impl (hash_expr a) (hash_cond c)
     (* NOTE type annotation ignored. *)
-    | LAbs(_,b)   -> khash1 `LAbs (hash_bndr V b)
+    | LAbs(_,b,_) -> khash1 `LAbs (hash_bndr V b)
     | Cons(c,v)   -> khash2 `Cons (hash c.elt) (hash_expr v)
     | Reco(m)     -> khash1 `Reco (A.hash (fun (_,e) -> hash_expr e) m)
     | Scis        -> hash `Scis

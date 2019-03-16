@@ -66,7 +66,7 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
     | Impl(c,a)   -> owits (from_cond acc c) a
 
     | VWit(_)     -> acc
-    | LAbs(_,f)   -> owits acc (bndr_subst f (Dumm V))
+    | LAbs(_,f,_) -> owits acc (bndr_subst f (Dumm V))
     | Cons(_,v)   -> owits acc v
     | Reco(m)     -> A.fold (fun _ (_,v) acc -> owits acc v) m acc
     | Scis        -> acc

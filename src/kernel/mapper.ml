@@ -52,7 +52,7 @@ let map : type a. ?mapper:mapper -> a ex loc -> a ebox
             | Impl(c,a)   -> impl e.pos (map_cond c) (map a)
 
             | VWit(_)     -> Bindlib.box e
-            | LAbs(a,f)   -> labs e.pos (Option.map map a) (bndr_name f)
+            | LAbs(a,f,t) -> labs e.pos (Option.map map a) (bndr_name f)
                                   (fun x -> map (bndr_subst f (mk_free V x)))
             | Cons(c,v)   -> cons e.pos c (map v)
             | Reco(m)     -> reco e.pos (A.map (fun (p,v) -> (p, map v)) m)

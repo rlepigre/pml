@@ -78,7 +78,7 @@ val test : nat ⇒ either⟨list⟨nat⟩,list⟨nat⟩⟩ =
     } }
   }
 
-val print_test : nat ⇒ {} =
+val print_test : nat → {} =
   fun n {
     case test n {
       InL[l] → print "InL "; print_nat_list l

@@ -23,13 +23,16 @@ let mk_svari : e_stac Bindlib.var -> e_stac =
   fun x -> SVari(x)
 
 (* Smart constructors for values. *)
-let vlabs : string -> (e_vvar -> e_tbox) -> e_vbox =
-  fun x f -> box_apply (fun b -> let r = if binder_occur b then
-                                           None
-                                         else Some (ref None)
-                                 in VLAbs(b,r))
-                       (let v = new_var mk_vvari x in
-                        bind_var v (f v))
+let vlabs : string -> (e_vvar -> e_tbox) -> bool -> e_vbox =
+  fun x f tot ->
+    box_apply
+      (fun b ->
+        let r = if not tot || binder_occur b then
+                  None
+                else Some (ref None)
+        in VLAbs(b,r))
+      (let v = new_var mk_vvari x in
+       bind_var v (f v))
 
 let vcons : string -> e_vbox -> e_vbox =
   fun c -> box_apply (fun v -> VCons(c,v))
@@ -96,42 +99,42 @@ let runtime_error : type a. string -> a =
 
 let use_lazy = ref true
 
-let rec eval : proc -> e_valu = function
+let rec eval : e_term -> e_stac -> e_valu = fun t s -> match (t, s) with
   | (TValu(v)          , SEpsi      ) -> v
-  | (TAppl(t,u)        , pi         ) -> eval (u, SFram(t,pi))
-  | (TValu(v)          , SFram(t,pi)) -> eval (t, SPush(v,pi))
-  | (TValu(VVdef(d))   , pi         ) -> eval (TValu(d.value_eval), pi)
+  | (TValu(v)          , SFram(t,pi)) -> eval t (SPush(v,pi))
+  | (TValu(VVdef(d))   , pi         ) -> eval (TValu(d.value_eval)) pi
   | (TValu(VLAbs(b,r)) , SPush(v,pi)) ->
      begin
        match r with
        | Some r when !use_lazy ->
-          let v = match !r with
-            | Some v -> v
-            | None   -> let v = eval (subst b v, SEpsi) in
-                        r := Some v;
-                        v
-          in eval (TValu v, pi)
-       | _ -> eval (subst b v, pi)
+          let w =
+            match !r with
+            | Some w -> w
+            | None   -> let w = eval (subst b v) SEpsi in
+                        assert (!r = None); r := Some w; w
+          in eval (TValu w) pi
+       | _ -> eval (subst b v) pi
      end
-  | (TFixY(b) as t     , pi         ) -> eval (TValu(subst b t), pi)
-  | (TMAbs(b)          , pi         ) -> eval (subst b pi, pi)
-  | (TName(pi,t)       , _          ) -> eval (t, pi)
-  | (TProj(VVdef(d),l) , pi         ) -> eval (TProj(d.value_eval,l), pi)
+  | (TAppl(t,u)        , pi         ) -> eval u (SFram(t,pi))
+  | (TFixY(b) as t     , pi         ) -> eval (TValu(subst b t)) pi
+  | (TMAbs(b)          , pi         ) -> eval (subst b pi) pi
+  | (TName(pi,t)       , _          ) -> eval t pi
+  | (TProj(VVdef(d),l) , pi         ) -> eval (TProj(d.value_eval,l)) pi
   | (TProj(VReco(m),l) , pi         ) ->
-      begin
-        try eval (TValu(A.find l m), pi)
+       begin
+        try eval (TValu(A.find l m)) pi
         with Not_found -> runtime_error "Unknown record field"
       end
-  | (TCase(VVdef(d),m)  , pi        ) -> eval (TCase(d.value_eval,m), pi)
+  | (TCase(VVdef(d),m)  , pi        ) -> eval (TCase(d.value_eval,m)) pi
   | (TCase(VCons(c,v),m), pi        ) ->
       begin
-        try eval (subst (A.find c m) v, pi)
+        try eval (subst (A.find c m) v) pi
         with Not_found -> runtime_error "Unknown constructor"
       end
   | (TPrnt(s)          , pi         ) ->
       begin
         Printf.printf "%s%!" s;
-        eval (TValu(VReco(A.empty)), pi)
+        eval (TValu(VReco(A.empty))) pi
       end
   (* Runtime errors. *)
   | (TProj(_)          , _          ) -> runtime_error "invalid projection"
@@ -139,4 +142,4 @@ let rec eval : proc -> e_valu = function
   | (TVari(_)          , _          ) -> runtime_error "free term variable"
   | (TValu(_)          , _          ) -> runtime_error "free stack variable"
 
-let eval : e_term -> e_valu = fun t -> eval (t, SEpsi)
+let eval : e_term -> e_valu = fun t -> eval t SEpsi

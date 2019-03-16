@@ -340,16 +340,16 @@ let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
   | Impl(e,a)   -> begin
                      fprintf ch "%a if %a" (ex (Prp R)) a rel e
                    end
-  | LAbs(ao,b)  -> let (x,t) = unbind (snd b) in
+  | LAbs(a,b,_) -> let (x,t) = unbind (snd b) in
                    begin
-                     match ao with
+                     match a with
                      | None   ->
                         let rec fn acc t =
                           match (Norm.repr t).elt with
                           | Valu(v) ->
                              begin
                                match (Norm.repr v).elt with
-                               | LAbs(None,b) ->
+                               | LAbs(None,b,_) ->
                                   let (x,t) = unbind (snd b) in
                                   fn (x::acc) t
                                | _            -> (acc, t)
@@ -478,11 +478,11 @@ let rec get_lambda_name : type a. a ex loc -> string =
   fun e ->
     let e = Norm.whnf e in
     match e.elt with
-    | LAbs(_,b) -> (bndr_name b).elt
-    | VDef(d)   -> get_lambda_name (d.value_eras)
-    | HDef(_,d) -> get_lambda_name (d.expr_def)
-    | Valu(v)   -> get_lambda_name v
-    | _         -> "x"
+    | LAbs(_,b,_) -> (bndr_name b).elt
+    | VDef(d)     -> get_lambda_name (d.value_eras)
+    | HDef(_,d)   -> get_lambda_name (d.expr_def)
+    | Valu(v)     -> get_lambda_name v
+    | _           -> "x"
 
 let rec get_case_name : type a. A.key -> a ex loc -> string =
   fun k e ->

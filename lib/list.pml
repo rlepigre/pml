@@ -52,6 +52,14 @@ val rec iter : ∀a, (a ⇒ {}) ⇒ list⟨a⟩ ⇒ {} =
     }
   }
 
+val rec iter2 : ∀a, (a → {}) ⇒ list⟨a⟩ → {} =
+  fun fn l {
+    case l {
+      []   → {}
+      x::l → fn x; iter2 fn l
+    }
+  }
+
 val rec fold_left : ∀a b, (a ⇒ b ⇒ a) ⇒ a ⇒ list⟨b⟩ ⇒ a =
   fun fn acc l {
     case l {
@@ -90,14 +98,14 @@ val rec rev_app : ∀b, list⟨b⟩ ⇒ list⟨b⟩ ⇒ list⟨b⟩ =
 
 val rev : ∀b, list⟨b⟩ ⇒ list⟨b⟩ = fun l { rev_app l [] }
 
-val print_list : ∀a, (a ⇒ {}) ⇒ list⟨a⟩ ⇒ {} =
+val print_list : ∀a, (a → {}) ⇒ list⟨a⟩ → {} =
   fun print_elt l {
     print "[";
-    iter (fun e { print_elt e; print ";" }) l;
+    iter2 (fun e { print_elt e; print ";" }) l;
     print "]"
   }
 
-val println_list : ∀a, (a ⇒ {}) ⇒ list⟨a⟩ ⇒ {} =
+val println_list : ∀a, (a → {}) ⇒ list⟨a⟩ → {} =
   fun print_elt l {
     print_list print_elt l;
     print "\n"
