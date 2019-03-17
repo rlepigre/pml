@@ -116,49 +116,53 @@ to equivalence).
     \quad\quad\quad\quad
     C_k[t] := (λx.C_k[x])\,t
   $$
-  Note that the elimination of such syntactic sugar corresponds to a form of
-  partial \verb#let#-normalization \cite{Moggi1989} or \verb#A#-normalization
+  The elimination of such syntactic sugar corresponds to a form of partial
+  \verb#let#-normalization \cite{Moggi1989} or \verb#A#-normalization
   \cite{Flanagan1993}. The translation can hence be seen as a natural
   compilation step \cite{Tarditi1996, Chlipala2005}.
 \end{remark}
 
 \section{Substitution and base evaluation}
 
-\begin{definition}
+We will now define a first evaluation relation of our calculus, that will
+then be extended in the next section. Before going into reduction, we first
+need to define the notions of free variables and substitutions. Although
+they are fairly usual, these definitions introduce our notations.
+
+\begin{definition}[free variables and closed expression]
   Given a value, term, stack or process $ψ$ we denote $FV_ι(ψ)$ (resp.
   $FV_σ(ψ)$, resp. $FV_τ(ψ)$) the set of free $λ$-variables (resp. free
   $μ$-variables, resp. free term variables) of $ψ$. We also denote
   $FV(ψ) = FV_ι(ψ) ∪ FV_σ(ψ) ∪ FV_τ(ψ)$ the set of all the free variables
   of $ψ$. We say that $ψ$ is closed if $FV(ψ) = ∅$. We denote $Λ_{ι}^{*}$
-  the set of all the closed values, $Λ^{*}$ the set of all the closed terms
+  the set of all the closed values, $Λ^{*}$ the set of all the closed terms,
   and $Π^{*}$ the set of all the closed stacks.
 \end{definition}
 
-\begin{definition}
+\begin{definition}[substitutions]
   A substitution is a map $ρ$ such that for all $x ∈ \mathcal{V}_{ι}$ we have
-  $ρ(x) ∈ Λ_{ι}$, for all $α ∈ \mathcal{V}_{σ}$ we have $ρ(α) ∈ Π$ and for all
-  $a ∈ \mathcal{V}_{τ}$ we have $ρ(a) ∈ Λ$. For $ρ$ to be a substitution, we
-  also require that $ρ(χ) ≠ χ$ for only finitely many $χ ∈ \mathcal{V}_ι ∪
-  \mathcal{V}_{σ} ∪ \mathcal{V}_{τ}$. We denote $\mathcal{S}$ the set of all
-  the substitutions and $dom(ρ) = \{χ \st ρ(χ) ≠ χ\}$ the domain of the
-  substitution $ρ$. In particular, the substitution $ρ_{id} ∈ \mathcal{S}$ is
-  called the identity substitution and is defined as $ρ_{id}(χ) = χ$ for all
+  $ρ(x) ∈ Λ_{ι}$, for all $α ∈ \mathcal{V}_{σ}$ we have $ρ(α)∈Π$, and for all
+  $a ∈ \mathcal{V}_{τ}$ we have $ρ(a) ∈ Λ$. Importantly, we also require that
+  $ρ(χ) ≠ χ$ for only finitely many $χ ∈ \mathcal{V}_ι ∪ \mathcal{V}_{σ} ∪
+  \mathcal{V}_{τ}$. We denote $\mathcal{S}$ the set of all the substitutions,
+  and $dom(ρ) = \{χ \st ρ(χ) ≠ χ\}$ the (finite) domain of the substitution
+  $ρ$. In particular, $ρ_{id} ∈ \mathcal{S}$ is called the identity
+  substitution and is defined as $ρ_{id}(χ) = χ$ for all
   $χ ∈ \mathcal{V}_{ι} ∪ \mathcal{V}_{σ} ∪ \mathcal{V}_{τ}$.
-\end{definition}
-\begin{definition}
+  %
   For every $ρ ∈ \mathcal{S}$ we denote $ρ[x := v]$ (resp. $ρ[α := π]$, resp.
   $ρ[a := t]$) the substitution remapping the variable $x ∈ \mathcal{V}_ι$
   (resp. $α ∈ \mathcal{V}_{σ}$, resp. $a ∈ \mathcal{V}_{τ}$) to the value
   $v ∈ Λ_{ι}$ (resp. stack $π ∈ Π$, resp. term $t ∈ Λ$) in $ρ$. In the case
-  where $ρ = ρ_{id}$ we will write $[x := v]$, $[α := π]$ and $[a := t]$.
-\end{definition}
-\begin{definition}
+  where $ρ = ρ_{id}$ we will simply write $[x := v]$, $[α := π]$ and
+  $[a := t]$.
+  %
   Let $ρ ∈ \mathcal{S}$ be a substitution and $ψ$ be a value, term, stack
   or process. We denote $ψρ$ the value, term, stack or process formed by
   simultaneously substituting (without capture) every variable $χ ∈ FV(ψ)$
   with $ρ(χ)$ in $ψ$.
 \end{definition}
-\begin{definition}
+\begin{definition}[composition of substitutions]
   Given $ρ_1$, $ρ_2 ∈ \mathcal{S}$ we denote $ρ_1 ∘ ρ_2$ the substitution
   formed by composing $ρ_1$ and $ρ_2$. It is defined by taking
   $(ρ_1 ∘ ρ_2)(χ) = (ρ_1(χ))ρ_2$ for all $χ ∈ dom(ρ_1)$ and it coincides
@@ -168,16 +172,18 @@ to equivalence).
 
 \begin{figure}
   \begin{align*}
+    \hspace{4.5cm}%hack
     t\,u ∗ π          &\quad\;≻\quad  u ∗ [t\;\,{-}]π   \tag{Push}\\
     v ∗ [t\;\,{-}]π   &\quad\;≻\quad  \,t ∗ [{-}\;v]π  
-                         \tag{if $v ≠ \square$, Swap}\\
+                         \tag{if $v ∉ \mathcal{V}_{ι} ∪ \{\square\}$, Swap}\\
     λx.t ∗ [{-}\;v]π  &\quad\;≻\quad  t[x := v] ∗ π     \tag{Pop} \\
     μα.t ∗ π          &\quad\;≻\quad  t[α := π] ∗ π     \tag{Save}\\
     [ξ]t ∗ π          &\quad\;≻\quad  t ∗ ξ             \tag{Restore}\\
-    \{(l_i = v_i)_{i∈I∪\{k\}}\}.l_k ∗ π
-                      &\quad\;≻\quad  v_k ∗ π           \tag{Find}\\
-    [C_k[v]\,| (C_i[x_i] → t_i)_{i∈I∪\{k\}}] ∗ π
-                      &\quad\;≻\quad  t_k[x_k := v] ∗ π \tag{Match}\\
+    \{(l_i = v_i)_{i∈I}\}.l_k ∗ π
+                      &\quad\;≻\quad  v_k ∗ π       \tag{if $k ∈ I$, Find}\\
+    [C_k[v]\,| (C_i[x_i] → t_i)_{i∈I}] ∗ π
+                      &\quad\;≻\quad  t_k[x_k := v] ∗ π
+                                                    \tag{if $k ∈ I$, Match}\\
     φa.v ∗ π          &\quad\;≻\quad  v[a := φa.v] ∗ π  \tag{Unfold}\\
     R(\{(l_i = v_i)_{i∈I}\},t) * π
                       &\quad\;≻\quad  t ∗ π             \tag{R-Rule}\\
@@ -200,7 +206,7 @@ arguments to be fed to $t$. Since we are in call-by-value the stack also
 handles the storing of functions while their arguments are being evaluated.
 The operational semantics of our language is given by a relation $(≻)$
 over processes.
-\begin{definition}
+\begin{definition}[base reduction relation]
   The relation $(≻) ⊆ (Λ×Π) × (Λ×Π)$ is defined as the smallest relation
   satisfying the reduction rules of Figure~\ref{fig:base_red}. We denote
   $(≻^{+})$ its transitive closure, $(≻^{*})$ its reflexive-transitive
@@ -231,29 +237,27 @@ values have a different computational behaviour in our abstract machine.
 The last four rules are used to handle the special value $□$, which consumes
 the surrounding part of its computational environment. This will be discussed
 further when defining the semantical interpretation of our type system.
-\begin{remark}
-  The reduction relation $(≻)$ does not provide any way of reducing processes
-  of the form $δ(v,w,t) ∗ π$. We will give a reduction rule for such processes
-  shortly.
-\end{remark}
+%
+Finally, note that processes of the form $δ(v,w,t) ∗ π$ are left untouched
+by the relation $(≻)$. They will however be given a reduction rule in the
+following section.
 
-\begin{theorem}\label{redcompatall}
+\begin{theorem}[compatibility of reduction and substitution]\label{thm:redcompatall}%
   Let $ρ ∈ \mathcal{S}$ be a substitution and $p$, $q ∈ Λ×Π$ be two processes.
   If $p ≻ q$ (resp. $p ≻^{*} q$, resp. $p ≻^{+} q$, resp. $p ≻^k q$) then
   $pρ ≻ qρ$ (resp. $pρ ≻^{*} qρ$, resp $pρ ≻^{+} qρ$, resp. $pρ ≻^k qρ$).
-  \begin{proof}
-    Immediate case analysis (and induction), all rules being local.
-  \end{proof}
 \end{theorem}
+\begin{proof}
+  Immediate case analysis (and induction), all rules being local.
+\end{proof}
 
 \section{Classification of processes}
 
-We are now going to give the vocabulary that will be used to describe some
-specific classes of processes. In particular we need to identify processes
-that are to be considered as the evidence of a successful computation, and
-those that are to be recognised as the expression of a failure of the
-machine (i.e., a crash).
-\begin{definition}
+We are now going to give the vocabulary that will be used to describe specific
+classes of processes. In particular we need to identify processes that are to
+be considered as the evidence of a successful computation, and those that are
+to be recognised as the expression of a failure (e.g., a crash).
+\begin{definition}[classification of processes]
   A process $p ∈ Λ×Π$ is said to be:
   \begin{itemize}
     \item \emph{final} if $p = v∗ε$ for some $v ∈ Λ_{ι}$,
@@ -262,9 +266,8 @@ machine (i.e., a crash).
     \item \emph{blocked} if there is no $q ∈ Λ×Π$ such that $p ≻ q$,
     \item \emph{stuck} if it is not final nor $δ$-like and if $pρ$ is
       blocked for all $ρ ∈ \mathcal{S}$,
-    \item \emph{non-terminating} if there is an infinite sequence of
-      processes $(p_i)_{i∈\mathbb{N}}$ such that $p_0 = p$ and for all
-      $i∈\mathbb{N}$ we have $p_i ≻ p_{i+1}$.
+    \item \emph{non-terminating} if there is an infinite sequence
+      $(p_i)_{i∈\mathbb{N}}$ with $p_0 = p$ and $p_i ≻ p_{i+1}$.
   \end{itemize}
 \end{definition}
 
@@ -272,174 +275,244 @@ When a process becomes stuck, non-terminating or $δ$-like during its
 reduction, it will remain so forever. In particular, no substitution
 will ever be able to turn it into a process that might lead to a
 successful end of computation (i.e., reduce to a final process).
-\begin{lemma}
+\begin{lemma}[stability under substitution]\label{lem:redstable}%
   Let $p ∈ Λ×Π$ be a process and $ρ ∈ \mathcal{S}$ be a substitution. If $p$
   is final (resp. $δ$-like, stuck, non-terminating), then so is $pρ$.
-  \begin{proof}
-    If $p$ is final then $p = v∗ε$ for some $v ∈ Λ_{ι}$. Since $(v∗ε)ρ =
-    vρ∗ερ = vρ∗ε$ the process $pρ$ is also final. If $p$ is $δ$-like then
-    $p = δ(v,w,t)∗π$ for some $v$, $w ∈ Λ_{ι}$, $t ∈ Λ$ and $π ∈ Π$. Since
-    $(δ(v,w,t)∗π)ρ = (δ(v,w,t))ρ ∗ πρ = δ(vρ,wρ,tρ) ∗ πρ$ the process $pρ$
-    is also $δ$-like. If $p$ is stuck, then we suppose that there is a
-    substitution $ρ_0 ∈ \mathcal{S}$ such that $(pρ)ρ_0$ is not blocked.
-    This contradicts the fact that $p$ is stuck since $p(ρ_0 ∘ ρ) = (pρ)ρ_0$
-    is not blocked, and hence $pρ$ must be stuck. Finally, if $p$ is
-    non-terminating then we have a sequence $(p_i)_{i∈\mathbb{N}}$ such that
-    $p_0 = p$ and $p_i ≻ p_{i+1}$ for all $i ∈ \mathbb{N}$. To show that
-    $pρ$ is non-terminating we need to construct a sequence
-    $(q_i)_{i∈\mathbb{N}}$ such that $q_0 = pρ$ and $q_i ≻ q_{i+1}$ for
-    all $i ∈ \mathbb{N}$. We can take $q_i = p_iρ$ for all $i ∈ \mathbb{N}$.
-    Indeed, we have $q_0 = pρ$ since $p₀ = p$ and for all $i ∈ \mathbb{N}$ we
-    have $p_iρ ≻ p_{i+1}ρ$ by Lemma~\ref{redcompatall} as $p_i ≻ p_{i+1}$.
-  \end{proof}
 \end{lemma}
+\begin{proof}
+  If $p$ is final then $p = v∗ε$ for some $v ∈ Λ_{ι}$. Since $(v∗ε)ρ =
+  vρ∗ερ = vρ∗ε$ the process $pρ$ is also final. If $p$ is $δ$-like then
+  $p = δ(v,w,t)∗π$ for some $v$, $w ∈ Λ_{ι}$, $t ∈ Λ$ and $π ∈ Π$. Since
+  $(δ(v,w,t)∗π)ρ = (δ(v,w,t))ρ ∗ πρ = δ(vρ,wρ,tρ) ∗ πρ$ the process $pρ$
+  is also $δ$-like. If $p$ is stuck, then we suppose that there is a
+  substitution $ρ_0 ∈ \mathcal{S}$ such that $(pρ)ρ_0$ is not blocked.
+  This contradicts the fact that $p$ is stuck since $p(ρ_0 ∘ ρ) = (pρ)ρ_0$
+  is not blocked, and hence $pρ$ must be stuck. Finally, if $p$ is
+  non-terminating then we have a sequence $(p_i)_{i∈\mathbb{N}}$ such that
+  $p_0 = p$ and $p_i ≻ p_{i+1}$ for all $i ∈ \mathbb{N}$. To show that
+  $pρ$ is non-terminating we need to construct a sequence
+  $(q_i)_{i∈\mathbb{N}}$ such that $q_0 = pρ$ and $q_i ≻ q_{i+1}$ for
+  all $i ∈ \mathbb{N}$. We can take $q_i = p_iρ$ for all $i ∈ \mathbb{N}$.
+  Indeed, we have $q_0 = pρ$ since $p₀ = p$ and for all $i ∈ \mathbb{N}$ we
+  have $p_iρ ≻ p_{i+1}ρ$ by Lemma~\ref{thm:redcompatall} as $p_i ≻ p_{i+1}$.
+\end{proof}
 
-\begin{lemma}\label{remark}
+\begin{lemma}[characterization of stuck processes]\label{remark}%
   A process is stuck if and only if it is of one of the following forms,
   where $n$, $m$, $k ∈ \mathbb{N}$ and $I$, $J$, $K ⊆_{fin} \mathbb{N}$ such
   that $k ∉ K$.
-  $$
+  \begin{center}
+  $
+    \hspace{1.5cm}
     C_n[v].l_m ∗ π
-    \quad\quad
+    \hfill
     (λx.t).l_m ∗ π
-    \quad\quad
+    \hfill
     C_n[v] ∗ [{-}\;w]π
-    \quad\quad
+    \hfill
     \{(l_i = v_i)_{i∈I}\} ∗ [{-}\;v]π
-  $$
-  $$
+    \hspace{1.5cm}
+  $
+  \\[2mm]
+  $
+    \hspace{1.5cm}
     [λx.t\,| (C_i[x_i] → t_i)_{i∈I}] ∗ π
-    \quad\quad
+    \hfill
     [\{(l_i = v_i)_{i∈I}\}\,| (C_j[x_j] → t_j)_{j∈J}] ∗ π
-  $$
-  $$
+    \hspace{1.5cm}
+  $
+  \\[2mm]
+  $
+    \hspace{1.5cm}
     [C_k[v]\,|(C_i[x_i] → t_i)_{i∈K}] ∗ π
-    \quad\quad
+    \hfill
     \{(l_i = v_i)_{i∈K}\}.l_k ∗ π
-  $$
-  $$
+    \hspace{1.5cm}
+  $
+  \\[2mm]
+  $
+    \hspace{1.5cm}
     R(λx.t,u) ∗ π
-    \quad\quad
+    \hfill
     R(C_n[v],u) ∗ π
-    \quad\quad
+    \hfill
     R(□,u) ∗ π
-  $$
-  \begin{proof}
-    Using a simple case analysis we first rule out the thirteen forms of
-    processes that immediately reduce using $(≻)$. As stuck processes are
-    neither final nor $δ$-like, we can again rule out two forms of processes.
-    We are now left with eighteen forms of processes, among which seven
-    are not stuck (see the proof of Lemma~\ref{possibilities}). It is easy to
-    see that the eleven remaining forms of processes are stuck. Indeed, given
-    their structure no reduction rule will ever apply to them, even after a
-    substitution.
-  \end{proof}
+    \hspace{1.5cm}
+  $
+  \end{center}
+  \vspace{-3mm}%hack
 \end{lemma}
+\begin{proof}
+  Using a simple case analysis we first rule out the thirteen forms of
+  processes that immediately reduce using $(≻)$. As stuck processes are
+  neither final nor $δ$-like, we can again rule out two forms of processes.
+  We are now left with eighteen forms of processes, among which seven
+  are not stuck (see the proof of Lemma~\ref{lem:possibilities}). It is easy
+  to see that the eleven remaining forms of processes are stuck. Indeed, given
+  their structure no reduction rule will ever apply to them, even after a
+  substitution.
+\end{proof}
 The proof of Lemma~\ref{remark} has been (partially) checked using OCaml's
 exhaustivity checker for patterns. Indeed, the abstract syntax tree
 corresponding to our language can be encoded into OCaml data types easily.
 It is then possible to use pattern matching to enumerate possible forms of
 processes in such a way that it is neither redundant nor incomplete (i.e.,
 that the OCaml compiler does not complain with a warning). The OCaml source
-file used for this purpose is available online
-\url{https://lepigre.fr/these/classification.ml}.
+file used for this purpose is available online.
+\begin{center}
+  \url{https://lepigre.fr/these/classification.ml}
+\end{center}
 
-\begin{lemma}\label{possibilities}
+\begin{lemma}[characterization of blocked processes]\label{lem:possibilities}%
   A blocked process $p ∈ Λ×Π$ is either stuck, final, $δ$-like, or of one of
   the following seven forms.
-  $$
+  \begin{center}
+  $
+    \hspace{1.5cm}
     x.l_k ∗ π
-    \quad\quad
+    \hfill
     x ∗ [{-}\;v]π
-    \quad\quad
+    \hfill
     [x\,| (C_i[x_i] → t_i)_{i∈I}] ∗ π
-  $$
-  $$
+    \hspace{1.5cm}
+  $
+  \\[2mm]
+  $
+    \hspace{1.5cm}
     x ∗ [t\;\,{-}]π
-    \quad\quad
+    \hfill
     R(x,u) ∗ π
-    \quad\quad
+    \hfill
     a ∗ π
-    \quad\quad
+    \hfill
     v ∗ α
-  $$
-  \begin{proof}
-    As for Lemma~\ref{remark}, we can rule out the thirteen forms of
-    processes that immediately reduce using $(≻)$, final processes and
-    $δ$-like processes. After ruling out the eleven forms of stuck processes
-    of Lemma~\ref{remark} we are left with seven forms of processes. It
-    remains to show that they are not stuck by finding a substitution
-    $ρ ∈ \mathcal{S}$ unlocking their reduction.
-
-    For processes of the first four forms we can take $ρ = [x := □]$
-    since we have $□.l_k ∗ πρ ≻ □ ∗ πρ$, $□ ∗ [{-}\;vρ]πρ ≻ □ ∗ πρ$,
-    $[□\,| (C_i[x_i] → t_iρ)_{i∈I}] ∗ π ≻ □ ∗ πρ$ and
-    $□ ∗ [tρ\;\,{-}]πρ ≻ □ ∗ πρ$ respectively.
-    %
-    For a process of the form $R(x,u) ∗ π$ we can take $ρ = [x := \{\}]$ as
-    $R({},uρ) ∗ πρ ≻ uρ ∗ πρ$.
-    %
-    For a process of the form $a ∗ π$ we can take
-    $ρ = [a := \{l_k = \{\}\}.l_k]$ as $\{l_k = \{\}\}.l_k ∗ πρ ≻ \{\} ∗ πρ$.
-    %
-    Finally, for a process of the form $v ∗ α$ we can take
-    $ρ = [α := [\{\}\;{-}]ε]$ as we will have
-    $vρ ∗ [\{\}\;{-}]ε ≻ \{\} ∗ [{-}\;vρ]ε$ if $v ≠ □$ and
-    $vρ ∗ [\{\}\;{-}]ε ≻ □ ∗ ε$ otherwise.
-  \end{proof}
+    \hspace{1.5cm}
+  $
+  \end{center}
 \end{lemma}
+\begin{proof}
+  As for Lemma~\ref{remark}, we can rule out the thirteen forms of
+  processes that immediately reduce using $(≻)$, final processes and
+  $δ$-like processes. After ruling out the eleven forms of stuck processes
+  of Lemma~\ref{remark} we are left with seven forms of processes. It
+  remains to show that they are not stuck by finding a substitution
+  $ρ ∈ \mathcal{S}$ unlocking their reduction.
 
-\section{Equivalence and reduction}
+  For processes of the first four forms we can take $ρ = [x := □]$
+  since we have $□.l_k ∗ πρ ≻ □ ∗ πρ$, $□ ∗ [{-}\;vρ]πρ ≻ □ ∗ πρ$,
+  $[□\,| (C_i[x_i] → t_iρ)_{i∈I}] ∗ π ≻ □ ∗ πρ$ and
+  $□ ∗ [tρ\;\,{-}]πρ ≻ □ ∗ πρ$ respectively.
+  %
+  For a process of the form $R(x,u) ∗ π$ we can take $ρ = [x := \{\}]$ as
+  $R(\{\},uρ) ∗ πρ ≻ uρ ∗ πρ$.
+  %
+  For a process of the form $a ∗ π$ we can take $ρ=[a := \{l_k=\{\}\}.l_k]$
+  as $\{l_k = \{\}\}.l_k ∗ πρ ≻ \{\} ∗ πρ$.
+  %
+  Finally, for a process of the form $v ∗ α$ we can take
+  $ρ = [α := [\{\}\;{-}]ε]$ as we will have
+  $vρ ∗ [\{\}\;{-}]ε ≻ \{\} ∗ [{-}\;vρ]ε$ if $v ≠ □$ and
+  $vρ ∗ [\{\}\;{-}]ε ≻ □ ∗ ε$ otherwise.
+\end{proof}
 
-\begin{definition}
-  Let $R ⊆ (Λ×Π) × (Λ×Π)$ be a relation such that for every final
-  process $p ∈ Λ×Π$, there is no $q ∈ Λ×Π$ such that $p R q$. We
+\section{Stratified equivalence and reduction relations}
+
+Let us first consider generic definitions related to reduction relations. In
+particular, we will give a generic way to derive the observational equivalence
+relation induced by a reduction relation.
+\begin{definition}[convergence/divergence]
+  Let $R ⊆ (Λ×Π) × (Λ×Π)$ be a reduction relation such that for every final
+  process $p ∈ Λ×Π$, there is no $q ∈ Λ×Π$ such that $p \mathrel{R} q$. We
   say that a process $p ∈ Λ×Π$ converges for the relation $R$,
   and we write $p {⇓}_R$, if there is a final process $q ∈ Λ×Π$
-  such that $p R^{∗} q$. If $p$ does not converge we say that it
+  such that $p \mathrel{R^{∗}} q$. If $p$ does not converge we say that it
   diverges (for the relation $R$) and we write $p {⇑}_R$.
 \end{definition}
+\begin{definition}[observational equivalence]
+  Let $R ⊆ (Λ×Π) × (Λ×Π)$ be a reduction relation. The observational
+  equivalence relation induced by $R$ is denoted $(≡_R)$ and defined as
+  follows.
+  \begin{center}
+  $
+    (≡_R) = \{(t,u) \st ∀π∈Π, ∀ρ∈\mathcal{S}, tρ∗π {⇓}_R ⇔ uρ∗π {⇓}_R\}
+  $
+  \end{center}
+  \vspace{-3mm}%hack
+\end{definition}
+\begin{lemma}\label{obseqRequiv}%
+  For all $R ⊆ (Λ×Π) × (Λ×Π)$, $(≡_R)$ is an equivalence relation.
+\end{lemma}
+\begin{proof}
+  Immediate by definition.
+\end{proof}
 
 The idea now is to extend our reduction relation $(≻)$ with a new,
 surprising reduction rule. It will reduce processes of the form
 $δ(v,w,t)∗π$ to $t∗π$ in the case where $v \not\equiv w$ for some
-equivalence relation $(≡)$, and remain stuck otherwise. With such a
-reduction rule, it is not possible to use the natural definition of
-observational equivalence bellow.
-$$
-  (≡) = \{(t,u) \st ∀π∈Π, ∀ρ∈\mathcal{S}, tρ∗π {⇓}_{≻} ⇔ uρ∗π {⇓}_{≻}\}
-$$
+equivalence relation $(≡)$, and remain stuck otherwise. However, by
+adding such a reduction rule, it is not possible to take $(≡) = (≡_{≻})$.
 Indeed, this would make the definitions of reduction and equivalence
 circular. Consequently, we need to be very careful so that everything
 remains well-defined. We will rely on a stratified construction of both
-reduction and equivalence.
-\begin{definition}
+the reduction relation and the equivalence relation.
+\begin{definition}[stratification]
   For all $i ∈ \mathbb{N}$ we define two relations $(↠_i)$ and $(≡_i)$ as
   follows.
-  \begin{align*}
-    (↠_i) &= (≻) ∪ \{(δ(v,w,t)∗π, t∗π) \st ∃j<i, v \not\equiv_j w\}\\[6pt]
-    (≡_i) &= \{(t,u) \st ∀j≤i, ∀π∈Π, ∀ρ∈\mathcal{S}, tρ∗π {⇓}_j ⇔ uρ∗π {⇓}_j\}
-  \end{align*}
-  Here, all the relations are well-defined as there is no circularity. In
-  particular, we have $(↠_0) = ({≻})$ as there is no $i < 0$.
+  \begin{center}
+  $
+    \hspace{1.5cm}
+    (↠_i) = (≻) ∪ \{(δ(v,w,t)∗π, t∗π) \st ∃j<i, v \not\equiv_j w\}
+    \hfill
+    (≡_i) = \cap_{j ≤ i} (≡_{↠_j})
+    %\{(t,u) \st ∀j≤i, ∀π∈Π, ∀ρ∈\mathcal{S}, tρ∗π {⇓}_j ⇔ uρ∗π {⇓}_j\}
+    \hspace{1.5cm}
+  $
+  \end{center}
+  The relations are well-defined: although $(≡_i)$ depends on $(↠_j)$ for all
+  $j ≤ i$, $(↠_i)$ only depends on $(≡_j)$ for all $j < i$. Note that
+  $(↠_0) = ({≻})$ as there is no $j<0$, and hence $(≡_0) = (≡_{≻})$.
 \end{definition}
-\begin{lemma}\label{isequiv}
+
+\begin{lemma}\label{isequiv}%
   For all $i ∈ \mathbb{N}$, $(≡_i)$ is an equivalence relation.
-  \begin{proof}
-    Immediate.
-  \end{proof}
 \end{lemma}
+\begin{proof}
+  Immediate by Lemma~\ref{obseqRequiv}, an intersection of
+  equivalence relations being one itself.
+\end{proof}
 
 We can then define our actual reduction relation and equivalence relation
 as a union and an intersection over the previously defined relations.
-\begin{definition}
+\begin{definition}[reduction and equivalence]
   The relations $(↠)$ and $(≡)$ are defined as follows.
-  $$
-    (↠) = \bigcup_{i∈\mathbb{N}} (↠_i)
-    \quad\quad\quad\quad
-    (≡) = \bigcap_{i∈\mathbb{N}} (≡_i)
-  $$
+  \begin{center}
+  $
+    \hfill
+    (↠) = \cup_{i∈\mathbb{N}} (↠_i)
+    \hfill
+    (≡) = \cap_{i∈\mathbb{N}} (≡_i)
+    \hfill
+  $
+  \end{center}
+  For convenience, we will generally use the following, equivalent
+  formulations.
+
+  \vspace{2mm}
+  \noindent$\hspace{1.5cm} (≡) = \cap_{i∈\mathbb{N}} (≡_{↠_i})
+    = \{(t,u) \st ∀i∈\mathbb{N}, ∀π∈Π,
+    ∀ρ∈\mathcal{S}, tρ∗π {⇓}_i ⇔ uρ∗π {⇓}_i\}$
+
+  \vspace{2mm}
+  \noindent$\hspace{1.5cm} (\not\equiv) = \cup_{i∈\mathbb{N}} (\not\equiv_{↠_i})
+    = \{(t,u), (u,t) \st ∃i∈\mathbb{N}, ∃π∈Π, ∃ρ∈\mathcal{S},
+    tρ∗π {⇓}_i ∧ uρ∗π {⇑}_i\}$
+  
+  \vspace{2mm}
+  \noindent$\hspace{1.5cm} (↠) = (≻) ∪ \{(δ(v,w,t)∗π, t∗π) \st v \not\equiv w\} $
 \end{definition}
+Note that the definition of $(↠)$ corresponds exactly to what we aimed
+for: an extension of $(≻)$ with a reduction rule for $δ$-like terms
+carrying two non-equivalent values.
 
 \begin{remark}
   We have $(↠_i) ⊆ (↠_{i+1})$ and $(≡_{i+1}) ⊆ (≡_i)$. Consequently, the
@@ -449,27 +522,281 @@ as a union and an intersection over the previously defined relations.
 \end{remark}
 \begin{lemma}
   $(≡)$ is an equivalence relation.
-  \begin{proof}
-    Immediate using Lemma~\ref{isequiv} since an intersection of equivalence
-    relations is itself an equivalence relation.
-  \end{proof}
 \end{lemma}
+\begin{proof}
+  Immediate by Lemma~\ref{isequiv}, an intersection of equivalence relations
+  being one itself.
+\end{proof}
 
-For convenience, the definition of our new reduction and equivalence
-relations can be expressed in the following way, where $(\not\equiv)$
-denotes the negation of $(≡)$.
-\begin{align*}
-  (≡) &= \{(t,u) \st ∀i∈\mathbb{N}, ∀π∈Π, ∀ρ∈\mathcal{S},
-                     tρ∗π {⇓}_i ⇔ uρ∗π {⇓}_i\} \\[6pt]
-  (\not\equiv) &= \{(t,u), (u,t) \st ∃i∈\mathbb{N}, ∃π∈Π, ∃ρ∈\mathcal{S},
-                     tρ∗π {⇓}_i ∧ uρ∗π {⇑}_i\} \\[6pt]
-  (↠) &= (≻) ∪ \{(δ(v,w,t)∗π, t∗π) \st v \not\equiv w\}
-\end{align*}
-Note that the definition of $(↠)$ corresponds exactly to what we aimed
-for: an extension of $(≻)$ with a reduction rule for $δ$-like terms
-carrying two non-equivalent values.
+\section{Congruence properties for equivalence}
 
-\section{Substitutivity and extensionality}
+We are now going to establish important properties of our equivalence
+relation $(≡)$. In particular, we will show that it behaves in the expected
+way with respect to substitution. For instance, we will show that arbitrary
+substitutions preserve equivalence, and that the substitution of equivalent
+values in a term yields equivalent terms.
+
+\begin{theorem}[substitutivity]\label{fullsubstequiv}%
+  Let $t$, $u ∈ Λ$ be two terms and $ρ ∈ \mathcal{S}$ be a substitution. If
+  $t ≡ u$ then $tρ ≡ uρ$.
+\end{theorem}
+\begin{proof}
+  Let us take $i_0 ∈ \mathbb{N}$, $ρ_0 ∈ \mathcal{S}$ and $π_0 ∈ Π$, and prove
+  ${{(tρ)ρ_0 ∗ π_0} {⇓}_{i_0}} ⇔ {{(uρ)ρ_0 ∗ π_0} {⇓}_{i_0}}$, which rewrites
+  as ${{t(ρ_0 ∘ ρ) ∗ π_0} {⇓}_{i_0}} ⇔ {{u(ρ_0 ∘ ρ) ∗ π_0} {⇓}_{i_0}}$. We can
+  thus conclude by definition of $t ≡ u$ using $i_0$, the substitution
+  $ρ_0 ∘ ρ$ and the stack $π_0$.
+\end{proof}
+
+\begin{theorem}[extensionality for values]\label{fullextval}%
+  Let $v_1$, $v_1 ∈ Λ_ι$ be values, $t ∈ Λ$ be a term and $x ∈ \cal{V}_ι$
+  be a $λ$-variable. If we have $v_1 ≡ v_2$ then we also have
+  ${t[x := v_1]} ≡ {t[x := v_2]}$.
+\end{theorem}
+\begin{proof}
+  We are going to prove the contrapositive so we suppose ${t[x := v_1]}
+  \not\equiv {t[x := v_2]}$ and we show $v_1 \not\equiv v_2$. Let us first
+  assume that neither $v_1$ nor $v_2$ is equal to $□$ or to a $λ$-variables.
+  By definition, we know that there $i∈\mathbb{N}$, $π∈Π$ and $ρ∈\mathcal{S}$
+  such that ${(t[x := v_1])ρ ∗ π} {⇓}_i$ and ${(t[x := v_2])ρ ∗ π} {⇑}_i$ (up
+  to symmetry). As $x$ is bound we can rename it in such a way that
+  ${(t[x := v_1])ρ} = {tρ[x := v_1ρ]}$ and that ${(t[x := v_2])ρ} =
+  {tρ[x := v_2ρ]}$. To finish the proof, we need to find $i_0 ∈ \mathbb{N}$,
+  $π_0 ∈ Π$ and $ρ_0 ∈ \mathcal{S}$ such that ${v_1ρ_0 ∗ π_0} {⇓}_{i_0}$
+  and ${v_2ρ_0 ∗ π_0} {⇑}_{i_0}$ (up to symmetry). We can take $i_0 = i$,
+  $π_0 = {[(λx.tρ)\;\,{-}]π}$ and $ρ_0 = ρ$ since ${v_1ρ ∗ [(λx.tρ)\;\,{-}]π}
+  ↠_i {tρ[x := v_1ρ] ∗ π} {⇓}_i$ and ${v_2ρ ∗ [(λx.tρ)\;\,{-}]π} ↠_i
+  {tρ[x := v_2ρ] ∗ π} {⇑}_i$. Note that here, it is essential that $v_1ρ$ and
+  $v_2ρ$ are not equal to $□$ or to some $λ$-variable, as otherwise the first
+  reduction steps could not be taken.
+
+  It remains to show that $v_1 \not\equiv v_2$ when either $v_1$ or $v_2$
+  (or both) is equal to $□$ or to a $λ$-variable. First, we can assume
+  $v_1 ≠ v_2$ as otherwise we would immediately get a contradiction with
+  ${t[x := v_1]} \not\equiv {t[x := v_2]}$ by reflexivity of $({≡})$. As a
+  consequence, it is not possible that $v_1 = v_2 = □$ or that $v_1 = v_2 =
+  x ∈ \mathcal{V}_{ι}$.
+  %
+  Let us consider the case where $v_1 = x ∈ \mathcal{V}_{ι}$ and $v_2 = □$,
+  or symmetrically, $v_1 = □$ and $v_2 = x ∈ \mathcal{V}_{ι}$. To tell these
+  values apart we can show $v_1 \not\equiv_0 v_2$ using the substitution
+  $ρ = [x := \{\}]$ and the stack $π = [{-}\;\,\{\}]ε$. Indeed, we have
+  ${□ρ ∗ π} = {□ ∗ [{-}\;\,\{\}]ε} ↠_0 {□ ∗ ε}  {⇓}_0$ and ${xρ ∗ π} =
+  {\{\} ∗ [{-}\;\,\{\}]ε} {⇑}_0$.
+  %
+  The only remaining case is the one where $v_1 = x ∈ \mathcal{V}_{ι}$ and
+  $v_2 = y ∈ \mathcal{V}_{ι}$, with $x ≠ y$. To tell these values apart we
+  show $v_1 \not\equiv_0 v_2$ using the substitution $ρ = [x := \{\}][y := □]$
+  and (again) the stack $π = [{-}\;\,\{\}]ε$. Indeed, ${v_1ρ ∗ π} =
+  {\{\} ∗ [{-}\;\,\{\}]ε} {⇑}_0$ and
+  ${v_2ρ ∗ π} = {□ ∗ [{-}\;\,\{\}]ε} {⇓}_0$.
+\end{proof}
+
+A result analogous to Theorem~\ref{fullextval} also holds for substituting
+equivalent terms to a term variable. However, it is harder to prove, and it
+requires a proof by induction on the reduction levels. The core of the proof
+happens in that of Lemma~\ref{afullextlem}, which itself makes use of the
+following lemma.
+\begin{lemma}\label{lem:aposs}%
+  Let $p ∈ Λ×Π$ be a process, $t ∈ Λ$ be a term, and $a ∈ \mathcal{V}_τ$ be a
+  term variable. If ${p[a := t]} {⇓}_k$ for some $k ∈ \mathbb{N}$ then there
+  is a blocked process $q ∈ Λ×Π$ such that $p ≻^{∗} q$ and either:
+  \begin{itemize}
+    \item $q = {v ∗ ε}$ for some value $v ∈ Λ_{ι}$,
+    \item $q = {a ∗ π}$ for some stack $π ∈ Π$,
+    \item $k ≠ 0$ and $q = {δ(v,w,u) ∗ π}$ for some values $v$, $w ∈ Λ_{ι}$,
+      term $t ∈ Λ$ and stack $π ∈ Π$. Moreover, in this case, we also know
+      that ${v[a := t]} \not\equiv_j {w[a := t]}$ for some $j < k$.
+  \end{itemize}
+\end{lemma}
+\begin{proof}
+  If $p$ is non-terminating then so is $p[a := t]$ according to
+  Lemma~\ref{lem:redstable}. Since $({≻}) ⊆ ({↠}_k)$ this contradicts
+  ${{p[a := t]}} {⇓}_k$, and thus there must be a blocked process $q ∈ Λ×Π$
+  such that $p ≻^{∗} q$. Using Theorem~\ref{thm:redcompatall} we obtain
+  ${p[a := t]} ≻^{∗} {q[a := t]}$, which tells us that ${q[a := t]} {⇓}_k$.
+  This means that $q$ cannot be stuck, as otherwise $q[a := t]$ would also be
+  stuck by Lemma~\ref{lem:redstable}, and that would contradict
+  ${q[a := t]} {⇓}_k$.
+  %
+  Let us now suppose that $p = {δ(v,w,u) ∗ π}$ for some $v$, $w ∈ Λ_ι$,
+  $t ∈ Λ$, and $π ∈ Π$. Since ${δ(vρ,wρ,uρ) ∗ π} {⇓}_k$, there must be $j < k$
+  (and thus $k ≠ 0$) such that ${vρ} \not\equiv_j {wρ}$, otherwise we would
+  obtain a contradiction.
+  %
+  By Lemma~\ref{lem:possibilities}, it remains to rule out the following forms
+  for $q$, where $b ≠ a$.
+  \begin{center}
+  $
+    \hspace{1.5cm}
+    x.l_k ∗ π
+    \hfill
+    x ∗ [{-}\;v]π
+    \hfill
+    [x\,| (C_i[x_i] → t_i)_{i∈I}] ∗ π
+    \hspace{1.5cm}
+  $
+  \\[2mm]
+  $
+    \hspace{1.5cm}
+    x ∗ [t\;\,{-}]π
+    \hfill
+    R(x,u) ∗ π
+    \hfill
+    b ∗ π
+    \hfill
+    v ∗ α
+    \hspace{1.5cm}
+  $
+  \end{center}
+  It is however easy to see that if $q$ was of one of these forms, then
+  $q[a := t]$ would still be blocked, and that would again contradict
+  ${q[a := t]} {⇓}_k$.
+\end{proof}
+\begin{lemma}\label{afullextlem}%
+  Let $u_1$, $u_2$, $t ∈ Λ$ be three terms, $a ∈ \mathcal{V}_τ$ be a term
+  variable, and $k ∈ \mathbb{N}$ be a natural number. If $u_1 ≡_k u_2$ then
+  ${t[a := u_1]} ≡_k {t[a := u_2]}$.
+\end{lemma}
+\begin{proof}
+  We do a proof by induction on the equivalence level, so we take $k_0 ∈
+  \mathbb{N}$ and we assume that the property holds for all $k < k_0$. We
+  then suppose that $u_1 ≡_{k_0} u_2$ and show ${t[a := u_1]} ≡_{k_0}
+  {t[a := u_2]}$. By definition, we need to take $π ∈ Π$, $ρ ∈ \mathcal{S}$
+  and show ${{(t[a := u_1])ρ∗π} {⇓}_{k_0}} ⇔ {{(t[a := u_2])ρ∗π} {⇓}_{k_0}}$.
+  Since $a$ is bound we are free to rename it, hence we may assume
+  ${(t[a := u_1])ρ} = {tρ[a := u_1ρ]}$, ${(t[a := u_2])ρ} = {tρ[a := u_2ρ]}$
+  and $a ∉ FV_τ(π) ∪ FV_τ(t_1) ∪ FV_τ(t_2)$. By symmetry, we can thus
+  suppose ${tρ[a := u_1ρ] ∗ π} {⇓}_{k_0}$ and show
+  ${tρ[a := u_2ρ] ∗ π} {⇓}_{k_0}$.
+
+  We will now build a sequence $(t_i,π_i,l_i)_{i ∈ I}$ defined in such
+  a way that for every natural number $i ∈ I$ we have ${tρ[a := u_1ρ] ∗ π}
+  ↠_{k_0}^{∗} {t_i[a := u_1ρ] ∗ π_i[a := u_1ρ]}$ in $l_i$ steps, and
+  $t_i ∗ p_i$ is blocked. We also require $(l_i)_{i ∈ I}$ to be increasing,
+  and to have a strictly increasing subsequence. Under this condition the
+  sequence must be finite, as if it was infinite then $tρ[a := u_1ρ]∗π$
+  would be non-terminating, and this would contradict ${tρ[a := u_1ρ]∗π}
+  {⇓}_{k_0}$. As a consequence, our sequence has a finite number $n+1$ of
+  elements (for some $n ∈ \mathbb{N}$), and we can denote it
+  $(t_i,π_i,l_i)_{i ≤ n}$. To show that $(l_i)_{i ≤ n}$ has a strictly
+  increasing subsequence, we will ensure that it does not have three equal
+  consecutive values.
+
+  To define $(t_0,π_0,l_0)$ we look at the reduction of $tρ ∗ π$. As
+  ${(tρ∗π)[a := u_1ρ]} = {tρ[a := u_1]∗π} {⇓}_{k_0}$, we can apply
+  Lemma~\ref{lem:aposs} to obtain a blocked process $p$ such that
+  ${tρ ∗ π} ≻^j p$. We then take ${t_0 ∗ π_0} = p$ and $l_0 = j$.
+  According to Theorem~\ref{thm:redcompatall} we have
+  ${(tρ ∗ π)[a := u_1ρ]} ≻^j \p{t_0[a := u_1ρ] ∗ π_0[a := u_1ρ]}$. As a
+  consequence, we know that ${(tρ ∗ π)[a := u_1ρ]} ↠_{k_0}^{∗}
+  {t_0[a := u_1ρ] ∗ π_0[a := u_1ρ]}$ in $l_0 = j$ steps.
+  %
+  To define $(t_{i+1},π_{i+1},l_{i+1})$, we consider the (already constructed)
+  blocked  process ${t_i ∗ π_i}$. By construction, we know that
+  ${tρ[a := u_1ρ] ∗ π} ↠_{k_0}^{∗} {t_i[a := u_1ρ] ∗ π_i[a := u_1ρ]}$ in $l_i$
+  steps. Hence, by Lemma~\ref{lem:aposs}, we know that $t_i ∗ π_i$ can only be
+  of three different shapes.
+  \begin{itemize}
+    \item If ${t_i ∗ π_i} = {v ∗ ε}$ for some $v ∈ Λ_ι$ then the sequence ends
+      with $n = i$.
+    \item If $t_i = a$ then we consider the process ${t_i[a := u_1ρ] ∗ π_i}$.
+      By construction, we know that we have
+      ${(t_i[a := u_1ρ] ∗ π_i)[a := u_1ρ]} {⇓}_{k_0}$,
+      and Lemma~\ref{lem:aposs} gives us a blocked process $p$ such that
+      ${t_i[a := u_1ρ] ∗ π_i} ≻^j p$. By Theorem~\ref{thm:redcompatall}
+      ${(t_i[a := u_1ρ] ∗ π_i)[a := u_1ρ]} ≻^j {p[a := u_1ρ]}$, and hence
+      ${t_i[a := u_1ρ] ∗ π_i[a := u_1ρ]} ↠_{k_0}^{∗} {p[a := u_1ρ]}$ in $j$
+      steps. We then take as definition ${t_{i+1} ∗ π_{i+1}} = p$ and
+      $l_{i+1} = l_i + j$.
+      %
+      Now, is it possible to have $j = 0$? This can only happen when
+      ${t_i[a := u_1ρ] ∗ π_i}$ is of one of the three forms of
+      Lemma~\ref{lem:aposs}. It cannot be of the form ${a ∗ π}$ as we assumed
+      that $a$ does not appear in $u_1ρ$. If it is of the form $v ∗ ε$, then
+      we reached the end of the sequence with $i = n$ so there is no problem.
+      We only have to be careful when ${t_i[a := u_1ρ]} = {δ(v,w,u)}$. In
+      this case, we will make sure that we always have $l_{i+2} > l_{i+1}$
+      (see the following case).
+    \item If $t_i = {δ(v,w,u)}$ for some $v$, $w ∈ Λ_ι$ and $u ∈ Λ$, then we
+      know ${v[a := u_1ρ]} \not\equiv_m {w[a := u_1ρ]}$ for some $m < k_0$
+      (here $k_0 ≠ 0$, so this case is trivial in the base case of our
+      induction). Hence, we have ${t_i[a := u_1ρ] ∗ π_i} = {δ(v[a := u_1ρ],
+      w[a := u_1ρ], u[a := u_1ρ]) ∗ π_i} ↠_{k_0} {u[a := u_1ρ] ∗ π_i}$.
+      Moreover, ${t_i[a := u_1ρ] ∗ π_i[a := u_1ρ]} ↠_{k_0}
+      {u[a := u_1ρ] ∗ π_i[a := u_1ρ]}$ by definition of $({↠}_{k_0})$. Since
+      we know that ${t[a := u_1ρ] ∗ π} ↠_{k_0}^{∗} {t_i[a := u_1ρ] ∗ π_i[a :=
+      u_1ρ]}$ in $l_i$ steps, we get that ${t[a := u_1ρ] ∗ π} ↠_{k_0}^{∗}
+      {u[a := u_1ρ] ∗ π_i[a := u_1ρ]}$ in $l_i+1$ steps. And moreover, we also
+      know that ${(u[a := u_1ρ] ∗ π_i)[a := u_1ρ]} = {u[a := u_1ρ] ∗ π_i[a :=
+      u_1ρ]} {⇓}_{k_0}$.
+      %
+      We now consider the reduction of the process ${u[a := u_1ρ]∗π_i}$.
+      According to Lemma~\ref{lem:aposs} there is a blocked process $p$ such
+      that ${u[a := u_1ρ]∗π_i} ≻^j p$. Using Theorem~\ref{thm:redcompatall} we
+      obtain ${u[a := u_1ρ] ∗ π_i[a := u_1ρ]} ≻^j {p[a := u_1ρ]}$ from which
+      we deduce that ${u[a := u_1ρ] ∗ π_i[a := u_1ρ]} ↠_{k_0}^{∗} {p[a :=
+      u_1ρ]}$ in $j$ steps. We then define ${t_{i+1} ∗ π_{i+1}} = p$ and
+      $l_{i+1} = l_i + j + 1$. Note the that we indeed have $l_{i+1} > l_i$.
+  \end{itemize}
+  Intuitively, the sequence $(t_i,π_i,l_i)_{i ≤ n}$ mimics the reduction of
+  the process $t[a := u_1ρ] ∗ π$, while making explicit every substitution of
+  $a$ and every reduction of a $δ$-like state.
+
+  To end the proof, we will show that for all $i ≤ n$ we have
+  ${t_i[a := u_2ρ] ∗ π_i[a := u_2ρ]} {⇓}_{k_0}$. For $i = 0$, this will give
+  us ${t[a := u_2ρ]∗π} {⇓}_{k_0}$, which is the expected result. As by
+  construction ${t_n ∗ π_n} = {v ∗ ε}$, we have ${t_n[a := u_2ρ] ∗ π_n[a :=
+  u_2ρ]} = \p{v[a := u_2ρ]∗ε}$, and hence ${t_n[a := u_2ρ] ∗ π_n[a := u_2ρ]}
+  {⇓}_{k_0}$.
+  %
+  We now assume ${t_{i+1}[a := u_2ρ] ∗ π_{i+1}[a := u_2ρ]} {⇓}_{k_0}$ for
+  $0 ≤ i < n$, and show ${t_i[a := u_1ρ] ∗ π_i[a := u_2ρ]} {⇓}_{k_0}$.
+  By construction, $t_i ∗ π_i$ can be of two shapes, since only $t_n ∗ π_n$
+  can be of the form $v ∗ ε$.
+  \begin{itemize}
+    \item If $t_i = a$ then we know that ${u_1ρ ∗ π_i} ↠_{k_0}^{∗}
+      {t_{i+1} ∗ π_{i+1}}$. As a consequence, Theorem~\ref{thm:redcompatall}
+      gives us ${u_1ρ ∗ π_i[a := u_2ρ]} ↠_{k_0}^{∗} {t_{i+1}[a := u_2ρ] ∗
+      π_i[a := u_2ρ]}$, and we then get ${u_1ρ ∗ π_i[a := u_2ρ]} {⇓}_{k_0}$
+      by induction hypothesis. Since $u_1 ≡_{k_0} u_2$, this implies
+      ${u_2ρ ∗ π_i[a := u_2ρ]} = {(t_i ∗ π_i)[a := u_2ρ]} {⇓}_{k_0}$.
+
+    \item If $t_i = δ(v,w,u)$ then we have ${u ∗ π_i} ↠_{k_0}^{∗} {t_{i+1} ∗
+      π_{i+1}}$. As a consequence, Theorem~\ref{thm:redcompatall} gives us
+      ${u[a := u_2ρ] ∗ π_i[a := u_2ρ]} ↠_{k_0}^{∗} {t_{i+1}[a := u_2ρ] ∗
+      π_{i+1}[a := u_2ρ]}$. Using the induction hypothesis we obtain
+      ${u[a := u_2ρ] ∗ π_i[a := u_2ρ]} {⇓}_{k_0}$. To conclude the proof, it
+      remains to show that ${δ(v[a := u_2ρ],w[a := u_2ρ], u[a := u_2ρ]) ∗
+      π_i[a := u_2ρ]} ↠_{k_0}^{∗} {u[a := u_2ρ] ∗ π_i[a := u_2ρ]}$.
+      %
+      We need to find $j < k_0$ such that ${v[a := u_2ρ]} \not\equiv_j
+      {w[a := u_2ρ]}$. By construction, there is $m < k_0$ such that
+      ${v[a := u_1ρ]} \not\equiv_m {w[a := u_1ρ]}$, and we will show
+      ${v[a := u_2ρ]} \not\equiv_m {w[a := u_2ρ]}$. Using the global
+      induction hypothesis twice, we obtain that ${v[a := u_1ρ]} ≡_m
+      {v[a := u_2ρ]}$ and that ${w[a := u_1ρ]} ≡_m {w[a := u_2ρ]}$.
+      Now if we suppose ${v[a := u_2ρ]} ≡_m {w[a := u_2ρ]}$ then we
+      have ${v[a := u_1ρ]} ≡_m {v[a := u_2ρ]} ≡_m {w[a := u_2ρ]} ≡_m
+      {w[a := u_1ρ]}$. As this contradicts the fact that
+      ${v[a := u_1ρ]} \not\equiv_m {w[a := u_1ρ]}$, it must be that
+      ${v[a := u_2ρ]} \not\equiv_m {w[a := u_2ρ]}$.
+  \end{itemize}
+\end{proof}
+\begin{theorem}[extensionality for terms]\label{fullextterm}%
+  Let $u_1$, $u_2$, $t ∈ Λ$ be three terms and $a ∈ \mathcal{V}_{τ}$ be a term
+  variable. If we have $u_1 ≡ u_2$ then we also have
+  ${t[a := u_1]} ≡ {t[a := u_2]}$.
+\end{theorem}
+\begin{proof}
+  We suppose that $u_1 ≡ u_2$, which means that $u_1 ≡_i u_2$ for all
+  $i ∈ \mathbb{N}$. We need to show that ${t[a := u_1]} ≡ {t[a := u_2]}$
+  so we take $i_0 ∈ \mathbb{N}$ and we show ${t[a := u_1]} ≡_{i_0}
+  {t[a := u_2]}$. By hypothesis we have $u_1 ≡_{i_0} u_2$ and hence we can
+  conclude using Lemma~\ref{afullextlem}.
+\end{proof}
+
+
 
 % TODO
 
