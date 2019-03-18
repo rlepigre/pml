@@ -149,6 +149,10 @@ let _ =
         | None   -> ()
         | Some p -> Quote.quote_file stderr p
       end
+  | Illegal_effect(e)         ->
+      begin
+        err_msg "Effect %a is not legal here." Effect.print e;
+      end
   | e ->
       err_msg "Unexpected exception [%s]." (Printexc.to_string e);
       err_msg "%t" Printexc.print_backtrace;

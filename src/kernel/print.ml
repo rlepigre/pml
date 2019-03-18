@@ -32,13 +32,12 @@ let print_vars ch e =
                                    fprintf ch ",?%d" x.uvar_key) l)
 
 let arrow ch t =
-  let open Totality in
-  match norm t with
-  | Tot   -> fprintf ch "⇒"
-  | Ter   -> fprintf ch "→"
-  | Any   -> fprintf ch "↝"
-  | Unk _ -> fprintf ch "?>"
-  | Max _ -> fprintf ch "?>"
+  let open Effect in
+  match complete t with
+  | Some [] -> fprintf ch "⇒"
+  | Some l -> if List.mem Loop l
+              then fprintf ch "↝" else fprintf ch "→"
+  | _        -> fprintf ch "?>"
 
 let removeq : ('a -> 'a -> bool) -> 'a list ref -> 'a -> bool = fun eq ls x ->
   let rec fn acc = function

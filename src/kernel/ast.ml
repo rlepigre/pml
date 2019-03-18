@@ -7,7 +7,7 @@ open Ptr
 open Sorts
 open Pos
 
-module UTimed = Totality.UTimed
+module UTimed = Effect.UTimed
 module M = Map.Make(String)
 module A = Assoc
 
@@ -33,7 +33,7 @@ type _ ex =
 
   (* Proposition constructors. *)
 
-  | Func : Totality.tot * p ex loc * p ex loc        -> p  ex
+  | Func : Effect.t * p ex loc * p ex loc            -> p  ex
   (** Arrow type. *)
   | Prod : (pos option * p ex loc) A.t               -> p  ex
   (** Product (or record) type. *)
@@ -354,12 +354,13 @@ let labs : popt -> pbox option -> strloc -> (vvar -> tbox) -> vbox =
   fun p ao x f ->
     let v = new_var (mk_free V) x.elt in
     let b = bind_var v (f v) in
-    let t = Totality.new_tot () in
-    box_apply2 (fun ao b -> Pos.make p (LAbs(ao, (x.pos, b), t))) (box_opt ao) b
+    let t = Effect.create () in
+    box_apply2 (fun ao b -> Pos.make p (LAbs(ao, (x.pos, b), t)))
+               (box_opt ao) b
 
 let lvabs : popt -> pbox option -> vvar -> tbox -> vbox =
   fun p ao v t ->
-    let tot = Totality.new_tot () in
+    let tot = Effect.create () in
     box_apply2 (fun ao b -> Pos.make p (LAbs(ao, (None, b), tot)))
                (box_opt ao) (bind_var v t)
 
@@ -480,7 +481,7 @@ let s_vari : popt -> svar -> sbox = vari
 
 let p_vari : popt -> pvar -> pbox = vari
 
-let func : popt -> Totality.tot -> pbox -> pbox -> pbox =
+let func : popt -> Effect.t -> pbox -> pbox -> pbox =
   fun p t -> box_apply2 (fun a b -> Pos.make p (Func(t,a,b)))
 
 let prod : popt -> (popt * pbox) A.t -> pbox =

@@ -19,7 +19,7 @@ let rec valu_erasure : valu -> e_vbox = fun v ->
   | LAbs(_,b,t) -> let f x =
                      let x = copy_var x (mk_free V) (name_of x) in
                      term_erasure (bndr_subst b (mk_free V x))
-                   in vlabs (binder_name (snd b)) f (Totality.know_tot t)
+                   in vlabs (binder_name (snd b)) f Effect.(know_sub t [])
   | Cons(c,v)   -> vcons c.elt (valu_erasure v)
   | Reco(m)     -> vreco (A.map (fun (_,v) -> valu_erasure v) m)
   | Scis        -> vscis

@@ -235,14 +235,16 @@ val rec sub_associative3 : ∀m n p∈int, m + (n - p) ≡ (m + n) - p =
     {}
   }
 
-val rec non_neg_add : ∀m n∈{ x ∈ int | non_negative x}, non_negative (m + n) = fun m n {
-  case m {
-    Zero  → {}
-    S[pm] → eqns non_negative pm ≡ true by (case pm { Zero → {} S[_] → {} });
-            non_neg_add pm n; set auto 1 2; {}
-    P[sm] → ✂
+val rec non_neg_add : ∀m n∈{ x ∈ int | non_negative x}, non_negative (m + n)
+  = fun m n {
+    case m {
+      Zero  → {}
+      S[pm] → eqns non_negative pm ≡ true
+                by (case pm { Zero → {} S[_] → {} });
+              non_neg_add pm n; set auto 1 2; {}
+      P[sm] → ✂
+    }
   }
-}
 
 val rec add_increasing : ∀m n p q∈int, le m n ⇒ le p q ⇒ le (m + p) (n + q) =
   fun m n p q _ _ {
@@ -279,15 +281,18 @@ val lt_is_le : ∀m n∈int, lt m n ⇒ le m n = fun m n _ {
   }
 }
 
-val not_ge_is_lt : ∀m n∈int, ge m n ≡ false ⇒ lt m n = fun m n { not_le_is_gt n m }
+val not_ge_is_lt : ∀m n∈int, ge m n ≡ false ⇒ lt m n =
+  fun m n { not_le_is_gt n m }
 
 val gt_is_ge : ∀m n∈int, gt m n ⇒ ge m n = fun m n { lt_is_le n m }
 
 
-val rec add_increasing_left : ∀m n p∈int, le m n ⇒ le (m + p) (n + p) = fun m n p _ {
-  le_reflexive p; add_increasing m n p p {} {}
-}
+val rec add_increasing_left : ∀m n p∈int, le m n ⇒ le (m + p) (n + p) =
+  fun m n p _ {
+    le_reflexive p; add_increasing m n p p {} {}
+  }
 
-val rec add_increasing_right : ∀m n p∈int, le m n ⇒ le (p + m) (p + n) = fun m n p _ {
-  le_reflexive p; add_increasing p p m n {} {}
-}
+val rec add_increasing_right : ∀m n p∈int, le m n ⇒ le (p + m) (p + n) =
+  fun m n p _ {
+    le_reflexive p; add_increasing p p m n {} {}
+  }

@@ -4,7 +4,6 @@ open Bindlib
 open Sorts
 open Ast
 open Pos
-open Totality
 
 (** type for the hashtbl below *)
 type b = A : 'a ex -> b
@@ -44,7 +43,7 @@ let pure : type a. a ex loc -> bool =
     | HFun(s,_,b) -> biter s b
     | HApp(_,a,b) -> iter a; iter b
     | HDef(_,d)   -> iter d.expr_def
-    | Func(t,a,b) -> if not Totality.(sub t Tot) then raise Exit;
+    | Func(t,a,b) -> if not Effect.(absent CallCC t) then raise Exit;
                      iter a; iter b
     | Prod(m)     -> A.iter (fun _ (_,a) -> iter a) m
     | DSum(m)     -> A.iter (fun _ (_,a) -> iter a) m

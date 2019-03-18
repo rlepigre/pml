@@ -155,7 +155,7 @@ type _ ho_appl =
 
 (** Type of a value node. *)
 type v_node =
-  | VN_LAbs of (v, t) bndr_closure * Totality.tot
+  | VN_LAbs of (v, t) bndr_closure * Effect.t
   | VN_Cons of A.key loc * VPtr.t
   | VN_Reco of VPtr.t A.t
   | VN_Scis
@@ -643,7 +643,7 @@ let eq_cl po s (f1,vs1,ts1 as _cl1) (f2,vs2,ts2 as _cl2) =
 let eq_v_nodes : pool -> v_node -> v_node -> bool =
   fun po n1 n2 -> n1 == n2 ||
     match (n1, n2) with
-    | (VN_LAbs(b1,t1), VN_LAbs(b2,t2)) -> eq_cl po V b1 b2 && Totality.eq t1 t2
+    | (VN_LAbs(b1,t1), VN_LAbs(b2,t2)) -> eq_cl po V b1 b2 && Effect.eq t1 t2
     | (VN_Cons(c1,p1), VN_Cons(c2,p2)) -> c1.elt = c2.elt && eq_vptr po p1 p2
     | (VN_Reco(m1)   , VN_Reco(m2)   ) -> A.equal (eq_vptr po) m1 m2
     | (VN_Scis       , VN_Scis       ) -> true
@@ -1552,7 +1552,7 @@ and unif_v_nodes : pool -> VPtr.t -> v_node -> VPtr.t -> v_node -> pool =
     | _ ->
     match (n1, n2) with
     | (VN_LAbs(b1,t1), VN_LAbs(b2,t2)) ->
-       if not (Totality.eq t1 t2) then raise NoUnif;
+       if not (Effect.eq t1 t2) then raise NoUnif;
        unif_cl po V b1 b2
     | (VN_Cons(c1,p1), VN_Cons(c2,p2)) ->
        if c1.elt <> c2.elt then raise NoUnif;
