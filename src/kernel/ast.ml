@@ -56,7 +56,7 @@ type _ ex =
 
   (* Value constructors. *)
 
-  | LAbs : p ex loc option * (v, t) bndr * Totality.tot -> v  ex
+  | LAbs : p ex loc option * (v, t) bndr * Effect.t  -> v  ex
   (** Lambda abstraction. λx.t *)
   | Cons : A.key loc * v ex loc                      -> v  ex
   (** Constructor with exactly one argument. *)
