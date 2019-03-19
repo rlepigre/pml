@@ -1,0 +1,110 @@
+\documentclass[oneside,a4]{book}
+
+\usepackage{amssymb,amsmath,amsthm}
+\usepackage[mathletters]{ucs}
+\usepackage[utf8x]{inputenc}
+\usepackage{bussproofs}
+\usepackage{enumitem}
+\usepackage{caption}
+\usepackage{xspace}
+\usepackage{subcaption}
+\usepackage{stmaryrd}
+\usepackage{hyperref}
+\usepackage{geometry}
+
+\newcommand{\bnfeq}{\,\mathrel{::=}\;\,}
+\newcommand{\bnfor}{\;\mathrel{\vert}\;}
+\newcommand{\bnfst}{\\&\vert\;}
+\renewcommand{\emptyset}{\varnothing}
+\newcommand{\st}{\mid}
+\newcommand{\pml}{$\text{PML}_2$\xspace}
+\renewcommand\labelitemi{---}
+\setlist[itemize]{noitemsep,nolistsep}
+
+\newcommand*{\minw}[2]{%
+  \makebox[#2]{#1}%
+}
+
+\newcommand{\vars}{\mathcal{V}}
+\newcommand{\lvars}{\mathcal{V}_{ι}}
+\newcommand{\tvars}{\mathcal{V}_{τ}}
+\newcommand{\kvars}{\mathcal{V}_{κ}}
+\newcommand{\svars}{\mathcal{V}_{σ}}
+\newcommand{\ovars}{\mathcal{V}_{ο}}
+\newcommand{\cnsts}{\mathcal{C}}
+\newcommand{\props}{\mathcal{P}}
+\newcommand{\sorts}{\mathcal{S}}
+\newcommand{\terms}{\Lambda}
+\newcommand{\types}{\mathcal{F}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\arf}[1]{\lvert #1 \rvert_1}
+\newcommand{\ars}[1]{\lvert #1 \rvert_2}
+\newcommand{\sem}[1]{\ensuremath{\llbracket #1 \rrbracket}}
+
+\newtheorem{definition}{Definition}
+\newtheorem{example}{Example}
+\newtheorem{lemma}{Lemma}
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}{Corollary}
+\newtheorem{remark}{Remark}
+
+\begin{document}
+
+Indices of arrows is a subset of $\{cl\}$.
+
+Indices of semantics is a natural, $square$ or $\infty$
+
+  \begin{align*}
+    B_\square(X) &= X_\square \cup \{\square\} \\
+    B_0(X) &= \Lambda     \\
+    B_{n+1}(X) &= X(n+1) \cup \{\square\} \cup \{ u = (\phi a.t) t_1 \dots t_n |
+                                t[x:=u] t_1 \dots t_n \in B_n(X)\} \\
+    \sem{A \Rightarrow_{cl} B}_n &=
+      B_n(\lambda p. \{\lambda x.t \;|\; \forall v \in \sem{A}_\square \setminus
+      \{\square\},
+      t[x := v] \in \sem{B}_p^{\bot\bot}\})\\
+    \sem{A \Rightarrow_{c} B}_n &=
+      B_n(\lambda p. \{\lambda x.t \;|\; \forall v \in \sem{A}_\square \setminus
+      \{\square\},
+      t[x := v] \in \sem{B}_\square^{\bot\bot}\})\\
+    \sem{A \Rightarrow_{l} B}_n &=
+      B_n(\lambda p. \{\lambda x.t \;|\; \forall v \in \sem{A}_\square \setminus
+      \{\square\},
+      t[x := v] \in \sem{B}_p\})\\
+    \sem{A \Rightarrow B}_n &=
+      B_n(\lambda p. \{\lambda x.t \;|\; \forall v \in \sem{A}_\square \setminus
+      \{\square\},
+       t[x := v] \in \sem{B}_\square)\\
+    \sem{[(C_i : A_i)_{i \in I}]}_n
+      &=   B_n(\lambda p. \bigcup_{i \in I} \{C_i[v] \;|\; v \in \sem{A_i}_\square
+            \setminus \{\square\}\})\\
+    \sem{\{(l_i : A_i)_{i \in I}; \dots\}}_n
+      &= B_n(\lambda p. \{\{(l_i = v_i)_{i \in I \cup K}\} \;|\; \forall i \in I, v_i \in \sem{A_i}_\square
+           \setminus \{\square\}\})\\
+    \sem{\{(l_i : A_i)_{i \in I}\}}_n
+      &= B_n(\lambda p. \{\{(l_i = v_i)_{i \in I}\} \;|\; \forall i \in I, v_i \in \sem{A_i}_\square
+           \setminus \{\square\}\}) \cup \{\square\}\\
+    \sem{\forall \chi:s.A}_n
+      &= \bigcap_{\Phi \in \sem{s}}
+           \sem{A[\chi := \Phi]}_n\\
+    \sem{\exists \chi:s.A}_n
+      &= \bigcup_{\Phi \in \sem{s}}
+           \sem{A[\chi := \Phi]}_n\\
+    \sem{\mu_\tau X.A}_n
+      &=  \bigcup_{o < \sem{\tau}}
+            \sem{A[X := \mu_o X.A]}_n\\
+    \sem{\nu_\tau X.A}_n
+      &= \lambda p. \bigcap_{o < \sem{\tau}}
+            \sem{A[X := \nu_o X.A]}_p\\
+    \sem{t \in A}_n
+      &= B_n(\lambda p. \{v \in \sem{A}_p \;|\; \sem{t}
+      \equiv v\})\\
+    \sem{A \restriction t \equiv u}_n
+       &= \begin{cases}
+           B_n(\lambda p. \sem{A} \text{ if } \sem{t}
+             \equiv \sem{u})\\
+           B_n(\emptyset) \text{ otherwise}
+    \end{cases}
+  \end{align*}
+
+\end{document}
