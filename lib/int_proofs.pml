@@ -1,20 +1,11 @@
 include lib.int
 
-// FIXME #30: auto fails because two cases are impossible by typing
-// because p is positive below.
 val suc_pre : ∀n∈int, suc (pre n) ≡ n = fun n {
-  case n {
-    Zero → {}
-    S[p] → ncase⟨p⟩
-    P[_] → {}
-  }
+  set auto 2 1; {}
 }
+
 val pre_suc : ∀n∈int, pre (suc n) ≡ n = fun n {
-  case n {
-    Zero → {}
-    S[_] → {}
-    P[p] → pcase⟨p⟩
-  }
+  set auto 2 1; {}
 }
 
 val rec add_zero_right : ∀n∈int, n + Zero ≡ n = fun n {
@@ -22,28 +13,19 @@ val rec add_zero_right : ∀n∈int, n + Zero ≡ n = fun n {
     Zero → {}
     S[p] → eqns p + Zero ≡ p by add_zero_right p;
            showing suc(p+Zero) ≡ S[p];
-           case p { //FIXME #30 too
-             Zero → {}
-             S[_] → {}
-           }
+           set auto 1 0; {}
     P[s] → eqns s + Zero ≡ s by add_zero_right s;
            showing pre(s+Zero) ≡ P[s];
+           set auto 1 0; {}
            //showing suc(s+Zero) ≡ S[s]; // FIXME #24: wrong but loops,
               //probably a cyclic value in the pool!
-           case s { //FIXME #30 too
-             Zero → {}
-             P[_] → {}
-           }
   }
 }
 
 val rec add_S_right : ∀n∈ int, ∀m∈pos, n + S[m] ≡ suc(n + m) = fun n m {
   case n {
     Zero → showing S[m] ≡ suc(m);
-           case m { //FIXME #30 too
-             Zero → {}
-             S[_] → {}
-           }
+           set auto 1 0; {}
     S[p] → eqns p + S[m] ≡ suc(p + m) by add_S_right p m;
            showing p + S[m] ≡ suc(p + m);
            {}
@@ -56,10 +38,7 @@ val rec add_S_right : ∀n∈ int, ∀m∈pos, n + S[m] ≡ suc(n + m) = fun n m
 val rec add_P_right : ∀n∈ int, ∀m∈neg, n + P[m] ≡ pre(n + m) = fun n m {
   case n {
     Zero → showing P[m] ≡ pre(m);
-           case m { //FIXME #30 too
-             Zero → {}
-             P[_] → {}
-           }
+           set auto 1 0; {}
     S[p] → eqns p + P[m] ≡ pre(p + m) by add_P_right p m;
            showing suc(pre(p + m)) ≡ pre(suc(p + m));
            use pre_suc (p + m); use suc_pre(p + m)

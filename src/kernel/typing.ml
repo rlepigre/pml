@@ -59,9 +59,6 @@ let log_sub = Log.(log_sub.p)
 let log_typ = Log.register 't' (Some "typ") "typing informations"
 let log_typ = Log.(log_typ.p)
 
-let log_aut = Log.register 'a' (Some "aut") "automatic proving informations"
-let log_aut = Log.(log_aut.p)
-
 type auto_ctxt =
   { level : int * int
   ; doing : bool

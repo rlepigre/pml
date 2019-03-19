@@ -1962,6 +1962,38 @@ let test_value : Ptr.t -> pool -> bool = fun p po ->
     | Ptr.V_ptr(v) -> fst (is_nobox p po)
     | Ptr.T_ptr(_) -> false
 
+let log_aut = Log.register 'a' (Some "aut") "automatic proving informations"
+let log_aut = Log.(log_aut.p)
+
+(** Try to get the list of cases from the type in a VWit to limit
+    the cases in auto *)
+let get_cases : Ptr.v_ptr -> pool -> A.key list option = fun pv po ->
+  let is_vwit = function VN_VWit _ -> true | _ -> false in
+  log_aut "get cases %a" Ptr.print (Ptr.V_ptr pv);
+  let l = List.find_all (fun (v',nn) ->
+              eq_ptr po (Ptr.V_ptr v') (Ptr.V_ptr pv)
+              && is_vwit nn) po.vs in
+  let rec gn = function
+    | []                   -> None
+    | (_, VN_VWit(e)) :: l ->
+       let (_,a,_) = !(e.valu) in
+       log_aut "get cases foud vwit : %a" Print.ex a;
+       let rec fn a =
+         match (Norm.whnf a).elt with
+         | HDef(_,d) -> fn d.expr_def
+         | DSum(s)   -> Some(A.keys s)
+         | FixM(_,b) -> fn (bndr_subst b (Dumm P))
+         | FixN(_,b) -> fn (bndr_subst b (Dumm P))
+         | Memb(_,a) -> fn a
+         | Rest(a,_) -> fn a
+         | Impl(_,a) -> fn a
+         | Univ(s,b) -> fn (bndr_subst b (Dumm s))
+         | Exis(s,b) -> fn (bndr_subst b (Dumm s))
+         | _         -> gn l
+       in
+       fn a
+    | _ -> assert false
+  in gn l
 
 (** get one original term from the pool or their applications. *)
 let get_orig : Ptr.t -> pool -> term =
@@ -2046,6 +2078,10 @@ let get_blocked : pool -> blocked list = fun po ->
              end
           | TN_Case(v,b) ->
              let cases = List.map fst (A.bindings b) in
+             let cases = match get_cases v po with
+               | Some l -> List.filter (fun x -> List.mem x l) cases
+               | None   -> cases
+             in
              let e = get_orig (Ptr.V_ptr v) po in
              let b = BCas (e, cases) in
              if List.exists (eq_blocked b) acc then acc else
