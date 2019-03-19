@@ -50,40 +50,42 @@
 
 \begin{document}
 
-Indices of arrows is a subset of $\{cl\}$.
+Indices of arrows and $\vdash$ is a subset of $\{cl\}$.
 
-Indices of semantics is a natural, $square$ or $\infty$
+Indices of semantics is a natural, $\bullet$, or $\infty$.
+
+$B$ is parametrized by a functionnnal taking  a natural, $\bullet$
+or $\infty$ as argument and retruning a set of terms.
+
+Remark: epsilons will be interpreted in set $\sem{\dots}_\infty$. $\phi a.a$
+can replace the old $\square$ term.
 
   \begin{align*}
-    B_\square(X) &= X_\square \cup \{\square\} \\
+    B_\bullet(X) &= X(\bullet)\\
+    B_\infty(X)  &= \bigcap_{n \in \N} B_n(X) \\
     B_0(X) &= \Lambda     \\
-    B_{n+1}(X) &= X(n+1) \cup \{\square\} \cup \{ u = (\phi a.t) t_1 \dots t_n |
-                                t[x:=u] t_1 \dots t_n \in B_n(X)\} \\
+    B_{n+1}(X) &= X(n+1) \cup \{ u = (\phi a.t) t_1 \dots t_n |
+    t[x:=u] t_1 \dots t_n \in B_n(X)\} \\
     \sem{A \Rightarrow_{cl} B}_n &=
-      B_n(\lambda p. \{\lambda x.t \;|\; \forall v \in \sem{A}_\square \setminus
-      \{\square\},
+      B_n(\lambda p. \{\lambda x.t \;|\; \forall v \in \sem{A}_\bullet,
       t[x := v] \in \sem{B}_p^{\bot\bot}\})\\
     \sem{A \Rightarrow_{c} B}_n &=
-      B_n(\lambda p. \{\lambda x.t \;|\; \forall v \in \sem{A}_\square \setminus
-      \{\square\},
-      t[x := v] \in \sem{B}_\square^{\bot\bot}\})\\
+      B_n(\lambda p. \{\lambda x.t \;|\; \forall v \in \sem{A}_\bullet,
+      t[x := v] \in \sem{B}_\bullet^{\bot\bot}\})\\
     \sem{A \Rightarrow_{l} B}_n &=
-      B_n(\lambda p. \{\lambda x.t \;|\; \forall v \in \sem{A}_\square \setminus
-      \{\square\},
+      B_n(\lambda p. \{\lambda x.t \;|\; \forall v \in \sem{A}_\bullet,
       t[x := v] \in \sem{B}_p\})\\
     \sem{A \Rightarrow B}_n &=
-      B_n(\lambda p. \{\lambda x.t \;|\; \forall v \in \sem{A}_\square \setminus
-      \{\square\},
-       t[x := v] \in \sem{B}_\square)\\
+      B_n(\lambda p. \{\lambda x.t \;|\; \forall v \in \sem{A}_\bullet,
+       t[x := v] \in \sem{B}_\bullet)\\
     \sem{[(C_i : A_i)_{i \in I}]}_n
-      &=   B_n(\lambda p. \bigcup_{i \in I} \{C_i[v] \;|\; v \in \sem{A_i}_\square
-            \setminus \{\square\}\})\\
+      &=   B_n(\lambda p. \bigcup_{i \in I} \{C_i[v] \;|\; v \in
+    \sem{A_i}_\bullet \})\\
     \sem{\{(l_i : A_i)_{i \in I}; \dots\}}_n
-      &= B_n(\lambda p. \{\{(l_i = v_i)_{i \in I \cup K}\} \;|\; \forall i \in I, v_i \in \sem{A_i}_\square
-           \setminus \{\square\}\})\\
+      &= B_n(\lambda p. \{\{(l_i = v_i)_{i \in I \cup K}\} \;|\; \forall i \in I, v_i \in \sem{A_i}_\bullet\})\\
     \sem{\{(l_i : A_i)_{i \in I}\}}_n
-      &= B_n(\lambda p. \{\{(l_i = v_i)_{i \in I}\} \;|\; \forall i \in I, v_i \in \sem{A_i}_\square
-           \setminus \{\square\}\}) \cup \{\square\}\\
+      &= B_n(\lambda p. \{\{(l_i = v_i)_{i \in I}\} \;|\; \forall i \in I,
+    v_i \in \sem{A_i}_\bullet \})\\
     \sem{\forall \chi:s.A}_n
       &= \bigcap_{\Phi \in \sem{s}}
            \sem{A[\chi := \Phi]}_n\\
