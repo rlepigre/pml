@@ -13,7 +13,7 @@ bin:
 book: book/pml_book.pdf
 
 book/pml_book.pdf: book/biblio.bib $(shell find book -name "*.tex")
-	@cd book && rubber --pdf pml_book.tex
+	@cd book && rubber -W all --pdf pml_book.tex
 
 # Checks on the source code.
 check:
