@@ -306,18 +306,18 @@ pre-stacks, syntactic ordinals and propositions.
       &= \sem{E} \langle \sem{F} \rangle\\
     \sem{\varepsilon_{\chi:s}(t \in A)}
       &= \begin{cases}
-           \Phi \in \sem{s} \text{ such that}
+           \Phi \in \sem{s} \text{ such that }
              \sem{t} \in \sem{A[\chi := \Phi]
             }^{\bot\bot} \text{ if any}\\
-           \text{ an arbitrary element of} \sem{s}
+           \text{ an arbitrary element of } \sem{s}
              \text { otherwise}
          \end{cases}\\
     \sem{\varepsilon_{\chi:s}(t \notin A)}
       &= \begin{cases}
-           \Phi \in \sem{s} \text{ such that}
+           \Phi \in \sem{s} \text{ such that }
              \sem{t} \notin \sem{A[\chi := \Phi]
             }^{\bot\bot} \text{ if any}\\
-           \text{ an arbitrary element of} \sem{s}
+           \text{ an arbitrary element of } \sem{s}
              \text { otherwise}
          \end{cases}
   \end{align*}
@@ -335,7 +335,7 @@ pre-stacks, syntactic ordinals and propositions.
     \sem{\varepsilon_{x \in A}(t \notin B)}
       &= \begin{cases}
            v \in \sem{A} \setminus \{\square\}
-             \text{ such that} \sem{t[x := v]} \notin
+             \text{ such that } \sem{t[x := v]} \notin
              \sem{B}^{\bot\bot} \text{ if any}\\
            \square \text { otherwise}
          \end{cases}
@@ -373,7 +373,7 @@ pre-stacks, syntactic ordinals and propositions.
       &= [\sem{t}\;-]\sem{\pi}\\
     \sem{\varepsilon_{\alpha \in \lnot A}(t \notin A)}
       &= \begin{cases}
-           \pi \in \sem{A}^\bot \text{ such that}
+           \pi \in \sem{A}^\bot \text{ such that }
              \sem{t[\alpha := \pi]} \notin
              \sem{B}^{\bot\bot} \text{ if any}\\
            [\square\;-]\varepsilon \text { otherwise}
@@ -389,14 +389,14 @@ pre-stacks, syntactic ordinals and propositions.
     \sem{\tau+1} &= \sem{\tau} + 1\\
     \sem{\varepsilon_{\theta<\tau}(t \in A)}
       &= \begin{cases}
-            o < \sem{\tau} \text{ such that}
+            o < \sem{\tau} \text{ such that }
               \sem{t} \in \sem{A[\theta := o]
              }^{\bot\bot}\\
             0 \text{ otherwise}
          \end{cases}\\
     \sem{\varepsilon_{\theta<\tau}(t \notin A)}
       &= \begin{cases}
-            o < \sem{\tau} \text{ such that}
+            o < \sem{\tau} \text{ such that }
               \sem{t} \notin \sem{A[\theta := o]
              }^{\bot\bot}\\
             0 \text{ otherwise}
