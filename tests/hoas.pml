@@ -35,7 +35,7 @@ val church : nat ⇒ term = fun n {
 }
 
 // printing for terms
-val rec print_term_aux : nat ⇒ pterm⟨nat⟩ ⇒ {} = fun i t {
+val rec print_term_aux : nat ⇒ pterm⟨nat⟩ → {} = fun i t {
   case t {
     Var[i]       → print_nat i
     App[(t1,t2)] → print "("; print_term_aux i t1;

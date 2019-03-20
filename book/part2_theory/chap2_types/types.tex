@@ -100,7 +100,7 @@ respect to this semantics.
     \BinaryInfC{$\Gamma \vdash E \langle F \rangle : t$}
   \end{prooftree}
   \begin{prooftree}
-    \AxiomC{$\Phi \in \llbracket s \rrbracket$}
+    \AxiomC{$\Phi \in \sem{s}$}
     \UnaryInfC{$\Gamma \vdash \Phi : s$}
     \DisplayProof\hfill
     \AxiomC{$\Gamma \vdash E : \tau$}
@@ -247,22 +247,22 @@ pre-stacks, syntactic ordinals and propositions.
   \end{align*}
 \end{definition}
 \begin{definition}[semantic domain]
-  For every sort $s$ we define a set $\llbracket s \rrbracket$ called its
+  For every sort $s$ we define a set $\sem{s}$ called its
   semantic domain. It is defined inductively as follows.
   $$
-    \llbracket \iota  \rrbracket = \Lambda_\iota
+    \sem{\iota } = \Lambda_\iota
     \quad\quad
-    \llbracket \tau   \rrbracket = \Lambda_\tau
+    \sem{\tau  } = \Lambda_\tau
     \quad\quad
-    \llbracket \sigma \rrbracket = \Pi
+    \sem{\sigma} = \Pi
     \quad\quad
-    \llbracket \kappa \rrbracket = \Omega + \omega
+    \sem{\kappa} = \Omega + \omega
     \quad\quad
-    \llbracket s \to r \rrbracket =
-      \llbracket r \rrbracket^{\llbracket s \rrbracket}
+    \sem{s \to r} =
+      \sem{r}^{\sem{s}}
   $$
   $$
-    \llbracket o      \rrbracket =
+    \sem{o     } =
       \{P \in \mathcal{P}(\Lambda_\iota / \equiv) \;|\; \square \in P\}
   $$
   Note that $\Omega$ denotes an ordinal that is large enough for semantics
@@ -280,9 +280,9 @@ pre-stacks, syntactic ordinals and propositions.
   Let $E$ be a higher-order expression such that $\Gamma \vdash E : s$ is
   derivable using the rules of Figure~\ref{sorting}. Given a semantical
   map $\rho$ associating every $\chi \in FV(E)$ to an element of
-  $\llbracket \Gamma(\chi) \rrbracket$, the expression $E\rho$ is called
+  $\sem{\Gamma(\chi)}$, the expression $E\rho$ is called
   a closed parametric expression. Every such closed parametric expression is
-  given a semantic interpretation $\llbracket E\rho \rrbracket$ according to
+  given a semantic interpretation $\sem{E\rho}$ according to
   Figures~\ref{semany}, \ref{semiota}, \ref{semtau}, \ref{semsigma},
   \ref{semkappa} or \ref{semomicron} depending on the sort $s$.
 \end{definition}
@@ -290,7 +290,7 @@ pre-stacks, syntactic ordinals and propositions.
 \begin{lemma}[semantics of sorted expressions]
   If $\Gamma \vdash E : s$ is derivable using the rules of
   Figure~\ref{sorting} and if $\rho$ is a semantical map corresponding to
-  $\Gamma$, then $\llbracket E\rho \rrbracket \in \llbracket s \rrbracket$.
+  $\Gamma$, then $\sem{E\rho} \in \sem{s}$.
 \end{lemma}
 \begin{proof}
   See the author's PhD thesis \cite[Chapter~4]{Lepigre2017PhD}.
@@ -298,26 +298,26 @@ pre-stacks, syntactic ordinals and propositions.
 
 \begin{figure}
   \begin{align*}
-    \llbracket \Phi \rrbracket &= \Phi\\
-    \llbracket \chi \rrbracket &= \chi\\
-    \llbracket (\chi:s \mapsto E) \rrbracket
-      &= (\chi:s \mapsto \llbracket E \rrbracket)\\
-    \llbracket E\langle F \rangle \rrbracket
-      &= \llbracket E \rrbracket \langle \llbracket F \rrbracket \rangle\\
-    \llbracket \varepsilon_{\chi:s}(t \in A) \rrbracket
+    \sem{\Phi} &= \Phi\\
+    \sem{\chi} &= \chi\\
+    \sem{(\chi:s \mapsto E)}
+      &= (\chi:s \mapsto \sem{E})\\
+    \sem{E\langle F \rangle}
+      &= \sem{E} \langle \sem{F} \rangle\\
+    \sem{\varepsilon_{\chi:s}(t \in A)}
       &= \begin{cases}
-           \Phi \in \llbracket s \rrbracket \text{ such that }
-             \llbracket t \rrbracket \in \llbracket A[\chi := \Phi]
-             \rrbracket^{\bot\bot} \text{ if any}\\
-           \text{ an arbitrary element of } \llbracket s \rrbracket
+           \Phi \in \sem{s} \text{ such that}
+             \sem{t} \in \sem{A[\chi := \Phi]
+            }^{\bot\bot} \text{ if any}\\
+           \text{ an arbitrary element of} \sem{s}
              \text { otherwise}
          \end{cases}\\
-    \llbracket \varepsilon_{\chi:s}(t \notin A) \rrbracket
+    \sem{\varepsilon_{\chi:s}(t \notin A)}
       &= \begin{cases}
-           \Phi \in \llbracket s \rrbracket \text{ such that }
-             \llbracket t \rrbracket \notin \llbracket A[\chi := \Phi]
-             \rrbracket^{\bot\bot} \text{ if any}\\
-           \text{ an arbitrary element of } \llbracket s \rrbracket
+           \Phi \in \sem{s} \text{ such that}
+             \sem{t} \notin \sem{A[\chi := \Phi]
+            }^{\bot\bot} \text{ if any}\\
+           \text{ an arbitrary element of} \sem{s}
              \text { otherwise}
          \end{cases}
   \end{align*}
@@ -326,17 +326,17 @@ pre-stacks, syntactic ordinals and propositions.
 
 \begin{figure}
   \begin{align*}
-    \llbracket \lambda x.t \rrbracket
-      &= \lambda x.\llbracket t \rrbracket\\
-    \llbracket C_k[v] \rrbracket
-      &= C_k[\llbracket v \rrbracket]\\
-    \llbracket \{(l_i=v_i)_{i \in I}\} \rrbracket
-      &= \{(l_i = \llbracket v_i \rrbracket)_{i \in I}\}\\
-    \llbracket \varepsilon_{x \in A}(t \notin B) \rrbracket
+    \sem{\lambda x.t}
+      &= \lambda x.\sem{t}\\
+    \sem{C_k[v]}
+      &= C_k[\sem{v}]\\
+    \sem{\{(l_i=v_i)_{i \in I}\}}
+      &= \{(l_i = \sem{v_i})_{i \in I}\}\\
+    \sem{\varepsilon_{x \in A}(t \notin B)}
       &= \begin{cases}
-           v \in \llbracket A \rrbracket \setminus \{\square\}
-             \text{ such that } \llbracket t[x := v] \rrbracket \notin
-             \llbracket B \rrbracket^{\bot\bot} \text{ if any}\\
+           v \in \sem{A} \setminus \{\square\}
+             \text{ such that} \sem{t[x := v]} \notin
+             \sem{B}^{\bot\bot} \text{ if any}\\
            \square \text { otherwise}
          \end{cases}
   \end{align*}
@@ -346,19 +346,19 @@ pre-stacks, syntactic ordinals and propositions.
 
 \begin{figure}
   \begin{align*}
-    \llbracket t\;u \rrbracket
-      &= \llbracket t \rrbracket\; \llbracket u \rrbracket\\
-    \llbracket \mu\alpha.t \rrbracket
-      &= \mu \alpha.\llbracket t \rrbracket\\
-    \llbracket [\pi]t \rrbracket
-      &= [\llbracket \pi \rrbracket]\llbracket t \rrbracket\\
-    \llbracket v.l_k \rrbracket
-      &= \llbracket v \rrbracket.l_k\\
-    \llbracket [v|(C_i[x_i] \to t_i)_{i \in I}] \rrbracket
-      &= [\llbracket v \rrbracket | (C_i[x_i]
-         \to \llbracket t_i \rrbracket)_{i \in I}]\\
-    \llbracket \varphi a.v \rrbracket
-      &= \varphi a.\llbracket v \rrbracket
+    \sem{t\;u}
+      &= \sem{t}\; \sem{u}\\
+    \sem{\mu\alpha.t}
+      &= \mu \alpha.\sem{t}\\
+    \sem{[\pi]t}
+      &= [\sem{\pi}]\sem{t}\\
+    \sem{v.l_k}
+      &= \sem{v}.l_k\\
+    \sem{[v|(C_i[x_i] \to t_i)_{i \in I}]}
+      &= [\sem{v} | (C_i[x_i]
+         \to \sem{t_i})_{i \in I}]\\
+    \sem{\varphi a.v}
+      &= \varphi a.\sem{v}
   \end{align*}
   \caption{Semantics for terms (of sort $\tau$).}
   \label{semtau}
@@ -366,16 +366,16 @@ pre-stacks, syntactic ordinals and propositions.
 
 \begin{figure}
   \begin{align*}
-    \llbracket \varepsilon \rrbracket &= \varepsilon\\
-    \llbracket [-\;v]\pi \rrbracket
-      &= [-\;\llbracket v \rrbracket]\llbracket \pi \rrbracket\\
-    \llbracket [t\;-]\pi \rrbracket
-      &= [\llbracket t \rrbracket\;-]\llbracket \pi \rrbracket\\
-    \llbracket \varepsilon_{\alpha \in \lnot A}(t \notin A) \rrbracket
+    \sem{\varepsilon} &= \varepsilon\\
+    \sem{[-\;v]\pi}
+      &= [-\;\sem{v}]\sem{\pi}\\
+    \sem{[t\;-]\pi}
+      &= [\sem{t}\;-]\sem{\pi}\\
+    \sem{\varepsilon_{\alpha \in \lnot A}(t \notin A)}
       &= \begin{cases}
-           \pi \in \llbracket A \rrbracket^\bot \text{ such that }
-             \llbracket t[\alpha := \pi] \rrbracket \notin
-             \llbracket B \rrbracket^{\bot\bot} \text{ if any}\\
+           \pi \in \sem{A}^\bot \text{ such that}
+             \sem{t[\alpha := \pi]} \notin
+             \sem{B}^{\bot\bot} \text{ if any}\\
            [\square\;-]\varepsilon \text { otherwise}
          \end{cases}
   \end{align*}
@@ -385,20 +385,20 @@ pre-stacks, syntactic ordinals and propositions.
 
 \begin{figure}
   \begin{align*}
-    \llbracket \infty \rrbracket &= \Omega\\
-    \llbracket \tau+1 \rrbracket &= \llbracket \tau \rrbracket + 1\\
-    \llbracket \varepsilon_{\theta<\tau}(t \in A) \rrbracket
+    \sem{\infty} &= \Omega\\
+    \sem{\tau+1} &= \sem{\tau} + 1\\
+    \sem{\varepsilon_{\theta<\tau}(t \in A)}
       &= \begin{cases}
-            o < \llbracket \tau \rrbracket \text{ such that }
-              \llbracket t \rrbracket \in \llbracket A[\theta := o]
-              \rrbracket^{\bot\bot}\\
+            o < \sem{\tau} \text{ such that}
+              \sem{t} \in \sem{A[\theta := o]
+             }^{\bot\bot}\\
             0 \text{ otherwise}
          \end{cases}\\
-    \llbracket \varepsilon_{\theta<\tau}(t \notin A) \rrbracket
+    \sem{\varepsilon_{\theta<\tau}(t \notin A)}
       &= \begin{cases}
-            o < \llbracket \tau \rrbracket \text{ such that }
-              \llbracket t \rrbracket \notin \llbracket A[\theta := o]
-              \rrbracket^{\bot\bot}\\
+            o < \sem{\tau} \text{ such that}
+              \sem{t} \notin \sem{A[\theta := o]
+             }^{\bot\bot}\\
             0 \text{ otherwise}
          \end{cases}
   \end{align*}
@@ -408,38 +408,39 @@ pre-stacks, syntactic ordinals and propositions.
 
 \begin{figure}
   \begin{align*}
-    \llbracket A \Rightarrow B \rrbracket &=
-      \{\lambda x.t \;|\; \forall v \in \llbracket A \rrbracket \setminus
+    \sem{A \Rightarrow B} &=
+      \{\lambda x.t \;|\; \forall v \in \sem{A} \setminus
       \{\square\},
-      t[x := v] \in \llbracket B \rrbracket^{\bot\bot}\} \cup \{\square\}\\
-    \llbracket [(C_i : A_i)_{i \in I}] \rrbracket
-      &= \bigcup_{i \in I} \{C_i[v] \;|\; v \in \llbracket A_i \rrbracket
+      t[x := v] \in \sem{B}^{\bot\bot}\} \cup \{\square\}\\
+    \sem{[(C_i : A_i)_{i \in I}]}
+      &= \bigcup_{i \in I} \{C_i[v] \;|\; v \in \sem{A_i}
            \setminus \{\square\}\} \cup \{\square\}\\
-    \llbracket \{(l_i : A_i)_{i \in I}; \dots\} \rrbracket
-      &= \{\{(l_i = v_i)_{i \in I \cup K}\} \;|\; \forall i \in I, v_i \in A_i
+    \sem{\{(l_i : A_i)_{i \in I}; \dots\}}
+      &= \{\{(l_i = v_i)_{i \in I \cup K}\} \;|\; \forall i \in I, v_i \in \sem{A_i}
            \setminus \{\square\}\} \cup \{\square\}\\
-    \llbracket \{(l_i : A_i)_{i \in I}\} \rrbracket
-      &= \{\{(l_i = v_i)_{i \in I}\} \;|\; \forall i \in I, v_i \in A_i
+    \sem{\{(l_i : A_i)_{i \in I}\}}
+      &= \{\{(l_i = v_i)_{i \in I}\} \;|\; \forall i \in I, v_i \in
+    \sem{A_i}
            \setminus \{\square\}\} \cup \{\square\}\\
-    \llbracket \forall \chi:s.A \rrbracket
-      &= \bigcap_{\Phi \in \llbracket s \rrbracket}
-           \llbracket A[\chi := \Phi] \rrbracket\\
-    \llbracket \exists \chi:s.A \rrbracket
-      &= \bigcup_{\Phi \in \llbracket s \rrbracket}
-           \llbracket A[\chi := \Phi] \rrbracket\\
-    \llbracket \mu_\tau X.A \rrbracket
-      &= \bigcup_{o < \llbracket \tau \rrbracket}
-            \llbracket A[X := \mu_o X.A] \rrbracket \cup \{\square\}\\
-    \llbracket \nu_\tau X.A \rrbracket
-      &= \bigcap_{o < \llbracket \tau \rrbracket}
-            \llbracket A[X := \nu_o X.A] \rrbracket\\
-    \llbracket t \in A \rrbracket
-      &= \{v \in \llbracket A \rrbracket \;|\; \llbracket t \rrbracket
+    \sem{\forall \chi:s.A}
+      &= \bigcap_{\Phi \in \sem{s}}
+           \sem{A[\chi := \Phi]}\\
+    \sem{\exists \chi:s.A}
+      &= \bigcup_{\Phi \in \sem{s}}
+           \sem{A[\chi := \Phi]}\\
+    \sem{\mu_\tau X.A}
+      &= \bigcup_{o < \sem{\tau}}
+            \sem{A[X := \mu_o X.A]} \cup \{\square\}\\
+    \sem{\nu_\tau X.A}
+      &= \bigcap_{o < \sem{\tau}}
+            \sem{A[X := \nu_o X.A]}\\
+    \sem{t \in A}
+      &= \{v \in \sem{A} \;|\; \sem{t}
       \equiv v\} \cup \{\square\}\\
-    \llbracket A \restriction t \equiv u \rrbracket
+    \sem{A \restriction t \equiv u}
       &= \begin{cases}
-           \llbracket A \rrbracket \text{ if } \llbracket t \rrbracket
-             \equiv \llbracket u \rrbracket\\
+           \sem{A} \text{ if} \sem{t}
+             \equiv \sem{u}\\
            \{\square\} \text{ otherwise}
          \end{cases}
   \end{align*}
@@ -690,21 +691,21 @@ pre-stacks, syntactic ordinals and propositions.
   We have the following adequacy properties.
   \begin{itemize}
     \item If $\gamma; \Xi \vdash t : A$ is derivable and if the contexts
-          $\gamma$ and $\Xi$ are realized, then $\llbracket t \rrbracket
-          \in \llbracket A \rrbracket^{\bot\bot}$. Moreover, if $t$ is a
-          value then $\llbracket t \rrbracket \not= \square$.
+          $\gamma$ and $\Xi$ are realized, then $\sem{t}
+          \in \sem{A}^{\bot\bot}$. Moreover, if $t$ is a
+          value then $\sem{t} \not= \square$.
     \item If $\gamma; \Xi \vdash t : A \subseteq B$ is derivable, the contexts
-          $\gamma$ and $\Xi$ are realized, and $\llbracket t \rrbracket
-          \in \llbracket A \rrbracket^{\bot\bot}$, then $\llbracket t
-          \rrbracket \in \llbracket B \rrbracket^{\bot\bot}$, In particular,
+          $\gamma$ and $\Xi$ are realized, and $\sem{t}
+          \in \sem{A}^{\bot\bot}$, then $\sem{t
+         } \in \sem{B}^{\bot\bot}$, In particular,
           if the judgment is of the form $\gamma; \Xi \vdash A \subseteq B$
-          then $\llbracket A \rrbracket \subseteq \llbracket B \rrbracket$.
+          then $\sem{A} \subseteq \sem{B}$.
   \end{itemize}
 \end{theorem}
 \begin{proof}
   See the author's PhD thesis \cite[Chapter~4]{Lepigre2017PhD}. An essential
   point of the semantics is that the bi-orthogonal completion operator
-  $\Psi \mapsto \Psi^{\bot\bot}$ on the elements of $\llbracket o \rrbracket$
+  $\Psi \mapsto \Psi^{\bot\bot}$ on the elements of $\sem{o}$
   is closed for values (i.e., any value in $\Psi^{\bot\bot}$ already appears
   in $\Psi$). The complex definitions of reduction and observational
   equivalence allow us to construct a model with this property (see previous

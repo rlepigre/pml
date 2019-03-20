@@ -15,6 +15,8 @@ module ListMap =
     let map  f l = List.map (fun (k, v) -> (k, f v)) l
     let mapi f l = List.map (fun (k, v) -> (k, f k v)) l
 
+    let keys l = List.map fst l
+
     let bindings l = l
 
     let sort f l = List.sort (fun (_, d1) (_, d2) -> f d1 d2) l

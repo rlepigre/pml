@@ -67,8 +67,10 @@ val rec divideBy : ∀o:κ, ∀n∈nat, ∀s∈sbds⟨o+ₒ2,n⟩, sman⟨o⟩ =
     deduce ge b (opp n);
     show le (p2 * a) (p2 * n) using add_increasing a n a n {} {};
     show le d (p3 * n) using add_increasing (p2 * a) (p2 * n) b n {} {};
-    show ge (p2 * a) (p2 * (opp n)) using add_increasing (opp n) a (opp n) a {} {};
-    show ge d (p3 * (opp n)) using add_increasing (p2 * (opp n)) (p2 * a) (opp n) b {} {};
+    show ge (p2 * a) (p2 * (opp n))
+      using add_increasing (opp n) a (opp n) a {} {};
+    show ge d (p3 * (opp n))
+      using add_increasing (p2 * (opp n)) (p2 * a) (opp n) b {} {};
     if le d (opp n) {
       let k : int = d + p2 * n;
       let _ : le k n = (
@@ -84,12 +86,17 @@ val rec divideBy : ∀o:κ, ∀n∈nat, ∀s∈sbds⟨o+ₒ2,n⟩, sman⟨o⟩ =
           using add_increasing_left (p3 * opp n) d (p2 * n) {};
         eqns p3 * opp n + p2 * n // better proof are possible ;-)
           ≡ (p3 * opp n + n) + n by add_associative (p3 * opp n) n n
-          ≡ (p2 * opp n + (opp n + n)) + n by add_associative (p2 * opp n) (opp n) n
+          ≡ (p2 * opp n + (opp n + n)) + n
+               by add_associative (p2 * opp n) (opp n) n
           ≡ (p2 * opp n + n) by (add_inv n;
                                   add_commutative (opp n) n;
                                   add_zero_right (p2 * opp n))
-          ≡ opp n + (opp n + n) by add_associative (opp n) (opp n) n
-          ≡ opp n by (add_inv n; add_commutative (opp n) n; add_zero_right (opp n));
+          ≡ opp n + (opp n + n)
+               by add_associative (opp n) (opp n) n
+          ≡ opp n
+               by (add_inv n;
+                   add_commutative (opp n) n;
+                   add_zero_right (opp n));
         {}
         );
       { hd = P; tl = divideBy n (fun _ { { hd = k; tl = x } }) }
@@ -103,8 +110,10 @@ val rec divideBy : ∀o:κ, ∀n∈nat, ∀s∈sbds⟨o+ₒ2,n⟩, sman⟨o⟩ =
         eqns p3 * n - p2 * n // better proof are possible ;-)
           ≡ p3 * n + opp (n + n)  by add_opp (p3 * n) (p2 * n)
           ≡ p3 * n + (opp n + opp n) by add_opp_opp n n
-          ≡ (p3 * n + opp n) + opp n by add_associative (p3 * n) (opp n) (opp n)
-          ≡ (p2 * n + (n + opp n)) + opp n by add_associative (p2 * n) n (opp n)
+          ≡ (p3 * n + opp n) + opp n
+              by add_associative (p3 * n) (opp n) (opp n)
+          ≡ (p2 * n + (n + opp n)) + opp n
+              by add_associative (p2 * n) n (opp n)
           ≡ (p2 * n + opp n) by (add_inv n;
                                   add_zero_right (p2 * n))
           ≡ n + (n + opp n) by add_associative n n (opp n)
@@ -243,7 +252,8 @@ val rec add : real ⇒ real ⇒ real = fun x y {
   }
 }
 
-val opp_cmp : [ Eq; Left of nat; Right of nat ] ⇒ [ Eq; Left of nat; Right of nat ] =
+type cmp = [ Eq; Left of nat; Right of nat ]
+val opp_cmp : nat ⇒ nat =
   fun a {
     case a {
       Eq       → Eq
@@ -268,19 +278,6 @@ val rec nat_cmp_comm : ∀n m∈nat, nat_cmp m n ≡ opp_cmp(nat_cmp n m) =
     }
   }
 
-// val rec add_commutative : ∀x y∈real, eq_real⟨add x y, add y x⟩ =
-//   fun x y {
-//     use nat_cmp_comm x.exp y.exp;
-//     case nat_cmp x.exp y.exp {
-//       Eq       → let p = average_commutative x.man y.man;
-//                  (p, {})
-//       Left[n]  → let p = average_commutative x.man (shift n y.man);
-//                  (p, {})
-//       Right[n] → let p = average_commutative (shift n x.man) y.man;
-//                  (p, {})
-//     }
-//   }
-
 val rec minus : real ⇒ real ⇒ real = fun x y {
   x + opp y
 }
@@ -290,8 +287,8 @@ val mul : real ⇒ real ⇒ real = fun x y {
   { man = mul_man x.man y.man; exp = add_nat x.exp y.exp }
 }
 
-// non zero exponent only for mantissa starting with "10" "11" or "-10" "-1-1"
-
+// non zero exponent only for mantissa starting with "10" "11" or "-10"
+// "-1-1"
 val rec norm_aux : nat ⇒ man ⇒ real = fun n x {
   case n {
     Zero → { exp = n; man = x }
@@ -372,7 +369,8 @@ val rec inv_aux : ∀n m∈nat, ∀x, x ∈ man | sign_approx n x ≠ Z ⇒ real
                     { exp = S[S[m]]; man = i2 (opp_man x') }
                 S → // X = 2^(-m-1) + 1 + 1/2 + x1
                     //   = 2^(-m-1) + 2 - (1/2 - x1)
-                    { exp = S[m]; man = i2 (fun _ { { hd = S; tl = opp_man x' } })}
+                    { exp = S[m]
+                    ; man = i2 (fun _ { { hd = S; tl = opp_man x' } })}
                 P → inv_aux p S[m] (fun _ { {hd = S; tl = x'} })
               }
           P → let { hd = x1; tl = x'} = x' {};
@@ -381,7 +379,8 @@ val rec inv_aux : ∀n m∈nat, ∀x, x ∈ man | sign_approx n x ≠ Z ⇒ real
                     { exp = S[S[m]]; man = opp_man (i2 x') }
                 P → // X = 2^(-m-1) - 1 - 1/2 + x1
                     //   = 2^(-m-1) - (2 - (-1/2 + x1))
-                    { exp = S[m]; man = opp_man (i2 (fun _ { { hd = P; tl = x' } }))}
+                    { exp = S[m]
+                    ; man = opp_man (i2 (fun _ { { hd = P; tl = x' } }))}
                 S → inv_aux p S[m] (fun _ { {hd = P; tl = x'} })
               }
         }
@@ -400,13 +399,16 @@ val inv : ∀x∈ real, non_zero⟨x⟩ ⇒ real
 
 include lib.either
 
-val zero_or_inv : ∀x, x∈real ⇒ either⟨cis_zero⟨x⟩, ∃h∈non_zero⟨x⟩, { y ∈ real | y ≡ inv x h}⟩ = fun x {
+val zero_or_inv
+      : ∀x, x∈real ⇒
+          either⟨cis_zero⟨x⟩, ∃h∈non_zero⟨x⟩, { y ∈ real | y ≡ inv x h}⟩
+= fun x {
   save a {
     InL[fun n h { restore a (let nz = (n,h); InR[(nz, inv x nz)])}]
   }
 }
 
-val rec print_man : ∀n∈nat, ∀x∈man, {} = fun n x {
+val rec print_man : nat ⇒ man → {} = fun n x {
   case n {
     Zero → {}
     S[p] → let { hd = x0; tl = x } = x {};
@@ -418,7 +420,7 @@ val rec print_man : ∀n∈nat, ∀x∈man, {} = fun n x {
   }
 }
 
-val rec print_bds : ∀n∈nat, ∀k, ∀x∈bds⟨k⟩, {} = fun n x {
+val rec print_bds : nat ⇒ ∀k, bds⟨k⟩ → {} = fun n x {
   case n {
     Zero → {}
     S[p] → let { hd = x0; tl = x } = x {};
@@ -426,6 +428,6 @@ val rec print_bds : ∀n∈nat, ∀k, ∀x∈bds⟨k⟩, {} = fun n x {
   }
 }
 
-val print_real : ∀n∈nat, ∀x∈real, {} = fun n x {
+val print_real : nat ⇒ real → {} = fun n x {
   print "0."; print_man n x.man; print "E"; print_nat x.exp
 }

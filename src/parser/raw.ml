@@ -160,7 +160,7 @@ and raw_ex' =
   | EHOAp of raw_ex * raw_sort * raw_ex list
   | EHOFn of strloc * raw_sort * raw_ex
 
-  | EFunc of Totality.tot * raw_ex * raw_ex
+  | EFunc of Effect.t * raw_ex * raw_ex
   | EProd of (strloc * raw_ex) list * bool
   | EUnit (* Empty record as a type or a term *)
   | EDSum of (strloc * raw_ex option) list
@@ -1177,7 +1177,7 @@ let euniv_in _loc x xs a b =
   let p x = Pos.in_pos _loc x in
   let c = List.fold_right (fun x c ->
     (* FIXME #21: notation for partial dependant product ? *)
-    p (EFunc(Totality.Tot, p (EMemb(evari (Some _loc) x, a)), c))) (x::xs) b
+    p (EFunc(Effect.bot, p (EMemb(evari (Some _loc) x, a)), c))) (x::xs) b
   in
   p (EUniv((x,xs),p sv,c))
 

@@ -2,7 +2,7 @@ include lib.either
 include lib.nat
 include lib.nat_proofs
 
-type min⟨n,f⟩ = ∀p, p ∈ nat → leq (f n) (f p)
+type min⟨n,f⟩ = ∀p, p ∈ nat →_(c) leq (f n) (f p)
 
 type bot = ∀x:ο,x
 
@@ -30,7 +30,7 @@ val rec leq_size : ∀o, ∀m∈nat^(o+ₒ1), ∀n∈nat, either⟨leq m n, n∈
   }
 
 val rec fn : ∀f∈(nat ⇒ nat), ∀n∈nat, ∀q∈(nat | q ≡ f n),
-    (∀n∈ nat, min⟨n,f⟩ → bot) → bot =
+    (∀n∈ nat, min⟨n,f⟩ →_(c) bot) →_(c) bot =
   fun f n q k {
     let o such that q : nat^(o+ₒ1);
     k (n:nat) (fun p {
@@ -62,16 +62,16 @@ val rec gn : ∀f∈(nat ⇒ nat), ∀n∈nat,
 //         }} : min⟨n,f⟩)
 //   }
 
-val minimum_principle : ∀f:ι, f∈(nat ⇒ nat) → ∃n∈nat, min⟨n,f⟩ =
+val minimum_principle : ∀f:ι, f∈(nat ⇒ nat) →_(c) ∃n∈nat, min⟨n,f⟩ =
   fun f {
     save s {
-      let k : ∀n∈ nat, min⟨n,f⟩ → bot =
+      let k : ∀n∈ nat, min⟨n,f⟩ →_(c) bot =
         fun n mi { restore s (n, mi) };
       fn f Zero (f Zero) k
     }
   }
 
-val test : ∀f:ι, f∈(nat ⇒ nat) ⇒ ∃n∈nat, leq (f n) (f (succ (mul 2 n))) =
+val test : ∀f:ι, f∈(nat ⇒ nat) →_(p) ∃n∈nat, leq (f n) (f (succ (mul 2 n))) =
   fun f {
     delim {
       set auto 0 5;

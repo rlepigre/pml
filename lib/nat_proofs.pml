@@ -84,6 +84,7 @@ val rec mul_neutral : ∀n∈nat, 1 * n ≡ n =
 // Successor on the right can be taken out (detailed proof).
 val rec mul_n_succ : ∀n m∈nat, n * S[m] ≡ n + n * m =
   fun n m {
+
     case n {
       Zero → eqns 0 * S[m] ≡ 0 + 0 * m ≡ 0
       S[k] → eqns n * S[m] ≡ S[m] + k * S[m]

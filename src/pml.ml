@@ -52,6 +52,12 @@ let files =
     ; ( "--config"
       , Arg.Unit(show_config)
       , " Prints local configuration." )
+    ; ( "--lazy"
+      , Arg.Set Eval.use_lazy
+      , " Use lazy evaluation (default).")
+    ; ( "--no-lazy"
+      , Arg.Clear Eval.use_lazy
+      , " Do not use lazy evaluation.")
     ] @ List.map help ["--help" ; "-help" ; "-h" ]
   in
   let spec = Arg.align spec in
@@ -142,6 +148,10 @@ let _ =
         match id.pos with
         | None   -> ()
         | Some p -> Quote.quote_file stderr p
+      end
+  | Illegal_effect(e)         ->
+      begin
+        err_msg "Effect %a is not legal here." Effect.print e;
       end
   | e ->
       err_msg "Unexpected exception [%s]." (Printexc.to_string e);

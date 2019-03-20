@@ -68,7 +68,7 @@ let uvar_iter : type a. bool -> bool -> bool -> uvar_fun -> a ex loc -> unit =
       | Rest(a,c)   -> uvar_iter a; uvar_iter_cond c
       | Impl(c,a)   -> uvar_iter_cond c; uvar_iter a
       (* NOTE type annotation ignored. *)
-      | LAbs(_,b)   -> buvar_iter V b
+      | LAbs(_,b,_) -> buvar_iter V b
       | Cons(_,v)   -> uvar_iter v
       | Reco(m)     -> A.iter (fun _ (_,a) -> uvar_iter a) m
       | Scis        -> ()

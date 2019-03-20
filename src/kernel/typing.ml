@@ -10,7 +10,6 @@ open Equiv
 open Output
 open Uvars
 open Compare
-open Totality
 
 type sorted = E : 'a sort * 'a ex loc -> sorted
 
@@ -19,8 +18,6 @@ exception Type_error of sorted * prop * exn
 let type_error : sorted -> prop -> exn -> 'a =
   fun t p e ->
     match e with
-    | Out_of_memory         -> raise e
-    | Sys.Break             -> raise e
     | Type_error(E(_,t),_,_)
          when t.pos <> None -> raise e
     | _                     -> raise (Type_error(t, p, e))
@@ -33,10 +30,8 @@ exception Subtype_error of term * prop * prop * exn
 let subtype_error : term -> prop -> prop -> exn -> 'a =
   fun t a b e ->
     match e with
-    | Out_of_memory     -> raise e
     | Subtype_error _   -> raise e
     | Failed_to_prove _ -> raise e
-    | Sys.Break         -> raise e
     | _                 -> raise (Subtype_error(t,a,b,e))
 
 exception Cannot_unify of prop * prop
@@ -51,7 +46,7 @@ exception Reachable
 
 exception No_typing_IH of strloc
 
-exception Not_total
+exception Illegal_effect of Effect.effect
 
 exception Unexpected_error of string
 let unexpected : string -> 'a =
@@ -63,9 +58,6 @@ let log_sub = Log.(log_sub.p)
 
 let log_typ = Log.register 't' (Some "typ") "typing informations"
 let log_typ = Log.(log_typ.p)
-
-let log_aut = Log.register 'a' (Some "aut") "automatic proving informations"
-let log_aut = Log.(log_aut.p)
 
 type auto_ctxt =
   { level : int * int
@@ -93,7 +85,7 @@ type ctxt  =
   ; add_calls : (unit -> unit) list ref
   ; auto      : auto_ctxt
   ; callgraph : Scp.t
-  ; totality  : tot }
+  ; totality  : Effect.t }
 
 let empty_ctxt () =
   { uvarcount = ref 0
@@ -106,7 +98,8 @@ let empty_ctxt () =
   ; add_calls = ref []
   ; auto      = auto_empty ()
   ; callgraph = Scp.create ()
-  ; totality  = Ter }
+  (* Loop not allowed at toplevel *)
+  ; totality  = Effect.(known[CallCC; Print]) }
 
 let new_uvar : type a. ctxt -> a sort -> a ex loc = fun ctx s ->
   let c = ctx.uvarcount in
@@ -501,7 +494,9 @@ and subtype =
       (* Arrow types. *)
       | (Func(t1,a1,b1), Func(t2,a2,b2)) when t_is_val ->
          (* check that totality agree *)
-         if not (sub t1 t2) then subtype_msg a.pos "Arrow clash";
+         log_sub "effect test";
+         if not (Effect.sub t1 t2) then subtype_msg a.pos "Arrow clash";
+         log_sub "effect agree";
          (* build the nobox value witness *)
          begin try
          let w =
@@ -509,8 +504,8 @@ and subtype =
            unbox (bind_var x (appl None (box t) (valu None (vari None x))))
          in
          (* NOTE : if the "let in" below raise Contradiction, this means that
-                   a2 is empty, a2 => b2 is then at least all function and no need
-                   to check b1 < b2 *)
+                   a2 is empty, a2 => b2 is then at least all function and no
+                   need to check b1 < b2 *)
          let (wit, ctx) =
            match is_singleton a2 with
            | Some(wit) ->
@@ -534,7 +529,7 @@ and subtype =
          let check_right () =
            try
              let (rwit,ctx_f) =
-               if know_tot t1 then
+               if Effect.(know_sub t1 [Print]) then
                  let (v,ctx) = learn_value ctx rwit top in
                  (Pos.none (Valu v), ctx)
                else (rwit, ctx)
@@ -684,12 +679,14 @@ and subtype =
     in
     (t, a, b, r)
     with
-    | Contradiction -> assert false
-    | e             -> subtype_error t a b e
+    | Contradiction      -> assert false
+    | Sys.Break as e     -> raise e
+    | Out_of_memory as e -> raise e
+    | e                  -> subtype_error t a b e
   in
   fun ctx t a b -> Chrono.add_time sub_chrono (subtype ctx t a) b
 
-and auto_prove : ctxt -> exn -> term -> prop -> typ_proof * tot  =
+and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
   fun ctx exn t ty ->
     (* Save utime to backtrack even on unification *)
     let st = UTimed.Time.save () in
@@ -860,7 +857,7 @@ and check_fix
            in
            log_typ "it matches\n%!";
            (* Add call to call-graph and build the proof. *)
-           if is_term ctx.totality && saf then
+           if Effect.(absent Loop ctx.totality) && saf then
              add_call ctx (ih.fsch_index, spe.fspe_param) true;
            (t, c, Typ_Ind(ih,prf))
          with Subtype_error _ | Exit -> find_suitable ihs
@@ -1064,7 +1061,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
     | HApp(_,_,_) ->
        let (_, _, r) = type_valu ctx (Norm.whnf v) c in r
     (* λ-abstraction. *)
-    | LAbs(ao,f)  ->
+    | LAbs(ao,f,tot)  ->
        (* build the function type a => b with totality annotation
           tot as a fresh totality variable *)
        let a =
@@ -1073,7 +1070,6 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
          | Some a -> a
        in
        let b = new_uvar ctx P in
-       let tot = new_tot () in
        let c' = Pos.none (Func(tot,a,b)) in
        (* check subtyping *)
        let p1 = subtype ctx t c' c in
@@ -1088,7 +1084,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
            let ctx = learn_equivalences ctx wit a in
            let ctx = learn_neg_equivalences ctx v (Some twit) c in
            (* call typing *)
-           let (p2,tot0) = type_term ctx (bndr_subst f wit.elt) b in
+           let p2 = type_term ctx (bndr_subst f wit.elt) b in
            Typ_Func_i(p1,Some p2)
          with Contradiction ->
            warn_unreachable ctx (bndr_subst f wit.elt);
@@ -1210,7 +1206,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
                will fail for base case of sized function, this backtracking
                solves the problem and is not too expensive for value only.
                We do not do it for function *)
-          | Sys.Break -> raise Sys.Break
+          | Sys.Break as e -> raise e
           | e -> match d.value_orig.elt with
                  | Valu { elt = LAbs _ } -> raise e
                  | Valu v ->
@@ -1235,9 +1231,10 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
     | ITag(_)     -> unexpected "ITag during typing..."
   in (Pos.make v.pos (Valu(v)), c, r)
   with
-  | Contradiction          -> assert false
   | Failed_to_prove _ as e -> UTimed.Time.rollback st;
-                              fst (auto_prove ctx e (Pos.none (Valu v)) c)
+                              auto_prove ctx e (Pos.none (Valu v)) c
+  | Out_of_memory as e     -> raise e
+  | Sys.Break as e         -> raise e
   | e                      -> type_error (E(V,v)) c e
 
 and do_set_param ctx = function
@@ -1272,20 +1269,20 @@ and warn_unreachable ctx t =
                                  Pos.print_short_pos p
     end;
 
-and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
+and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
   log_typ "proving the term judgment:\n  %a\n  ⊢(%a) %a\n  : %a"
           print_pos ctx.positives Print.arrow ctx.totality
           Print.ex t Print.ex c;
   let st = UTimed.Time.save () in
   try
-  let (r, tot) =
+  let r =
     match t.elt with
     (* Higher-order application. *)
     | HApp(_,_,_) ->
-        let ((_,_,r),tot) = type_term ctx (Norm.whnf t) c in (r,tot)
+        let (_,_,r) = type_term ctx (Norm.whnf t) c in r
     (* Value. *)
     | Valu(v)     ->
-        let (_, _, r) = type_valu ctx v c in (r, Tot)
+        let (_, _, r) = type_valu ctx v c in r
     (* Application or strong application. *)
     | Appl(f,u)   ->
         (* a fresh unif var for the type of u *)
@@ -1304,45 +1301,46 @@ and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
               let (v,ctx) = learn_value ctx u a in
               let ctx = learn_equivalences ctx v a in
               type_term ctx f c
-            with Contradiction -> warn_unreachable ctx f; ((t,c,Typ_Scis),Tot)
-               | Sys.Break -> raise Sys.Break
+            with Contradiction      -> warn_unreachable ctx f; (t,c,Typ_Scis)
+               | Sys.Break as e     -> raise e
+               | Out_of_memory as e -> raise e
                | _ when strong && is_typed VoT_T f ->
                   UTimed.Time.rollback st;
                   check_f ctx false a0
           else
             type_term ctx f (Pos.none (Func(tot,a,c)))
         in
-        let (p1,p2,tot1,strong) =
+        let (p1,p2,strong) =
           (* when u is not typed and f is, typecheck f first *)
           if is_typed VoT_T f && not (is_typed VoT_T u) then
             (* f will be of type ae => c, with ae = u∈a if we know the
                function will be total (otherwise it is illegal) *)
-            let strong = know_tot tot in
+            let strong = Effect.(know_sub tot [Print]) in
             (* type check f *)
-            let (p1,tot1) = check_f ctx strong a in
-            (* total checking for u if we use strong application *)
-            let ctx_u = if strong then { ctx with totality = Tot } else ctx in
+            let p1 = check_f ctx strong a in
             (* check u *)
-            let (p2,tot2) = type_term ctx_u u a in
-            (p1,p2,max tot1 tot2,strong)
+            let p2 = type_term ctx u a in
+            (p1,p2,strong)
           else
             (* it we are not checking for a total application, we
                check with a fresh totality variable. Otherwise, the
                test is_tot bellow might force ctx.totality to Tot.
                tot1 < tot is checked at the end *)
-            let ctx_u = if know_tot tot then ctx else
-                          { ctx with totality = new_tot () } in
-            let (p2,tot2) = type_term ctx_u u a in
+            let ctx_u = if Effect.(know_sub tot [Print]) then ctx else
+                          { ctx with totality = Effect.create () } in
+            let p2 = type_term ctx_u u a in
             (* If the typing of u was total, we can use strong application *)
-            let strong = is_tot tot2 in
+            log_typ "sub1";
+            let strong = Effect.(sub ctx_u.totality cvg) in
             (* type check f *)
-            let (p1,tot1) = check_f ctx strong a in
+            let p1 = check_f ctx strong a in
+            log_typ "sub2";
             (* check tot1, as late as possible to avoid instanciating tot *)
-            if not (sub tot1 tot) then subtype_msg f.pos "Arrow clash";
-            (p1,p2,max tot1 tot2,strong)
+            if not Effect.(sub ctx_u.totality tot) then
+              subtype_msg f.pos "Arrow clash";
+            (p1,p2,strong)
         in
-        let prf = if strong then Typ_Func_s(p1,p2) else Typ_Func_e(p1,p2) in
-        (prf, max tot tot1)
+        if strong then Typ_Func_s(p1,p2) else Typ_Func_e(p1,p2)
     (* Fixpoint *)
     | FixY(saf,b) ->
        let rec break_univ ctx c =
@@ -1356,27 +1354,28 @@ and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
        let p =
          Chrono.add_time check_fix_chrono (check_fix ctx saf t b) c ()
        in
-       (Typ_FixY(p), Tot)
+       Typ_FixY(p)
     (* μ-abstraction. *)
     | MAbs(b)     ->
         let (eps, ctx_names) = swit ctx.ctx_names b c in
         let ctx = { ctx with ctx_names } in
         let t = bndr_subst b eps.elt in
-        let (p,tot) = type_term ctx t c in
-        (Typ_Mu(p),tot)
+        let p = type_term ctx t c in
+        Typ_Mu(p)
     (* Named term. *)
     | Name(pi,u)  ->
-        let ctx = check_total ctx t c in
+        if not Effect.(present CallCC ctx.totality) then
+          type_error (E(T,t)) c (Illegal_effect CallCC);
         let a = new_uvar ctx P in
         (* type stack before seems better, generate subtyping
            constraints in the correct direction *)
         let p1 = type_stac ctx pi a in
-        let (p2,tot) = type_term ctx u a in
-        (Typ_Name(p2,p1), max tot Ter)
+        let p2 = type_term ctx u a in
+        Typ_Name(p2,p1)
     (* Projection. *)
     | Proj(v,l)   ->
         let c = Pos.none (Prod(A.singleton l.elt (None, c))) in
-        (Typ_Prod_e(type_valu ctx v c), Tot)
+        Typ_Prod_e(type_valu ctx v c)
     (* Case analysis. *)
     | Case(v,m)   ->
         let a = new_uvar ctx P in
@@ -1407,16 +1406,14 @@ and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
             (fun () -> type_term ctx t c :: ps)
           with Contradiction ->
             warn_unreachable ctx t;
-            (fun () -> ((t,c,Typ_Scis), Tot)::ps)) ()
+            (fun () -> (t,c,Typ_Scis)::ps)) ()
         in
         let ps = A.fold check m [] in
-        let tot = List.fold_left (fun acc (_,t) -> max acc t) Tot ps in
-        let ps = List.map fst ps in
-        (Typ_DSum_e(p,List.rev ps), tot)
+        Typ_DSum_e(p,List.rev ps)
     (* Coercion. *)
     | Coer(_,t,a)   ->
-        let p1= subtype ctx t a c in
-        let (p2, tot) =
+        let p1 = subtype ctx t a c in
+        let p2 =
           try
             let ctx =
               match to_value t ctx.equations with
@@ -1425,14 +1422,14 @@ and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
                  let ctx = { ctx with equations } in
                  learn_neg_equivalences ctx v None c
             in
-            let (p2,tot) = type_term ctx t a in
-            (Some p2, tot)
+            let p2 = type_term ctx t a in
+            Some p2
           with Contradiction ->
             (* NOTE Tot is ok, can raise contradiction only if to_value t
                returned Some _ *)
-            (None, Tot)
+            None
         in
-        (Typ_TTyp(p1,p2), tot)
+        Typ_TTyp(p1,p2)
     (* Such that. *)
     | Such(_,_,r) ->
         let (a,t) = instantiate ctx r.binder in
@@ -1450,47 +1447,59 @@ and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
             | Some t, true  -> ignore(subtype ctx t a b)
           with Subtype_error _ -> cannot_unify b a
         in
-        let (p,tot) = type_term ctx t c in
-        (Typ_TSuch(p), tot)
+        let p = type_term ctx t c in
+        Typ_TSuch(p)
     (* Set auto lvl *)
     | PSet(l,_,t) ->
         begin
           let (ctx, restore) = do_set_param ctx l in
           try
-            let ((_,_,r),tot) = type_term ctx t c in
+            let (_,_,r) = type_term ctx t c in
             restore ();
-            (r, tot)
+            r
           with e -> restore (); raise e
         end
     (* Definition. *)
     | HDef(_,d)   ->
-       let ((_,_,r),tot) = type_term ctx d.expr_def c in (r, tot)
+       let (_,_,r) = type_term ctx d.expr_def c in r
     (* Goal. *)
     | Goal(_,str) ->
         wrn_msg "goal %S %a" str Pos.print_short_pos_opt t.pos;
-        (Typ_Goal(str), Tot)
+        Typ_Goal(str)
     (* Printing. *)
     | Prnt(_)     ->
-        let a = unbox (strict_prod None A.empty) in
-        let p = gen_subtype ctx a c in
-        (Typ_Prnt(t, a, c, p), Tot)
+       if not Effect.(present Print ctx.totality) then
+         type_error (E(T,t)) c (Illegal_effect Print);
+       let a = unbox (strict_prod None A.empty) in
+       let p = gen_subtype ctx a c in
+       Typ_Prnt(t, a, c, p)
     (* Replacement. *)
     | Repl(t,u) ->
         let c = Pos.none (Memb(t,c)) in
-        let (p1,tot) = type_term ctx u c in
-        (Typ_Repl(p1), tot)
+        let p1 = type_term ctx u c in
+        Typ_Repl(p1)
     | Delm(t)     ->
        let pure = Pure.(pure t && pure c
                         && Lazy.force ctx.equations.pure)
        in
        let ctx =
-         if pure then { ctx with totality = new_tot () } else
-            (* If not pure, we must prove totality.
+         if pure then
+           begin
+             Effect.log_eff "pure";
+             let tot1 = Effect.create () in
+             assert (Effect.sub ~except:[CallCC] tot1 ctx.totality);
+             { ctx with totality = tot1 }
+           end
+         else
+           begin
+             Effect.log_eff "not pure";
+             (* If not pure, we must prove totality.
                NOTE: this could also trigger an error message ? *)
-           { ctx with totality = Tot }
+             ctx
+           end
        in
-       let (p, _) = type_term ctx t c in
-       (Typ_Delm(p), Tot)
+       let p = type_term ctx t c in
+       Typ_Delm(p)
     (* Constructors that cannot appear in user-defined terms. *)
     | UWit(_)     -> unexpected "∀-witness during typing..."
     | EWit(_)     -> unexpected "∃-witness during typing..."
@@ -1499,18 +1508,13 @@ and type_term : ctxt -> term -> prop -> typ_proof * tot = fun ctx t c ->
     | Vari(_)     -> unexpected "Free variable during typing..."
     | Dumm(_)     -> unexpected "Dummy value during typing..."
     | ITag(_)     -> unexpected "ITag during typing..."
-  in ((t, c, r), tot)
+  in (t, c, r)
   with
   | Contradiction          -> assert false
   | Failed_to_prove _ as e -> UTimed.Time.rollback st; auto_prove ctx e t c
+  | Sys.Break as e         -> raise e
+  | Out_of_memory as e     -> raise e
   | e                      -> type_error (E(T,t)) c e
-
-and check_total : ctxt -> term -> prop -> ctxt =
-  fun ctx t c ->
-    let (is_val, no_box, ctx) = term_is_value t ctx in
-    if (not is_val && not no_box && is_tot ctx.totality)
-    then type_error (E(T,t)) c Not_total
-    else ctx
 
 and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
   log_typ "proving the stack judgment:\n  %a\n  stk ⊢ %a\n  : %a"
@@ -1544,6 +1548,8 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
   in (s, c, r)
   with
   | Failed_to_prove _ as e -> raise e
+  | Sys.Break as e         -> raise e
+  | Out_of_memory as e     -> raise e
   | e                      -> type_error (E(S,s)) c e
 
 exception Unif_variables
@@ -1551,7 +1557,7 @@ exception Unif_variables
 let type_check : term -> prop -> prop * typ_proof = fun t a ->
   try
     let ctx = empty_ctxt () in
-    let (prf, _) = type_term ctx t a in
+    let prf = type_term ctx t a in
     List.iter (fun f -> f ()) (List.rev !(ctx.add_calls));
     if not (Scp.scp ctx.callgraph) then loops t;
     (* there is no way to parse unif variables in type,

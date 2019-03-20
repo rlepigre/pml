@@ -157,9 +157,13 @@ let parser llid_wc =
 let parser elipsis = "⋯" | "..."
 let parser infty   = "∞" | "<inf>"
 let parser arrow   = "→"
-let parser impl    = "⇒" -> Totality.Tot
-                   | "→" -> Totality.Ter
-                   | "↝" -> Totality.Any
+let parser eff     = "p" -> Effect.Print
+                   | "c" -> Effect.CallCC
+                   | "l" -> Effect.Loop
+let parser impl    = "⇒" -> Effect.bot
+                   | "→" -> Effect.(known [CallCC;Print])
+                   | "→" "_" "(" l:eff* ")" -> Effect.(known l)
+                   | "↝" -> Effect.top
 let parser scis    = "✂"
 let parser equiv   = "≡" | "=="
 let parser nequiv  = "≠" | "!="

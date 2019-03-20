@@ -20,6 +20,8 @@ val map : ('a -> 'b) -> 'a t -> 'b t
 
 val mapi : (string -> 'a -> 'b) -> 'a t -> 'b t
 
+val keys : 'a t -> key list
+
 val bindings : 'a t -> (string * 'a) list
 
 val sort : ('a -> 'a -> int) -> 'a t -> 'a t

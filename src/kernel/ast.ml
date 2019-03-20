@@ -7,7 +7,7 @@ open Ptr
 open Sorts
 open Pos
 
-module UTimed = Totality.UTimed
+module UTimed = Effect.UTimed
 module M = Map.Make(String)
 module A = Assoc
 
@@ -33,7 +33,7 @@ type _ ex =
 
   (* Proposition constructors. *)
 
-  | Func : Totality.tot * p ex loc * p ex loc        -> p  ex
+  | Func : Effect.t * p ex loc * p ex loc            -> p  ex
   (** Arrow type. *)
   | Prod : (pos option * p ex loc) A.t               -> p  ex
   (** Product (or record) type. *)
@@ -56,7 +56,7 @@ type _ ex =
 
   (* Value constructors. *)
 
-  | LAbs : p ex loc option * (v, t) bndr             -> v  ex
+  | LAbs : p ex loc option * (v, t) bndr * Effect.t  -> v  ex
   (** Lambda abstraction. λx.t *)
   | Cons : A.key loc * v ex loc                      -> v  ex
   (** Constructor with exactly one argument. *)
@@ -254,9 +254,11 @@ and ('a, 'b) bndr = popt * ('a ex, 'b ex loc) binder
     @see <https://www.lama.univ-savoie.fr/~raffalli/bindlib.html> bindlib *)
 and 'a ebox = 'a ex loc box
 
+and e_lazy = e_valu option ref
+
 and e_valu =
   | VVari of e_valu Bindlib.var
-  | VLAbs of (e_valu, e_term) binder
+  | VLAbs of (e_valu, e_term) binder * e_lazy option
   | VCons of string * e_valu
   | VReco of e_valu A.t
   | VVdef of value
@@ -352,11 +354,14 @@ let labs : popt -> pbox option -> strloc -> (vvar -> tbox) -> vbox =
   fun p ao x f ->
     let v = new_var (mk_free V) x.elt in
     let b = bind_var v (f v) in
-    box_apply2 (fun ao b -> Pos.make p (LAbs(ao, (x.pos, b)))) (box_opt ao) b
+    let t = Effect.create () in
+    box_apply2 (fun ao b -> Pos.make p (LAbs(ao, (x.pos, b), t)))
+               (box_opt ao) b
 
 let lvabs : popt -> pbox option -> vvar -> tbox -> vbox =
   fun p ao v t ->
-    box_apply2 (fun ao b -> Pos.make p (LAbs(ao, (None, b))))
+    let tot = Effect.create () in
+    box_apply2 (fun ao b -> Pos.make p (LAbs(ao, (None, b), tot)))
                (box_opt ao) (bind_var v t)
 
 let cons : popt -> strloc -> vbox -> vbox =
@@ -476,7 +481,7 @@ let s_vari : popt -> svar -> sbox = vari
 
 let p_vari : popt -> pvar -> pbox = vari
 
-let func : popt -> Totality.tot -> pbox -> pbox -> pbox =
+let func : popt -> Effect.t -> pbox -> pbox -> pbox =
   fun p t -> box_apply2 (fun a b -> Pos.make p (Func(t,a,b)))
 
 let prod : popt -> (popt * pbox) A.t -> pbox =
@@ -600,11 +605,11 @@ let eq_true : popt -> tbox -> pbox =
 let rec is_scis : type a. a ex loc -> bool =
   fun e ->
     match e.elt with
-    | Scis      -> true
-    | Valu(v)   -> is_scis v
-    | LAbs(_,f) -> (* because of sugar like show ...; 8< *)
-                   is_scis (bndr_subst f (Dumm V))
-    | _         -> false
+    | Scis        -> true
+    | Valu(v)     -> is_scis v
+    | LAbs(_,f,_) -> (* because of sugar like show ...; 8< *)
+                     is_scis (bndr_subst f (Dumm V))
+    | _           -> false
 
 (*
 let build_v_fixy : (v,t) bndr -> valu = fun b ->

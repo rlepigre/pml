@@ -155,7 +155,7 @@ type _ ho_appl =
 
 (** Type of a value node. *)
 type v_node =
-  | VN_LAbs of (v, t) bndr_closure
+  | VN_LAbs of (v, t) bndr_closure * Effect.t
   | VN_Cons of A.key loc * VPtr.t
   | VN_Reco of VPtr.t A.t
   | VN_Scis
@@ -243,7 +243,7 @@ let print_v_node : out_channel -> v_node -> unit = fun ch n ->
   let prnt = Printf.fprintf in
   let pex = Print.ex in
   match n with
-  | VN_LAbs(b)     -> prnt ch "VN_LAbs(%a)" (pbcl V) b
+  | VN_LAbs(b,_)   -> prnt ch "VN_LAbs(%a)" (pbcl V) b
   | VN_Cons(c,pv)  -> prnt ch "VN_Cons(%s,%a)" c.elt VPtr.print pv
   | VN_Reco(m)     -> let pelt ch (k, p) = prnt ch "%S=%a" k VPtr.print p in
                       prnt ch "VN_Reco(%a)" (Print.print_map pelt ":") m
@@ -475,7 +475,7 @@ let children_v_node : v_node -> (par_key * Ptr.t) list = fun n ->
                      let kn n = KV_HApp n in
                      snd (children_closure b kn
                          (children_closure c kn (0, [])))
-  | VN_LAbs b     -> let kn n = KV_LAbs n in
+  | VN_LAbs(b,_)  -> let kn n = KV_LAbs n in
                      snd (children_bndr_closure b kn (0, []))
   | VN_Cons(a,pv) -> [(KV_Cons a.elt, Ptr.V_ptr pv)]
   | VN_Reco(m)    -> A.fold (fun a p s -> ((KV_Reco a, Ptr.V_ptr p)::s)) m []
@@ -643,7 +643,7 @@ let eq_cl po s (f1,vs1,ts1 as _cl1) (f2,vs2,ts2 as _cl2) =
 let eq_v_nodes : pool -> v_node -> v_node -> bool =
   fun po n1 n2 -> n1 == n2 ||
     match (n1, n2) with
-    | (VN_LAbs(b1)   , VN_LAbs(b2)   ) -> eq_cl po V b1 b2
+    | (VN_LAbs(b1,t1), VN_LAbs(b2,t2)) -> eq_cl po V b1 b2 && Effect.eq t1 t2
     | (VN_Cons(c1,p1), VN_Cons(c2,p2)) -> c1.elt = c2.elt && eq_vptr po p1 p2
     | (VN_Reco(m1)   , VN_Reco(m2)   ) -> A.equal (eq_vptr po) m1 m2
     | (VN_Scis       , VN_Scis       ) -> true
@@ -877,8 +877,8 @@ and     add_valu : bool -> pool -> valu -> VPtr.t * pool = fun o po v0 ->
   let v = Norm.whnf v0 in
   let (p,po) =
     match v.elt with
-    | LAbs(_,b)   -> let (b, po) = add_bndr_closure po V T b in
-                     insert_v_node (VN_LAbs(b)) po
+    | LAbs(_,b,t) -> let (b, po) = add_bndr_closure po V T b in
+                     insert_v_node (VN_LAbs(b,t)) po
     | Cons(c,v)   -> let (pv, po) = add_valu po v in
                      insert_v_node (VN_Cons(c,pv)) po
     | Reco(m)     -> let fn l (_, v) (m, po) =
@@ -1041,7 +1041,7 @@ and normalise_t_node : ?old:TPtr.t -> t_node -> pool -> Ptr.t  * pool =
            | (Ptr.V_ptr pf, Ptr.V_ptr pv) ->
               begin
                 match find_v_node pf po, get_bs pv po with
-                | VN_LAbs(b), true        ->
+                | VN_LAbs(b,_), true        ->
                    begin
                      let b = subst_closure b in
                      let t = bndr_subst b (VPtr pv) in
@@ -1364,8 +1364,8 @@ and     canonical_valu : bool -> VPtr.t -> pool -> valu * pool
         let v = find_v_node p po in
         (*log_edp2 "canonical_term %a = %a" VPtr.print p print_v_node v;*)
         match v with
-        | VN_LAbs(b)     -> let (b, po) = canonical_bndr_closure b po in
-                            (Pos.none (LAbs(None, b)), po)
+        | VN_LAbs(b,t)   -> let (b, po) = canonical_bndr_closure b po in
+                            (Pos.none (LAbs(None, b, t)), po)
         | VN_Cons(c,pv)  -> let (v, po) = cv pv po in
                             (Pos.none (Cons(c,v)), po)
         | VN_Reco(m)     -> let fn l pv (m, po) =
@@ -1551,7 +1551,8 @@ and unif_v_nodes : pool -> VPtr.t -> v_node -> VPtr.t -> v_node -> pool =
        join (Ptr.V_ptr p2) (Ptr.V_ptr p1) po
     | _ ->
     match (n1, n2) with
-    | (VN_LAbs(b1)   , VN_LAbs(b2)   ) ->
+    | (VN_LAbs(b1,t1), VN_LAbs(b2,t2)) ->
+       if not (Effect.eq t1 t2) then raise NoUnif;
        unif_cl po V b1 b2
     | (VN_Cons(c1,p1), VN_Cons(c2,p2)) ->
        if c1.elt <> c2.elt then raise NoUnif;
@@ -1961,6 +1962,38 @@ let test_value : Ptr.t -> pool -> bool = fun p po ->
     | Ptr.V_ptr(v) -> fst (is_nobox p po)
     | Ptr.T_ptr(_) -> false
 
+let log_aut = Log.register 'a' (Some "aut") "automatic proving informations"
+let log_aut = Log.(log_aut.p)
+
+(** Try to get the list of cases from the type in a VWit to limit
+    the cases in auto *)
+let get_cases : Ptr.v_ptr -> pool -> A.key list option = fun pv po ->
+  let is_vwit = function VN_VWit _ -> true | _ -> false in
+  log_aut "get cases %a" Ptr.print (Ptr.V_ptr pv);
+  let l = List.find_all (fun (v',nn) ->
+              eq_ptr po (Ptr.V_ptr v') (Ptr.V_ptr pv)
+              && is_vwit nn) po.vs in
+  let rec gn = function
+    | []                   -> None
+    | (_, VN_VWit(e)) :: l ->
+       let (_,a,_) = !(e.valu) in
+       log_aut "get cases foud vwit : %a" Print.ex a;
+       let rec fn a =
+         match (Norm.whnf a).elt with
+         | HDef(_,d) -> fn d.expr_def
+         | DSum(s)   -> Some(A.keys s)
+         | FixM(_,b) -> fn (bndr_subst b (Dumm P))
+         | FixN(_,b) -> fn (bndr_subst b (Dumm P))
+         | Memb(_,a) -> fn a
+         | Rest(a,_) -> fn a
+         | Impl(_,a) -> fn a
+         | Univ(s,b) -> fn (bndr_subst b (Dumm s))
+         | Exis(s,b) -> fn (bndr_subst b (Dumm s))
+         | _         -> gn l
+       in
+       fn a
+    | _ -> assert false
+  in gn l
 
 (** get one original term from the pool or their applications. *)
 let get_orig : Ptr.t -> pool -> term =
@@ -2045,6 +2078,10 @@ let get_blocked : pool -> blocked list = fun po ->
              end
           | TN_Case(v,b) ->
              let cases = List.map fst (A.bindings b) in
+             let cases = match get_cases v po with
+               | Some l -> List.filter (fun x -> List.mem x l) cases
+               | None   -> cases
+             in
              let e = get_orig (Ptr.V_ptr v) po in
              let b = BCas (e, cases) in
              if List.exists (eq_blocked b) acc then acc else

@@ -23,12 +23,12 @@ val abort : ∀y, bot ⇒ y = fun x { x }
 type odd  = {v∈nat | is_odd v ≡ true }
 type even = {v∈nat | is_odd v ≡ false}
 
-type sstream⟨o,a⟩ = ν_o stream, {} → {hd : a; tl : stream}
+type sstream⟨o,a⟩ = ν_o stream, {} →_(c) {hd : a; tl : stream}
 type csstream⟨o,a⟩ = {hd : a; tl : sstream⟨o,a⟩}
 type stream⟨a⟩=sstream⟨∞,a⟩
 
-val rec aux : ∀a b, (csstream⟨a,even⟩ → bot) ⇒ (csstream⟨b,odd⟩ → bot)
-             ⇒ stream⟨nat⟩ → bot =
+val rec aux : ∀a b, (csstream⟨a,even⟩ →_(c) bot) ⇒ (csstream⟨b,odd⟩ →_(c) bot)
+             ⇒ stream⟨nat⟩ →_(c) bot =
   fun fe fo s {
     let hd = (s {}).hd;
     let tl = (s {}).tl;
@@ -52,7 +52,7 @@ val itl : stream⟨nat⟩ ⇒ either⟨stream⟨even⟩, stream⟨odd⟩⟩ =
 include tests.stream_nat
 
 // Compute the list of the first n elements of a stream.
-val rec takes : ∀a, nat ⇒ stream⟨a⟩ → list⟨a⟩ =
+val rec takes : ∀a, nat ⇒ stream⟨a⟩ →_(c) list⟨a⟩ =
   fun n s {
     case n {
            | Zero → Nil
@@ -78,7 +78,7 @@ val test : nat ⇒ either⟨list⟨nat⟩,list⟨nat⟩⟩ =
     } }
   }
 
-val print_test : nat ⇒ {} =
+val print_test : nat → {} =
   fun n {
     case test n {
       InL[l] → print "InL "; print_nat_list l

@@ -242,7 +242,8 @@ let {eq_expr; eq_bndr} =
     | (HDef(_,d)     , _             ) -> eq_expr d.expr_def e2
     | (_             , HDef(_,d)     ) -> eq_expr e1 d.expr_def
     | (Func(t1,a1,b1), Func(t2,a2,b2)) ->
-        Totality.eq t1 t2 && eq_expr a1 a2 && eq_expr b1 b2
+       (if strict then Effect.know_eq else Effect.eq) t1 t2
+       && eq_expr a1 a2 && eq_expr b1 b2
     | (DSum(m1)      , DSum(m2)      ) ->
         A.equal (fun (_,a1) (_,a2) -> eq_expr a1 a2) m1 m2
     | (Prod(m1)      , Prod(m2)      ) ->
@@ -285,7 +286,7 @@ let {eq_expr; eq_bndr} =
                 false
           end
     (* NOTE type annotation ignored. *)
-    | (LAbs(_,b1)    , LAbs(_,b2)    )  -> eq_bndr V b1 b2
+    | (LAbs(_,b1,_)  , LAbs(_,b2,_))   -> eq_bndr V b1 b2
     | (Cons(c1,v1)   , Cons(c2,v2)   ) -> c1.elt = c2.elt && eq_expr v1 v2
     | (Reco(m1)      , Reco(m2)      ) ->
         A.equal (fun (_,v1) (_,v2) -> eq_expr v1 v2) m1 m2
