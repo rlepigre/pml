@@ -57,6 +57,10 @@ Indices of semantics is a natural, $\bullet$, or $\infty$.
 $B$ is parametrized by a functionnnal taking  a natural, $\bullet$
 or $\infty$ as argument and retruning a set of terms.
 
+The sort $o$ can be interpreted as set of values like the {\em default} interpretation
+$\sem{\dots}_\bullet$. Others are only used for interpretation of arrows and
+statement of the adequacy lemma.
+
 Remark: epsilons will be interpreted in set $\sem{\dots}_\infty$. $\phi a.a$
 can replace the old $\square$ term.
 
@@ -66,6 +70,7 @@ can replace the old $\square$ term.
     B_0(X) &= \Lambda     \\
     B_{n+1}(X) &= X(n+1) \cup \{ u = (\phi a.t) t_1 \dots t_n |
     t[x:=u] t_1 \dots t_n \in B_n(X)\} \\
+    \sem{\Phi}_n &= B_n(\lambda p.\Phi) \text{ if } \Phi \in \sem{o}\\
     \sem{A \Rightarrow_{cl} B}_n &=
       B_n(\lambda p. \{\lambda x.t \;|\; \forall v \in \sem{A}_\bullet,
       t[x := v] \in \sem{B}_p^{\bot\bot}\})\\
