@@ -740,7 +740,7 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
                     l1 l2 (List.length bls) Print.ex e;
             type_term ctx t ty
           with
-          | Failed_to_prove _ as e -> type_error (E(T,t)) ty e
+          | Failed_to_prove _
           | Type_error _           -> fn ctx bls)
       | BCas(e,cs) as b :: bls ->
          (* for a blocked case analysis, we add a case! *)
@@ -759,8 +759,8 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
             log_aut "cases    (%d,%d): %a" l1 l2 Print.ex t;
             type_term ctx t ty
           with
-          | Failed_to_prove _ -> fn ctx bls
-          | Type_error _      -> fn ctx bls)
+          | Failed_to_prove _
+          | Type_error _       -> fn ctx bls)
     in fn ctx bls
 
 and gen_subtype : ctxt -> prop -> prop -> sub_rule =
