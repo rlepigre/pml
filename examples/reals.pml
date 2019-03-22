@@ -253,7 +253,7 @@ val rec add : real ⇒ real ⇒ real = fun x y {
 }
 
 type cmp = [ Eq; Left of nat; Right of nat ]
-val opp_cmp : nat ⇒ nat =
+val opp_cmp : cmp ⇒ cmp =
   fun a {
     case a {
       Eq       → Eq
