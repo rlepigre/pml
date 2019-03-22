@@ -1004,7 +1004,6 @@ and normalise : Ptr.t -> pool -> Ptr.t * pool =
        else
          begin
            let (tp, po) = normalise_t_node ~old:p (find_t_node p po) po in
-           let po = union (Ptr.T_ptr p) tp po in
            find tp po
          end
 
@@ -1028,6 +1027,11 @@ and normalise_t_node : ?old:TPtr.t -> t_node -> pool -> Ptr.t  * pool =
       | None   -> po
       | Some p -> set_ns p po
     in
+    let union tp po =
+      match old with
+      | None -> po
+      | Some p -> union (Ptr.T_ptr p) tp po
+    in
     let (p, po) = match node with
       | TN_Valu(pv)    -> let po = set_ns po in
                           find (Ptr.V_ptr pv) po
@@ -1047,6 +1051,7 @@ and normalise_t_node : ?old:TPtr.t -> t_node -> pool -> Ptr.t  * pool =
                      let t = bndr_subst b (VPtr pv) in
                      let po = set_ns po in
                      let (tp, po) = add_term false true po t in
+                     let po = union tp po in
                      log_edp2 "normalised in %a = TN_Appl Lambda %a %a => %a"
                           print_t_node node Ptr.print pt Ptr.print pu
                           Ptr.print tp;
@@ -1076,6 +1081,7 @@ and normalise_t_node : ?old:TPtr.t -> t_node -> pool -> Ptr.t  * pool =
                 try
                   let (tp, po) = find (Ptr.V_ptr (A.find l.elt m)) po in
                   let po = set_ns po in
+                  let po = union tp po in
                   log_edp2 "normalised in %a = TN_Proj %a => %a"
                        print_t_node node VPtr.print pv0 Ptr.print tp;
                   (tp, po)
@@ -1095,6 +1101,7 @@ and normalise_t_node : ?old:TPtr.t -> t_node -> pool -> Ptr.t  * pool =
                 let t = bndr_subst b (VPtr pv) in
                 let po = set_ns po in
                 let (tp, po) = add_term false true po t in
+                let po = union tp po in
                 log_edp2 "normalised in %a = TN_Case %a => %a"
                      print_t_node node VPtr.print pv0 Ptr.print tp;
                 (tp,po)
@@ -1114,6 +1121,7 @@ and normalise_t_node : ?old:TPtr.t -> t_node -> pool -> Ptr.t  * pool =
               let po = set_ns po in
               let (pv, po) = add_valu false po (bndr_subst f (TPtr pt)) in
               let pv = Ptr.V_ptr pv in
+              let po = union pv po in
               log_edp2 "normalisation in %a = TN_FixY => %a"
                    print_t_node node Ptr.print pv;
               (pv, po)
@@ -1123,7 +1131,9 @@ and normalise_t_node : ?old:TPtr.t -> t_node -> pool -> Ptr.t  * pool =
            match !(v.uvar_val) with
            | Unset _ -> insert node po
            | Set t   -> let po = set_ns po in
-                        add_term false true po t
+                        let (tp, po) = add_term false true po t in
+                        let po = union tp po in
+                        (tp, po)
          end
       | TN_Prnt(_)
       | TN_UWit(_)
