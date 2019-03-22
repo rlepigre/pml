@@ -144,6 +144,9 @@ let parser lnum = id:num       -> in_pos _loc id
 (* Int. *)
 let parser int  = s:''[0-9]+'' -> int_of_string s
 
+(* Bool. *)
+let parser bool = "true" -> true | "false" -> false
+
 (* Float. *)
 let parser float = s:''[0-9]*\('.'[0-9]*\)?\([eE][-+]?[0-9]*\)?'' ->
   if s = "" then give_up (); float_of_string s
@@ -579,6 +582,8 @@ and any     = expr Any
 and parser set_param =
   | "auto" b:int d:int -> Ast.Alvl(b,d)
   | "log"  s:str_lit   -> Ast.Logs(s)
+  | "keep_intermediate"
+           b:bool      -> Ast.Keep(b)
 
 (* Toplevel item. *)
 let parser toplevel =
@@ -671,6 +676,7 @@ and interpret : bool -> Raw.toplevel -> unit =
         match l with
         | Alvl(b,d) -> Typing.default_auto_lvl := (b,d)
         | Logs s    -> Log.set_enabled s
+        | Keep s    -> Equiv.keep_intermediate := true
       end;
   | Infix(sym,infix) ->
      add_infix sym infix

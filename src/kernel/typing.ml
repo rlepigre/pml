@@ -1245,6 +1245,10 @@ and do_set_param ctx = function
      let save = Log.get_enabled () in
      Log.set_enabled s;
      (ctx, fun () -> Log.set_enabled save)
+  | Keep(b)   ->
+     let save = !Equiv.keep_intermediate in
+     Equiv.keep_intermediate := b;
+     (ctx, fun () -> Equiv.keep_intermediate := save)
 
 and is_typed : type a. a v_or_t -> a ex loc -> bool = fun t e ->
   let e = Norm.whnf e in

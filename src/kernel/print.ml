@@ -430,7 +430,7 @@ let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
 and print_set_param ch = function
   | Alvl(b,d)   -> fprintf ch "auto %d %d" b d
   | Logs(s)     -> fprintf ch "log %s" s
-
+  | Keep(b)     -> fprintf ch "keep_intermediate %b" b
 and rel ch cnd =
   let eq b = if b then "=" else "≠" in
     match cnd with

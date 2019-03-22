@@ -58,6 +58,9 @@ let files =
     ; ( "--no-lazy"
       , Arg.Clear Eval.use_lazy
       , " Do not use lazy evaluation.")
+    ; ( "--keep-intermediate"
+      , Arg.Set Equiv.keep_intermediate
+      , " Keep intermediate terms in normalisation in the pool (more complete, yet to prove ? but slower).")
     ] @ List.map help ["--help" ; "-help" ; "-h" ]
   in
   let spec = Arg.align spec in
