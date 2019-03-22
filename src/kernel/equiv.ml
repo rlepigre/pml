@@ -790,6 +790,22 @@ let insert_t_node : bool -> t_node -> pool -> TPtr.t * pool =
 let insert_v_node nn po = Chrono.add_time inser_chrono (insert_v_node nn) po
 let insert_t_node nn po = Chrono.add_time inser_chrono (insert_t_node nn) po
 
+(** avoid UWit and EWit, that makes duplicate. However, UWit and EWit
+    can still appear as sub terms.
+    - Also excludes unset uvar.
+    - and case with only one case (temporary fix to avoid subtyping
+      witness) *)
+let rec not_uewit : type a. a ex loc -> bool =
+  fun e ->
+    match (Norm.whnf e).elt with
+    | UWit _    -> false
+    | EWit _    -> false
+    | VPtr _    -> false
+    | TPtr _    -> false
+    | Valu e    -> not_uewit e
+    | Case(_,c) -> A.length c > 1 (* TODO #29: fix this issue and remove! *)
+    | _         -> true
+
 (** Unification of terms in the pool *)
 exception NoUnif
 
@@ -865,7 +881,7 @@ let rec add_term :  bool -> bool -> pool -> term
     | Dumm(_)     -> invalid_arg "dummy terms forbidden in the pool"
   in
   let po =
-    if o then
+    if o && not_uewit t0 then
       { po with os = (p, t0)::po.os }
     else po
   in
@@ -918,7 +934,7 @@ and     add_valu : bool -> pool -> valu -> VPtr.t * pool = fun o po v0 ->
     | Dumm(_)     -> invalid_arg "dummy terms forbidden in the pool"
   in
   let po =
-    if o then
+    if o && not_uewit v0 then
       { po with os = (Ptr.V_ptr p, Pos.none (Valu v0))::po.os }
     else po
   in
@@ -1909,22 +1925,6 @@ exception Failed_to_prove of rel * blocked list
 let equiv_error : rel -> blocked list -> 'a =
   fun rel bls -> raise (Failed_to_prove(rel, bls))
 
-(** avoid UWit and EWit, that makes duplicate. However, UWit and EWit
-    can still appear as sub terms.
-    - Also excludes unset uvar.
-    - and case with only one case (temporary fix to avoid subtyping
-      witness) *)
-let rec not_uewit : type a. a ex loc -> bool =
-  fun e ->
-    match (Norm.whnf e).elt with
-    | UWit _    -> false
-    | EWit _    -> false
-    | VPtr _    -> false
-    | TPtr _    -> false
-    | Valu e    -> not_uewit e
-    | Case(_,c) -> A.length c > 1 (* TODO #29: fix this issue and remove! *)
-    | _         -> true
-
 let cmp_orig (p,x) (q,y) = match (x.elt, y.elt) with
     | (_               , Valu{elt=VPtr _}) -> -1
     | (Valu{elt=VPtr _},  _              ) ->  1
@@ -1942,7 +1942,7 @@ let term_vwit : term -> pool -> term = fun t po ->
   (*Printf.eprintf "term_vwit: %a\n%!" Print.ex t;*)
   let (pt, po) = add_term true true po t in
   let fn (p,t) =
-    eq_ptr po p pt && not_uewit t
+    eq_ptr po p pt
   in
   let l = List.find_all fn po.os in
   if l = [] then raise Not_found;
@@ -1953,7 +1953,7 @@ let valu_vwit : valu -> pool -> valu = fun t po ->
   (*Printf.eprintf "valu_vwit: %a\n%!" Print.ex t;*)
   let (pt, po) = add_valu true po t in
   let fn (p,t) =
-    eq_ptr po p (Ptr.V_ptr pt) && not_uewit t &&
+    eq_ptr po p (Ptr.V_ptr pt) &&
       (match (Norm.repr t).elt with Valu _ -> true
                                   | _      -> false)
   in
@@ -2010,8 +2010,7 @@ let get_orig : Ptr.t -> pool -> term =
   fun p po ->
     let rec fn p =
       try
-        let l = List.find_all (fun (v',e) ->
-                    eq_ptr po p v' && not_uewit e) po.os in
+        let l = List.find_all (fun (v',e) -> eq_ptr po p v') po.os in
         if l = [] then raise Not_found;
         (*Printf.eprintf "coucou 2b\n%!";*)
         snd (List.hd (List.sort cmp_orig l))
