@@ -60,10 +60,10 @@ let uvar_iter : type a. bool -> bool -> bool -> uvar_fun -> a ex loc -> unit =
       | DSum(m)     -> A.iter (fun _ (_,a) -> uvar_iter a) m
       | Univ(s,b)   -> buvar_iter s b
       | Exis(s,b)   -> buvar_iter s b
-      | FixM(o,b)   -> if not ignore_fixpoint then
-                         (uvar_iter o; buvar_iter P b)
-      | FixN(o,b)   -> if not ignore_fixpoint then
-                         (uvar_iter o; buvar_iter P b)
+      | FixM(s,o,b) -> if not ignore_fixpoint then
+                         (uvar_iter o; buvar_iter s b)
+      | FixN(s,o,b) -> if not ignore_fixpoint then
+                         (uvar_iter o; buvar_iter s b)
       | Memb(t,a)   -> uvar_iter t; uvar_iter a
       | Rest(a,c)   -> uvar_iter a; uvar_iter_cond c
       | Impl(c,a)   -> uvar_iter_cond c; uvar_iter a

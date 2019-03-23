@@ -43,9 +43,9 @@ type _ ex =
   (** Universal quantification. *)
   | Exis : 'a sort * ('a, p) bndr                    -> p  ex
   (** Existential quantification. *)
-  | FixM : o ex loc * (p, p) bndr                    -> p  ex
+  | FixM : 'a sort * o ex loc * ('a, 'a) bndr -> 'a ex (* ('a,'b) fix_args  -> 'b ex*)
   (** Inductive type with an ordinal size. *)
-  | FixN : o ex loc * (p, p) bndr                    -> p  ex
+  | FixN : 'a sort * o ex loc * ('a, 'a) bndr -> 'a ex (* ('a,'b) fix_args  -> 'b ex*)
   (** Coinductive type with an ordinal size. *)
   | Memb : t ex loc * p ex loc                       -> p  ex
   (** Membership type. *)
@@ -133,6 +133,10 @@ type _ ex =
   | UVar : 'a sort * 'a uvar                         -> 'a ex
   (** Unification variable. *)
   | Goal : 'a sort * string                          -> 'a ex
+
+and (_,_) fix_args =
+  | Nil : (p, p) fix_args
+  | Cns : 'a ex * ('b,'c) fix_args -> ('a -> 'b, 'c) fix_args
 
 (** This is a structure to represent hash consed epsilon.
     See epsilon.ml for more comments *)
@@ -514,17 +518,19 @@ let exis : type a. popt -> strloc -> a sort -> (a var -> pbox) -> pbox =
 
 let top : prop = unbox (exis None (Pos.none "x") P (fun x -> p_vari None x))
 
-let fixm : popt -> obox -> strloc -> (pvar -> pbox) -> pbox =
-  fun p o x f ->
-    let v = new_var (mk_free P) x.elt in
+let fixm : type a. popt -> a sort -> obox -> strloc ->
+                (a var ->  a ebox) -> a ebox =
+  fun p s o x f ->
+    let v = new_var (mk_free s) x.elt in
     let b = bind_var v (f v) in
-    box_apply2 (fun o b -> Pos.make p (FixM(o, (x.pos, b)))) o b
+    box_apply2 (fun o b -> Pos.make p (FixM(s, o, (x.pos, b)))) o b
 
-let fixn : popt -> obox -> strloc -> (pvar -> pbox) -> pbox =
-  fun p o x f ->
-    let v = new_var (mk_free P) x.elt in
+let fixn : type a. popt -> a sort -> obox -> strloc ->
+                (a var ->  a ebox) ->  a ebox =
+  fun p s o x f ->
+    let v = new_var (mk_free s) x.elt in
     let b = bind_var v (f v) in
-    box_apply2 (fun o b -> Pos.make p (FixN(o, (x.pos, b)))) o b
+    box_apply2 (fun o b -> Pos.make p (FixN(s, o, (x.pos, b)))) o b
 
 let memb : popt -> tbox -> pbox -> pbox =
   fun p -> box_apply2 (fun t a -> Pos.make p (Memb(t,a)))
@@ -642,8 +648,8 @@ let rec sort : type a. a ex loc -> a sort * a ex loc = fun e ->
   | DSum _          -> (P,e)
   | Univ _          -> (P,e)
   | Exis _          -> (P,e)
-  | FixM _          -> (P,e)
-  | FixN _          -> (P,e)
+  | FixM (s,_,_)    -> (s,e)
+  | FixN (s,_,_)    -> (s,e)
   | Memb _          -> (P,e)
   | Rest _          -> (P,e)
   | Impl _          -> (P,e)

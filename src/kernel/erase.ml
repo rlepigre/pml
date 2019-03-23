@@ -35,6 +35,8 @@ let rec valu_erasure : valu -> e_vbox = fun v ->
   | UWit(_)     -> erasure_error "a witness cannot be erased (value)"
   | EWit(_)     -> erasure_error "a witness cannot be erased (value)"
   | UVar(_)     -> erasure_error "unif. variables cannot be erased (value)"
+  | FixM(_)     -> erasure_error "illegal mu (value)"
+  | FixN(_)     -> erasure_error "illegal nu (value)"
 
 and     term_erasure : term -> e_tbox = fun t ->
   let t = Norm.whnf t in
@@ -73,6 +75,8 @@ and     term_erasure : term -> e_tbox = fun t ->
   | EWit(_)     -> erasure_error "a witness cannot be erased (term)"
   | UVar(_)     -> erasure_error "unif. variables cannot be erased (term)"
   | Goal(_)     -> erasure_error "a goal cannot be erased (term)"
+  | FixM(_)     -> erasure_error "illegal mu (term)"
+  | FixN(_)     -> erasure_error "illegal nu (term)"
 
 and     stac_erasure : stac -> e_sbox = fun s ->
   let s = Norm.whnf s in
@@ -87,6 +91,8 @@ and     stac_erasure : stac -> e_sbox = fun s ->
   | UWit(_)   -> erasure_error "a witness cannot be erased (stack)"
   | EWit(_)   -> erasure_error "a witness cannot be erased (stack)"
   | UVar(_)   -> erasure_error "unif. variables cannot be erased (stack)"
+  | FixM(_)   -> erasure_error "illegal mu (stack)"
+  | FixN(_)   -> erasure_error "illegal nu (stack)"
   | Coer(_)   -> .
   | Such(_)   -> .
   | PSet(_)   -> .

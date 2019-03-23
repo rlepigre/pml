@@ -59,8 +59,8 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
     | DSum(m)     -> A.fold (fun _ (_,a) acc -> owits acc a) m acc
     | Univ(s,f)   -> owits acc (bndr_subst f (Dumm s))
     | Exis(s,f)   -> owits acc (bndr_subst f (Dumm s))
-    | FixM(o,f)   -> owits (owits acc o) (bndr_subst f (Dumm P))
-    | FixN(o,f)   -> owits (owits acc o) (bndr_subst f (Dumm P))
+    | FixM(s,o,f) -> owits (owits acc o) (bndr_subst f (Dumm s))
+    | FixN(s,o,f) -> owits (owits acc o) (bndr_subst f (Dumm s))
     | Memb(t,a)   -> owits (owits acc t) a
     | Rest(a,c)   -> owits (from_cond acc c) a
     | Impl(c,a)   -> owits (from_cond acc c) a
@@ -193,18 +193,18 @@ let bind_spos_ordinals
       match e.elt with
       | HDef(_,e)   -> recall e.expr_def
       | Func(t,a,b) -> func e.pos t (bind_all (neg o) a) (recall b)
-      | FixM({ elt = Conv},f) when o = Neg ->
-         fixm e.pos (new_ord ()) (bndr_name f)
-              (fun x -> recall (bndr_subst f (mk_free P x)))
-      | FixN({ elt = Conv},f) when o = Pos ->
-         fixn e.pos (new_ord ()) (bndr_name f)
-              (fun x -> recall (bndr_subst f (mk_free P x)))
-      | FixM(o1,f) when (Norm.whnf o1).elt <> Conv ->
-         fixm e.pos (search_ord o1) (bndr_name f)
-              (fun x -> recall (bndr_subst f (mk_free P x)))
-      | FixN(o1,f) when (Norm.whnf o1).elt <> Conv ->
-         fixn e.pos (search_ord o1) (bndr_name f)
-              (fun x -> recall (bndr_subst f (mk_free P x)))
+      | FixM(s, { elt = Conv},f) when o = Neg ->
+         fixm e.pos s (new_ord ()) (bndr_name f)
+              (fun x -> recall (bndr_subst f (mk_free s x)))
+      | FixN(s, { elt = Conv},f) when o = Pos ->
+         fixn e.pos s (new_ord ()) (bndr_name f)
+              (fun x -> recall (bndr_subst f (mk_free s x)))
+      | FixM(s,o1,f) when (Norm.whnf o1).elt <> Conv ->
+         fixm e.pos s (search_ord o1) (bndr_name f)
+              (fun x -> recall (bndr_subst f (mk_free s x)))
+      | FixN(s,o1,f) when (Norm.whnf o1).elt <> Conv ->
+         fixn e.pos s (search_ord o1) (bndr_name f)
+              (fun x -> recall (bndr_subst f (mk_free s x)))
       | _        -> default e
     in
     map ~mapper:{mapper} e

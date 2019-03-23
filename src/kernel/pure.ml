@@ -49,8 +49,8 @@ let pure : type a. a ex loc -> bool =
     | DSum(m)     -> A.iter (fun _ (_,a) -> iter a) m
     | Univ(s,b)   -> biter s b
     | Exis(s,b)   -> biter s b
-    | FixM(o,b)   -> iter o; biter P b
-    | FixN(o,b)   -> iter o; biter P b
+    | FixM(s,o,b) -> iter o; biter s b
+    | FixN(s,o,b) -> iter o; biter s b
     | Memb(t,a)   -> iter t; iter a
     | Rest(a,c)   -> iter a; iter_cond c
     | Impl(c,a)   -> iter_cond c; iter a

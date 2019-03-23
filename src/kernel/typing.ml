@@ -256,7 +256,7 @@ let learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
             with Not_found -> assert false (* NOTE check *)
        end
     (** Learn positivity of the ordinal *)
-    | FixM(o,f)  ->
+    | FixM(s,o,f)  ->
        if List.memq f !adone then ctx else
          begin
            adone := f :: !adone;
@@ -266,13 +266,13 @@ let learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
              | _       ->
                 (** We know that o is positive and wit in a
                     so we can build an eps < o *)
-                let f o = bndr_subst f (FixM(Pos.none o, f)) in
+                let f o = bndr_subst f (FixM(s,Pos.none o, f)) in
                 let f = raw_binder "o" true 0 (fun _ -> assert false) f in
                 let (o', ctx_names) = owmu ctx.ctx_names o twit (None, f) in
                 (o', { ctx with ctx_names })
            in
            let ctx = add_positive ctx o bound in
-           fn ctx wit (bndr_subst f (FixM(bound,f)))
+           fn ctx wit (bndr_subst f (FixM(s,bound,f)))
          end
     | _          -> ctx
   in fn ctx wit a
@@ -315,7 +315,7 @@ let rec learn_neg_equivalences : ctxt -> valu -> term option -> prop -> ctxt =
            | None -> ctx
          end
       (** Learn positivity of the ordinal *)
-      | FixN(o,f), _ ->
+      | FixN(s,o,f), _ ->
        if List.memq f !adone then ctx else
          begin
            adone := f :: !adone;
@@ -325,13 +325,13 @@ let rec learn_neg_equivalences : ctxt -> valu -> term option -> prop -> ctxt =
              | _       ->
                 (** We know that o is positive and wit in a
                     so we can build an eps < o *)
-                let f o = bndr_subst f (FixN(Pos.none o, f)) in
+                let f o = bndr_subst f (FixN(s,Pos.none o, f)) in
                 let f = raw_binder "o" true 0 (fun _ -> assert false) f in
                 let (o', ctx_names) = ownu ctx.ctx_names o twit (None, f) in
                 (o', { ctx with ctx_names })
            in
            let ctx = add_positive ctx o bound in
-           learn_neg_equivalences ctx wit arg (bndr_subst f (FixN(bound,f)))
+           learn_neg_equivalences ctx wit arg (bndr_subst f (FixN(s,bound,f)))
          end
       | _          -> ctx
     in fn ctx wit arg a
@@ -438,10 +438,10 @@ and subtype =
           (* NOTE may need a backtrack because a right rule could work *)
           else gen_subtype ctx a b
       (* Mu left and Nu right rules. *)
-      | (FixM(o,f)  , _          ) when t_is_val ->
+      | (FixM(s,o,f)  , _          ) when t_is_val ->
           begin (* heuristic to instanciate some unification variables *)
             match b.elt with
-            | FixM(ol,f) ->
+            | FixM(s,ol,f) ->
                begin
                  match (Norm.whnf ol).elt with
                  | UVar(O,v) -> uvar_set v o
@@ -454,18 +454,18 @@ and subtype =
             match o.elt with
               Succ o' -> (ctx, o')
             | _ ->
-               let f o = bndr_subst f (FixM(Pos.none o, f)) in
+               let f o = bndr_subst f (FixM(s,Pos.none o, f)) in
                let f = raw_binder "o" true 0 (fun _ -> assert false) f in
                let (o', ctx_names) = owmu ctx.ctx_names o t (None,f) in
                let ctx = { ctx with ctx_names } in
                (add_positive ctx o o', o')
           in
-          let a = bndr_subst f (FixM(o',f)) in
+          let a = bndr_subst f (FixM(s,o',f)) in
           Sub_FixM_l(false, subtype ctx t a b)
-      | (_          , FixN(o,f)  ) when t_is_val ->
+      | (_          , FixN(s,o,f)  ) when t_is_val ->
          begin (* heuristic to instanciate some unification variables *)
            match a.elt with
-           | FixN(ol,f) ->
+           | FixN(s,ol,f) ->
               begin
                 match (Norm.whnf ol).elt with
                 | UVar(O,v) -> uvar_set v o
@@ -478,13 +478,13 @@ and subtype =
             match o.elt with
               Succ o' -> (ctx, o')
             | _ ->
-               let f o = bndr_subst f (FixN(Pos.none o, f)) in
+               let f o = bndr_subst f (FixN(s,Pos.none o, f)) in
                let f = raw_binder "o" true 0 (fun _ -> assert false) f in
                let (o', ctx_names) = ownu ctx.ctx_names o t (None, f) in
                let ctx = { ctx with ctx_names } in
                (add_positive ctx o o', o')
           in
-          let b = bndr_subst f (FixN(o',f)) in
+          let b = bndr_subst f (FixN(s,o',f)) in
           Sub_FixN_r(false, subtype ctx t a b)
       | _ ->
       match Chrono.add_time check_sub_chrono (check_sub ctx a) b with
@@ -650,21 +650,21 @@ and subtype =
            Sub_Impl_l(prf)
           end
       (* Mu right and Nu Left, infinite case. *)
-      | (_          , FixM(o,f) ) when is_conv o ->
+      | (_          , FixM(s,o,f) ) when is_conv o ->
           Sub_FixM_r(true, subtype ctx t a (bndr_subst f b.elt))
-      | (FixN(o,f)  , _         ) when is_conv o ->
+      | (FixN(s,o,f)  , _         ) when is_conv o ->
           Sub_FixN_l(true, subtype ctx t (bndr_subst f a.elt) b)
       (* Mu right and Nu left rules, general case. *)
-      | (_          , FixM(o,f)  ) ->
+      | (_          , FixM(s,o,f)  ) ->
          let u = opred ctx o in
-         let b = bndr_subst f (FixM(u,f)) in
+         let b = bndr_subst f (FixM(s,u,f)) in
          let prf = subtype ctx t a b in
          if not (Ordinal.less_ordi ctx.positives u o) then
            subtype_msg b.pos "ordinal not suitable (μr rule)";
          Sub_FixM_r(false, prf)
-      | (FixN(o,f)  , _          ) ->
+      | (FixN(s,o,f)  , _          ) ->
          let u = opred ctx o in
-         let a = bndr_subst f (FixN(u,f)) in
+         let a = bndr_subst f (FixN(s,u,f)) in
          let prf = subtype ctx t a b in
          if not (Ordinal.less_ordi ctx.positives u o) then
            subtype_msg b.pos "ordinal not suitable (νl rule)";
@@ -1229,6 +1229,8 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
     | Vari(_)     -> unexpected "Free variable during typing..."
     | Dumm(_)     -> unexpected "Dummy value during typing..."
     | ITag(_)     -> unexpected "ITag during typing..."
+    | FixM(_)     -> invalid_arg "mu in terms forbidden"
+    | FixN(_)     -> invalid_arg "mu in terms forbidden"
   in (Pos.make v.pos (Valu(v)), c, r)
   with
   | Failed_to_prove _ as e -> UTimed.Time.rollback st;
@@ -1512,6 +1514,8 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
     | Vari(_)     -> unexpected "Free variable during typing..."
     | Dumm(_)     -> unexpected "Dummy value during typing..."
     | ITag(_)     -> unexpected "ITag during typing..."
+    | FixM(_)     -> invalid_arg "mu in values forbidden"
+    | FixN(_)     -> invalid_arg "nu in values forbidden"
   in (t, c, r)
   with
   | Contradiction          -> assert false
@@ -1549,6 +1553,8 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
     | Vari(_)     -> unexpected "Free variable during typing..."
     | Dumm(_)     -> unexpected "Dummy value during typing..."
     | ITag(_)     -> unexpected "Tag during typing..."
+    | FixM(_)     -> invalid_arg "mu in stacks forbidden"
+    | FixN(_)     -> invalid_arg "nu in stacks forbidden"
   in (s, c, r)
   with
   | Failed_to_prove _ as e -> raise e

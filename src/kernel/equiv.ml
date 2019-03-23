@@ -890,6 +890,8 @@ let rec add_term :  bool -> bool -> pool -> term
     | TPtr(pt)    -> if free then normalise pt po else find pt po
     | Vari(_)     -> invalid_arg "free variable in the pool"
     | Dumm(_)     -> invalid_arg "dummy terms forbidden in the pool"
+    | FixM(_)     -> invalid_arg "mu in terms forbidden"
+    | FixN(_)     -> invalid_arg "mu in terms forbidden"
   in
   let po =
     if o && not_uewit t0 then
@@ -943,6 +945,8 @@ and     add_valu : bool -> pool -> valu -> VPtr.t * pool = fun o po v0 ->
     | VPtr(pv)    -> (pv, po)
     | Vari(_)     -> invalid_arg "free variable in the pool"
     | Dumm(_)     -> invalid_arg "dummy terms forbidden in the pool"
+    | FixM(_)     -> invalid_arg "mu in values forbidden"
+    | FixN(_)     -> invalid_arg "mu in values forbidden"
   in
   let po =
     if o && not_uewit v0 then
@@ -2003,8 +2007,8 @@ let get_cases : Ptr.v_ptr -> pool -> A.key list option = fun pv po ->
          match (Norm.whnf a).elt with
          | HDef(_,d) -> fn d.expr_def
          | DSum(s)   -> Some(A.keys s)
-         | FixM(_,b) -> fn (bndr_subst b (Dumm P))
-         | FixN(_,b) -> fn (bndr_subst b (Dumm P))
+         | FixM(_,_,b) -> fn (bndr_subst b (Dumm P))
+         | FixN(_,_,b) -> fn (bndr_subst b (Dumm P))
          | Memb(_,a) -> fn a
          | Rest(a,_) -> fn a
          | Impl(_,a) -> fn a

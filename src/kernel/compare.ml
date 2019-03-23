@@ -260,8 +260,18 @@ let {eq_expr; eq_bndr} =
           | Eq  -> eq_bndr s1 b1 b2
           | NEq -> false
         end
-    | (FixM(o1,b1)   , FixM(o2,b2)   ) -> eq_expr o1 o2 && eq_bndr P b1 b2
-    | (FixN(o1,b1)   , FixN(o2,b2)   ) -> eq_expr o1 o2 && eq_bndr P b1 b2
+    | (FixM(s1,o1,b1), FixM(s2,o2,b2)) ->
+       begin
+         match eq_sort s1 s2 with
+         | Eq  -> eq_expr o1 o2 && eq_bndr s1 b1 b2
+         | NEq -> false
+       end
+    | (FixN(s1,o1,b1), FixN(s2,o2,b2)) ->
+       begin
+         match eq_sort s1 s2 with
+         | Eq  -> eq_expr o1 o2 && eq_bndr s1 b1 b2
+         | NEq -> false
+       end
     | (Memb(t1,a1)   , Memb(t2,a2)   ) -> eq_expr t1 t2 && eq_expr a1 a2
     | (Rest(a1,c1)   , Rest(a2,c2)   ) ->
         eq_expr a1 a2 &&

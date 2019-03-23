@@ -166,8 +166,8 @@ and raw_ex' =
   | EDSum of (strloc * raw_ex option) list
   | EUniv of strloc ne_list * raw_sort * raw_ex
   | EExis of strloc ne_list * raw_sort * raw_ex
-  | EFixM of raw_ex * strloc * raw_ex
-  | EFixN of raw_ex * strloc * raw_ex
+  | EFixM of raw_sort * raw_ex * strloc * raw_ex
+  | EFixN of raw_sort * raw_ex * strloc * raw_ex
   | EMemb of raw_ex * raw_ex
   | ERest of raw_ex option * raw_cond
   | EImpl of raw_cond * raw_ex option
@@ -220,10 +220,10 @@ let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
     | EExis(xs,s,a) -> Printf.fprintf ch "EExis([%a],%a,%a)"
                          (print_list aux_var ",") (ne_list_to_list xs)
                          print_raw_sort s print a
-    | EFixM(o,x,a)  -> Printf.fprintf ch "EFixM(%a,%S,%a)"
-                         print o x.elt print a
-    | EFixN(o,x,a)  -> Printf.fprintf ch "EFixN(%a,%S,%a)"
-                         print o x.elt print a
+    | EFixM(s,o,x,a)-> Printf.fprintf ch "EFixM(%a,%a,%S,%a)"
+                         print_raw_sort s print o x.elt print a
+    | EFixN(s,o,x,a)-> Printf.fprintf ch "EFixN(%a,%a,%S,%a)"
+                         print_raw_sort s print o x.elt print a
     | EMemb(t,a)    -> Printf.fprintf ch "EMemb(%a,%a)" print t print a
     | ERest(a,eq)   -> Printf.fprintf ch "ERest(%a,%a)" aux_opt a aux_eq eq
     | EImpl(eq,a)   -> Printf.fprintf ch "EImpl(%a,%a)" aux_opt a aux_eq eq
@@ -410,14 +410,10 @@ let infer_sorts : raw_ex -> raw_sort -> unit = fun e s ->
                                     infer vars e s
     | (EUniv(_,_,_) , _        )
     | (EExis(_,_,_) , _        ) -> sort_clash e s
-    | (EFixM(o,x,e) , SP       )
-    | (EFixN(o,x,e) , SP       ) -> infer vars o _so;
-                                    let vars = M.add x.elt (x.pos,_sp) vars in
-                                    infer vars e _sp
-    | (EFixM(_,_,_) , SUni(r)  )
-    | (EFixN(_,_,_) , SUni(r)  ) -> sort_uvar_set r _sp; infer vars e s
-    | (EFixM(_,_,_) , _        )
-    | (EFixN(_,_,_) , _        ) -> sort_clash e s
+    | (EFixM(k,o,x,e) , _      )
+    | (EFixN(k,o,x,e) , _      ) -> leq k s;
+                                    let vars = M.add x.elt (x.pos,k) vars in
+                                    infer vars e k
     | (EMemb(t,a)   , SP       ) -> infer vars t _st; infer vars a _sp
     | (EMemb(t,a)   , SUni(r)  ) -> sort_uvar_set r _sp; infer vars e s
     | (EMemb(_,_)   , _        ) -> sort_clash e s
@@ -803,22 +799,24 @@ let unsugar_expr : raw_ex -> raw_sort -> boxed = fun e s ->
                      exis ex.pos x k fn
         in
         Box(P, build vars xs e)
-    | (EFixM(o,x,e) , SP       ) ->
+    | (EFixM(k,o,x,e), s       ) ->
         let o = to_ordi (unsugar env vars o _so) in
-        let fn xo : pbox =
-          let xo = (x.pos, Box(P, vari x.pos xo)) in
+        let Sort ks = unsugar_sort k in
+        let fn xo =
+          let xo = (x.pos, Box(ks, vari x.pos xo)) in
           let vars = M.add x.elt xo vars in
-          to_prop (unsugar env vars e _sp)
+          sort_filter ks (unsugar env vars e k)
         in
-        Box(P, fixm e.pos o x fn)
-    | (EFixN(o,x,e) , SP       ) ->
+        Box(ks, fixm e.pos ks o x fn)
+    | (EFixN(k,o,x,e) , s     ) ->
         let o = to_ordi (unsugar env vars o _so) in
-        let fn xo : pbox =
-          let xo = (x.pos, Box(P, vari x.pos xo)) in
+        let Sort ks = unsugar_sort k in
+        let fn xo =
+          let xo = (x.pos, Box(ks, vari x.pos xo)) in
           let vars = M.add x.elt xo vars in
-          to_prop (unsugar env vars e _sp)
+          sort_filter ks (unsugar env vars e k)
         in
-        Box(P, fixn e.pos o x fn)
+        Box(ks, fixn e.pos ks o x fn)
     | (EMemb(t,a)   , SP       ) ->
         let t = to_term (unsugar env vars t _st) in
         let a = to_prop (unsugar env vars a _sp) in
@@ -1109,8 +1107,8 @@ let type_def : Pos.pos -> [`Non | `Rec | `CoRec] -> strloc
   let e1 =
     match r with
     | `Non   -> e
-    | `Rec   -> in_pos _loc (EFixM(Pos.none EConv, id, e))
-    | `CoRec -> in_pos _loc (EFixN(Pos.none EConv, id, e))
+    | `Rec   -> in_pos _loc (EFixM(Pos.none SP, Pos.none EConv, id, e))
+    | `CoRec -> in_pos _loc (EFixN(Pos.none SP, Pos.none EConv, id, e))
   in
   let d1 = expr_def id args (Some (Pos.none SP)) e1 in
   if r = `Non then d1 else
@@ -1120,8 +1118,8 @@ let type_def : Pos.pos -> [`Non | `Rec | `CoRec] -> strloc
       let e2 =
         match r with
         | `Non   -> assert false
-        | `Rec   -> in_pos _loc (EFixM(s, id, e))
-        | `CoRec -> in_pos _loc (EFixN(s, id, e))
+        | `Rec   -> in_pos _loc (EFixM(Pos.none SP, s, id, e))
+        | `CoRec -> in_pos _loc (EFixN(Pos.none SP, s, id, e))
       in
       let args = (Pos.none "s#", Some (Pos.none SO)) :: args in
       let d2 = expr_def id2 args (Some (Pos.none SP)) e2 in

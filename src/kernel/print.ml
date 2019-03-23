@@ -318,9 +318,9 @@ let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
   | Exis(s,b)   -> let (x,a) = unbind (snd b) in
                    fprintf ch "∃%s:%a, %a" (name_of x)
                      sort s exp a
-  | FixM(o,b)   -> let (x,a) = unbind (snd b) in
+  | FixM(_,o,b) -> let (x,a) = unbind (snd b) in
                    fprintf ch "μ%a%s, %a" supo o (name_of x) exp a
-  | FixN(o,b)   -> let (x,a) = unbind (snd b) in
+  | FixN(_,o,b) -> let (x,a) = unbind (snd b) in
                    fprintf ch "ν%a%s, %a" supo o (name_of x) exp a
   | Memb(t,a)   -> begin
                      match is_eq e with
