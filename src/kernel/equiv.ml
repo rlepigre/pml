@@ -809,7 +809,7 @@ let rec not_uewit : type a. a ex loc -> bool =
 (** Unification of terms in the pool *)
 exception NoUnif
 
-let keep_intermediate = ref true
+let keep_intermediate = ref false
 
 (** Insertion and normalisation of actual terms and values to the pool. *)
 let rec add_term :  bool -> bool -> pool -> term
@@ -828,8 +828,8 @@ let rec add_term :  bool -> bool -> pool -> term
         else
           normalise_t_node node po
       (* NOTE: insrting not normal term as can be faster by avoiding
-         renormalising the same terms, but in case of big computation, the size
-         of the pool may explode, hence a choice fr the user *)
+         renormalising the same terms, but in case of big computation, the
+         size of the pool may explode, hence a choice fr the user *)
       end
     else
       begin
@@ -891,7 +891,7 @@ let rec add_term :  bool -> bool -> pool -> term
     | Vari(_)     -> invalid_arg "free variable in the pool"
     | Dumm(_)     -> invalid_arg "dummy terms forbidden in the pool"
     | FixM(_)     -> invalid_arg "mu in terms forbidden"
-    | FixN(_)     -> invalid_arg "mu in terms forbidden"
+    | FixN(_)     -> invalid_arg "nu in terms forbidden"
   in
   let po =
     if o && not_uewit t0 then
@@ -946,7 +946,7 @@ and     add_valu : bool -> pool -> valu -> VPtr.t * pool = fun o po v0 ->
     | Vari(_)     -> invalid_arg "free variable in the pool"
     | Dumm(_)     -> invalid_arg "dummy terms forbidden in the pool"
     | FixM(_)     -> invalid_arg "mu in values forbidden"
-    | FixN(_)     -> invalid_arg "mu in values forbidden"
+    | FixN(_)     -> invalid_arg "nu in values forbidden"
   in
   let po =
     if o && not_uewit v0 then
@@ -2007,8 +2007,8 @@ let get_cases : Ptr.v_ptr -> pool -> A.key list option = fun pv po ->
          match (Norm.whnf a).elt with
          | HDef(_,d) -> fn d.expr_def
          | DSum(s)   -> Some(A.keys s)
-         | FixM(_,_,b) -> fn (bndr_subst b (Dumm P))
-         | FixN(_,_,b) -> fn (bndr_subst b (Dumm P))
+         | FixM(s,_,b,l) -> fn (apply_args (bndr_subst b (Dumm s)) l)
+         | FixN(s,_,b,l) -> fn (apply_args (bndr_subst b (Dumm s)) l)
          | Memb(_,a) -> fn a
          | Rest(a,_) -> fn a
          | Impl(_,a) -> fn a

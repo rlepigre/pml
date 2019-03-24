@@ -45,6 +45,11 @@ let uvar_iter : type a. bool -> bool -> bool -> uvar_fun -> a ex loc -> unit =
         fun w ->
           List.iter (fun (U(s,v)) -> f.f s v) !(w.vars)
       in
+      let rec fuvar_iter : type a b. (a, b) fix_args -> unit =
+        function
+        | Nil -> ()
+        | Cns(a,l) -> uvar_iter a; fuvar_iter l
+      in
       (** iteration on binders *)
       let buvar_iter s b =
         if not_closed b then uvar_iter (bndr_subst b (Dumm s))
@@ -60,10 +65,10 @@ let uvar_iter : type a. bool -> bool -> bool -> uvar_fun -> a ex loc -> unit =
       | DSum(m)     -> A.iter (fun _ (_,a) -> uvar_iter a) m
       | Univ(s,b)   -> buvar_iter s b
       | Exis(s,b)   -> buvar_iter s b
-      | FixM(s,o,b) -> if not ignore_fixpoint then
-                         (uvar_iter o; buvar_iter s b)
-      | FixN(s,o,b) -> if not ignore_fixpoint then
-                         (uvar_iter o; buvar_iter s b)
+      | FixM(s,o,b,l) -> if not ignore_fixpoint then
+                         (uvar_iter o; buvar_iter s b; fuvar_iter l)
+      | FixN(s,o,b,l) -> if not ignore_fixpoint then
+                         (uvar_iter o; buvar_iter s b; fuvar_iter l)
       | Memb(t,a)   -> uvar_iter t; uvar_iter a
       | Rest(a,c)   -> uvar_iter a; uvar_iter_cond c
       | Impl(c,a)   -> uvar_iter_cond c; uvar_iter a

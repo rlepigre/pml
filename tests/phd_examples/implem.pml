@@ -6,11 +6,11 @@ def rapp⟨t:τ, u:τ⟩ : τ = u t
 def omega : τ          = rapp⟨delta, delta⟩
 type boolean = [True; False]
 def boolean : ο = [True; False]
-type rec list⟨a:ο⟩ = [Nil; Cons of {hd : a; tl : list}]
-type corec stream⟨a:ο⟩ = {} ⇒ {hd : a; tl : stream}
+type rec list⟨a⟩ = [Nil; Cons of {hd : a; tl : list⟨a⟩}]
+type corec stream⟨a⟩ = {} ⇒ {hd : a; tl : stream⟨a⟩}
 
-def list⟨a:ο⟩ : ο = μ list, [Nil; Cons of {hd : a; tl : list}]
-def stream⟨a:ο⟩ : ο = ν stream, {} ⇒ {hd : a; tl : stream}
+def list⟨a⟩ : ο = μ list, [Nil; Cons of {hd : a; tl : list}]
+def stream⟨a⟩ : ο = ν stream, {} ⇒ {hd : a; tl : stream}
 val is_empty : ∀a, list⟨a⟩ ⇒ bool =
   fun l {
     case l {
@@ -251,7 +251,7 @@ val rec mul_comm : ∀n m∈nat, mul n m ≡ mul m n =
           using add_comm (mul k m) m
     }
   }
-type rec list⟨a:ο⟩ = [Nil ; Cons of {hd : a ; tl : list}]
+type rec list⟨a:ο⟩ = [Nil ; Cons of {hd : a ; tl : list⟨a⟩}]
 val rec map : ∀a b:ο, (a ⇒ b) ⇒ list⟨a⟩ ⇒ list⟨b⟩ =
   fun f l {
     case l {

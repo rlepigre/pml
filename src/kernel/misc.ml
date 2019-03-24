@@ -32,6 +32,12 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
       | Equiv(t,_,u) -> owits (owits acc t) u
       | NoBox(v)     -> owits acc v
     in
+    let rec from_args : type a b. ordi list -> (a,b) fix_args -> ordi list =
+      fun acc l ->
+        match l with
+        | Nil       -> acc
+        | Cns(a, l) -> from_args (owits acc a) l
+    in
     match (Norm.whnf e).elt with
     | HDef(_,_)   -> acc
     | HApp(_,f,a) -> owits (owits acc f) a
@@ -59,8 +65,10 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
     | DSum(m)     -> A.fold (fun _ (_,a) acc -> owits acc a) m acc
     | Univ(s,f)   -> owits acc (bndr_subst f (Dumm s))
     | Exis(s,f)   -> owits acc (bndr_subst f (Dumm s))
-    | FixM(s,o,f) -> owits (owits acc o) (bndr_subst f (Dumm s))
-    | FixN(s,o,f) -> owits (owits acc o) (bndr_subst f (Dumm s))
+    | FixM(s,o,f,l)
+                  -> from_args (owits (owits acc o) (bndr_subst f (Dumm s))) l
+    | FixN(s,o,f,l)
+                  -> from_args (owits (owits acc o) (bndr_subst f (Dumm s))) l
     | Memb(t,a)   -> owits (owits acc t) a
     | Rest(a,c)   -> owits (from_cond acc c) a
     | Impl(c,a)   -> owits (from_cond acc c) a
@@ -189,22 +197,28 @@ let bind_spos_ordinals
   in
   let rec bind_all : type p. occ -> p ex loc -> p ebox = fun o e ->
     let mapper : type p. recall -> p ex loc -> p ebox =
-    fun { recall; default } e ->
+      fun { recall; recals; default } e ->
+      (* NOTE: could compute variance of arguments ?, usefull for rose tree *)
+      let rec fn : type a b. (a,b) fix_args -> (a,b) fbox = fun l ->
+        match l with
+        | Nil -> nil ()
+        | Cns(a,l) -> cns (bind_all Any a) (fn l)
+      in
       match e.elt with
       | HDef(_,e)   -> recall e.expr_def
       | Func(t,a,b) -> func e.pos t (bind_all (neg o) a) (recall b)
-      | FixM(s, { elt = Conv},f) when o = Neg ->
+      | FixM(s, { elt = Conv},f,l) when o = Neg ->
          fixm e.pos s (new_ord ()) (bndr_name f)
-              (fun x -> recall (bndr_subst f (mk_free s x)))
-      | FixN(s, { elt = Conv},f) when o = Pos ->
+              (fun x -> recall (bndr_subst f (mk_free s x))) (fn l)
+      | FixN(s, { elt = Conv},f,l) when o = Pos ->
          fixn e.pos s (new_ord ()) (bndr_name f)
-              (fun x -> recall (bndr_subst f (mk_free s x)))
-      | FixM(s,o1,f) when (Norm.whnf o1).elt <> Conv ->
+              (fun x -> recall (bndr_subst f (mk_free s x))) (fn l)
+      | FixM(s,o1,f,l) when (Norm.whnf o1).elt <> Conv ->
          fixm e.pos s (search_ord o1) (bndr_name f)
-              (fun x -> recall (bndr_subst f (mk_free s x)))
-      | FixN(s,o1,f) when (Norm.whnf o1).elt <> Conv ->
+              (fun x -> recall (bndr_subst f (mk_free s x))) (fn l)
+      | FixN(s,o1,f,l) when (Norm.whnf o1).elt <> Conv ->
          fixn e.pos s (search_ord o1) (bndr_name f)
-              (fun x -> recall (bndr_subst f (mk_free s x)))
+              (fun x -> recall (bndr_subst f (mk_free s x))) (fn l)
       | _        -> default e
     in
     map ~mapper:{mapper} e

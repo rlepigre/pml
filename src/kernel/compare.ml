@@ -100,6 +100,19 @@ let {eq_expr; eq_bndr} =
       | (SubSch s1, SubSch s2) -> eq_sub_schema s1 s2
       | _ -> false
     in
+    let rec eq_args
+            : type a b c.(a, b) fix_args -> (a, c) fix_args -> (b,c) Eq.t
+      = fun l1 l2 ->
+      match (l1, l2) with
+      | (Nil      , Nil      ) -> Eq
+      | (Cns(a,l1), Cns(b,l2)) ->
+         begin
+           match eq_args l1 l2 with
+           | Eq  -> if eq_expr a b then Eq else NEq
+           | NEq -> NEq
+         end
+      | _                      -> NEq
+    in
     (** bind_args and immitate: two functions for higher-order unification *)
     (** bind_args sa args b, uses our ast mapper to bind all the arguments
         present in the list args in b. This is the main auxiliary function for
@@ -260,16 +273,16 @@ let {eq_expr; eq_bndr} =
           | Eq  -> eq_bndr s1 b1 b2
           | NEq -> false
         end
-    | (FixM(s1,o1,b1), FixM(s2,o2,b2)) ->
+    | (FixM(s1,o1,b1,l1), FixM(s2,o2,b2,l2)) ->
        begin
          match eq_sort s1 s2 with
-         | Eq  -> eq_expr o1 o2 && eq_bndr s1 b1 b2
+         | Eq  -> eq_expr o1 o2 && eq_bndr s1 b1 b2 && eq_args l1 l2 = Eq
          | NEq -> false
        end
-    | (FixN(s1,o1,b1), FixN(s2,o2,b2)) ->
+    | (FixN(s1,o1,b1,l1), FixN(s2,o2,b2,l2)) ->
        begin
          match eq_sort s1 s2 with
-         | Eq  -> eq_expr o1 o2 && eq_bndr s1 b1 b2
+         | Eq  -> eq_expr o1 o2 && eq_bndr s1 b1 b2 && eq_args l1 l2 = Eq
          | NEq -> false
        end
     | (Memb(t1,a1)   , Memb(t2,a2)   ) -> eq_expr t1 t2 && eq_expr a1 a2

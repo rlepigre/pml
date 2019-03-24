@@ -1,6 +1,6 @@
 include lib.nat
 
-type rec list⟨a:ο⟩ = [ Nil; Cns of { hd : a; tl : list }  ]
+type rec list⟨a⟩ = [ Nil; Cns of { hd : a; tl : list⟨a⟩ }  ]
 
 val nil : ∀a:ο, list⟨a⟩ = Nil
 val cns : ∀a:ο, a ⇒ list⟨a⟩ ⇒ list⟨a⟩ =

@@ -256,23 +256,23 @@ let learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
             with Not_found -> assert false (* NOTE check *)
        end
     (** Learn positivity of the ordinal *)
-    | FixM(s,o,f)  ->
-       if List.memq f !adone then ctx else
+    | FixM(s,o,f,l)  ->
+       if List.memq (Obj.magic f) !adone then ctx else
          begin
-           adone := f :: !adone;
+           adone := (Obj.magic f) :: !adone;
            let (bound, ctx) =
              match (Norm.whnf o).elt with
              | Succ(o) -> (o, ctx)
              | _       ->
                 (** We know that o is positive and wit in a
                     so we can build an eps < o *)
-                let f o = bndr_subst f (FixM(s,Pos.none o, f)) in
+                let f o = unroll_FixM s (Pos.none o) f l in
                 let f = raw_binder "o" true 0 (fun _ -> assert false) f in
                 let (o', ctx_names) = owmu ctx.ctx_names o twit (None, f) in
                 (o', { ctx with ctx_names })
            in
            let ctx = add_positive ctx o bound in
-           fn ctx wit (bndr_subst f (FixM(s,bound,f)))
+           fn ctx wit (unroll_FixM s bound f l)
          end
     | _          -> ctx
   in fn ctx wit a
@@ -315,23 +315,23 @@ let rec learn_neg_equivalences : ctxt -> valu -> term option -> prop -> ctxt =
            | None -> ctx
          end
       (** Learn positivity of the ordinal *)
-      | FixN(s,o,f), _ ->
-       if List.memq f !adone then ctx else
+      | FixN(s,o,f,l), _ ->
+       if List.memq (Obj.magic f) !adone then ctx else
          begin
-           adone := f :: !adone;
+           adone := (Obj.magic f) :: !adone;
            let (bound, ctx) =
              match (Norm.whnf o).elt with
              | Succ(o) -> (o, ctx)
              | _       ->
                 (** We know that o is positive and wit in a
                     so we can build an eps < o *)
-                let f o = bndr_subst f (FixN(s,Pos.none o, f)) in
+                let f o = unroll_FixN s (Pos.none o) f l in
                 let f = raw_binder "o" true 0 (fun _ -> assert false) f in
                 let (o', ctx_names) = ownu ctx.ctx_names o twit (None, f) in
                 (o', { ctx with ctx_names })
            in
            let ctx = add_positive ctx o bound in
-           learn_neg_equivalences ctx wit arg (bndr_subst f (FixN(s,bound,f)))
+           learn_neg_equivalences ctx wit arg (unroll_FixN s bound f l)
          end
       | _          -> ctx
     in fn ctx wit arg a
@@ -374,6 +374,8 @@ and subtype =
       print_pos ctx.positives Print.ex t Print.ex a Print.ex b;
     let a = Norm.whnf a in
     let b = Norm.whnf b in
+    log_sub "  %a\n  ⊢ %a\n  ∈ %a\n  ⊆ %a"
+      print_pos ctx.positives Print.ex t Print.ex a Print.ex b;
     let (t_is_val, _, ctx) = term_is_value t ctx in
     try let r =
       (* Same types.  *)
@@ -438,10 +440,10 @@ and subtype =
           (* NOTE may need a backtrack because a right rule could work *)
           else gen_subtype ctx a b
       (* Mu left and Nu right rules. *)
-      | (FixM(s,o,f)  , _          ) when t_is_val ->
+      | (FixM(s,o,f,l), _          ) when t_is_val ->
           begin (* heuristic to instanciate some unification variables *)
             match b.elt with
-            | FixM(s,ol,f) ->
+            | FixM(s,ol,f,_) ->
                begin
                  match (Norm.whnf ol).elt with
                  | UVar(O,v) -> uvar_set v o
@@ -454,38 +456,36 @@ and subtype =
             match o.elt with
               Succ o' -> (ctx, o')
             | _ ->
-               let f o = bndr_subst f (FixM(s,Pos.none o, f)) in
+               let f o = unroll_FixM s (Pos.none o) f l in
                let f = raw_binder "o" true 0 (fun _ -> assert false) f in
                let (o', ctx_names) = owmu ctx.ctx_names o t (None,f) in
                let ctx = { ctx with ctx_names } in
                (add_positive ctx o o', o')
           in
-          let a = bndr_subst f (FixM(s,o',f)) in
-          Sub_FixM_l(false, subtype ctx t a b)
-      | (_          , FixN(s,o,f)  ) when t_is_val ->
+          Sub_FixM_l(false, subtype ctx t (unroll_FixM s o' f l) b)
+      | (_          , FixN(s,o,f,l)) when t_is_val ->
          begin (* heuristic to instanciate some unification variables *)
            match a.elt with
-           | FixN(s,ol,f) ->
+           | FixN(s,ol,f,l) ->
               begin
                 match (Norm.whnf ol).elt with
                 | UVar(O,v) -> uvar_set v o
                 | _ -> ()
               end
            | _ -> ()
-          end;
-          let ctx, o' =
-            let o = Norm.whnf o in
-            match o.elt with
-              Succ o' -> (ctx, o')
-            | _ ->
-               let f o = bndr_subst f (FixN(s,Pos.none o, f)) in
-               let f = raw_binder "o" true 0 (fun _ -> assert false) f in
-               let (o', ctx_names) = ownu ctx.ctx_names o t (None, f) in
-               let ctx = { ctx with ctx_names } in
-               (add_positive ctx o o', o')
-          in
-          let b = bndr_subst f (FixN(s,o',f)) in
-          Sub_FixN_r(false, subtype ctx t a b)
+         end;
+         let ctx, o' =
+           let o = Norm.whnf o in
+           match o.elt with
+             Succ o' -> (ctx, o')
+           | _ ->
+              let f o = unroll_FixN s (Pos.none o) f l in
+              let f = raw_binder "o" true 0 (fun _ -> assert false) f in
+              let (o', ctx_names) = ownu ctx.ctx_names o t (None, f) in
+              let ctx = { ctx with ctx_names } in
+              (add_positive ctx o o', o')
+         in
+         Sub_FixN_r(false, subtype ctx t a (unroll_FixN s o' f l))
       | _ ->
       match Chrono.add_time check_sub_chrono (check_sub ctx a) b with
       | Sub_Applies prf    -> prf
@@ -650,22 +650,20 @@ and subtype =
            Sub_Impl_l(prf)
           end
       (* Mu right and Nu Left, infinite case. *)
-      | (_          , FixM(s,o,f) ) when is_conv o ->
-          Sub_FixM_r(true, subtype ctx t a (bndr_subst f b.elt))
-      | (FixN(s,o,f)  , _         ) when is_conv o ->
-          Sub_FixN_l(true, subtype ctx t (bndr_subst f a.elt) b)
+      | (_          , FixM(s,o,f,l)) when is_conv o ->
+          Sub_FixM_r(true, subtype ctx t a (unroll_FixM s o f l))
+      | (FixN(s,o,f,l), _          ) when is_conv o ->
+          Sub_FixN_l(true, subtype ctx t (unroll_FixN s o f l) b)
       (* Mu right and Nu left rules, general case. *)
-      | (_          , FixM(s,o,f)  ) ->
+      | (_          , FixM(s,o,f,l)) ->
          let u = opred ctx o in
-         let b = bndr_subst f (FixM(s,u,f)) in
-         let prf = subtype ctx t a b in
+         let prf = subtype ctx t a (unroll_FixM s u f l) in
          if not (Ordinal.less_ordi ctx.positives u o) then
            subtype_msg b.pos "ordinal not suitable (μr rule)";
          Sub_FixM_r(false, prf)
-      | (FixN(s,o,f)  , _          ) ->
+      | (FixN(s,o,f,l), _          ) ->
          let u = opred ctx o in
-         let a = bndr_subst f (FixN(s,u,f)) in
-         let prf = subtype ctx t a b in
+         let prf = subtype ctx t (unroll_FixN s u f l) b in
          if not (Ordinal.less_ordi ctx.positives u o) then
            subtype_msg b.pos "ordinal not suitable (νl rule)";
          Sub_FixN_l(false, prf)
@@ -740,6 +738,8 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
                     l1 l2 (List.length bls) Print.ex e;
             type_term ctx t ty
           with
+          | Sys.Break as e     -> raise e
+          | Out_of_memory as e -> raise e
           | Failed_to_prove _
           | Type_error _           -> fn ctx bls)
       | BCas(e,cs) as b :: bls ->
@@ -759,6 +759,8 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
             log_aut "cases    (%d,%d): %a" l1 l2 Print.ex t;
             type_term ctx t ty
           with
+          | Sys.Break as e     -> raise e
+          | Out_of_memory as e -> raise e
           | Failed_to_prove _
           | Type_error _       -> fn ctx bls)
     in fn ctx bls

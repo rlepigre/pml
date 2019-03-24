@@ -1,7 +1,7 @@
 include lib.option
 include lib.nat
 
-type rec list⟨a⟩ = [Nil ; Cons of {hd : a ; tl : list}]
+type rec list⟨a:ο⟩ = [Nil ; Cons of {hd : a ; tl : list⟨a⟩}]
 
 val nil : ∀a, list⟨a⟩ = []
 val cons : ∀a, a ⇒ list⟨a⟩ ⇒ list⟨a⟩ =

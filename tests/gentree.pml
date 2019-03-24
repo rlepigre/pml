@@ -1,7 +1,7 @@
 include lib.list
 
 type rec tree⟨c:ο→ο,a:ο⟩ =
-  [Nil ; Cons of { hd : a; tl : c⟨tree⟩ }]
+  [Nil ; Cons of { hd : a; tl : c⟨tree⟨c,a⟩⟩ }]
 
 type btree⟨a⟩ = tree⟨(a:ο ↦ a × a),a⟩
 type ntree⟨a⟩ = tree⟨list,a⟩

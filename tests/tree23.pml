@@ -1,10 +1,10 @@
 include lib.bool
 include lib.nat
 
-type rec tree23⟨a:ο⟩ = [
+type rec tree23⟨a⟩ = [
   E ;
-  N2 of { l : tree23; x : a; r : tree23 } ;
-  N3 of { l : tree23; x : a; m : tree23; y : a; r : tree23 } ]
+  N2 of { l : tree23⟨a⟩; x : a; r : tree23⟨a⟩ } ;
+  N3 of { l : tree23⟨a⟩; x : a; m : tree23⟨a⟩; y : a; r : tree23⟨a⟩ } ]
 
 type cmp = [ Le ; Eq ; Ge ]
 

@@ -1,4 +1,4 @@
-type rec list⟨a⟩ = [Nil ; Cons of {hd : a ; tl : list}]
+type rec list⟨a⟩ = [Nil ; Cons of {hd : a ; tl : list⟨a⟩}]
 
 val rec exists : ∀a, (a ⇒ bool) ⇒ list⟨a⟩ ⇒ bool =
   fun pred l {

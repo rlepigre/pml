@@ -28,11 +28,16 @@ let {hash_expr; hash_bndr; hash_ombinder; hash_vwit
   let khash1 k x = mix (hash k) x in
   let khash2 k x y = mix (hash k) (mix x y) in
   let khash3 k x y z = mix (mix (hash k) x) (mix y z) in
+  let khash4 k x y z t = mix (mix (hash k) x) (mix y (mix z t)) in
   let rec hash_expr : type a. a ex loc -> int =
     fun e ->
     let hash_cond = function
       | Equiv(t,b,u) -> khash3 `Equiv (hash_expr t) (hash b) (hash_expr u)
       | NoBox(v)     -> hash (`NoBox(hash_expr v))
+    in
+    let rec hash_args : type a b. (a,b) fix_args -> int = function
+      | Nil      -> hash `Nil
+      | Cns(a,l) -> khash2 `Cns (hash_expr a) (hash_args l)
     in
     let e = Norm.whnf e in
     match e.elt with
@@ -50,8 +55,12 @@ let {hash_expr; hash_bndr; hash_ombinder; hash_vwit
     | Prod(m)     -> khash1 `Prod (A.hash (fun (_,e) -> hash_expr e) m)
     | Univ(s,b)   -> khash2 `Univ (hash_sort s) (hash_bndr s b)
     | Exis(s,b)   -> khash2 `Exit (hash_sort s) (hash_bndr s b)
-    | FixM(s,o,b) -> khash3 `FixM (hash_sort s) (hash_expr o) (hash_bndr s b)
-    | FixN(s,o,b) -> khash3 `FixN (hash_sort s) (hash_expr o) (hash_bndr s b)
+    | FixM(s,o,b,l)
+                  -> khash4 `FixM (hash_sort s) (hash_expr o)
+                            (hash_bndr s b) (hash_args l)
+    | FixN(s,o,b,l)
+                  -> khash4 `FixN (hash_sort s) (hash_expr o)
+                            (hash_bndr s b) (hash_args l)
     | Memb(t,a)   -> khash2 `Memb (hash_expr t) (hash_expr a)
     | Rest(a,c)   -> khash2 `Rest (hash_expr a) (hash_cond c)
     | Impl(c,a)   -> khash2 `Impl (hash_expr a) (hash_cond c)

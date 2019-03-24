@@ -99,6 +99,7 @@ let new_sort_uvar : strloc option -> raw_sort =
 
 let sort_uvar_set : suvar -> raw_sort -> unit =
   fun (i,_,r) v ->
+    let open Timed in
     assert(!r = None);
     log_par "?%i := %a" i print_raw_sort v;
     r := Some v
@@ -412,6 +413,7 @@ let infer_sorts : raw_ex -> raw_sort -> unit = fun e s ->
     | (EExis(_,_,_) , _        ) -> sort_clash e s
     | (EFixM(k,o,x,e) , _      )
     | (EFixN(k,o,x,e) , _      ) -> leq k s;
+                                    infer vars o _so;
                                     let vars = M.add x.elt (x.pos,k) vars in
                                     infer vars e k
     | (EMemb(t,a)   , SP       ) -> infer vars t _st; infer vars a _sp
@@ -680,6 +682,13 @@ let add_store : (vvar * tbox) list ref option -> vvar -> tbox -> unit =
     | None -> assert false
     | Some ptr -> ptr := (v,t) :: !ptr
 
+let rec end_by_prop : raw_sort -> unit = fun s ->
+  match (sort_repr s).elt with
+  | SP | ST | SS | SO | SV _ -> ()
+  | SVar _ -> assert false
+  | SUni(v) -> sort_uvar_set v (Pos.none SP)
+  | SFun(_,s) -> end_by_prop s
+
 let unsugar_expr : raw_ex -> raw_sort -> boxed = fun e s ->
   infer_sorts e s;
   let rec unsugar env vars e s =
@@ -687,9 +696,11 @@ let unsugar_expr : raw_ex -> raw_sort -> boxed = fun e s ->
     match (e.elt, (sort_repr s).elt) with
     | (EVari(x,sx)   , s0       ) when leq_sort ~evar:true sx s ->
        begin
-         let convert t = if leq_sort sx _st && leq_sort _sp s
-                         then Box(P,eq_true e.pos (to_term t))
-                         else t
+         let convert t =
+           if Timed.pure_test (leq_sort sx) _st &&
+                Timed.pure_test (leq_sort _sp) s
+           then Box(P,eq_true e.pos (to_term t))
+           else t
          in
          let bx =
            try box_set_pos (snd (M.find x.elt vars)) e.pos
@@ -800,6 +811,7 @@ let unsugar_expr : raw_ex -> raw_sort -> boxed = fun e s ->
         in
         Box(P, build vars xs e)
     | (EFixM(k,o,x,e), s       ) ->
+        end_by_prop k;
         let o = to_ordi (unsugar env vars o _so) in
         let Sort ks = unsugar_sort k in
         let fn xo =
@@ -807,8 +819,9 @@ let unsugar_expr : raw_ex -> raw_sort -> boxed = fun e s ->
           let vars = M.add x.elt xo vars in
           sort_filter ks (unsugar env vars e k)
         in
-        Box(ks, fixm e.pos ks o x fn)
+        Box(ks, fixm e.pos ks o x fn (nil ()))
     | (EFixN(k,o,x,e) , s     ) ->
+        end_by_prop k;
         let o = to_ordi (unsugar env vars o _so) in
         let Sort ks = unsugar_sort k in
         let fn xo =
@@ -816,7 +829,7 @@ let unsugar_expr : raw_ex -> raw_sort -> boxed = fun e s ->
           let vars = M.add x.elt xo vars in
           sort_filter ks (unsugar env vars e k)
         in
-        Box(ks, fixn e.pos ks o x fn)
+        Box(ks, fixn e.pos ks o x fn (nil ()))
     | (EMemb(t,a)   , SP       ) ->
         let t = to_term (unsugar env vars t _st) in
         let a = to_prop (unsugar env vars a _sp) in
@@ -1091,10 +1104,9 @@ let evari _loc x = Pos.make _loc (EVari(x, new_sort_uvar None))
 let sort_def : strloc -> raw_sort -> toplevel = fun id s ->
   Sort_def(id,s)
 
-let expr_def : strloc -> (strloc * raw_sort option) list -> raw_sort option
+let expr_def : strloc -> (strloc * raw_sort) list -> raw_sort option
                -> raw_ex -> toplevel = fun id args s e ->
   let s = sort_from_opt s in
-  let args = List.map (fun (id,so) -> (id, sort_from_opt so)) args in
   let f (id,s) e = Pos.none (EHOFn(id,s,e)) in
   let e = List.fold_right f args e in
   let f (_ ,a) s = Pos.none (SFun(a,s)) in
@@ -1104,11 +1116,34 @@ let expr_def : strloc -> (strloc * raw_sort option) list -> raw_sort option
 let type_def : Pos.pos -> [`Non | `Rec | `CoRec] -> strloc
                -> (strloc * raw_sort option) list
                -> raw_ex -> toplevel = fun _loc r id args e ->
+  let rec binds : (strloc * raw_sort) list -> raw_ex -> raw_ex =
+    fun args s ->
+      match args with
+      | []      -> s
+      | (v,k)::args ->
+         Pos.make (Some _loc) (EHOFn(v,k, binds args s))
+  in
+  let applies : (strloc * raw_sort) list -> raw_ex -> raw_ex =
+    fun args s ->
+      match args with
+      | []      -> s
+      | _::_ ->
+         let args =
+           List.map (fun (v,k) -> Pos.make v.pos (EVari(v,k))) args
+         in
+         Pos.make (Some _loc) (EHOAp(s,new_sort_uvar None, args))
+  in
+  let args = List.map (fun (x,k) -> (x, sort_from_opt k)) args in
   let e1 =
     match r with
     | `Non   -> e
-    | `Rec   -> in_pos _loc (EFixM(Pos.none SP, Pos.none EConv, id, e))
-    | `CoRec -> in_pos _loc (EFixN(Pos.none SP, Pos.none EConv, id, e))
+    | `Rec   -> let e =
+                  EFixM(new_sort_uvar None, Pos.none EConv, id, binds args e)
+                in
+                applies args (in_pos _loc e)
+    | `CoRec -> let e =
+                  EFixN(new_sort_uvar None, Pos.none EConv, id, binds args e)
+                in applies args (in_pos _loc e)
   in
   let d1 = expr_def id args (Some (Pos.none SP)) e1 in
   if r = `Non then d1 else
@@ -1118,13 +1153,20 @@ let type_def : Pos.pos -> [`Non | `Rec | `CoRec] -> strloc
       let e2 =
         match r with
         | `Non   -> assert false
-        | `Rec   -> in_pos _loc (EFixM(Pos.none SP, s, id, e))
-        | `CoRec -> in_pos _loc (EFixN(Pos.none SP, s, id, e))
+        | `Rec   -> let e = EFixM(new_sort_uvar None, s, id, binds args e) in
+                    applies args (in_pos _loc e)
+        | `CoRec -> let e = EFixN(new_sort_uvar None, s, id, binds args e) in
+                    applies args (in_pos _loc e)
       in
-      let args = (Pos.none "s#", Some (Pos.none SO)) :: args in
+      let args = (Pos.none "s#", Pos.none SO) :: args in
       let d2 = expr_def id2 args (Some (Pos.none SP)) e2 in
       Def_list [d1;d2]
     end
+
+let expr_def : strloc -> (strloc * raw_sort option) list -> raw_sort option
+               -> raw_ex -> toplevel = fun id args s e ->
+  let args = List.map (fun (x,k) -> (x, sort_from_opt k)) args in
+  expr_def id args s e
 
 type rec_t = [ `Non | `Rec | `Unsafe ]
 

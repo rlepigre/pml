@@ -1,5 +1,5 @@
 // Type of streams.
-type corec stream⟨a⟩ = {} ⇒ {hd : a; tl : stream}
+type corec stream⟨a⟩ = {} ⇒ {hd : a; tl : stream⟨a⟩}
 
 // Head of a stream.
 val head : ∀a, stream⟨a⟩ ⇒ a =

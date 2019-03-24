@@ -7,8 +7,8 @@ include lib.nat
 // only closed lambda-terms.
 type rec pterm⟨v⟩ =
   [ Var of v
-  ; Lam of v ⇒ pterm
-  ; App of pterm × pterm
+  ; Lam of v ⇒ pterm⟨v⟩
+  ; App of pterm⟨v⟩ × pterm⟨v⟩
   ]
 
 type term = ∀v, pterm⟨v⟩

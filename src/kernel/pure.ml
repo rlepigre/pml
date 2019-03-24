@@ -37,6 +37,11 @@ let pure : type a. a ex loc -> bool =
     in
     (** iteration on binders *)
     let biter s b = iter (bndr_subst b (Dumm s)) in
+    let rec fiter : type a b. (a, b) fix_args -> unit
+      = function
+      | Nil -> ()
+      | Cns(a,l) -> iter a; fiter l
+    in
     let e = Norm.whnf e in
     match e.elt with
     | Vari(_)     -> ()
@@ -49,8 +54,10 @@ let pure : type a. a ex loc -> bool =
     | DSum(m)     -> A.iter (fun _ (_,a) -> iter a) m
     | Univ(s,b)   -> biter s b
     | Exis(s,b)   -> biter s b
-    | FixM(s,o,b) -> iter o; biter s b
-    | FixN(s,o,b) -> iter o; biter s b
+    | FixM(s,o,b,l)
+                  -> iter o; biter s b; fiter l
+    | FixN(s,o,b,l)
+                  -> iter o; biter s b; fiter l
     | Memb(t,a)   -> iter t; iter a
     | Rest(a,c)   -> iter a; iter_cond c
     | Impl(c,a)   -> iter_cond c; iter a

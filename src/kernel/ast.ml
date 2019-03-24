@@ -43,9 +43,11 @@ type _ ex =
   (** Universal quantification. *)
   | Exis : 'a sort * ('a, p) bndr                    -> p  ex
   (** Existential quantification. *)
-  | FixM : 'a sort * o ex loc * ('a, 'a) bndr -> 'a ex (* ('a,'b) fix_args  -> 'b ex*)
+  | FixM : 'a sort * o ex loc * ('a, 'a) bndr *
+                                   ('a,'b) fix_args  -> 'b ex
   (** Inductive type with an ordinal size. *)
-  | FixN : 'a sort * o ex loc * ('a, 'a) bndr -> 'a ex (* ('a,'b) fix_args  -> 'b ex*)
+  | FixN : 'a sort * o ex loc * ('a, 'a) bndr *
+                                   ('a,'b) fix_args  -> 'b ex
   (** Coinductive type with an ordinal size. *)
   | Memb : t ex loc * p ex loc                       -> p  ex
   (** Membership type. *)
@@ -135,8 +137,8 @@ type _ ex =
   | Goal : 'a sort * string                          -> 'a ex
 
 and (_,_) fix_args =
-  | Nil : (p, p) fix_args
-  | Cns : 'a ex * ('b,'c) fix_args -> ('a -> 'b, 'c) fix_args
+  | Nil : ('a, 'a) fix_args
+  | Cns : 'a ex loc * ('b,'a -> 'c) fix_args -> ('b, 'c) fix_args
 
 (** This is a structure to represent hash consed epsilon.
     See epsilon.ml for more comments *)
@@ -331,6 +333,8 @@ type sbox = s ebox    (** Stack   box type. *)
 type pbox = p ebox    (** Type    box type. *)
 type obox = o ebox    (** Ordinal box type. *)
 
+type ('a,'b) fbox = ('a,'b) fix_args box   (** boxed args for FixM and FixN *)
+
 (** {6 Smart constructors} *)
 
 let mk_free : 'a sort -> 'a var -> 'a ex =
@@ -518,19 +522,25 @@ let exis : type a. popt -> strloc -> a sort -> (a var -> pbox) -> pbox =
 
 let top : prop = unbox (exis None (Pos.none "x") P (fun x -> p_vari None x))
 
-let fixm : type a. popt -> a sort -> obox -> strloc ->
-                (a var ->  a ebox) -> a ebox =
-  fun p s o x f ->
-    let v = new_var (mk_free s) x.elt in
-    let b = bind_var v (f v) in
-    box_apply2 (fun o b -> Pos.make p (FixM(s, o, (x.pos, b)))) o b
+let nil : type a. unit -> (a,a) fbox = fun () -> box Nil
 
-let fixn : type a. popt -> a sort -> obox -> strloc ->
-                (a var ->  a ebox) ->  a ebox =
-  fun p s o x f ->
+let cns : type a b c. a ebox -> (b,a->c) fbox -> (b,c) fbox =
+  fun e l ->
+    box_apply2 (fun e l -> Cns(e, l)) e l
+
+let fixm : type a b. popt -> a sort -> obox -> strloc ->
+                (a var ->  a ebox) -> (a,b) fbox -> b ebox =
+  fun p s o x f l ->
     let v = new_var (mk_free s) x.elt in
     let b = bind_var v (f v) in
-    box_apply2 (fun o b -> Pos.make p (FixN(s, o, (x.pos, b)))) o b
+    box_apply3 (fun o b l -> Pos.make p (FixM(s, o, (x.pos, b), l))) o b l
+
+let fixn : type a b. popt -> a sort -> obox -> strloc ->
+                (a var ->  a ebox) -> (a,b) fbox -> b ebox =
+  fun p s o x f l ->
+    let v = new_var (mk_free s) x.elt in
+    let b = bind_var v (f v) in
+    box_apply3 (fun o b l -> Pos.make p (FixN(s, o, (x.pos, b), l))) o b l
 
 let memb : popt -> tbox -> pbox -> pbox =
   fun p -> box_apply2 (fun t a -> Pos.make p (Memb(t,a)))
@@ -632,6 +642,13 @@ let rec bseq_dummy : type a b. (a, prop * b) bseq -> b = fun seq ->
   | BLast(s,f) -> snd (subst f (Dumm s))
   | BMore(s,f) -> bseq_dummy (subst f (Dumm s))
 
+let rec tail_sort : type a b. a sort -> (a, b) fix_args -> b sort =
+  fun s l -> match l with
+            | Nil -> s
+            | Cns(_,l) ->
+               match tail_sort s l with
+               | F(_,s) -> s
+
 let rec sort : type a. a ex loc -> a sort * a ex loc = fun e ->
   match e.elt with
   | HDef(s,_)       -> (s, e)
@@ -648,8 +665,8 @@ let rec sort : type a. a ex loc -> a sort * a ex loc = fun e ->
   | DSum _          -> (P,e)
   | Univ _          -> (P,e)
   | Exis _          -> (P,e)
-  | FixM (s,_,_)    -> (s,e)
-  | FixN (s,_,_)    -> (s,e)
+  | FixM (s,_,_,l)  -> (tail_sort s l,e)
+  | FixN (s,_,_,l)  -> (tail_sort s l,e)
   | Memb _          -> (P,e)
   | Rest _          -> (P,e)
   | Impl _          -> (P,e)
@@ -690,6 +707,15 @@ let rec sort : type a. a ex loc -> a sort * a ex loc = fun e ->
 
   | Vari(s,_)       -> (s,e)
   | Dumm(s)         -> (s,e)
+
+let rec apply_args : type a b. a ex loc -> (a, b) fix_args -> b ex loc =
+  fun f l ->
+    match l with Nil -> f
+               | Cns(a,l) -> let (s,a) = sort a in
+                             Pos.none (HApp(s, apply_args f l, a))
+
+let unroll_FixM s o f l = apply_args (bndr_subst f (FixM(s,o,f,Nil))) l
+let unroll_FixN s o f l = apply_args (bndr_subst f (FixN(s,o,f,Nil))) l
 
 let isVal : type a.a ex loc -> v ex loc option = fun e ->
   match sort e with

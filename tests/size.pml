@@ -1,5 +1,5 @@
 
-type rec list⟨a⟩ = [ Nil ; Cons of { hd : a; tl : list}  ]
+type rec list⟨a⟩ = [ Nil ; Cons of { hd : a; tl : list⟨a⟩}  ]
 
 val cons : ∀a b, a ⇒ b ⇒ [ Cons of { hd : a; tl : b} ] =
   fun hd tl { Cons[{hd;tl}] }
@@ -30,7 +30,7 @@ val rec map_biz : ∀a,∀s, ((a ⇒ a) ⇒ list^s⟨a⟩ ⇒ list^s⟨a⟩) =
     }
   }
 
-type corec stream⟨a⟩ = {} ⇒ [ Cons of { hd : a; tl : stream} ]
+type corec stream⟨a⟩ = {} ⇒ [ Cons of { hd : a; tl : stream⟨a⟩} ]
 
 val rec smap : ∀a b, ((a ⇒ b) ⇒ stream⟨a⟩ ⇒ stream⟨b⟩) =
   fun f s _ {

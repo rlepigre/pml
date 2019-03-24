@@ -28,7 +28,7 @@ include lib.list
 
 type neg⟨a⟩ = a → ∀x,x
 
-type corec stream⟨a⟩ = {} → {hd : a; tl : stream}
+type corec stream⟨a⟩ = {} → {hd : a; tl : stream⟨a⟩}
 
 // Stream cell of size [s].
 type c⟨s,a⟩ = {hd : a; tl : stream^s⟨a⟩}

@@ -27,6 +27,8 @@ let rec whnf : type a. a ex loc -> a ex loc = fun exp ->
            let de = {exp with elt = HApp(s, d.expr_def, nf)} in
            let nde = whnf de in (* preserves physical eq if possible *)
            if nde == de && ne == e && nf == f then exp else nde
+        | (FixM(s,o,b,l), _) -> Pos.make exp.pos (FixM(s,o,b,Cns(nf,l)))
+        | (FixN(s,o,b,l), _) -> Pos.make exp.pos (FixN(s,o,b,Cns(nf,l)))
         | (_          , _) -> (* preserves physical eq if possible *)
            if ne == e && nf == f then exp
            else {exp with elt = HApp(s, e, f)}

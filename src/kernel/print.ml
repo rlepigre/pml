@@ -318,10 +318,12 @@ let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
   | Exis(s,b)   -> let (x,a) = unbind (snd b) in
                    fprintf ch "∃%s:%a, %a" (name_of x)
                      sort s exp a
-  | FixM(_,o,b) -> let (x,a) = unbind (snd b) in
+  | FixM(_,o,b,Nil) -> let (x,a) = unbind (snd b) in
                    fprintf ch "μ%a%s, %a" supo o (name_of x) exp a
-  | FixN(_,o,b) -> let (x,a) = unbind (snd b) in
+  | FixM(s,o,b,l) -> exp ch (apply_args (Pos.none (FixM(s,o,b,Nil))) l)
+  | FixN(_,o,b,Nil) -> let (x,a) = unbind (snd b) in
                    fprintf ch "ν%a%s, %a" supo o (name_of x) exp a
+  | FixN(s,o,b,l) -> exp ch (apply_args (Pos.none (FixN(s,o,b,Nil))) l)
   | Memb(t,a)   -> begin
                      match is_eq e with
                      | Some(e1,s,e2) -> fprintf ch "%a%s%a" exi e1 s exi e2

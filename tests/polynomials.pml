@@ -192,9 +192,9 @@ val rec eval : ∀x, semiring⟨x⟩ ⇒ poly⟨x⟩ ⇒ (nat ⇒ x) ⇒ x = fun
 type rec tpoly⟨x⟩ =
   [ Var of nat
   ; Cst of x
-  ; Add of tpoly × tpoly
-  ; Mul of tpoly × tpoly
-  ; Exp of tpoly × nat
+  ; Add of tpoly⟨x⟩ × tpoly⟨x⟩
+  ; Mul of tpoly⟨x⟩ × tpoly⟨x⟩
+  ; Exp of tpoly⟨x⟩ × nat
   ]
 
 val rec var : nat ⇒ monom = fun n {

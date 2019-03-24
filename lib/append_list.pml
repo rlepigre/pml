@@ -3,7 +3,9 @@
 include lib.list
 
 type rec alist⟨a⟩ =
-  [Nil ; Cons of {hd : a ; tl : alist} ; Append of {l : alist; r : alist}]
+  [Nil
+  ; Cons of {hd : a ; tl : alist⟨a⟩}
+  ; Append of {l : alist⟨a⟩; r : alist⟨a⟩}]
 
 val alist_app : ∀a, alist⟨a⟩ ⇒ alist⟨a⟩ ⇒ alist⟨a⟩ =
   fun l r { Append[{l;r}] }

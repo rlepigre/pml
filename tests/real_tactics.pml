@@ -137,7 +137,7 @@ val rec mul_comm : ∀n m∈nat, mul n m ≡ mul m n =
     }
   }
 
-type rec list⟨a:ο⟩ = [Nil ; Cons of {hd : a ; tl : list}]
+type rec list⟨a:ο⟩ = [Nil ; Cons of {hd : a ; tl : list⟨a⟩}]
 
 val rec map : ∀a b:ο, (a ⇒ b) ⇒ list⟨a⟩ ⇒ list⟨b⟩ =
   fun f l {
