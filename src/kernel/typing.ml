@@ -1232,7 +1232,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
     | Dumm(_)     -> unexpected "Dummy value during typing..."
     | ITag(_)     -> unexpected "ITag during typing..."
     | FixM(_)     -> invalid_arg "mu in terms forbidden"
-    | FixN(_)     -> invalid_arg "mu in terms forbidden"
+    | FixN(_)     -> invalid_arg "nu in terms forbidden"
   in (Pos.make v.pos (Valu(v)), c, r)
   with
   | Failed_to_prove _ as e -> UTimed.Time.rollback st;
