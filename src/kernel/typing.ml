@@ -293,19 +293,19 @@ let rec is_singleton : prop -> term option = fun t ->
    Therefore, if c = Func(t in a,b) one must have arg t, otherwise
    arg could not be a counter example.
 *)
-let rec learn_neg_equivalences : ctxt -> valu -> term option -> prop -> ctxt =
-  let adone = ref [] in
+let learn_neg_equivalences : ctxt -> valu -> term option -> prop -> ctxt =
   fun ctx wit arg a ->
-    let fn ctx wit arg a =
+    let adone = ref [] in
+    let rec fn ctx wit arg a =
       let twit = Pos.none (Valu wit) in
       match (Norm.whnf a).elt, arg with
-      | HDef(_,e), _ -> learn_neg_equivalences ctx wit arg e.expr_def
+      | HDef(_,e), _ -> fn ctx wit arg e.expr_def
       | Impl(c,a), _ -> let equations = learn ctx.equations c in
-                         learn_neg_equivalences {ctx with equations} wit arg a
+                        fn {ctx with equations} wit arg a
       | Univ(s,f), _ -> let (t, ctx_names) = uwit ctx.ctx_names s twit f in
                         let ctx = { ctx with ctx_names } in
                         let u = bndr_subst f t.elt in
-                        learn_neg_equivalences ctx wit arg u
+                        fn ctx wit arg u
       | Func(t,a,b), Some arg ->
          begin
            match is_singleton a with
@@ -331,7 +331,7 @@ let rec learn_neg_equivalences : ctxt -> valu -> term option -> prop -> ctxt =
                 (o', { ctx with ctx_names })
            in
            let ctx = add_positive ctx o bound in
-           learn_neg_equivalences ctx wit arg (unroll_FixN s bound f l)
+           fn ctx wit arg (unroll_FixN s bound f l)
          end
       | _          -> ctx
     in fn ctx wit arg a
