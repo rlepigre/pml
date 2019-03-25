@@ -296,16 +296,16 @@ let rec is_singleton : prop -> term option = fun t ->
 let learn_neg_equivalences : ctxt -> valu -> term option -> prop -> ctxt =
   fun ctx wit arg a ->
     let adone = ref [] in
-    let rec fn ctx wit arg a =
-      let twit = Pos.none (Valu wit) in
+    let twit = Pos.none (Valu wit) in
+    let rec fn ctx a =
       match (Norm.whnf a).elt, arg with
-      | HDef(_,e), _ -> fn ctx wit arg e.expr_def
+      | HDef(_,e), _ -> fn ctx e.expr_def
       | Impl(c,a), _ -> let equations = learn ctx.equations c in
-                        fn {ctx with equations} wit arg a
+                        fn {ctx with equations} a
       | Univ(s,f), _ -> let (t, ctx_names) = uwit ctx.ctx_names s twit f in
                         let ctx = { ctx with ctx_names } in
                         let u = bndr_subst f t.elt in
-                        fn ctx wit arg u
+                        fn ctx u
       | Func(t,a,b), Some arg ->
          begin
            match is_singleton a with
@@ -331,10 +331,10 @@ let learn_neg_equivalences : ctxt -> valu -> term option -> prop -> ctxt =
                 (o', { ctx with ctx_names })
            in
            let ctx = add_positive ctx o bound in
-           fn ctx wit arg (unroll_FixN s bound f l)
+           fn ctx (unroll_FixN s bound f l)
          end
       | _          -> ctx
-    in fn ctx wit arg a
+    in fn ctx a
 
 let term_is_value : term -> ctxt -> bool * bool * ctxt = fun t ctx ->
   let (is_val, no_box, equations) = is_value t ctx.equations in
