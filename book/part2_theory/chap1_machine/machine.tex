@@ -796,11 +796,72 @@ following lemma.
   conclude using Lemma~\ref{afullextlem}.
 \end{proof}
 
+\section{Partial axiomatization of equivalence}
 
+The equivalence relation $(≡)$ plays an important rôle in the interpretation
+of the types of the language. As a consequence, we will very often need to
+perform equational reasoning, but the definition of the relation cannot be
+directly implemented as a decision procedure. To solve this problem, we will
+now extract a partial axiomatization of $(≡)$ from its definition. This
+formulation will then allow us to easily implement a partial decision
+procedure. A summary of the results of this section is displayed in
+Figure~\ref{fig:axiomatization_equiv}.
 
-% TODO
-
-\section{Properties of equivalence}
+\begin{figure}
+  \centering
+  Reduction steps as equivalences
+  %
+  \begin{align*}
+    % CBV β-reduction
+    (λx.t)\;v &\;≡\; t[x := v]
+    \tag{if $x ∈ \mathcal{F}_{ι}$, $t ∈ Λ$, and $v ∈ Λ_{ι} \setminus
+    (\mathcal{V}_{ι} ∪ \{□\})$}\\
+    % Application with box
+    t\;□ &\;≡\; v\;□ \;≡\;□
+    \tag{if $t ∈ Λ$, resp. $v ∈ Λ_{ι} \setminus (\mathcal{V}_{ι} ∪ \{□\})$}\\
+    % Record projection
+    \{(l_i = v_i)_{i∈I}\}.l_k &\;≡\; v_k
+    \tag{if $k ∈ I ⊆_\text{fin} \mathbb{N}$ and $∀i∈I, v_i ∈ Λ_{ι}$}\\
+    % Box projection
+    □.l_k &\;≡\; □
+    \tag{if $k ∈ \mathbb{N}$}\\
+    % Pattern-matching
+    [C_k[v]\,| (C_i[x_i] → t_i)_{i∈I}] &\;≡\; t_k[x_k := v]
+    \tag{if $k ∈ I ⊆_\text{fin} \mathbb{N}$, $v ∈ Λ_{ι}$,
+    and $∀i∈I, (x_i, t_i) ∈ \mathcal{V}_{ι} × Λ$}\\
+    % Box matching
+    [□\,| (C_i[x_i] → t_i)_{i∈I}] &\;≡\; □
+    \tag{if $k ∈ I ⊆_\text{fin} \mathbb{N}$,
+    and $∀i∈I, (x_i, t_i) ∈ \mathcal{V}_{ι} × Λ$}\\
+    % Fixpoint step
+    φa.v &\;≡\; v[a := φa.v]
+    \tag{if $a ∈ \mathcal{V}_{τ}$, and $v ∈ Λ_{ι}$}\\
+    % Record filter
+    R(\{(l_i = v_i)_{i∈I}\},t) &\;≡\; t
+    \tag{if $I ⊆_\text{fin} \mathbb{N}$, $t ∈ Λ$, and $∀i∈I, v_i ∈ Λ_{ι}$}\\
+    % Delta reduction
+    δ(v,w,t) &\;≡\; t
+    \tag{if $t ∈ Λ$, and $v, w ∈ Λ_{ι}$ with $v ≡ w$}
+  \end{align*}
+  %
+  Derived equivalences
+  \begin{align*}
+    % η-reduction
+    λx.t\;x &\;≡\; t
+    \tag{if $x ∈ \mathcal{F}_{ι}$, $t ∈ Λ$, and $x ∉ FV(t)$}\\
+    % Elimination of μ-abstraction
+    μα.t &\;≡\; t
+    \tag{if $α ∈ \mathcal{F}_{σ}$, $t ∈ Λ$, and $α ∉ FV(t)$}\\
+    % Contraction of μ-abstractions
+    μα.μβ.t &\;≡\; μα.t[β := α]
+    \tag{if $α, β ∈ \mathcal{F}_{σ}$, and $t ∈ Λ$}\\
+  \end{align*}
+  %
+  Distinguishable terms (inequivalences)
+  %
+  \caption{Axiomatization of observational equivalence}
+  \label{fig:axiomatization_equiv}.
+\end{figure}
 
 % TODO
 
