@@ -1177,6 +1177,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
     (* Such that. *)
     | Such(_,_,r) ->
         let (a,v) = instantiate ctx r.binder in
+        let ctx = learn_neg_equivalences ctx v None c in
         let (b,wopt,rev) =
           match r.opt_var with
           | SV_None    -> (c                  , Some(t), true)
@@ -1280,6 +1281,8 @@ and is_typed : type a. a v_or_t -> a ex loc -> bool = fun t e ->
   | _, Reco(m)         -> A.for_all (fun _ v -> is_typed VoT_V (snd v)) m
   | _, VDef _          -> true
   | _, FixY _          -> true
+  | _, Such(_,_,r)     -> let (a,u) = instantiate (empty_ctxt ()) r.binder in
+                          is_typed t u
   | _                  -> false
 
 and warn_unreachable ctx t =
