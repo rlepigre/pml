@@ -166,6 +166,7 @@ type v_node =
   | VN_HApp of v ho_appl
   | VN_UVar of v uvar
   | VN_ITag of int
+  | VN_Vari of v var
   | VN_Goal of v ex loc
 
 (** Type of a term node. *)
@@ -184,6 +185,7 @@ type t_node =
   | TN_HApp of t ho_appl
   | TN_UVar of t uvar
   | TN_ITag of int
+  | TN_Vari of t var
   | TN_Goal of t ex loc
 
  and tn_fixy_state =
@@ -258,6 +260,7 @@ let print_v_node : out_channel -> v_node -> unit = fun ch n ->
                       prnt ch "VN_HApp(%a,%a)" pcl f pcl a
   | VN_UVar(v)     -> prnt ch "VN_UVar(%a)" pex (Pos.none (UVar(V,v)))
   | VN_ITag(n)     -> prnt ch "VN_ITag(%d)" n
+  | VN_Vari(x)     -> prnt ch "VN_Vari(%s)" (name_of x)
   | VN_Goal(v)     -> prnt ch "VN_Goal(%a)" pex v
 (** Printing function for term nodes. *)
 let print_t_node : out_channel -> t_node -> unit = fun ch n ->
@@ -283,6 +286,7 @@ let print_t_node : out_channel -> t_node -> unit = fun ch n ->
                       prnt ch "TN_HApp(%a,%a)" pcl f pcl a
   | TN_UVar(v)     -> prnt ch "TN_UVar(%a)" pex (Pos.none (UVar(T,v)))
   | TN_ITag(n)     -> prnt ch "TN_ITag(%d)" n
+  | TN_Vari(x)     -> prnt ch "TN_Vari(%s)" (name_of x)
   | TN_Goal(t)     -> prnt ch "TN_Goal(%a)" pex t
 
 (** Type of a pool. *)
@@ -490,6 +494,7 @@ let children_v_node : v_node -> (par_key * Ptr.t) list = fun n ->
   | VN_Goal _
   | VN_UVar _ (* TODO #4 check *)
   | VN_ITag _
+  | VN_Vari _
   | VN_Scis       -> []
 
 let children_t_node : t_node -> (par_key * Ptr.t) list = fun n ->
@@ -517,6 +522,7 @@ let children_t_node : t_node -> (par_key * Ptr.t) list = fun n ->
   | TN_Prnt _
   | TN_Goal _
   | TN_UVar _  (* TODO #4 check *)
+  | TN_Vari _
   | TN_ITag _    -> []
 
 (** purity test (having only total arrows). Only epsilon
@@ -571,6 +577,7 @@ let immediate_nobox : v_node -> bool = function
   | VN_HApp _
   | VN_UVar _
   | VN_Goal _
+  | VN_Vari _
   | VN_ITag _ -> false
 
 (** Adding a parent to a given node. *)
@@ -897,8 +904,8 @@ let rec add_term :  bool -> bool -> pool -> term
     | UVar(_,v)   -> insert (TN_UVar(v)) po
     | ITag(_,n)   -> insert (TN_ITag(n)) po
     | Goal(_)     -> insert (TN_Goal(t)) po
+    | Vari(s,x)   -> insert (TN_Vari(x)) po
     | TPtr(pt)    -> if free then normalise pt po else find pt po
-    | Vari(_)     -> invalid_arg "free variable in the pool"
     | Dumm(_)     -> invalid_arg "dummy terms forbidden in the pool"
     | FixM(_)     -> invalid_arg "mu in terms forbidden"
     | FixN(_)     -> invalid_arg "nu in terms forbidden"
@@ -954,7 +961,7 @@ and     add_valu : bool -> pool -> valu -> VPtr.t * pool = fun o po v0 ->
     | ITag(_,n)   -> insert_v_node (VN_ITag(n)) po
     | Goal(_)     -> insert_v_node (VN_Goal(v)) po
     | VPtr(pv)    -> (pv, po)
-    | Vari(_)     -> invalid_arg "free variable in the pool"
+    | Vari(v,x)   -> insert_v_node (VN_Vari(x)) po
     | Dumm(_)     -> invalid_arg "dummy values forbidden in the pool"
     | FixM(_)     -> invalid_arg "mu in values forbidden"
     | FixN(_)     -> invalid_arg "nu in values forbidden"
@@ -970,7 +977,7 @@ and     add_valu : bool -> pool -> valu -> VPtr.t * pool = fun o po v0 ->
 and add_bndr_closure : type a b. pool -> a sort -> b sort ->
                        (a, b) bndr -> (a, b) bndr_closure * pool =
   fun po sa sr b ->
-    let (funptr, vs, ts as cl) = Misc.make_bndr_closure sa b in
+    let (funptr, vs, ts as cl) = Closures.make_bndr_closure sa b in
     let po = ref po in
     let vs = Array.map (fun v -> let (vptr,p) = add_valu false !po v in
                                  po := p; vptr) vs
@@ -995,8 +1002,8 @@ and add_ho_appl
            -> a ex loc -> b ho_appl * pool
   = fun po se f e ->
     let (sf, f) = sort f in
-    let (f, vf, tf as cf) = Misc.make_closure f in
-    let (e, ve, te as ce) = Misc.make_closure e in
+    let (f, vf, tf as cf) = Closures.make_closure f in
+    let (e, ve, te as ce) = Closures.make_closure e in
     let po = ref po in
     let vf = Array.map (fun v -> let (vptr,p) = add_valu false !po v in
                                  po := p; vptr) vf
@@ -1183,6 +1190,7 @@ and normalise_t_node : ?old:TPtr.t -> t_node -> pool -> Ptr.t  * pool =
       | TN_ESch(_)
       | TN_HApp(_)
       | TN_Goal(_)
+      | TN_Vari(_)
       | TN_ITag(_)    -> let po = set_ns po in
                          insert node po
     in
@@ -1399,6 +1407,7 @@ and canonical_term : bool -> TPtr.t -> pool -> term * pool
                                   cp tp po
                             end
         | TN_ITag(n)     -> (Pos.none (ITag(T,n)), po)
+        | TN_Vari(x)     -> (Pos.none (Vari(T,x)), po)
         | TN_Goal(t)     -> (t, po)
       end
   | Ptr.V_ptr(p) ->
@@ -1448,6 +1457,7 @@ and     canonical_valu : bool -> VPtr.t -> pool -> valu * pool
                                  cv vp po
                             end
         | VN_ITag(n)     -> (Pos.none (ITag(V,n)), po)
+        | VN_Vari(x)     -> (Pos.none (Vari(V,x)), po)
         | VN_Goal(v)     -> (v, po)
 
       end
@@ -1643,6 +1653,8 @@ and unif_v_nodes : pool -> VPtr.t -> v_node -> VPtr.t -> v_node -> pool =
           unif_bndr po V b1 b2)
     | (VN_ITag(n1)   , VN_ITag(n2)   ) ->
        if n1 = n2 then po else raise NoUnif
+    | (VN_Vari(n1)   , VN_Vari(n2)   ) ->
+       if eq_vars n1 n2 then po else raise NoUnif
     | (VN_HApp(e1)   , VN_HApp(e2)   ) ->
        unif_ho_appl po e1 e2
     | (VN_Goal(v1)   , VN_Goal(v2)   ) ->
@@ -1714,6 +1726,8 @@ and unif_t_nodes : pool -> TPtr.t -> t_node -> TPtr.t -> t_node -> pool =
           unif_bndr po T b1 b2)
     | (TN_ITag(n1)     , TN_ITag(n2)     ) ->
        if n1 <> n2 then raise NoUnif; po
+    | (TN_Vari(n1)     , TN_Vari(n2)     ) ->
+       if not (eq_vars n1 n2) then raise NoUnif; po
     | (TN_HApp(e1)     , TN_HApp(e2)     ) ->
        unif_ho_appl po e1 e2
     | (TN_Goal(t1)     , TN_Goal(t2)     ) ->
@@ -2179,6 +2193,10 @@ let get_blocked : pool -> blocked list = fun po ->
     equiv_error rel bls
   with Contradiction -> log_edp1 "proved   %a" Print.rel rel
 
+
+let unif_expr : type a. pool -> a ex loc -> a ex loc -> bool =
+  fun po a b ->
+    eq_expr ~oracle:(oracle (ref po)) ~strict:false a b
 
 let learn pool rel     = Chrono.add_time equiv_chrono (learn pool) rel
 let prove pool rel     = Chrono.add_time equiv_chrono (prove pool) rel

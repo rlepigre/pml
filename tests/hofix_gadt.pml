@@ -51,7 +51,7 @@ val rec len_lemma : ∀a, ∀p:τ, ∀l∈slist⟨a,p⟩, ∃q:ι, p ≡ length 
 val rec app : ∀a:ο, ∀n1 n2:ι, slist⟨a,n1⟩ ⇒ slist⟨a,n2⟩ ⇒ slist⟨a, n1 + n2⟩ =
   fun l1 l2 {
     case l1 {
-      []     → up l2
+      []     → l2
       hd::tl → let r = app tl l2;
                use len_lemma r; // necessary because if tl : slist⟨p⟩,
                    // we need to know that p+n2 is a value.

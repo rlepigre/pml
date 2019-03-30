@@ -195,8 +195,10 @@ let rec mk_sassoc : slist -> sassoc = function
   | Cns(s,e,l) -> let v = new_var (mk_free s) "a" in Cns(s,e,v,mk_sassoc l)
 
 
-let bind_params : p ex loc -> sbndr box * slist = fun e ->
+let bind_params : Equiv.pool -> p ex loc -> sbndr box * slist = fun po e ->
   (* Compute the list of all the surface ordinal witnesses. *)
+  let c = ref (-1) in
+  let new_itag s = decr c; ITag(s,!c) in
   let rec params : type a. slist -> a ex loc -> slist = fun acc e ->
     let from_cond acc c =
       match c with
@@ -217,7 +219,7 @@ let bind_params : p ex loc -> sbndr box * slist = fun e ->
     match (Norm.whnf e).elt with
     | HDef(_,_)   -> acc
     | HApp(_,f,a) -> params (params acc f) a
-    | HFun(s,_,f) -> params acc (bndr_subst f (Dumm s))
+    | HFun(s,_,f) -> params acc (bndr_subst f (new_itag s))
     | UWit(w)     -> acc
     | EWit(w)     -> acc
     | UVar(_,_)   -> acc
@@ -227,18 +229,18 @@ let bind_params : p ex loc -> sbndr box * slist = fun e ->
     | Func(_,a,b) -> params (params acc a) b
     | Prod(m)     -> A.fold (fun _ (_,a) acc -> params acc a) m acc
     | DSum(m)     -> A.fold (fun _ (_,a) acc -> params acc a) m acc
-    | Univ(s,f)   -> params acc (bndr_subst f (Dumm s))
-    | Exis(s,f)   -> params acc (bndr_subst f (Dumm s))
+    | Univ(s,f)   -> params acc (bndr_subst f (new_itag s))
+    | Exis(s,f)   -> params acc (bndr_subst f (new_itag s))
     | FixM(s,o,f,l)
-                  -> from_args (params (params acc o) (bndr_subst f (Dumm s))) l
+                  -> from_args (params (params acc o) (bndr_subst f (new_itag s))) l
     | FixN(s,o,f,l)
-                  -> from_args (params (params acc o) (bndr_subst f (Dumm s))) l
+                  -> from_args (params (params acc o) (bndr_subst f (new_itag s))) l
     | Memb(t,a)   -> params (params acc t) a
     | Rest(a,c)   -> params (from_cond acc c) a
     | Impl(c,a)   -> params (from_cond acc c) a
 
     | VWit(_)     -> acc
-    | LAbs(_,f,_) -> params acc (bndr_subst f (Dumm V))
+    | LAbs(_,f,_) -> params acc (bndr_subst f (new_itag V))
     | Cons(_,v)   -> params acc v
     | Reco(m)     -> A.fold (fun _ (_,v) acc -> params acc v) m acc
     | Scis        -> acc
@@ -246,11 +248,11 @@ let bind_params : p ex loc -> sbndr box * slist = fun e ->
 
     | Valu(v)     -> params acc v
     | Appl(t,u)   -> params (params acc t) u
-    | FixY(_,f)   -> params acc (bndr_subst f (Dumm T))
-    | MAbs(f)     -> params acc (bndr_subst f (Dumm S))
+    | FixY(_,f)   -> params acc (bndr_subst f (new_itag T))
+    | MAbs(f)     -> params acc (bndr_subst f (new_itag S))
     | Name(s,t)   -> params (params acc s) t
     | Proj(v,_)   -> params acc v
-    | Case(v,m)   -> let fn _ (_,f) acc = params acc (bndr_subst f (Dumm V)) in
+    | Case(v,m)   -> let fn _ (_,f) acc = params acc (bndr_subst f (new_itag V)) in
                      A.fold fn m (params acc v)
     | Prnt(_)     -> acc
     | Repl(t,u)   -> params acc u
@@ -281,7 +283,7 @@ let bind_params : p ex loc -> sbndr box * slist = fun e ->
   let bind_all : type a. a ex loc -> a ebox =
     let mapper : type a. recall -> a ex loc -> a ebox = fun { default } e ->
       try
-        let v = sassoc e assoc in
+        let v = sassoc po e assoc in
         vari e.pos v
       with Not_found -> default e
     in
@@ -306,8 +308,8 @@ let bind_params : p ex loc -> sbndr box * slist = fun e ->
   let b = bind assoc p1 p2 in
   (b, params)
 
-let bind2_ordinals : p ex loc -> p ex loc
-    -> (o ex, sbndr) mbinder * ordi array = fun e1 e2 ->
+let bind2_ordinals : Equiv.pool -> p ex loc -> p ex loc
+    -> (o ex, sbndr) mbinder * ordi array = fun po e1 e2 ->
   let m = A.singleton "1" (None, e1) in
   let m = A.add "2" (None, e2) m in
   let e = Pos.none (Prod m) in
@@ -317,7 +319,7 @@ let bind2_ordinals : p ex loc -> p ex loc
   (* The variables themselves. *)
   let xs = new_mvar (mk_free O) names in
   let p = msubst b (Array.map (mk_free O) xs) in
-  let (b, ps) = bind_params p in
+  let (b, ps) = bind_params po p in
   (unbox (bind_mvar xs b), os)
 
 type occ = Pos | Neg | Any
@@ -381,60 +383,3 @@ let bind_spos_ordinals
   let b = bind_mvar vars e in
   let os = Array.make (Array.length vars) (Pos.none Conv) in
   (unbox b, os)
-
-let box_closure: type a. a ex loc -> a ebox * t var array * v var array
-                                     * t ex loc array * v ex loc array
-  = fun e ->
-    let vl : v ex loc list ref = ref [] in
-    let tl : t ex loc list ref = ref [] in
-    let vv = ref [] in
-    let tv = ref [] in
-    let mapper : type a. recall -> a ex loc -> a ebox = fun {default} e ->
-      let s, e = sort e in
-      let svl = !vl and stl = !tl and svv = !vv and stv = !tv in
-      let e' = default e in
-      match is_closed e', s with
-      | true, V ->
-         vl := svl; tl := stl; vv := svv; tv := stv;
-         let v = new_var (mk_free V) "v" in
-         vl := e :: !vl;
-         vv := v :: !vv;
-         box (Pos.none (mk_free V v))
-      | true, T ->
-         vl := svl; tl := stl; vv := svv; tv := stv;
-         let v = new_var (mk_free T) "v" in
-         tl := e :: !tl;
-         tv := v :: !tv;
-         box (Pos.none (mk_free T v))
-      | _ -> e'
-    in
-    let e = map ~mapper:{mapper} e in
-    let tl = Array.of_list !tl in
-    let vl = Array.of_list !vl in
-    let tv = Array.of_list !tv in
-    let vv = Array.of_list !vv in
-    (lift (unbox e),tv,vv,tl,vl)
-
-type 'a closure =
-  (v ex, (t ex, 'a) mbinder) mbinder * v ex loc array * t ex loc array
-
-
-let make_closure : type a. a ex loc -> a ex loc closure = fun e ->
-  let (e,tv,vv,tl,vl) = box_closure e in
-  (unbox (bind_mvar vv (bind_mvar tv e)), vl, tl)
-
-let make_bndr_closure
-    : type a b. a sort -> (a, b) bndr -> (a, b) bndr closure
-  = fun s b0 ->
-    let (x,e) = unbind (snd b0) in
-    let (e,tv,vv,tl,vl) = box_closure e in
-    let b = bind_var x e in
-    let b = box_pair (box (fst b0)) b in
-    (unbox (bind_mvar vv (bind_mvar tv b)), vl, tl)
-
-let closure_chrono = Chrono.create "closure"
-
-let make_closure e =
-  Chrono.add_time closure_chrono make_closure e
-let make_bndr_closure s e =
-  Chrono.add_time closure_chrono (make_bndr_closure s) e

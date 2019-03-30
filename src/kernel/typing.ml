@@ -362,11 +362,7 @@ type check_sub =
   | Sub_Applies of sub_rule
   | Sub_New of ctxt * (prop * prop)
 
-let rec unif_expr : type a. ctxt -> a ex loc -> a ex loc -> bool =
-  fun ctx a b ->
-    eq_expr ~oracle:(oracle (ref ctx.equations)) ~strict:false a b
-
-and subtype =
+let rec subtype =
   let rec subtype : ctxt -> term -> prop -> prop -> sub_proof =
     fun ctx t a b ->
     log_sub "proving the subtyping judgment:";
@@ -379,7 +375,7 @@ and subtype =
     let (t_is_val, _, ctx) = term_is_value t ctx in
     try let r =
       (* Same types.  *)
-      if unif_expr ctx a b then
+      if unif_expr ctx.equations a b then
         begin
           log_sub "reflexivity applies";
           Sub_Equal
@@ -789,7 +785,8 @@ and check_sub : ctxt -> prop -> prop -> check_sub = fun ctx a b ->
             let (a0, b0) = spe.sspe_judge in
             (* Check if schema applies. *)
             if not (UTimed.pure_test
-                      (fun () -> unif_expr ctx a a0 && unif_expr ctx b b0)
+                      (fun () -> unif_expr ctx.equations a a0
+                                 && unif_expr ctx.equations b b0)
                       ())
             then raise Exit;
             (* Check positivity of ordinals. *)
@@ -913,7 +910,7 @@ and get_relat  : ordi array -> (int * int) list =
 and sub_generalise : ctxt -> prop -> prop -> sub_schema * ordi array =
   fun ctx b c ->
     (* Extracting ordinal parameters from the goal type. *)
-    let (ssch_judge, os) = Misc.bind2_ordinals b c in
+    let (ssch_judge, os) = Misc.bind2_ordinals ctx.equations b c in
 
     (* build the relations *)
     let ssch_relat = get_relat os in
