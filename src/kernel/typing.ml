@@ -488,7 +488,7 @@ and subtype =
          Sub_FixN_r(false, subtype ctx t a (unroll_FixN s o' f l))
       | _ ->
       match Chrono.add_time check_sub_chrono (check_sub ctx a) b with
-      | Sub_Applies prf    -> log_sub "induction hypothesis applies"; prf
+      | Sub_Applies prf    -> prf
       | Sub_New(ctx,(a,b)) ->
       match (a.elt, b.elt) with
       (* Arrow types. *)
@@ -1132,42 +1132,30 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
           in
           fn c
         in
-        begin
-          let ctx_a =
-            try Some (learn_neg_equivalences ctx v None c)
-            with Contradiction -> None
+        let fn l t m =
+          let a = new_uvar ctx P in
+          let a = if has_mem l then
+                    Pos.none (Memb(Pos.none (Valu (snd t)), a))
+                  else a
           in
-          let fn l (_,t) m =
-            let a = new_uvar ctx P in
-            let a = if has_mem l then Pos.none (Memb(Pos.none (Valu t), a))
-                    else a
+          A.add l (None, box a) m
+        in
+        let pm = A.fold fn m A.empty in
+        let c' = unbox (strict_prod None pm) in
+        let p1 = subtype ctx t c' c in
+        let p2s =
+          try
+            let ctx_a = learn_neg_equivalences ctx v None c in
+            let fn l (p, v) ps =
+              log_typ "Checking case %s." l;
+              let (_,a) = A.find l pm in
+              let p = type_valu ctx_a v (unbox a) in
+              p::ps
             in
-            let prf =
-              match is_typed VoT_V t, ctx_a with
-              | (true, Some ctx_a) -> Some(type_valu ctx_a t a)
-              | _                  -> None
-            in
-            A.add l (prf, box a) m
-          in
-          let pm = A.fold fn m A.empty in
-          let c' = unbox (strict_prod None (A.map (fun (_,t) -> (None,t)) pm)) in
-          let p1 = subtype ctx t c' c in
-          let p2s =
-            match ctx_a with
-            | Some ctx_a ->
-               let fn l (p, v) ps =
-                 log_typ "Checking case %s." l;
-                 let (p,a) = A.find l pm in
-                 let p = match p with
-                   | Some p -> p
-                   | None -> type_valu ctx_a v (unbox a) in
-                 p::ps
-                 in
-                 Some(A.fold fn m [])
-            | None -> None
-          in
-          Typ_Prod_i(p1,p2s)
-        end
+            Some(A.fold fn m [])
+          with Contradiction -> None
+        in
+        Typ_Prod_i(p1,p2s)
     (* Scissors. *)
     | Scis        ->
         raise Reachable
