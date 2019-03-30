@@ -424,6 +424,7 @@ let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
   | OWMu(w)     -> fprintf ch "%s%a" w.name print_vars e
   | OWNu(w)     -> fprintf ch "%s%a" w.name print_vars e
   | OSch(i,_,w) -> fprintf ch "%s%a" w.name.(i) print_vars e
+  | ESch(s,i,w) -> fprintf ch "%a??" print_vars e
   | UVar(_,u)   -> fprintf ch "?%i" u.uvar_key
   | Goal(_,s)   -> fprintf ch "{- %s -}" s
   | VPtr(p)     -> fprintf ch "VPtr(%a)" VPtr.print p
@@ -455,14 +456,19 @@ let print_fix_sch ch sch =
     (name_of x) ex t ex k
 
 let print_sub_sch ch sch =
-  let (vars,(k1,k2)) = unmbind sch.ssch_judge in
+  let (vars,f) = unmbind sch.ssch_judge in
+  let rec fn acc = function
+    | Cst(a,b) -> (List.rev acc,a,b)
+    | Bnd(s,f) -> let (x,f) = unbind f in fn (name_of x :: acc) f
+  in
+  let (vars2, k1, k2) = fn [] f in
   let vars = Array.map (fun x -> Pos.none (mk_free O x)) vars in
   let print_vars = print_list ex "," in
   let rel = List.map (fun (i,j) -> (vars.(i), vars.(j))) sch.ssch_relat in
   let print_cmp ch (i,j) = fprintf ch "%a<%a" ex i ex j in
   let print_rel = print_list print_cmp "," in
-  fprintf ch "%a (%a ⊢ %a < %a)" print_vars (Array.to_list vars)
-    print_rel rel ex k1 ex k2
+  fprintf ch "%a %a (%a ⊢ %a < %a)" print_vars (Array.to_list vars)
+          (print_list output_string " ") vars2 print_rel rel ex k1 ex k2
 
 let print_sch ch sch =
   match sch with

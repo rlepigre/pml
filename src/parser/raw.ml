@@ -1113,9 +1113,120 @@ let expr_def : strloc -> (strloc * raw_sort) list -> raw_sort option
   let s = List.fold_right f args s in
   Expr_def(id,s,e)
 
+let filter_args : string -> (strloc * raw_sort) list -> raw_ex ->
+                  (strloc * raw_sort) list =
+  fun id args e ->
+    let changed = Array.make (List.length args) false in
+    let rec fn e stack bounded =
+      match e.elt with
+      | EVari(x,_) when x.elt = id ->
+         let rec gn i stack args =
+           match (stack, args) with
+           | (({elt = EVari(y,_)}::s), ((z,_)::a))
+                when y.elt = z.elt && not (List.mem y.elt bounded) ->
+              gn (i+1) s a
+           | ((_::s), (_::a)) -> changed.(i) <- true; gn (i+1) s a
+           | ([], (_::a)) -> changed.(i) <- true; gn (i+1) [] a
+           | (_, [])     -> ()
+         in
+         gn 0 stack args
+      | EVari(_) -> ()
+      | EHOAp(e,sx,es) ->
+         List.iter (fun e -> fn e [] bounded) es;
+         fn e (es @ stack) bounded
+      | EInfx _ -> ()
+      | EHOFn(x,k,f) -> if x.elt <> id then fn e stack (x.elt::bounded)
+      | EFunc(_,a,b) -> fn a stack bounded; fn b stack bounded
+      | EUnit -> ()
+      | EDSum(l) -> List.iter (fun (_,a) ->
+                        match a with None -> ()
+                                   | Some a -> fn a stack bounded) l
+      | EProd(l,_) ->  List.iter (fun (_,a) -> fn a stack bounded) l
+      | EUniv((x,xs),k,e)
+      | EExis((x,xs),k,e) ->
+         let xs = List.map (fun x -> x.elt) (x::xs) in
+         if not (List.mem id xs) then fn e stack (xs @ bounded)
+      | EFixM(k,o,x,e)
+      | EFixN(k,o,x,e) -> fn o stack bounded;
+                          if x.elt <> id then fn e stack (x.elt::bounded)
+      | EMemb(t,a) -> fn t stack bounded; fn a stack bounded
+      | ERest(a,eq)
+      | EImpl(eq,a) ->
+         begin
+           match eq with
+           | EEquiv(t,_,u) -> fn t stack bounded; fn u stack bounded
+           | ENoBox(v)     -> fn v stack bounded
+         end;
+         begin
+           match a with
+           | None   -> ()
+           | Some a -> fn a stack bounded
+         end
+      | ELAbs((l1,l2),t) ->
+         let l = List.map (fun (x,ao) ->
+                     begin
+                       match ao with
+                       | None   -> ()
+                       | Some a -> fn a stack bounded
+                     end;
+                     x.elt) (l1 :: l2)
+         in
+         if not (List.mem id l) then fn t stack (l @ bounded)
+      | ECons(_,vo) ->
+         begin
+           match vo with
+           | None       -> ()
+           | Some (v,r) -> fn v stack bounded
+         end
+      | EReco(l) ->
+         List.iter (fun (_,v,_) -> fn v stack bounded) l
+      | EScis -> ()
+      | EGoal _ -> ()
+      | EAppl(t,u)
+      | ESequ(t,u) -> fn t stack bounded; fn u stack bounded
+      | EMAbs(arg,t) ->
+         if arg.elt <> id then fn t stack (arg.elt::bounded)
+      | EName(s,t) -> fn s stack bounded; fn t stack bounded
+      | EProj(v,r,_) -> fn v stack bounded
+      | ECase(v,r,l) ->
+         begin
+           fn v stack bounded;
+           let fn ((_, argo), t) =
+             let (x, ao) = Option.default (Pos.none "_", None) argo in
+             if x.elt <> id then
+               match ao with
+               | None   -> ()
+               | Some a -> fn a stack (x.elt::bounded)
+           in
+           List.iter fn l
+         end
+      | EFixY(s,a,v) ->
+         if a.elt<>id then fn v stack (a.elt :: bounded)
+      | EPrnt(_) -> ()
+      | ERepl(t,u,p) -> fn t stack bounded; fn u stack bounded;
+                        begin
+                          match p with
+                          | None -> ()
+                          | Some p -> fn p stack bounded
+                        end
+      | EDelm(u) -> fn u stack bounded
+      | ECoer(u,t,a) -> fn t stack bounded; fn a stack bounded
+      | ESuch(u,(x,vs),j,v) ->
+         let l = List.map (fun (x,_) -> x.elt) (x::vs) in
+         if not (List.mem id l) then fn v stack (l @ bounded)
+      | EPSet(u,_,a) -> fn a stack bounded
+      | EConv -> ()
+      | ESucc(o,_) -> fn o stack bounded
+    in
+    fn e [] [];
+    let args = List.mapi (fun i a -> (i, a)) args in
+    let args = List.filter (fun (i,a) -> changed.(i)) args in
+    List.map snd args
+
 let type_def : Pos.pos -> [`Non | `Rec | `CoRec] -> strloc
                -> (strloc * raw_sort option) list
                -> raw_ex -> toplevel = fun _loc r id args e ->
+  let args = List.map (fun (x,k) -> (x, sort_from_opt k)) args in
   let rec binds : (strloc * raw_sort) list -> raw_ex -> raw_ex =
     fun args s ->
       match args with
@@ -1133,17 +1244,33 @@ let type_def : Pos.pos -> [`Non | `Rec | `CoRec] -> strloc
          in
          Pos.make (Some _loc) (EHOAp(s,new_sort_uvar None, args))
   in
-  let args = List.map (fun (x,k) -> (x, sort_from_opt k)) args in
+  let lift e =
+    let ch_args = filter_args id.elt args e in
+    let e = if List.length ch_args <> List.length args then
+              let s1 = new_sort_uvar None in
+              let s2 = new_sort_uvar None in
+              let s3 = new_sort_uvar None in
+              Pos.none (EHOAp(Pos.none (EHOFn(id,s1,e)),s2,
+                              [binds args
+                                     (applies ch_args
+                                              (Pos.none (EVari(id,s3))))]))
+            else e
+    in
+    (ch_args, e)
+  in
   let e1 =
     match r with
     | `Non   -> e
-    | `Rec   -> let e =
-                  EFixM(new_sort_uvar None, Pos.none EConv, id, binds args e)
-                in
-                applies args (in_pos _loc e)
-    | `CoRec -> let e =
-                  EFixN(new_sort_uvar None, Pos.none EConv, id, binds args e)
-                in applies args (in_pos _loc e)
+    | `Rec   ->
+      let (args, e) = lift e in
+      let e =
+        EFixM(new_sort_uvar None, Pos.none EConv, id, binds args e) in
+      applies args (in_pos _loc e)
+    | `CoRec ->
+      let (args, e) = lift e in
+      let e =
+        EFixN(new_sort_uvar None, Pos.none EConv, id, binds args e)
+      in applies args (in_pos _loc e)
   in
   let d1 = expr_def id args (Some (Pos.none SP)) e1 in
   if r = `Non then d1 else
@@ -1151,6 +1278,7 @@ let type_def : Pos.pos -> [`Non | `Rec | `CoRec] -> strloc
       let id2 = Pos.make id.pos (id.elt ^ "#") in
       let s = evari None (Pos.none "s#") in
       let e2 =
+        let (args, e) = lift e in
         match r with
         | `Non   -> assert false
         | `Rec   -> let e = EFixM(new_sort_uvar None, s, id, binds args e) in

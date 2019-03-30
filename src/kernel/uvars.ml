@@ -108,11 +108,12 @@ let uvar_iter : type a. bool -> bool -> bool -> uvar_fun -> a ex loc -> unit =
       | OWMu(w)     -> if todo e then luvar_iter w
       | OWNu(w)     -> if todo e then luvar_iter w
       | OSch(i,o,w) -> begin
-          match o with
-          | None -> ()
-          | Some o -> uvar_iter o
-        end;
+                         match o with
+                         | None -> ()
+                         | Some o -> uvar_iter o
+                       end;
                        if todo e then luvar_iter w
+      | ESch(s,i,w) -> if todo e then luvar_iter w
       | UVar(s,u)   -> f.f s u
     in uvar_iter e
 

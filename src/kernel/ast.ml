@@ -108,6 +108,9 @@ type _ ex =
   | OSch : int * o ex loc option * (schema, string array) eps
                                                      -> o  ex
   (** Ordinal schema witness. *)
+  | ESch : 'a sort * int * (schema, string array) eps
+                                                     -> 'a  ex
+  (** Expr schema witness. *)
 
   (* Type annotations. *)
 
@@ -207,12 +210,16 @@ and fix_schema =
      [mob] corresponds to "λr.t" and "mob" corresponds to "a", which is
      the only part of the judgment which can contain parameters. *)
 
+and sbndr =
+  | Cst : p ex loc * p ex loc -> sbndr
+  | Bnd : 'a sort * ('a ex, sbndr) binder -> sbndr
+
 and sub_schema =
   { ssch_index : Scp.index (** index of the schema in the call graph *)
   ; ssch_relat : (int * int) list (** relation between ordinals:
                                       j > i && j > 0, i and j being
                                       indexes in the mbinder below *)
-  ; ssch_judge : (o ex, p ex loc * p ex loc) mbinder (** judgement *) }
+  ; ssch_judge : (o ex, sbndr) mbinder (** judgement *) }
 
 and schema =
   | FixSch of fix_schema
@@ -704,6 +711,7 @@ let rec sort : type a. a ex loc -> a sort * a ex loc = fun e ->
   | OWMu _          -> (O,e)
   | OWNu _          -> (O,e)
   | OSch _          -> (O,e)
+  | ESch(s,_,_)     -> (s,e)
 
   | Vari(s,_)       -> (s,e)
   | Dumm(s)         -> (s,e)

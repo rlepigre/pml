@@ -401,6 +401,14 @@ let {eq_expr; eq_bndr} =
              else (let s1 = !(w1.valu) in
                    let s2 = !(w2.valu) in
                    eq_schema s1 s2))
+    | (ESch(s1,i1,w1), ESch(s2,i2,w2)) ->
+       i1 = i2
+       && (!(w1.valu) == !(w2.valu) ||
+             if strict || (!(w1.vars) = [] && !(w2.vars) = [])
+             then false
+             else (let s1 = !(w1.valu) in
+                   let s2 = !(w2.valu) in
+                   eq_schema s1 s2))
     (* two next cases are automatically stronger with oracle *)
     | (VPtr v1       , VPtr v2       ) -> Ptr.VPtr.compare v1 v2 = 0
     | (TPtr t1       , TPtr t2       ) -> Ptr.Ptr.compare t1 t2 = 0

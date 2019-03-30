@@ -93,6 +93,7 @@ let {hash_expr; hash_bndr; hash_ombinder; hash_vwit
     | OWMu(w)     -> w.refr (); khash1 `OWMu !(w.hash)
     | OWNu(w)     -> w.refr (); khash1 `OWNu !(w.hash)
     | OSch(i,o,w) -> w.refr (); khash3 `OSch i (hash_opt_expr o) !(w.hash)
+    | ESch(_,i,w) -> w.refr (); khash2 `ESch i !(w.hash)
     | UVar(i,u)   -> khash1 `UVar u.uvar_key
     (* two next cases are automatically stronger with oracle *)
     | VPtr v      -> khash1 `VPtr (hash v)

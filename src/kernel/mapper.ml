@@ -122,6 +122,7 @@ let map : type a. ?mapper:mapper -> a ex loc -> a ebox
         | OWMu(_)       -> Bindlib.box e
         | OWNu(_)       -> Bindlib.box e
         | OSch(_)       -> Bindlib.box e
+        | ESch(_)       -> Bindlib.box e
         | Vari(_,x)     -> vari e.pos x
         | Dumm(_)       -> Bindlib.box e
 

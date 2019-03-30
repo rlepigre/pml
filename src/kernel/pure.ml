@@ -102,6 +102,7 @@ let pure : type a. a ex loc -> bool =
                        | Some o -> iter o
                      end;
                      if todo e then liter w
+    | ESch(s,i,w) -> if todo e then liter w
     | UVar(s,u)   -> UTimed.(u.uvar_pur := true)
   in
   try iter e; true with Exit -> false
@@ -114,5 +115,9 @@ let pure_schema = function
        pure (msubst mb (Array.make (mbinder_arity mb) (Dumm O)))
   | SubSch s ->
      let mb = s.ssch_judge in
-     let (a,b) = msubst mb (Array.make (mbinder_arity mb) (Dumm O)) in
-     pure a && pure b
+     let f = msubst mb (Array.make (mbinder_arity mb) (Dumm O)) in
+     let rec fn = function
+       | Cst(a,b) -> pure a && pure b
+       | Bnd(s,f) -> fn (subst f (Dumm s))
+     in
+     fn f

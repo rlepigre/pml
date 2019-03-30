@@ -76,20 +76,24 @@ module CWit = struct
   type t = schema
   let hash = hash_cwit
   let equal s1 s2 =
-    (match (s1, s2) with
-     | (FixSch s1, FixSch s2) -> s1.fsch_index = s2.fsch_index
-     | (SubSch s1, SubSch s2) -> s1.ssch_index = s2.ssch_index
-     | (_        , _        ) -> false)
+    match (s1, s2) with
+    | (FixSch s1, FixSch s2) -> s1.fsch_index = s2.fsch_index
+    | (SubSch s1, SubSch s2) -> s1.ssch_index = s2.ssch_index
+    | (_        , _        ) -> false
   let vars s =
-    (match s with
-     | FixSch s ->
-        let (b, mb) = s.fsch_judge in
-        let (_, mb) = unmbind mb in
-        bndr_uvars T b @ uvars mb
-     | SubSch s ->
-        let mb = s.ssch_judge in
-        let (_, (e1,e2)) = unmbind mb in
-        uvars e1 @ uvars e2)
+    match s with
+    | FixSch s ->
+       let (b, mb) = s.fsch_judge in
+       let (_, mb) = unmbind mb in
+       bndr_uvars T b @ uvars mb
+    | SubSch s ->
+       let mb = s.ssch_judge in
+       let (_, f) = unmbind mb in
+       let rec fn = function
+         | Cst(e1,e2) -> uvars e1 @ uvars e2
+         | Bnd(_ ,f ) -> let (_,f) = unbind f in fn f
+       in
+       fn f
 end
 
 module CWitHash = Hashtbl.Make(CWit)
@@ -365,3 +369,6 @@ let cwit : ctxt -> schema -> (schema, string array) eps * ctxt =
 
 let osch : int -> ordi option -> (schema, string array) eps -> ordi =
   fun i o eps -> Pos.none (OSch(i, o, eps))
+
+let esch : type a. a sort -> int -> (schema, string array) eps -> a ex loc =
+  fun s i eps -> Pos.none (ESch(s, i, eps))

@@ -960,13 +960,17 @@ and elim_fix_schema : ctxt -> fix_schema -> fix_specialised =
     let fspe_judge = (fst sch.fsch_judge, a) in
     { fspe_param ; fspe_judge }
 
-(* Elimination of a schema using ordinal unification variables. *)
+(* Elimination of a schema using unification variables. *)
 and elim_sub_schema : ctxt -> sub_schema -> sub_specialised =
   fun ctx sch ->
     let arity = mbinder_arity sch.ssch_judge in
     let sspe_param = Array.init arity (fun _ -> new_uvar ctx O) in
     let xs = Array.map (fun e -> e.elt) sspe_param in
-    let sspe_judge = msubst sch.ssch_judge xs in
+    let rec fn = function
+      | Cst(p1,p2) -> (p1,p2)
+      | Bnd(s ,f ) -> fn (subst f (new_uvar ctx s).elt)
+    in
+    let sspe_judge = fn (msubst sch.ssch_judge xs) in
     let sspe_relat = List.map (fun (i,j) -> (sspe_param.(i),sspe_param.(j)))
                               sch.ssch_relat
     in
@@ -1003,7 +1007,11 @@ and inst_sub_schema : ctxt -> sub_schema -> ordi array
     in
     let sspe_param = Array.init arity fn in
     let xs = Array.map (fun e -> e.elt) sspe_param in
-    let sspe_judge = msubst sch.ssch_judge xs in
+    let rec fn i = function
+      | Cst(p1,p2) -> (p1,p2)
+      | Bnd(s ,f ) -> fn (i+1) (subst f (esch s i eps).elt)
+    in
+    let sspe_judge = fn 0 (msubst sch.ssch_judge xs) in
     let sspe_relat = List.map (fun (i,j) -> (sspe_param.(i),sspe_param.(j)))
                               sch.ssch_relat
     in
@@ -1241,6 +1249,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
     (* Constructors that cannot appear in user-defined terms. *)
     | UWit(_)     -> unexpected "∀-witness during typing..."
     | EWit(_)     -> unexpected "∃-witness during typing..."
+    | ESch(_)     -> unexpected "schema-witness during typing..."
     | VPtr(_)     -> unexpected "VPtr during typing..."
     | UVar(_)     -> unexpected "unification variable during typing..."
     | Vari(_)     -> unexpected "Free variable during typing..."
@@ -1528,6 +1537,7 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
     (* Constructors that cannot appear in user-defined terms. *)
     | UWit(_)     -> unexpected "∀-witness during typing..."
     | EWit(_)     -> unexpected "∃-witness during typing..."
+    | ESch(_)     -> unexpected "schema-witness during typing..."
     | TPtr(_)     -> unexpected "TPtr during typing..."
     | UVar(_)     -> unexpected "unification variable during typing..."
     | Vari(_)     -> unexpected "Free variable during typing..."
@@ -1568,6 +1578,7 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
     | PSet(_,_,_) -> .
     | UWit(_)     -> unexpected "∀-witness during typing..."
     | EWit(_)     -> unexpected "∃-witness during typing..."
+    | ESch(_)     -> unexpected "schema-witness during typing..."
     | UVar(_)     -> unexpected "unification variable during typing..."
     | Vari(_)     -> unexpected "Free variable during typing..."
     | Dumm(_)     -> unexpected "Dummy value during typing..."

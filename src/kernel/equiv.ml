@@ -162,6 +162,7 @@ type v_node =
   | VN_VWit of (vwit, string) eps
   | VN_UWit of (v qwit, string) eps
   | VN_EWit of (v qwit, string) eps
+  | VN_ESch of int * (schema, string array) eps
   | VN_HApp of v ho_appl
   | VN_UVar of v uvar
   | VN_ITag of int
@@ -179,6 +180,7 @@ type t_node =
   | TN_Prnt of string
   | TN_UWit of (t qwit, string) eps
   | TN_EWit of (t qwit, string) eps
+  | TN_ESch of int * (schema, string array) eps
   | TN_HApp of t ho_appl
   | TN_UVar of t uvar
   | TN_ITag of int
@@ -251,6 +253,7 @@ let print_v_node : out_channel -> v_node -> unit = fun ch n ->
   | VN_VWit(w)     -> prnt ch "VN_VWit(%a)" pex (Pos.none (VWit(w)))
   | VN_UWit(w)     -> prnt ch "VN_UWit(%a)" pex (Pos.none (UWit(w)))
   | VN_EWit(w)     -> prnt ch "VN_EWit(%a)" pex (Pos.none (EWit(w)))
+  | VN_ESch(i,w)   -> prnt ch "VN_ESch(%a)" pex (Pos.none (ESch(V,i,w)))
   | VN_HApp(e)     -> let HO(s,f,a) = e in
                       prnt ch "VN_HApp(%a,%a)" pcl f pcl a
   | VN_UVar(v)     -> prnt ch "VN_UVar(%a)" pex (Pos.none (UVar(V,v)))
@@ -275,6 +278,7 @@ let print_t_node : out_channel -> t_node -> unit = fun ch n ->
   | TN_Prnt(s)     -> prnt ch "TN_Prnt(%S)" s
   | TN_UWit(w)     -> prnt ch "TN_UWit(%a)" pex (Pos.none (UWit(w)))
   | TN_EWit(w)     -> prnt ch "TN_EWit(%a)" pex (Pos.none (EWit(w)))
+  | TN_ESch(i,w)   -> prnt ch "TN_ESch(%a)" pex (Pos.none (ESch(V,i,w)))
   | TN_HApp(e)     -> let HO(s,f,a) = e in
                       prnt ch "TN_HApp(%a,%a)" pcl f pcl a
   | TN_UVar(v)     -> prnt ch "TN_UVar(%a)" pex (Pos.none (UVar(T,v)))
@@ -482,6 +486,7 @@ let children_v_node : v_node -> (par_key * Ptr.t) list = fun n ->
   | VN_VWit _
   | VN_UWit _
   | VN_EWit _
+  | VN_ESch _
   | VN_Goal _
   | VN_UVar _ (* TODO #4 check *)
   | VN_ITag _
@@ -508,6 +513,7 @@ let children_t_node : t_node -> (par_key * Ptr.t) list = fun n ->
                           (children_closure c kn (0,[])))
   | TN_UWit _
   | TN_EWit _
+  | TN_ESch _
   | TN_Prnt _
   | TN_Goal _
   | TN_UVar _  (* TODO #4 check *)
@@ -561,6 +567,7 @@ let immediate_nobox : v_node -> bool = function
   | VN_VWit _
   | VN_UWit _
   | VN_EWit _
+  | VN_ESch _
   | VN_HApp _
   | VN_UVar _
   | VN_Goal _
@@ -650,6 +657,7 @@ let eq_v_nodes : pool -> v_node -> v_node -> bool =
     | (VN_VWit(w1)   , VN_VWit(w2)   ) -> w1.valu == w2.valu
     | (VN_UWit(w1)   , VN_UWit(w2)   ) -> w1.valu == w2.valu
     | (VN_EWit(w1)   , VN_EWit(w2)   ) -> w1.valu == w2.valu
+    | (VN_ESch(i1,w1), VN_ESch(i2,w2)) -> i1 = i2 && w1.valu == w2.valu
     | (VN_ITag(n1)   , VN_ITag(n2)   ) -> n1 = n2
     | (VN_HApp(e1)   , VN_HApp(e2)   ) -> eq_ho_appl po e1 e2
     | (VN_Goal(v1)   , VN_Goal(v2)   ) -> eq_expr v1 v2
@@ -673,6 +681,7 @@ let eq_t_nodes : pool -> t_node -> t_node -> bool =
     | (TN_Prnt(s1)     , TN_Prnt(s2)     ) -> s1 = s2
     | (TN_UWit(w1)     , TN_UWit(w2)     ) -> w1.valu == w2.valu
     | (TN_EWit(w1)     , TN_EWit(w2)     ) -> w1.valu == w2.valu
+    | (TN_ESch(i1,w1)  , TN_ESch(i2,w2)  ) -> i1 = i2 && w1.valu == w2.valu
     | (TN_ITag(n1)     , TN_ITag(n2)     ) -> n1 = n2
     | (TN_HApp(e1)     , TN_HApp(e2)     ) -> eq_ho_appl po e1 e2
     | (TN_Goal(t1)     , TN_Goal(t2)     ) -> eq_expr t1 t2
@@ -874,6 +883,7 @@ let rec add_term :  bool -> bool -> pool -> term
     | PSet(_,_,e) -> add_term po e
     | UWit(w)     -> insert (TN_UWit(w)) po
     | EWit(w)     -> insert (TN_EWit(w)) po
+    | ESch(T,i,w) -> insert (TN_ESch(i,w)) po
     | HApp(s,f,a) -> let (hoa, po) = add_ho_appl po s f a in
                      insert (TN_HApp(hoa)) po
     | HDef(_,d)   -> let (pt, po) =
@@ -930,6 +940,7 @@ and     add_valu : bool -> pool -> valu -> VPtr.t * pool = fun o po v0 ->
     | VWit(w)     -> insert_v_node (VN_VWit(w)) po
     | UWit(w)     -> insert_v_node (VN_UWit(w)) po
     | EWit(w)     -> insert_v_node (VN_EWit(w)) po
+    | ESch(v,i,w) -> insert_v_node (VN_ESch(i,w)) po
     | HApp(s,f,a) -> let (hoa, po) = add_ho_appl po s f a in
                      insert_v_node (VN_HApp(hoa)) po
     | HDef(_,d)   -> begin
@@ -944,7 +955,7 @@ and     add_valu : bool -> pool -> valu -> VPtr.t * pool = fun o po v0 ->
     | Goal(_)     -> insert_v_node (VN_Goal(v)) po
     | VPtr(pv)    -> (pv, po)
     | Vari(_)     -> invalid_arg "free variable in the pool"
-    | Dumm(_)     -> invalid_arg "dummy terms forbidden in the pool"
+    | Dumm(_)     -> invalid_arg "dummy values forbidden in the pool"
     | FixM(_)     -> invalid_arg "mu in values forbidden"
     | FixN(_)     -> invalid_arg "nu in values forbidden"
   in
@@ -1169,6 +1180,7 @@ and normalise_t_node : ?old:TPtr.t -> t_node -> pool -> Ptr.t  * pool =
       | TN_Prnt(_)
       | TN_UWit(_)
       | TN_EWit(_)
+      | TN_ESch(_)
       | TN_HApp(_)
       | TN_Goal(_)
       | TN_ITag(_)    -> let po = set_ns po in
@@ -1373,6 +1385,7 @@ and canonical_term : bool -> TPtr.t -> pool -> term * pool
         | TN_Prnt(s)     -> (Pos.none (Prnt(s)), po)
         | TN_UWit(w)     -> (Pos.none (UWit(w)), po)
         | TN_EWit(w)     -> (Pos.none (EWit(w)), po)
+        | TN_ESch(i,w)   -> (Pos.none (ESch(T,i,w)), po)
         | TN_HApp(e)     -> let HO(s,f,a) = e in
                             let (f, po) = canonical_closure f po in
                             let (a, po) = canonical_closure a po in
@@ -1419,6 +1432,7 @@ and     canonical_valu : bool -> VPtr.t -> pool -> valu * pool
         | VN_VWit(w)     -> (Pos.none (VWit(w)), po)
         | VN_UWit(w)     -> (Pos.none (UWit(w)), po)
         | VN_EWit(w)     -> (Pos.none (EWit(w)), po)
+        | VN_ESch(i,w)   -> (Pos.none (ESch(V,i,w)), po)
         | VN_HApp(e)     -> let HO(s,f,a) = e in
                             let (f, po) = canonical_closure f po in
                             let (a, po) = canonical_closure a po in

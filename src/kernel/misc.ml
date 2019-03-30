@@ -103,6 +103,11 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
     | OWMu(_)     -> if is_in e acc then acc else e :: acc
     | OWNu(_)     -> if is_in e acc then acc else e :: acc
     | OSch(_)     -> if is_in e acc then acc else e :: acc
+    | ESch(s,_,w) -> begin
+                       match s with
+                       | O -> if is_in e acc then acc else e :: acc
+                       | _ -> acc
+                     end
 
     | Vari _      -> assert false
     | Dumm _      -> acc
@@ -148,24 +153,172 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
   let b = bind_mvar xs (bind_all e) in
   (unbox b, os)
 
-let bind2_ordinals : p ex loc -> p ex loc
-    -> (o ex, p ex loc * p ex loc) mbinder * ordi array = fun e1 e2 ->
-  let m = A.singleton "1" (None, e1) in
-  let m = A.add "2" (None, e2) m in
-  let e = Pos.none (Prod m) in
-  let (b, os) = bind_ordinals e in
-  let names = mbinder_names b in
-  let xs = new_mvar (mk_free O) names in
-  let fn =
-    match (msubst b (Array.map (mk_free O) xs)).elt with
+type slist =
+  | Nil : slist
+  | Cns : 'a sort * 'a ex loc * slist -> slist
+
+let in_slist : type a. a ex loc -> slist -> bool = fun e l ->
+  let (s, e) = sort e in
+  let rec fn = function
+    | Nil          -> false
+    | Cns(s1,e1,l) ->
+       match eq_sort s s1 with
+       | Eq.Eq  -> eq_expr e e1 || fn l
+       | Eq.NEq -> fn l
+  in
+  fn l
+
+let len_slist : slist -> int =
+  let rec fn acc = function
+    | Nil        -> acc
+    | Cns(_,_,l) -> fn (acc + 1) l
+  in
+  fn 0
+
+type sassoc =
+  | Nil : sassoc
+  | Cns : 'a sort * 'a ex loc * 'a var * sassoc -> sassoc
+
+let sassoc : type a. a ex loc -> sassoc -> a var = fun e l ->
+  let (s, e) = sort e in
+  let rec fn = function
+    | Nil          -> raise Not_found
+    | Cns(s1,e1,v1,l) ->
+       match eq_sort s s1 with
+       | Eq.Eq  -> if eq_expr e e1 then Obj.magic v1 else fn l
+       | Eq.NEq -> fn l
+  in
+  fn l
+
+let rec mk_sassoc : slist -> sassoc = function
+  | Nil        -> Nil
+  | Cns(s,e,l) -> let v = new_var (mk_free s) "a" in Cns(s,e,v,mk_sassoc l)
+
+
+let bind_params : p ex loc -> sbndr box * slist = fun e ->
+  (* Compute the list of all the surface ordinal witnesses. *)
+  let rec params : type a. slist -> a ex loc -> slist = fun acc e ->
+    let from_cond acc c =
+      match c with
+      | Equiv(t,_,u) -> params (params acc t) u
+      | NoBox(v)     -> params acc v
+    in
+    let rec from_args : type a b. slist -> (a,b) fix_args -> slist =
+      fun acc l ->
+        match l with
+        | Nil       -> acc
+        | Cns(a, l) -> let acc =
+                         if in_slist a acc then acc else
+                           let (s,a) = sort a in
+                           Cns(s,a,acc)
+                       in
+                       from_args (params acc a) l
+    in
+    match (Norm.whnf e).elt with
+    | HDef(_,_)   -> acc
+    | HApp(_,f,a) -> params (params acc f) a
+    | HFun(s,_,f) -> params acc (bndr_subst f (Dumm s))
+    | UWit(w)     -> acc
+    | EWit(w)     -> acc
+    | UVar(_,_)   -> acc
+    | ITag(_,_)   -> acc
+    | Goal(_,_)   -> acc
+
+    | Func(_,a,b) -> params (params acc a) b
+    | Prod(m)     -> A.fold (fun _ (_,a) acc -> params acc a) m acc
+    | DSum(m)     -> A.fold (fun _ (_,a) acc -> params acc a) m acc
+    | Univ(s,f)   -> params acc (bndr_subst f (Dumm s))
+    | Exis(s,f)   -> params acc (bndr_subst f (Dumm s))
+    | FixM(s,o,f,l)
+                  -> from_args (params (params acc o) (bndr_subst f (Dumm s))) l
+    | FixN(s,o,f,l)
+                  -> from_args (params (params acc o) (bndr_subst f (Dumm s))) l
+    | Memb(t,a)   -> params (params acc t) a
+    | Rest(a,c)   -> params (from_cond acc c) a
+    | Impl(c,a)   -> params (from_cond acc c) a
+
+    | VWit(_)     -> acc
+    | LAbs(_,f,_) -> params acc (bndr_subst f (Dumm V))
+    | Cons(_,v)   -> params acc v
+    | Reco(m)     -> A.fold (fun _ (_,v) acc -> params acc v) m acc
+    | Scis        -> acc
+    | VDef(_)     -> acc
+
+    | Valu(v)     -> params acc v
+    | Appl(t,u)   -> params (params acc t) u
+    | FixY(_,f)   -> params acc (bndr_subst f (Dumm T))
+    | MAbs(f)     -> params acc (bndr_subst f (Dumm S))
+    | Name(s,t)   -> params (params acc s) t
+    | Proj(v,_)   -> params acc v
+    | Case(v,m)   -> let fn _ (_,f) acc = params acc (bndr_subst f (Dumm V)) in
+                     A.fold fn m (params acc v)
+    | Prnt(_)     -> acc
+    | Repl(t,u)   -> params acc u
+    | Delm(u)     -> params acc u
+
+    | Coer(_,e,_) -> params acc e
+    | Such(_,_,b) -> params acc (bseq_dummy b.binder)
+    | PSet(_,_,e) -> params acc e
+
+    | SWit(_)     -> acc
+
+    | Conv        -> acc
+    | Succ(o)     -> params acc o
+    | OWMu(_)     -> acc
+    | OWNu(_)     -> acc
+    | OSch(_)     -> acc
+    | ESch(_)     -> acc
+
+    | Vari _      -> acc
+    | Dumm _      -> acc
+    | VPtr _      -> acc
+    | TPtr _      -> acc
+  in
+  (* The ordinals to be bound. *)
+  let params = params Nil e in
+  let assoc = mk_sassoc params in
+  (* Binding function. *)
+  let bind_all : type a. a ex loc -> a ebox =
+    let mapper : type a. recall -> a ex loc -> a ebox = fun { default } e ->
+      try
+        let v = sassoc e assoc in
+        vari e.pos v
+      with Not_found -> default e
+    in
+    fun e -> map ~mapper:{mapper} e
+  in
+  (* Building the actual binder. *)
+  let rec bind : sassoc -> pbox -> pbox -> sbndr box = fun l e1 e2 ->
+    match l with
+    | Nil -> box_apply2 (fun e1 e2 -> Cst(e1, e2)) e1 e2
+    | Cns(s,_,v,l) -> box_apply (fun f -> Bnd(s,f)) (bind_var v (bind l e1 e2))
+  in
+  let fn e =
+    match (unbox e).elt with
     | Prod m ->
        begin
-         try  box_pair (lift (snd (A.find "1" m))) (lift (snd (A.find "2" m)))
+         try  (lift (snd (A.find "1" m)), lift (snd (A.find "2" m)))
          with Not_found -> assert false
        end
     | _ -> assert false
   in
-  (unbox (bind_mvar xs fn), os)
+  let (p1, p2) = fn (bind_all e) in
+  let b = bind assoc p1 p2 in
+  (b, params)
+
+let bind2_ordinals : p ex loc -> p ex loc
+    -> (o ex, sbndr) mbinder * ordi array = fun e1 e2 ->
+  let m = A.singleton "1" (None, e1) in
+  let m = A.add "2" (None, e2) m in
+  let e = Pos.none (Prod m) in
+  let (b, os) = bind_ordinals e in
+  (* Name for the corresponding variables. *)
+  let names = mbinder_names b in
+  (* The variables themselves. *)
+  let xs = new_mvar (mk_free O) names in
+  let p = msubst b (Array.map (mk_free O) xs) in
+  let (b, ps) = bind_params p in
+  (unbox (bind_mvar xs b), os)
 
 type occ = Pos | Neg | Any
 
