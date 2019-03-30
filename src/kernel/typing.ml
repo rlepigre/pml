@@ -1177,17 +1177,19 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
     (* Such that. *)
     | Such(_,_,r) ->
         let (a,v) = instantiate ctx r.binder in
-        let (b,wopt) =
+        let (b,wopt,rev) =
           match r.opt_var with
-          | SV_None    -> (c                  , Some(t))
-          | SV_Valu(v) -> (extract_vwit_type v, Some(Pos.none (Valu v)))
-          | SV_Stac(s) -> (extract_swit_type s, None)
+          | SV_None    -> (c                  , Some(t), true)
+          | SV_Valu(v) -> (extract_vwit_type v, Some(Pos.none (Valu v)) , false)
+          | SV_Stac(s) -> (extract_swit_type s, None, false)
         in
         let _ =
           try
-            match wopt with
-            | None   -> ignore(gen_subtype ctx b a)
-            | Some t -> ignore(subtype ctx t b a)
+            match (wopt, rev) with
+            | (None  , false) -> ignore(gen_subtype ctx b a)
+            | (Some t, false) -> ignore(subtype ctx t b a)
+            | (Some t, true ) -> ignore(subtype ctx t a b)
+            | _               -> assert false
           with Subtype_error _ -> cannot_unify b a
         in Typ_TSuch(type_valu ctx v c)
     (* Set auto lvl *)
