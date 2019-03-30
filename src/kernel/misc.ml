@@ -179,13 +179,13 @@ type sassoc =
   | Nil : sassoc
   | Cns : 'a sort * 'a ex loc * 'a var * sassoc -> sassoc
 
-let sassoc : type a. a ex loc -> sassoc -> a var = fun e l ->
+let sassoc : type a. Equiv.pool -> a ex loc -> sassoc -> a var = fun po e l ->
   let (s, e) = sort e in
-  let rec fn = function
+  let rec fn : sassoc -> a var = function
     | Nil          -> raise Not_found
     | Cns(s1,e1,v1,l) ->
        match eq_sort s s1 with
-       | Eq.Eq  -> if eq_expr e e1 then Obj.magic v1 else fn l
+       | Eq.Eq  -> if Equiv.unif_expr po e e1 then v1 else fn l
        | Eq.NEq -> fn l
   in
   fn l
