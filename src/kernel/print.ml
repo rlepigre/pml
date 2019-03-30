@@ -56,7 +56,7 @@ let collect_exis : type s a.s sort -> a ex loc -> s var list * a ex loc =
       | Exis(s', f) ->
          begin
            match eq_sort s s' with
-           | Eq.Eq  ->  let ((x:s var), t) = unbind (snd f) in
+           | Eq.Eq  ->  let ((x:s var), t) = bndr_open f in
                         fn (x::acc) t
            | Eq.NEq -> (acc, e)
          end
@@ -77,7 +77,7 @@ let is_comprehension : type a. a ex loc -> a sugar = fun e ->
   match (Norm.repr e).elt with
   | Exis(T, f) ->
      begin
-       let (x, t) = unbind (snd f) in
+       let (x, t) = bndr_open f in
        match (Norm.repr t).elt with
        | Memb(t,p) ->
           begin
@@ -293,7 +293,7 @@ let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
   | NoSugar       ->
   match e.elt with
   | Vari(_,x)   -> output_string ch (name_of x)
-  | HFun(s,_,b) -> let (x,t) = unbind (snd b) in
+  | HFun(s,_,b) -> let (x,t) = bndr_open b in
                    fprintf ch "(%s ↦ %a)" (name_of x) exa t
   | HApp(_,f,a) -> let rec print_app : type a b.(a -> b) ex loc -> unit =
                      fun f ->
@@ -312,16 +312,16 @@ let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
                    fprintf ch "{%a%s}" (print_map pelt "; ") m elp
   | DSum(m)     -> let pelt ch (l,(_,a)) = fprintf ch "%s : %a" l exp a in
                    fprintf ch "[%a]" (print_map pelt "; ") m
-  | Univ(s,b)   -> let (x,a) = unbind (snd b) in
+  | Univ(s,b)   -> let (x,a) = bndr_open b in
                    fprintf ch "∀%s:%a, %a" (name_of x)
                      sort s exp a
-  | Exis(s,b)   -> let (x,a) = unbind (snd b) in
+  | Exis(s,b)   -> let (x,a) = bndr_open b in
                    fprintf ch "∃%s:%a, %a" (name_of x)
                      sort s exp a
-  | FixM(_,o,b,Nil) -> let (x,a) = unbind (snd b) in
+  | FixM(_,o,b,Nil) -> let (x,a) = bndr_open b in
                    fprintf ch "μ%a%s, %a" supo o (name_of x) exp a
   | FixM(s,o,b,l) -> exp ch (apply_args (Pos.none (FixM(s,o,b,Nil))) l)
-  | FixN(_,o,b,Nil) -> let (x,a) = unbind (snd b) in
+  | FixN(_,o,b,Nil) -> let (x,a) = bndr_open b in
                    fprintf ch "ν%a%s, %a" supo o (name_of x) exp a
   | FixN(s,o,b,l) -> exp ch (apply_args (Pos.none (FixN(s,o,b,Nil))) l)
   | Memb(t,a)   -> begin
@@ -341,7 +341,7 @@ let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
   | Impl(e,a)   -> begin
                      fprintf ch "%a if %a" (ex (Prp R)) a rel e
                    end
-  | LAbs(a,b,_) -> let (x,t) = unbind (snd b) in
+  | LAbs(a,b,_) -> let (x,t) = bndr_open b in
                    begin
                      match a with
                      | None   ->
@@ -351,7 +351,7 @@ let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
                              begin
                                match (Norm.repr v).elt with
                                | LAbs(None,b,_) ->
-                                  let (x,t) = unbind (snd b) in
+                                  let (x,t) = bndr_open b in
                                   fn (x::acc) t
                                | _            -> (acc, t)
                              end
@@ -375,18 +375,18 @@ let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
   | Valu(v)     -> ex pr ch v
   | Appl(t,u)   -> let (l,r) = if Trm P < pr then ("(",")") else ("","") in
                    fprintf ch "%s%a %a%s" l (ex (Trm P)) t (ex (Trm A)) u r
-  | MAbs(b)     -> let (x,t) = unbind (snd b) in
+  | MAbs(b)     -> let (x,t) = bndr_open b in
                    fprintf ch "save %s {%a}" (name_of x) ext t
   | Name(s,t)   -> fprintf ch "restore %a %a" exa s ext t
   | Proj(v,l)   -> fprintf ch "%a.%s" (ex (Trm A)) v l.elt
-  | Case(v,m)   -> let pelt ch (c, (_, (_,b))) =
-                     let (x,t) = unbind b in
+  | Case(v,m)   -> let pelt ch (c, (_, b)) =
+                     let (x,t) = bndr_open b in
                      fprintf ch "%s[%s] → %a"
                              c (name_of x) ext t
                    in
                    let pcase = print_map pelt " " in
                    fprintf ch "case %a {%a}" ext v pcase m
-  | FixY(sf,b)  -> let (x,t) = unbind (snd b) in
+  | FixY(sf,b)  -> let (x,t) = bndr_open b in
                    let sf = if sf then "" else "unsafe " in
                    fprintf ch "fix %s%s {%a}" sf (name_of x) ext t
   | Prnt(s)     -> fprintf ch "print(%S)" s
@@ -415,7 +415,7 @@ let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
             aux seq
       in aux r.binder
   | PSet(l,s,e) -> fprintf ch "%a; %a" print_set_param l ext e
-  | ITag(_,u,i) -> fprintf ch "%a#%i" print_itag u i
+  | ITag(_,i)   -> fprintf ch "#%i" i
   | Dumm(_)     -> output_string ch "∅"
   | VWit(w)     -> fprintf ch "%s%a" w.name print_vars e
   | SWit(w)     -> fprintf ch "%s%a" w.name print_vars e
@@ -429,13 +429,6 @@ let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
   | Goal(_,s)   -> fprintf ch "{- %s -}" s
   | VPtr(p)     -> fprintf ch "VPtr(%a)" VPtr.print p
   | TPtr(p)     -> fprintf ch "TPtr(%a)"  Ptr.print p
-
-and print_itag ch = function
-  | Compare     -> fprintf ch "C"
-  | Hash        -> fprintf ch "H"
-  | Equiv_hash  -> fprintf ch "Eh"
-  | Equiv_eq    -> fprintf ch "Ee"
-  | Misc        -> fprintf ch "M"
 
 and print_set_param ch = function
   | Alvl(b,d)   -> fprintf ch "auto %d %d" b d
@@ -451,7 +444,7 @@ and rel ch cnd =
 let ex ch t = ex Any ch t
 
 let bndr ch b =
-  let (x, t) = unbind (snd b) in
+  let (x, t) = bndr_open b in
   fprintf ch "%s.%a" (name_of x) ex t
 
 let print_fix_sch ch sch =

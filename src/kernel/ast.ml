@@ -123,8 +123,8 @@ type _ ex =
 
   (* Special constructors. *)
 
-  | ITag : 'a sort * itag_usage * int                -> 'a ex
-  (** Integer tag (usuful for comparision). *)
+  | ITag : 'a sort * int                             -> 'a ex
+  (** Integer tag (used for hash of binder only). *)
   | Dumm : 'a sort                                   -> 'a ex
   (** Dummy constructor.*)
   | VWit : (vwit, string) eps                        -> v  ex
@@ -138,9 +138,6 @@ type _ ex =
   | UVar : 'a sort * 'a uvar                         -> 'a ex
   (** Unification variable. *)
   | Goal : 'a sort * string                          -> 'a ex
-
-and itag_usage =
-  | Compare | Equiv_hash | Equiv_eq | Misc | Hash
 
 and (_,_) fix_args =
   | Nil : ('a, 'a) fix_args
@@ -307,6 +304,10 @@ type (_,_) fseq =
 (** Binder substitution function. *)
 let bndr_subst : ('a, 'b) bndr -> 'a ex -> 'b ex loc =
   fun (_,b) t -> subst b t
+
+(** Open a binder *)
+let bndr_open : ('a, 'b) bndr -> 'a var * 'b ex loc =
+  fun (_,b) -> unbind b
 
 (** Obtain the name of a bound variable in the form of a located string. The
     position corresponds to the variable in binding position. *)
@@ -667,7 +668,7 @@ let rec sort : type a. a ex loc -> a sort * a ex loc = fun e ->
   | UWit(w)         -> let (s,_,_) = !(w.valu) in (s, e)
   | EWit(w)         -> let (s,_,_) = !(w.valu) in (s, e)
   | UVar(s,_)       -> (s,e)
-  | ITag(s,_,_)     -> (s,e)
+  | ITag(s,_)       -> (s,e)
   | Goal(s,_)       -> (s,e)
 
   | Func _          -> (P,e)

@@ -49,7 +49,7 @@ let make_closure : type a. a ex loc -> a ex loc closure = fun e ->
 let make_bndr_closure
     : type a b. a sort -> (a, b) bndr -> (a, b) bndr closure
   = fun s b0 ->
-    let (x,e) = unbind (snd b0) in
+    let (x,e) = bndr_open b0 in
     let (e,tv,vv,tl,vl) = box_closure e in
     let b = bind_var x e in
     let b = box_pair (box (fst b0)) b in

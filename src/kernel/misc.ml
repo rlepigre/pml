@@ -57,7 +57,6 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
           | _ -> acc
         end
     | UVar(_,_)   -> acc
-    | ITag(_,_,_) -> acc
     | Goal(_,_)   -> acc
 
     | Func(_,a,b) -> owits (owits acc a) b
@@ -109,10 +108,11 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
                        | _ -> acc
                      end
 
-    | Vari _      -> assert false
+    | Vari _      -> acc
     | Dumm _      -> acc
     | VPtr _      -> acc
     | TPtr _      -> acc
+    | ITag _      -> assert false
   in
   (* The ordinals to be bound. *)
   let owits = owits [] e in
@@ -197,8 +197,7 @@ let rec mk_sassoc : slist -> sassoc = function
 
 let bind_params : Equiv.pool -> p ex loc -> sbndr box * slist = fun po e ->
   (* Compute the list of all the surface ordinal witnesses. *)
-  let c = ref (-1) in
-  let new_itag s = incr c; ITag(s,Misc,!c) in
+
   let rec params : type a. slist -> a ex loc -> slist = fun acc e ->
     let from_cond acc c =
       match c with
@@ -219,28 +218,29 @@ let bind_params : Equiv.pool -> p ex loc -> sbndr box * slist = fun po e ->
     match (Norm.whnf e).elt with
     | HDef(_,_)   -> acc
     | HApp(_,f,a) -> params (params acc f) a
-    | HFun(s,_,f) -> params acc (bndr_subst f (new_itag s))
+    | HFun(s,_,f) -> let (_,t) = bndr_open f in params acc t
     | UWit(w)     -> acc
     | EWit(w)     -> acc
     | UVar(_,_)   -> acc
-    | ITag(_,_,_) -> acc
     | Goal(_,_)   -> acc
 
     | Func(_,a,b) -> params (params acc a) b
     | Prod(m)     -> A.fold (fun _ (_,a) acc -> params acc a) m acc
     | DSum(m)     -> A.fold (fun _ (_,a) acc -> params acc a) m acc
-    | Univ(s,f)   -> params acc (bndr_subst f (new_itag s))
-    | Exis(s,f)   -> params acc (bndr_subst f (new_itag s))
+    | Univ(s,f)   -> let (_,t) = bndr_open f in params acc t
+    | Exis(s,f)   -> let (_,t) = bndr_open f in params acc t
     | FixM(s,o,f,l)
-                  -> from_args (params (params acc o) (bndr_subst f (new_itag s))) l
+                  -> let (_,t) = bndr_open f in
+                     from_args (params (params acc o) t) l
     | FixN(s,o,f,l)
-                  -> from_args (params (params acc o) (bndr_subst f (new_itag s))) l
+                  -> let (_,t) = bndr_open f in
+                     from_args (params (params acc o) t) l
     | Memb(t,a)   -> params (params acc t) a
     | Rest(a,c)   -> params (from_cond acc c) a
     | Impl(c,a)   -> params (from_cond acc c) a
 
     | VWit(_)     -> acc
-    | LAbs(_,f,_) -> params acc (bndr_subst f (new_itag V))
+    | LAbs(_,f,_) -> let (_,t) = bndr_open f in params acc t
     | Cons(_,v)   -> params acc v
     | Reco(m)     -> A.fold (fun _ (_,v) acc -> params acc v) m acc
     | Scis        -> acc
@@ -248,11 +248,11 @@ let bind_params : Equiv.pool -> p ex loc -> sbndr box * slist = fun po e ->
 
     | Valu(v)     -> params acc v
     | Appl(t,u)   -> params (params acc t) u
-    | FixY(_,f)   -> params acc (bndr_subst f (new_itag T))
-    | MAbs(f)     -> params acc (bndr_subst f (new_itag S))
+    | FixY(_,f)   -> let (_,t) = bndr_open f in params acc t
+    | MAbs(f)     -> let (_,t) = bndr_open f in params acc t
     | Name(s,t)   -> params (params acc s) t
     | Proj(v,_)   -> params acc v
-    | Case(v,m)   -> let fn _ (_,f) acc = params acc (bndr_subst f (new_itag V)) in
+    | Case(v,m)   -> let fn _ (_,f) acc = params acc (snd (bndr_open f)) in
                      A.fold fn m (params acc v)
     | Prnt(_)     -> acc
     | Repl(t,u)   -> params acc u
@@ -275,6 +275,7 @@ let bind_params : Equiv.pool -> p ex loc -> sbndr box * slist = fun po e ->
     | Dumm _      -> acc
     | VPtr _      -> acc
     | TPtr _      -> acc
+    | ITag _      -> assert false
   in
   (* The ordinals to be bound. *)
   let params = params Nil e in

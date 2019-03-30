@@ -45,7 +45,7 @@ let hash_funptr : type a b.a sort -> (a, b) funptr -> int =
   fun s b ->
     let c = ref (-1) in
     let new_itag : type a. a sort -> a ex =
-      fun s -> incr c; ITag(s,Equiv_hash,!c)
+      fun s -> incr c; ITag(s,!c)
     in
     let a = mbinder_arity b in
     let vs = Array.init a (fun _ -> new_itag V) in
@@ -56,24 +56,7 @@ let hash_funptr : type a b.a sort -> (a, b) funptr -> int =
     hash_bndr s b
 
 let eq_funptr : type a b.a sort -> (a, b) funptr -> (a, b) funptr -> bool =
-  fun s b1 b2 ->
-    let c = ref (-1) in
-    let new_itag : type a. a sort -> a ex =
-      fun s -> incr c; ITag(s,Equiv_eq,!c)
-    in
-    let a1 = mbinder_arity b1 in
-    let a2 = mbinder_arity b2 in
-    a1 = a2 && (
-      let vs = Array.init a1 (fun _ -> new_itag V) in
-      let b1 = msubst b1 vs in
-      let b2 = msubst b2 vs in
-      let a1 = mbinder_arity b1 in
-      let a2 = mbinder_arity b2 in
-      a1 = a2 && (
-        let ts = Array.init a1 (fun _ -> new_itag T) in
-        let b1 = msubst b1 ts in
-        let b2 = msubst b2 ts in
-        eq_bndr s b1 b2))
+  fun s b1 b2 -> eq_mbinder (eq_mbinder (eq_bndr s)) b1 b2
 
 type anyfunptr = T : 'a sort * 'b sort * ('a, 'b) funptr -> anyfunptr
 module Fun =
@@ -106,7 +89,7 @@ let hash_clsptr : type a. a clsptr -> int =
   fun b ->
     let c = ref (-1) in
     let new_itag : type a. a sort -> a ex =
-      fun s -> incr c; ITag(s,Equiv_hash,!c)
+      fun s -> incr c; ITag(s,!c)
     in
     let a = mbinder_arity b in
     let vs = Array.init a (fun _ -> new_itag V) in
@@ -117,22 +100,7 @@ let hash_clsptr : type a. a clsptr -> int =
     hash_expr b
 
 let eq_clsptr : type a. a clsptr -> a clsptr -> bool =
-  fun b1 b2 ->
-    let c = ref (-1) in
-    let new_itag : type a. a sort -> a ex =
-      fun s -> incr c; ITag(s,Equiv_eq,!c)
-    in
-    let a1 = mbinder_arity b1 in
-    a1 = (mbinder_arity b2) && (
-      let vs = Array.init a1 (fun _ -> new_itag V) in
-      let b1 = msubst b1 vs in
-      let b2 = msubst b2 vs in
-      let a1 = mbinder_arity b1 in
-      a1 = (mbinder_arity b2) && (
-        let vs = Array.init a1 (fun _ -> new_itag T) in
-        let b1 = msubst b1 vs in
-        let b2 = msubst b2 vs in
-        eq_expr b1 b2))
+  fun b1 b2 -> eq_mbinder (eq_mbinder eq_expr) b1 b2
 
 type anyclsptr = C : 'a sort * 'a clsptr -> anyclsptr
 module Cls =
@@ -173,7 +141,6 @@ type v_node =
   | VN_ESch of int * (schema, string array) eps
   | VN_HApp of v ho_appl
   | VN_UVar of v uvar
-  | VN_ITag of itag_usage * int
   | VN_Vari of v var
   | VN_Goal of v ex loc
 
@@ -192,7 +159,6 @@ type t_node =
   | TN_ESch of int * (schema, string array) eps
   | TN_HApp of t ho_appl
   | TN_UVar of t uvar
-  | TN_ITag of itag_usage * int
   | TN_Vari of t var
   | TN_Goal of t ex loc
 
@@ -267,7 +233,6 @@ let print_v_node : out_channel -> v_node -> unit = fun ch n ->
   | VN_HApp(e)     -> let HO(s,f,a) = e in
                       prnt ch "VN_HApp(%a,%a)" pcl f pcl a
   | VN_UVar(v)     -> prnt ch "VN_UVar(%a)" pex (Pos.none (UVar(V,v)))
-  | VN_ITag(u,n)   -> prnt ch "VN_ITag(%a)" pex (Pos.none (ITag(V,u,n)))
   | VN_Vari(x)     -> prnt ch "VN_Vari(%s)" (name_of x)
   | VN_Goal(v)     -> prnt ch "VN_Goal(%a)" pex v
 (** Printing function for term nodes. *)
@@ -293,7 +258,6 @@ let print_t_node : out_channel -> t_node -> unit = fun ch n ->
   | TN_HApp(e)     -> let HO(s,f,a) = e in
                       prnt ch "TN_HApp(%a,%a)" pcl f pcl a
   | TN_UVar(v)     -> prnt ch "TN_UVar(%a)" pex (Pos.none (UVar(T,v)))
-  | TN_ITag(u,n)   -> prnt ch "TN_ITag(%a)" pex (Pos.none (ITag(T,u,n)))
   | TN_Vari(x)     -> prnt ch "TN_Vari(%s)" (name_of x)
   | TN_Goal(t)     -> prnt ch "TN_Goal(%a)" pex t
 
@@ -501,7 +465,6 @@ let children_v_node : v_node -> (par_key * Ptr.t) list = fun n ->
   | VN_ESch _
   | VN_Goal _
   | VN_UVar _ (* TODO #4 check *)
-  | VN_ITag _
   | VN_Vari _
   | VN_Scis       -> []
 
@@ -530,8 +493,7 @@ let children_t_node : t_node -> (par_key * Ptr.t) list = fun n ->
   | TN_Prnt _
   | TN_Goal _
   | TN_UVar _  (* TODO #4 check *)
-  | TN_Vari _
-  | TN_ITag _    -> []
+  | TN_Vari _      -> []
 
 (** purity test (having only total arrows). Only epsilon
     contains type in the pool *)
@@ -585,8 +547,7 @@ let immediate_nobox : v_node -> bool = function
   | VN_HApp _
   | VN_UVar _
   | VN_Goal _
-  | VN_Vari _
-  | VN_ITag _ -> false
+  | VN_Vari _ -> false
 
 (** Adding a parent to a given node. *)
 let add_parent_nodes : Ptr.t -> (par_key * Ptr.t) list-> pool -> pool =
@@ -673,7 +634,6 @@ let eq_v_nodes : pool -> v_node -> v_node -> bool =
     | (VN_UWit(w1)   , VN_UWit(w2)   ) -> w1.valu == w2.valu
     | (VN_EWit(w1)   , VN_EWit(w2)   ) -> w1.valu == w2.valu
     | (VN_ESch(i1,w1), VN_ESch(i2,w2)) -> i1 = i2 && w1.valu == w2.valu
-    | (VN_ITag(u1,n1), VN_ITag(u2,n2)) -> u1 = u2 && n1 = n2
     | (VN_HApp(e1)   , VN_HApp(e2)   ) -> eq_ho_appl po e1 e2
     | (VN_Goal(v1)   , VN_Goal(v2)   ) -> eq_expr v1 v2
     | (VN_UVar(v1)   , VN_UVar(v2)   ) -> v1.uvar_key = v2.uvar_key
@@ -697,7 +657,6 @@ let eq_t_nodes : pool -> t_node -> t_node -> bool =
     | (TN_UWit(w1)     , TN_UWit(w2)     ) -> w1.valu == w2.valu
     | (TN_EWit(w1)     , TN_EWit(w2)     ) -> w1.valu == w2.valu
     | (TN_ESch(i1,w1)  , TN_ESch(i2,w2)  ) -> i1 = i2 && w1.valu == w2.valu
-    | (TN_ITag(u1,n1)  , TN_ITag(u2,n2)  ) -> u1 = u2 && n1 = n2
     | (TN_HApp(e1)     , TN_HApp(e2)     ) -> eq_ho_appl po e1 e2
     | (TN_Goal(t1)     , TN_Goal(t2)     ) -> eq_expr t1 t2
     | (TN_UVar(v1)     , TN_UVar(v2)     ) -> v1.uvar_key = v2.uvar_key
@@ -910,10 +869,10 @@ let rec add_term :  bool -> bool -> pool -> term
                      in
                      if free then normalise pt po else find pt po
     | UVar(_,v)   -> insert (TN_UVar(v)) po
-    | ITag(_,u,n) -> insert (TN_ITag(u,n)) po
     | Goal(_)     -> insert (TN_Goal(t)) po
     | Vari(s,x)   -> insert (TN_Vari(x)) po
     | TPtr(pt)    -> if free then normalise pt po else find pt po
+    | ITag(_,n)   -> invalid_arg "itag in terms forbidden"
     | Dumm(_)     -> invalid_arg "dummy terms forbidden in the pool"
     | FixM(_)     -> invalid_arg "mu in terms forbidden"
     | FixN(_)     -> invalid_arg "nu in terms forbidden"
@@ -966,10 +925,10 @@ and     add_valu : bool -> pool -> valu -> VPtr.t * pool = fun o po v0 ->
                          (pv, po)
                      end
     | UVar(_,v)   -> insert_v_node (VN_UVar(v)) po
-    | ITag(_,u,n) -> insert_v_node (VN_ITag(u,n)) po
     | Goal(_)     -> insert_v_node (VN_Goal(v)) po
     | VPtr(pv)    -> (pv, po)
     | Vari(v,x)   -> insert_v_node (VN_Vari(x)) po
+    | ITag(_,n)   -> invalid_arg "itag in values forbidden"
     | Dumm(_)     -> invalid_arg "dummy values forbidden in the pool"
     | FixM(_)     -> invalid_arg "mu in values forbidden"
     | FixN(_)     -> invalid_arg "nu in values forbidden"
@@ -1198,8 +1157,7 @@ and normalise_t_node : ?old:TPtr.t -> t_node -> pool -> Ptr.t  * pool =
       | TN_ESch(_)
       | TN_HApp(_)
       | TN_Goal(_)
-      | TN_Vari(_)
-      | TN_ITag(_)    -> let po = set_ns po in
+      | TN_Vari(_)    -> let po = set_ns po in
                          insert node po
     in
     find p po
@@ -1414,7 +1372,6 @@ and canonical_term : bool -> TPtr.t -> pool -> term * pool
                                   let po = join (Ptr.T_ptr p) tp po in
                                   cp tp po
                             end
-        | TN_ITag(u,n)   -> (Pos.none (ITag(T,u,n)), po)
         | TN_Vari(x)     -> (Pos.none (Vari(T,x)), po)
         | TN_Goal(t)     -> (t, po)
       end
@@ -1464,7 +1421,6 @@ and     canonical_valu : bool -> VPtr.t -> pool -> valu * pool
                                  in
                                  cv vp po
                             end
-        | VN_ITag(u,n)   -> (Pos.none (ITag(V,u,n)), po)
         | VN_Vari(x)     -> (Pos.none (Vari(V,x)), po)
         | VN_Goal(v)     -> (v, po)
 
@@ -1659,8 +1615,6 @@ and unif_v_nodes : pool -> VPtr.t -> v_node -> VPtr.t -> v_node -> pool =
           let (_,t2,b2) = !(w2.valu) in
           let po = unif_expr po t1 t2 in
           unif_bndr po V b1 b2)
-    | (VN_ITag(u1,n1), VN_ITag(u2,n2)   ) ->
-       if u1 = u2 && n1 = n2 then po else raise NoUnif
     | (VN_Vari(n1)   , VN_Vari(n2)   ) ->
        if eq_vars n1 n2 then po else raise NoUnif
     | (VN_HApp(e1)   , VN_HApp(e2)   ) ->
@@ -1732,8 +1686,6 @@ and unif_t_nodes : pool -> TPtr.t -> t_node -> TPtr.t -> t_node -> pool =
           let (_,t2,b2) = !(w2.valu) in
           let po = unif_expr po t1 t2 in
           unif_bndr po T b1 b2)
-    | (TN_ITag(u1,n1)  , TN_ITag(u2,n2)  ) ->
-       if u1 <> u2 || n1 <> n2 then raise NoUnif; po
     | (TN_Vari(n1)     , TN_Vari(n2)     ) ->
        if not (eq_vars n1 n2) then raise NoUnif; po
     | (TN_HApp(e1)     , TN_HApp(e2)     ) ->

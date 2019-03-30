@@ -76,11 +76,6 @@ type 'a args =
 (* Comparison function with unification variable instantiation,
    and optionnaly using the pool oracle. *)
 let {eq_expr; eq_bndr} =
-  let c = ref (-1) in
-  let new_itag : type a. a sort -> a ex =
-    fun s -> incr c;
-             ITag(s,Compare,!c)
-  in
 
   let rec eq_expr : type a. oracle -> bool -> a ex loc -> a ex loc -> bool =
     fun oracle strict e1 e2 ->
@@ -250,11 +245,11 @@ let {eq_expr; eq_bndr} =
     | (_             , HApp _        ) when not strict && flexible e2 ->
        immitate e2 e1 && eq_expr e1 e2
     | (HFun(s1,_,b1), _             ) ->
-       let t = new_itag s1 in
-       eq_expr (bndr_subst b1 t) (Pos.none (HApp(s1,e2,Pos.none t)))
-    | (_             , HFun(s1,_,b2)) ->
-       let t = new_itag s1 in
-       eq_expr (Pos.none (HApp(s1,e1,Pos.none t))) (bndr_subst b2 t)
+       let (v,t) = bndr_open b1 in
+       eq_expr t (Pos.none (HApp(s1,e2,Pos.none (Vari(s1,v)))))
+    | (_             , HFun(s2,_,b2)) ->
+       let (v,t) = bndr_open b2 in
+       eq_expr (Pos.none (HApp(s2,e1,Pos.none (Vari(s2,v))))) t
     | (HDef(_,d)     , _             ) -> eq_expr d.expr_def e2
     | (_             , HDef(_,d)     ) -> eq_expr e1 d.expr_def
     | (Func(t1,a1,b1), Func(t2,a2,b2)) ->
@@ -345,7 +340,6 @@ let {eq_expr; eq_bndr} =
     | (_             , Such(_,_,r)   ) -> eq_expr e1 (bseq_dummy r.binder)
     | (PSet(_,_,e1)  , _             ) -> eq_expr e1 e2
     | (_             , PSet(_,_,e2)  ) -> eq_expr e1 e2
-    | (ITag(_,u1,i1) , ITag(_,u2,i2) ) -> u1 = u2 && i1 = i2
     (* NOTE should not be compare dummy expressions. *)
     | (Dumm(_)       , Dumm(_)       ) -> false
     | (VWit(w1)      , VWit(w2)      ) ->
@@ -419,10 +413,9 @@ let {eq_expr; eq_bndr} =
 
   and eq_bndr : type a b. oracle -> bool -> a sort ->
                             (a,b) bndr -> (a,b) bndr -> bool =
-    fun oracle strict s1 b1 b2 ->
+    fun oracle strict s1 (_,b1) (_,b2) ->
       if b1 == b2 then true else
-        let t = new_itag s1 in
-        eq_expr oracle strict (bndr_subst b1 t) (bndr_subst b2 t)
+        eq_binder (eq_expr oracle strict) b1 b2
   in
 
   let compare_chrono = Chrono.create "compare" in
@@ -430,7 +423,6 @@ let {eq_expr; eq_bndr} =
   let eq_expr : type a. ?oracle:oracle -> ?strict:bool ->
                           a ex loc -> a ex loc -> bool =
     fun ?(oracle=default_oracle) ?(strict=true) e1 e2 ->
-      c := -1; (* Reset. *)
       let is_oracle = oracle != default_oracle in
       log_equ "showing %a === %a (%b)" Print.ex e1 Print.ex e2 is_oracle;
       (*bug_msg "sizes: %i and %i" (binary_size e1) (binary_size e2);*)
@@ -444,7 +436,6 @@ let {eq_expr; eq_bndr} =
   let eq_bndr : type a b. ?oracle:oracle -> ?strict:bool ->
                      a sort -> (a,b) bndr -> (a,b) bndr -> bool =
     fun ?(oracle=default_oracle) ?(strict=true) s1 b1 b2 ->
-      c := -1; (* Reset. *)
       Chrono.add_time compare_chrono
         (UTimed.pure_test (eq_bndr oracle strict s1 b1)) b2
   in

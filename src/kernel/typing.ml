@@ -267,7 +267,7 @@ let learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
                 (** We know that o is positive and wit in a
                     so we can build an eps < o *)
                 let f o = unroll_FixM s (Pos.none o) f l in
-                let f = raw_binder "o" true 0 (fun _ -> assert false) f in
+                let f = raw_binder "o" true 0 (mk_free O) f in
                 let (o', ctx_names) = owmu ctx.ctx_names o twit (None, f) in
                 (o', { ctx with ctx_names })
            in
@@ -326,7 +326,7 @@ let learn_neg_equivalences : ctxt -> valu -> term option -> prop -> ctxt =
                 (** We know that o is positive and wit in a
                     so we can build an eps < o *)
                 let f o = unroll_FixN s (Pos.none o) f l in
-                let f = raw_binder "o" true 0 (fun _ -> assert false) f in
+                let f = raw_binder "o" true 0 (mk_free O) f in
                 let (o', ctx_names) = ownu ctx.ctx_names o twit (None, f) in
                 (o', { ctx with ctx_names })
            in
@@ -453,7 +453,7 @@ let rec subtype =
               Succ o' -> (ctx, o')
             | _ ->
                let f o = unroll_FixM s (Pos.none o) f l in
-               let f = raw_binder "o" true 0 (fun _ -> assert false) f in
+               let f = raw_binder "o" true 0 (mk_free O) f in
                let (o', ctx_names) = owmu ctx.ctx_names o t (None,f) in
                let ctx = { ctx with ctx_names } in
                (add_positive ctx o o', o')
@@ -476,7 +476,7 @@ let rec subtype =
              Succ o' -> (ctx, o')
            | _ ->
               let f o = unroll_FixN s (Pos.none o) f l in
-              let f = raw_binder "o" true 0 (fun _ -> assert false) f in
+              let f = raw_binder "o" true 0 (mk_free O) f in
               let (o', ctx_names) = ownu ctx.ctx_names o t (None, f) in
               let ctx = { ctx with ctx_names } in
               (add_positive ctx o o', o')
