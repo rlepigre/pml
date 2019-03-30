@@ -77,7 +77,10 @@ type 'a args =
    and optionnaly using the pool oracle. *)
 let {eq_expr; eq_bndr} =
   let c = ref (-1) in
-  let new_itag : type a. a sort -> a ex = fun s -> incr c; ITag(s,!c) in
+  let new_itag : type a. a sort -> a ex =
+    fun s -> incr c;
+             ITag(s,Compare,!c)
+  in
 
   let rec eq_expr : type a. oracle -> bool -> a ex loc -> a ex loc -> bool =
     fun oracle strict e1 e2 ->
@@ -342,7 +345,7 @@ let {eq_expr; eq_bndr} =
     | (_             , Such(_,_,r)   ) -> eq_expr e1 (bseq_dummy r.binder)
     | (PSet(_,_,e1)  , _             ) -> eq_expr e1 e2
     | (_             , PSet(_,_,e2)  ) -> eq_expr e1 e2
-    | (ITag(_,i1)    , ITag(_,i2)    ) -> i1 = i2
+    | (ITag(_,u1,i1) , ITag(_,u2,i2) ) -> u1 = u2 && i1 = i2
     (* NOTE should not be compare dummy expressions. *)
     | (Dumm(_)       , Dumm(_)       ) -> false
     | (VWit(w1)      , VWit(w2)      ) ->

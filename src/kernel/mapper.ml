@@ -40,7 +40,7 @@ let map : type a. ?mapper:mapper -> a ex loc -> a ebox
         | UWit(_)       -> Bindlib.box e
         | EWit(_)       -> Bindlib.box e
         | UVar(_,_)     -> Bindlib.box e
-        | ITag(_,_)     -> Bindlib.box e
+        | ITag(_,_,_)   -> Bindlib.box e
         | Goal(_,_)     -> Bindlib.box e
 
         | Func(t,a,b)   -> func e.pos t (map a) (map b)

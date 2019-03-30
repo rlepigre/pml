@@ -21,7 +21,7 @@ type hash =
 let {hash_expr; hash_bndr; hash_ombinder; hash_vwit
     ; hash_qwit; hash_owit; hash_swit; hash_cwit} =
   let c = ref (-1) in
-  let new_itag : type a. a sort -> a ex = fun s -> incr c; ITag(s,!c) in
+  let new_itag : type a. a sort -> a ex = fun s -> incr c; ITag(s,Hash,!c) in
   let hash : type a. a -> int = Hashtbl.hash in
   let mix x y = ((y lsl 17) - x) lxor ((x lsr 7) - y) in
   let mix3 x y z = mix x (mix y z) in
@@ -83,7 +83,7 @@ let {hash_expr; hash_bndr; hash_ombinder; hash_vwit
     | Conv        -> hash `Conv
     | Succ(o)     -> khash1 `Succ (hash_expr o)
     (* NOTE type annotations ignored. *)
-    | ITag(_,i)   -> hash (`ITag(i))
+    | ITag(_,u,i) -> hash (`ITag(u,i))
     (* NOTE should not be compare dummy expressions. *)
     | Dumm(s)     -> khash1 `Dumm (hash_sort s)
     | VWit(w)     -> w.refr (); khash1 `VWit !(w.hash)

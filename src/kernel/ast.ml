@@ -123,7 +123,7 @@ type _ ex =
 
   (* Special constructors. *)
 
-  | ITag : 'a sort * int                             -> 'a ex
+  | ITag : 'a sort * itag_usage * int                -> 'a ex
   (** Integer tag (usuful for comparision). *)
   | Dumm : 'a sort                                   -> 'a ex
   (** Dummy constructor.*)
@@ -138,6 +138,9 @@ type _ ex =
   | UVar : 'a sort * 'a uvar                         -> 'a ex
   (** Unification variable. *)
   | Goal : 'a sort * string                          -> 'a ex
+
+and itag_usage =
+  | Compare | Equiv_hash | Equiv_eq | Misc | Hash
 
 and (_,_) fix_args =
   | Nil : ('a, 'a) fix_args
@@ -664,7 +667,7 @@ let rec sort : type a. a ex loc -> a sort * a ex loc = fun e ->
   | UWit(w)         -> let (s,_,_) = !(w.valu) in (s, e)
   | EWit(w)         -> let (s,_,_) = !(w.valu) in (s, e)
   | UVar(s,_)       -> (s,e)
-  | ITag(s,_)       -> (s,e)
+  | ITag(s,_,_)     -> (s,e)
   | Goal(s,_)       -> (s,e)
 
   | Func _          -> (P,e)

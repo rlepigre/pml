@@ -415,7 +415,7 @@ let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
             aux seq
       in aux r.binder
   | PSet(l,s,e) -> fprintf ch "%a; %a" print_set_param l ext e
-  | ITag(_,i)   -> fprintf ch "#%i" i
+  | ITag(_,u,i) -> fprintf ch "%a#%i" print_itag u i
   | Dumm(_)     -> output_string ch "∅"
   | VWit(w)     -> fprintf ch "%s%a" w.name print_vars e
   | SWit(w)     -> fprintf ch "%s%a" w.name print_vars e
@@ -429,6 +429,13 @@ let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
   | Goal(_,s)   -> fprintf ch "{- %s -}" s
   | VPtr(p)     -> fprintf ch "VPtr(%a)" VPtr.print p
   | TPtr(p)     -> fprintf ch "TPtr(%a)"  Ptr.print p
+
+and print_itag ch = function
+  | Compare     -> fprintf ch "C"
+  | Hash        -> fprintf ch "H"
+  | Equiv_hash  -> fprintf ch "Eh"
+  | Equiv_eq    -> fprintf ch "Ee"
+  | Misc        -> fprintf ch "M"
 
 and print_set_param ch = function
   | Alvl(b,d)   -> fprintf ch "auto %d %d" b d

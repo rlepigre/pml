@@ -57,7 +57,7 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
           | _ -> acc
         end
     | UVar(_,_)   -> acc
-    | ITag(_,_)   -> acc
+    | ITag(_,_,_) -> acc
     | Goal(_,_)   -> acc
 
     | Func(_,a,b) -> owits (owits acc a) b
@@ -198,7 +198,7 @@ let rec mk_sassoc : slist -> sassoc = function
 let bind_params : Equiv.pool -> p ex loc -> sbndr box * slist = fun po e ->
   (* Compute the list of all the surface ordinal witnesses. *)
   let c = ref (-1) in
-  let new_itag s = decr c; ITag(s,!c) in
+  let new_itag s = incr c; ITag(s,Misc,!c) in
   let rec params : type a. slist -> a ex loc -> slist = fun acc e ->
     let from_cond acc c =
       match c with
@@ -223,7 +223,7 @@ let bind_params : Equiv.pool -> p ex loc -> sbndr box * slist = fun po e ->
     | UWit(w)     -> acc
     | EWit(w)     -> acc
     | UVar(_,_)   -> acc
-    | ITag(_,_)   -> acc
+    | ITag(_,_,_) -> acc
     | Goal(_,_)   -> acc
 
     | Func(_,a,b) -> params (params acc a) b
