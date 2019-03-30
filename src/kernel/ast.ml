@@ -125,8 +125,6 @@ type _ ex =
 
   | ITag : 'a sort * int                             -> 'a ex
   (** Integer tag (used for hash of binder only). *)
-  | Dumm : 'a sort                                   -> 'a ex
-  (** Dummy constructor.*)
   | VWit : (vwit, string) eps                        -> v  ex
   (** Value witness. *)
   | SWit : (swit, string) eps                        -> s  ex
@@ -308,6 +306,8 @@ let bndr_subst : ('a, 'b) bndr -> 'a ex -> 'b ex loc =
 (** Open a binder *)
 let bndr_open : ('a, 'b) bndr -> 'a var * 'b ex loc =
   fun (_,b) -> unbind b
+let bndr_term : ('a, 'b) bndr -> 'b ex loc =
+  fun b -> snd (bndr_open b)
 
 (** Obtain the name of a bound variable in the form of a located string. The
     position corresponds to the variable in binding position. *)
@@ -636,7 +636,7 @@ let rec is_scis : type a. a ex loc -> bool =
     | Scis        -> true
     | Valu(v)     -> is_scis v
     | LAbs(_,f,_) -> (* because of sugar like show ...; 8< *)
-                     is_scis (bndr_subst f (Dumm V))
+                     is_scis (bndr_term f)
     | _           -> false
 
 (*
@@ -648,10 +648,10 @@ let build_t_fixy : (v,t) bndr -> term = fun b ->
   Pos.none (Valu(build_v_fixy b))
  *)
 
-let rec bseq_dummy : type a b. (a, prop * b) bseq -> b = fun seq ->
+let rec bseq_open: type a b. (a, prop * b) bseq -> b = fun seq ->
   match seq with
-  | BLast(s,f) -> snd (subst f (Dumm s))
-  | BMore(s,f) -> bseq_dummy (subst f (Dumm s))
+  | BLast(s,f) -> snd (snd (unbind f))
+  | BMore(s,f) -> bseq_open (snd (unbind f))
 
 let rec tail_sort : type a b. a sort -> (a, b) fix_args -> b sort =
   fun s l -> match l with
@@ -718,7 +718,6 @@ let rec sort : type a. a ex loc -> a sort * a ex loc = fun e ->
   | ESch(s,_,_)     -> (s,e)
 
   | Vari(s,_)       -> (s,e)
-  | Dumm(s)         -> (s,e)
 
 let rec apply_args : type a b. a ex loc -> (a, b) fix_args -> b ex loc =
   fun f l ->

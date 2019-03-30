@@ -336,12 +336,10 @@ let {eq_expr; eq_bndr} =
     | (_             , Delm(u2)      ) -> eq_expr e1 u2
     | (Coer(_,e1,_)  , _             ) -> eq_expr e1 e2
     | (_             , Coer(_,e2,_)  ) -> eq_expr e1 e2
-    | (Such(_,_,r)   , _             ) -> eq_expr (bseq_dummy r.binder) e2
-    | (_             , Such(_,_,r)   ) -> eq_expr e1 (bseq_dummy r.binder)
+    | (Such(_,_,r)   , _             ) -> eq_expr (bseq_open r.binder) e2
+    | (_             , Such(_,_,r)   ) -> eq_expr e1 (bseq_open r.binder)
     | (PSet(_,_,e1)  , _             ) -> eq_expr e1 e2
     | (_             , PSet(_,_,e2)  ) -> eq_expr e1 e2
-    (* NOTE should not be compare dummy expressions. *)
-    | (Dumm(_)       , Dumm(_)       ) -> false
     | (VWit(w1)      , VWit(w2)      ) ->
        w1.valu == w2.valu ||
          if strict || (!(w1.vars) = [] && !(w2.vars) = [])

@@ -36,7 +36,7 @@ let pure : type a. a ex loc -> bool =
         List.iter (fun (U(s,v)) -> iter (Pos.none (UVar(s,v)))) !(w.vars)
     in
     (** iteration on binders *)
-    let biter s b = iter (bndr_subst b (Dumm s)) in
+    let biter s b = iter (bndr_term b) in
     let rec fiter : type a b. (a, b) fix_args -> unit
       = function
       | Nil -> ()
@@ -83,10 +83,9 @@ let pure : type a. a ex loc -> bool =
     | Succ(o)     -> iter o
     (* NOTE type annotations ignored. *)
     | Coer(_,e,_) -> iter e
-    | Such(_,_,r) -> iter (bseq_dummy r.binder)
+    | Such(_,_,r) -> iter (bseq_open r.binder)
     | PSet(_,_,e) -> iter e
     | ITag(_)     -> ()
-    | Dumm(_)     -> ()
     | Goal(_)     -> ()
     | VPtr(_)     -> ()
     | TPtr(_)     -> ()
@@ -111,13 +110,13 @@ let pure : type a. a ex loc -> bool =
 let pure_schema = function
   | FixSch s ->
      let (b, mb) = s.fsch_judge in
-     pure (bndr_subst b (Dumm T)) &&
-       pure (msubst mb (Array.make (mbinder_arity mb) (Dumm O)))
+     pure (bndr_term b) &&
+       pure (snd (unmbind mb))
   | SubSch s ->
      let mb = s.ssch_judge in
-     let f = msubst mb (Array.make (mbinder_arity mb) (Dumm O)) in
+     let (_,f) = unmbind mb in
      let rec fn = function
        | Cst(a,b) -> pure a && pure b
-       | Bnd(s,f) -> fn (subst f (Dumm s))
+       | Bnd(s,f) -> fn (snd (unbind f))
      in
      fn f

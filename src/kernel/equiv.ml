@@ -199,7 +199,7 @@ let pbcl : type a b. a sort -> out_channel -> (a, b) bndr_closure -> unit =
     let pex = Print.ex in
     let (vvars,b) = unmbind funptr in
     let (tvars,b) = unmbind b in
-    let (var,t)   = unbind (snd b) in
+    let (var,t)   = bndr_open b in
     let vvars = if vs = [||] then [||] else vvars in
     let tvars = if ts = [||] then [||] else tvars in
     let fn ch =
@@ -853,7 +853,7 @@ let rec add_term :  bool -> bool -> pool -> term
     | Repl(_,u)   -> add_term po u
     | Delm(u)     -> add_term po u
     | Coer(_,t,_) -> add_term po t
-    | Such(_,_,r) -> add_term po (bseq_dummy r.binder)
+    | Such(_,_,r) -> add_term po (bseq_open r.binder)
     | PSet(_,_,e) -> add_term po e
     | UWit(w)     -> insert (TN_UWit(w)) po
     | EWit(w)     -> insert (TN_EWit(w)) po
@@ -873,7 +873,6 @@ let rec add_term :  bool -> bool -> pool -> term
     | Vari(s,x)   -> insert (TN_Vari(x)) po
     | TPtr(pt)    -> if free then normalise pt po else find pt po
     | ITag(_,n)   -> invalid_arg "itag in terms forbidden"
-    | Dumm(_)     -> invalid_arg "dummy terms forbidden in the pool"
     | FixM(_)     -> invalid_arg "mu in terms forbidden"
     | FixN(_)     -> invalid_arg "nu in terms forbidden"
   in
@@ -909,7 +908,7 @@ and     add_valu : bool -> pool -> valu -> VPtr.t * pool = fun o po v0 ->
                          (pv, po)
                      end
     | Coer(_,v,_) -> add_valu po v
-    | Such(_,_,r) -> add_valu po (bseq_dummy r.binder)
+    | Such(_,_,r) -> add_valu po (bseq_open r.binder)
     | PSet(_,_,e) -> add_valu po e
     | VWit(w)     -> insert_v_node (VN_VWit(w)) po
     | UWit(w)     -> insert_v_node (VN_UWit(w)) po
@@ -929,7 +928,6 @@ and     add_valu : bool -> pool -> valu -> VPtr.t * pool = fun o po v0 ->
     | VPtr(pv)    -> (pv, po)
     | Vari(v,x)   -> insert_v_node (VN_Vari(x)) po
     | ITag(_,n)   -> invalid_arg "itag in values forbidden"
-    | Dumm(_)     -> invalid_arg "dummy values forbidden in the pool"
     | FixM(_)     -> invalid_arg "mu in values forbidden"
     | FixN(_)     -> invalid_arg "nu in values forbidden"
   in
@@ -1995,13 +1993,13 @@ let get_cases : Ptr.v_ptr -> pool -> A.key list option = fun pv po ->
          match (Norm.whnf a).elt with
          | HDef(_,d) -> fn d.expr_def
          | DSum(s)   -> Some(A.keys s)
-         | FixM(s,_,b,l) -> fn (apply_args (bndr_subst b (Dumm s)) l)
-         | FixN(s,_,b,l) -> fn (apply_args (bndr_subst b (Dumm s)) l)
+         | FixM(s,_,b,l) -> fn (apply_args (bndr_term b) l)
+         | FixN(s,_,b,l) -> fn (apply_args (bndr_term b) l)
          | Memb(_,a) -> fn a
          | Rest(a,_) -> fn a
          | Impl(_,a) -> fn a
-         | Univ(s,b) -> fn (bndr_subst b (Dumm s))
-         | Exis(s,b) -> fn (bndr_subst b (Dumm s))
+         | Univ(s,b) -> fn (bndr_term b)
+         | Exis(s,b) -> fn (bndr_term b)
          | _         -> gn l
        in
        fn a

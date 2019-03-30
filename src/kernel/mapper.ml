@@ -124,7 +124,6 @@ let map : type a. ?mapper:mapper -> a ex loc -> a ebox
         | OSch(_)       -> Bindlib.box e
         | ESch(_)       -> Bindlib.box e
         | Vari(_,x)     -> vari e.pos x
-        | Dumm(_)       -> Bindlib.box e
 
         | VPtr _        -> Bindlib.box e
         | TPtr _        -> Bindlib.box e

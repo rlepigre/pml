@@ -416,7 +416,6 @@ let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
       in aux r.binder
   | PSet(l,s,e) -> fprintf ch "%a; %a" print_set_param l ext e
   | ITag(_,i)   -> fprintf ch "#%i" i
-  | Dumm(_)     -> output_string ch "∅"
   | VWit(w)     -> fprintf ch "%s%a" w.name print_vars e
   | SWit(w)     -> fprintf ch "%s%a" w.name print_vars e
   | UWit(w)     -> fprintf ch "%s%a" w.name print_vars e

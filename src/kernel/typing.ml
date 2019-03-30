@@ -1113,8 +1113,8 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
     | Reco(m)     ->
         let has_mem k =
           let rec fn u = match (Norm.whnf u).elt with
-            | Exis(s,f) -> fn (bndr_subst f (Dumm s))
-            | Univ(s,f) -> fn (bndr_subst f (Dumm s))
+            | Exis(s,f) -> fn (bndr_term f)
+            | Univ(s,f) -> fn (bndr_term f)
             | Memb(_,t) -> fn t
             | Rest(t,_) -> fn t
             | Impl(_,t) -> fn t
@@ -1238,7 +1238,6 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
     | VPtr(_)     -> unexpected "VPtr during typing..."
     | UVar(_)     -> unexpected "unification variable during typing..."
     | Vari(_)     -> unexpected "Free variable during typing..."
-    | Dumm(_)     -> unexpected "Dummy value during typing..."
     | ITag(_)     -> unexpected "ITag during typing..."
     | FixM(_)     -> invalid_arg "mu in terms forbidden"
     | FixN(_)     -> invalid_arg "nu in terms forbidden"
@@ -1526,7 +1525,6 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
     | TPtr(_)     -> unexpected "TPtr during typing..."
     | UVar(_)     -> unexpected "unification variable during typing..."
     | Vari(_)     -> unexpected "Free variable during typing..."
-    | Dumm(_)     -> unexpected "Dummy value during typing..."
     | ITag(_)     -> unexpected "ITag during typing..."
     | FixM(_)     -> invalid_arg "mu in values forbidden"
     | FixN(_)     -> invalid_arg "nu in values forbidden"
@@ -1566,7 +1564,6 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
     | ESch(_)     -> unexpected "schema-witness during typing..."
     | UVar(_)     -> unexpected "unification variable during typing..."
     | Vari(_)     -> unexpected "Free variable during typing..."
-    | Dumm(_)     -> unexpected "Dummy value during typing..."
     | ITag(_)     -> unexpected "Tag during typing..."
     | FixM(_)     -> invalid_arg "mu in stacks forbidden"
     | FixN(_)     -> invalid_arg "nu in stacks forbidden"

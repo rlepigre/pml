@@ -45,7 +45,7 @@ let {hash_expr; hash_bndr; hash_ombinder; hash_vwit
     | VDef(d)     -> d.value_hash
     | Valu(v)     -> hash_expr v
     | Coer(_,e,_) -> hash_expr e
-    | Such(_,_,r) -> hash_expr (bseq_dummy r.binder)
+    | Such(_,_,r) -> hash_expr (bseq_open r.binder)
     | PSet(_,_,e) -> hash_expr e
     | Vari(_,x)   -> khash1 `Vari (Bindlib.hash_var x)
     | HFun(s,_,b) -> khash1 `HFun (hash_bndr s b)
@@ -84,8 +84,6 @@ let {hash_expr; hash_bndr; hash_ombinder; hash_vwit
     | Succ(o)     -> khash1 `Succ (hash_expr o)
     (* NOTE type annotations ignored. *)
     | ITag(_,i)   -> hash (`ITag(i))
-    (* NOTE should not be compare dummy expressions. *)
-    | Dumm(s)     -> khash1 `Dumm (hash_sort s)
     | VWit(w)     -> w.refr (); khash1 `VWit !(w.hash)
     | SWit(w)     -> w.refr (); khash1 `SWit !(w.hash)
     | UWit(w)     -> w.refr (); khash1 `UWit !(w.hash)

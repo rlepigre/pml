@@ -41,7 +41,7 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
     match (Norm.whnf e).elt with
     | HDef(_,_)   -> acc
     | HApp(_,f,a) -> owits (owits acc f) a
-    | HFun(s,_,f) -> owits acc (bndr_subst f (Dumm s))
+    | HFun(s,_,f) -> owits acc (bndr_term f)
     | UWit(w)     ->
         begin
           let (s,_,_) = !(w.valu) in
@@ -62,18 +62,18 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
     | Func(_,a,b) -> owits (owits acc a) b
     | Prod(m)     -> A.fold (fun _ (_,a) acc -> owits acc a) m acc
     | DSum(m)     -> A.fold (fun _ (_,a) acc -> owits acc a) m acc
-    | Univ(s,f)   -> owits acc (bndr_subst f (Dumm s))
-    | Exis(s,f)   -> owits acc (bndr_subst f (Dumm s))
+    | Univ(s,f)   -> owits acc (bndr_term f)
+    | Exis(s,f)   -> owits acc (bndr_term f)
     | FixM(s,o,f,l)
-                  -> from_args (owits (owits acc o) (bndr_subst f (Dumm s))) l
+                  -> from_args (owits (owits acc o) (bndr_term f)) l
     | FixN(s,o,f,l)
-                  -> from_args (owits (owits acc o) (bndr_subst f (Dumm s))) l
+                  -> from_args (owits (owits acc o) (bndr_term f)) l
     | Memb(t,a)   -> owits (owits acc t) a
     | Rest(a,c)   -> owits (from_cond acc c) a
     | Impl(c,a)   -> owits (from_cond acc c) a
 
     | VWit(_)     -> acc
-    | LAbs(_,f,_) -> owits acc (bndr_subst f (Dumm V))
+    | LAbs(_,f,_) -> owits acc (bndr_term f)
     | Cons(_,v)   -> owits acc v
     | Reco(m)     -> A.fold (fun _ (_,v) acc -> owits acc v) m acc
     | Scis        -> acc
@@ -81,18 +81,18 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
 
     | Valu(v)     -> owits acc v
     | Appl(t,u)   -> owits (owits acc t) u
-    | FixY(_,f)   -> owits acc (bndr_subst f (Dumm T))
-    | MAbs(f)     -> owits acc (bndr_subst f (Dumm S))
+    | FixY(_,f)   -> owits acc (bndr_term f)
+    | MAbs(f)     -> owits acc (bndr_term f)
     | Name(s,t)   -> owits (owits acc s) t
     | Proj(v,_)   -> owits acc v
-    | Case(v,m)   -> let fn _ (_,f) acc = owits acc (bndr_subst f (Dumm V)) in
+    | Case(v,m)   -> let fn _ (_,f) acc = owits acc (bndr_term f) in
                      A.fold fn m (owits acc v)
     | Prnt(_)     -> acc
     | Repl(t,u)   -> owits acc u
     | Delm(u)     -> owits acc u
 
     | Coer(_,e,_) -> owits acc e
-    | Such(_,_,b) -> owits acc (bseq_dummy b.binder)
+    | Such(_,_,b) -> owits acc (bseq_open b.binder)
     | PSet(_,_,e) -> owits acc e
 
     | SWit(_)     -> acc
@@ -109,7 +109,6 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
                      end
 
     | Vari _      -> acc
-    | Dumm _      -> acc
     | VPtr _      -> acc
     | TPtr _      -> acc
     | ITag _      -> assert false
@@ -252,14 +251,14 @@ let bind_params : Equiv.pool -> p ex loc -> sbndr box * slist = fun po e ->
     | MAbs(f)     -> let (_,t) = bndr_open f in params acc t
     | Name(s,t)   -> params (params acc s) t
     | Proj(v,_)   -> params acc v
-    | Case(v,m)   -> let fn _ (_,f) acc = params acc (snd (bndr_open f)) in
+    | Case(v,m)   -> let fn _ (_,f) acc = params acc (bndr_term f) in
                      A.fold fn m (params acc v)
     | Prnt(_)     -> acc
     | Repl(t,u)   -> params acc u
     | Delm(u)     -> params acc u
 
     | Coer(_,e,_) -> params acc e
-    | Such(_,_,b) -> params acc (bseq_dummy b.binder)
+    | Such(_,_,b) -> params acc (bseq_open b.binder)
     | PSet(_,_,e) -> params acc e
 
     | SWit(_)     -> acc
@@ -272,7 +271,6 @@ let bind_params : Equiv.pool -> p ex loc -> sbndr box * slist = fun po e ->
     | ESch(_)     -> acc
 
     | Vari _      -> acc
-    | Dumm _      -> acc
     | VPtr _      -> acc
     | TPtr _      -> acc
     | ITag _      -> assert false

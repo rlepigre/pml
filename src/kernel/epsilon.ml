@@ -151,7 +151,7 @@ let vwit : ctxt -> (v,t) bndr -> prop -> prop -> (vwit, string) eps * ctxt =
       in
       let pure = (* must be lazy, see ast.ml definition of eps type *)
         Lazy.from_fun (fun () ->
-            Pure.(pure a && pure b && pure (bndr_subst f (Dumm V))))
+            Pure.(pure a && pure b && pure (bndr_term f)))
       in
       (** we create a name for printing *)
       let v, ctx = new_var_in ctx (mk_free V) (bndr_name f).elt in
@@ -213,7 +213,7 @@ let qwit : type a. ctxt -> a sort -> term -> (a,p) bndr
       let v, ctx = new_var_in ctx (mk_free V) (bndr_name b).elt in
       let pure =
         Lazy.from_fun (fun () ->
-            Pure.(pure t && pure (bndr_subst b (Dumm s))))
+            Pure.(pure t && pure (bndr_term b)))
       in
       let rec w = { vars = ref []
                   ; name = name_of v
@@ -262,7 +262,7 @@ let owit : ctxt -> ordi -> term -> (o,p) bndr -> (owit, string) eps * ctxt =
       let v, ctx = new_var_in ctx (mk_free V) (bndr_name b).elt in
       let pure =
         Lazy.from_fun (fun () ->
-            Pure.(pure o && pure a && pure (bndr_subst b (Dumm O))))
+            Pure.(pure o && pure a && pure (bndr_term b)))
       in
       let rec w = { vars = ref []
                   ; name = name_of v
@@ -310,8 +310,7 @@ let swit : ctxt -> (s,t) bndr -> prop -> (swit, string) eps * ctxt =
       in
       let v, ctx = new_var_in ctx (mk_free V) (bndr_name b).elt in
       let pure =
-        Lazy.from_fun (fun () ->
-            Pure.(pure (bndr_subst b (Dumm S)) && pure s))
+        Lazy.from_fun (fun () -> Pure.(pure (bndr_term b) && pure s))
       in
       let rec w = { vars = ref []
                   ; name = name_of v

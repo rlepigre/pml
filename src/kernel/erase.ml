@@ -26,11 +26,10 @@ let rec valu_erasure : valu -> e_vbox = fun v ->
   | Goal(_,s)   -> vscis
   | VDef(d)     -> vvdef d
   | Coer(_,v,_) -> valu_erasure v
-  | Such(_,_,r) -> valu_erasure (bseq_dummy r.binder)
+  | Such(_,_,r) -> valu_erasure (bseq_open r.binder)
   | PSet(_,_,v) -> valu_erasure v
   | VPtr(_)     -> erasure_error "a pool pointer cannot be erased (value)"
   | ITag(_)     -> erasure_error "a tag cannot be erased (value)"
-  | Dumm(_)     -> erasure_error "a dummy value cannot be erased (value)"
   | VWit(_)     -> erasure_error "a witness cannot be erased (value)"
   | UWit(_)     -> erasure_error "a witness cannot be erased (value)"
   | EWit(_)     -> erasure_error "a witness cannot be erased (value)"
@@ -67,11 +66,10 @@ and     term_erasure : term -> e_tbox = fun t ->
   | Repl(t,_)   -> term_erasure t
   | Delm(t)     -> term_erasure t
   | Coer(_,t,_) -> term_erasure t
-  | Such(_,_,r) -> term_erasure (bseq_dummy r.binder)
+  | Such(_,_,r) -> term_erasure (bseq_open r.binder)
   | PSet(_,_,t) -> term_erasure t
   | TPtr(_)     -> erasure_error "a pool pointer cannot be erased (term)"
   | ITag(_)     -> erasure_error "a tag cannot be erased (term)"
-  | Dumm(_)     -> erasure_error "a dummy value cannot be erased (term)"
   | UWit(_)     -> erasure_error "a witness cannot be erased (term)"
   | EWit(_)     -> erasure_error "a witness cannot be erased (term)"
   | ESch(_)     -> erasure_error "a witness cannot be erased (term)"
@@ -88,7 +86,6 @@ and     stac_erasure : stac -> e_sbox = fun s ->
   | HDef(_,d) -> stac_erasure d.expr_def
   | Goal(_)   -> sepsi
   | ITag(_)   -> erasure_error "a tag cannot be erased (stack)"
-  | Dumm(_)   -> erasure_error "a dummy value cannot be erased (stack)"
   | SWit(_)   -> erasure_error "a witness cannot be erased (stack)"
   | UWit(_)   -> erasure_error "a witness cannot be erased (stack)"
   | EWit(_)   -> erasure_error "a witness cannot be erased (stack)"

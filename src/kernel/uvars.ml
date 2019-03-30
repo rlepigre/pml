@@ -20,8 +20,8 @@ type b = A : 'a ex -> b
 exception Occurs
 
 (** The iterator on unif variables appearing in an expression *)
-let uvar_iter : type a. bool -> bool -> bool -> uvar_fun -> a ex loc -> unit =
-  fun occur ignore_epsilon ignore_fixpoint f e ->
+let uvar_iter : type a. bool -> bool -> uvar_fun -> a ex loc -> unit =
+  fun ignore_epsilon ignore_fixpoint f e ->
     let not_closed b = not (Bindlib.binder_closed (snd b)) in
     let adone = Ahash.create 67 in
     (** Function to test if epsilon should be tested *)
@@ -52,11 +52,11 @@ let uvar_iter : type a. bool -> bool -> bool -> uvar_fun -> a ex loc -> unit =
       in
       (** iteration on binders *)
       let buvar_iter s b =
-        if not_closed b then uvar_iter (bndr_subst b (Dumm s))
+        if not_closed b then uvar_iter (bndr_term b)
       in
       let e = Norm.whnf e in
       match e.elt with
-      | Vari(_)     -> if occur then raise Occurs
+      | Vari(_)     -> ()
       | HFun(s,_,b) -> buvar_iter s b
       | HApp(_,a,b) -> uvar_iter a; uvar_iter b
       | HDef(_)     -> () (* NOTE no unification variable in definition. *)
@@ -94,13 +94,11 @@ let uvar_iter : type a. bool -> bool -> bool -> uvar_fun -> a ex loc -> unit =
       | Succ(o)     -> uvar_iter o
       (* NOTE type annotations ignored. *)
       | Coer(_,e,_) -> uvar_iter e
-      | Such(_,_,r) -> uvar_iter (bseq_dummy r.binder)
+      | Such(_,_,r) -> uvar_iter (bseq_open r.binder)
       | PSet(_,_,e) -> uvar_iter e
-      | ITag(_)     -> raise Occurs
-      | Dumm(_)     -> ()
       | Goal(_)     -> ()
-      | VPtr(_)     -> if occur then assert false
-      | TPtr(_)     -> if occur then assert false
+      | VPtr(_)     -> ()
+      | TPtr(_)     -> ()
       | VWit(w)     -> if todo e then luvar_iter w
       | SWit(w)     -> if todo e then luvar_iter w
       | UWit(w)     -> if todo e then luvar_iter w
@@ -115,6 +113,7 @@ let uvar_iter : type a. bool -> bool -> bool -> uvar_fun -> a ex loc -> unit =
                        if todo e then luvar_iter w
       | ESch(s,i,w) -> if todo e then luvar_iter w
       | UVar(s,u)   -> f.f s u
+      | ITag(_)     -> assert false
     in uvar_iter e
 
 (** use the iterator to collect all variables in an expression *)
@@ -126,13 +125,13 @@ let uvars : type a. ?ignore_epsilon:bool -> ?ignore_fixpoint:bool
     let p (U(_,v)) = v.uvar_key == u.uvar_key in
     if not (List.exists p !uvars) then uvars := (U(s,u)) :: !uvars
   in
-  uvar_iter false ignore_epsilon ignore_fixpoint {f} e; !uvars
+  uvar_iter ignore_epsilon ignore_fixpoint {f} e; !uvars
 
 (** use the iterator to collect all variables in a binder *)
 let bndr_uvars : type a b. ?ignore_epsilon:bool -> ?ignore_fixpoint:bool
                       -> a sort -> (a, b) bndr -> s_elt list =
   fun ?(ignore_epsilon=false) ?(ignore_fixpoint=false) s b ->
-  uvars ~ignore_epsilon ~ignore_fixpoint (bndr_subst b (Dumm s))
+    uvars ~ignore_epsilon ~ignore_fixpoint (bndr_term b)
 
 let occur_chrono = Chrono.create "occur"
 
@@ -146,7 +145,7 @@ let uvar_occurs : type a b. a uvar -> b ex loc -> bool = fun u e ->
       end
   in
   if !(u.uvar_pur) && not (Pure.pure e) then true else
-  try Chrono.add_time occur_chrono (uvar_iter true false false {f}) e; false
+  try Chrono.add_time occur_chrono (uvar_iter false false {f}) e; false
   with Occurs -> true
 
 (** Occur check in constraints *)
