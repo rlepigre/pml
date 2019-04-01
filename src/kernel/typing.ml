@@ -373,6 +373,56 @@ let rec subtype =
     log_sub "  %a\n  ⊢ %a\n  ∈ %a\n  ⊆ %a"
       print_pos ctx.positives Print.ex t Print.ex a Print.ex b;
     let (t_is_val, _, ctx) = term_is_value t ctx in
+    (* heuristic to instanciate some unification variables *)
+    let mu_nu_heuristique : type a. bool -> a sort -> o ex loc ->
+                     (a, p) fix_args -> (a, a) bndr -> p ex loc -> unit
+      = fun is_mu s1 o1 l1 f b ->
+      let unif_ord o =
+        match (Norm.whnf o).elt with
+        | UVar(O,v) -> uvar_set v o1
+        | _ -> ()
+      in
+      let rec unif_args : type a b c d. (a,b) fix_args -> (c,d) fix_args -> unit =
+        fun l1 l2 ->
+          match (l1, l2) with
+          | (Ast.Cns(e1,l1), Ast.Cns(e2,l2)) ->
+             let (s1, e1) = sort e1 in
+             let (s2, e2) = sort e2 in
+             begin
+               log_sub "heuristic %a %a %a" Print.ex e1 Print.sort s1 Print.sort s2;
+               match eq_sort s1 s2 with
+               | Eq.Eq          -> ignore (unif_expr ctx.equations e1 e2);
+                                   unif_args l1 l2
+               | Eq.NEq ->
+               match (eq_sort s1 V, eq_sort s2 T) with
+               | (Eq.Eq, Eq.Eq) -> ignore (unif_expr ctx.equations (Pos.none (Valu e1)) e2);
+                                   unif_args l1 l2
+               | _              ->
+               match (eq_sort s1 T, eq_sort s2 V) with
+               | (Eq.Eq, Eq.Eq) -> ignore (unif_expr ctx.equations e1 (Pos.none (Valu e2)));
+                                   unif_args l1 l2
+               | _              -> ()
+             end
+          | _ -> ()
+      in
+      let do_fix : type b. b sort -> o ex loc -> (b,b) bndr -> (b,p) fix_args -> unit
+        = fun s o g l2 ->
+        unif_ord o;
+        match eq_sort s s1 with
+        | Eq.Eq  -> if eq_bndr s f g then unif_args l1 l2
+        | Eq.NEq -> ()
+      in
+      let rec fn : p ex loc -> unit = fun b ->
+        match ((Norm.whnf b).elt, is_mu) with
+        | (Rest(b,_)     , _    ) -> fn b
+        | (Memb(_,b)     , _    ) -> fn b
+        | (Impl(_,b)     , _    ) -> fn b
+        | (FixM(s,o,g,l2), true ) -> do_fix s o g l2
+        | (FixN(s,o,g,l2), false) -> do_fix s o g l2
+        | _ -> ()
+       in
+       fn b
+    in
     try let r =
       (* Same types.  *)
       if unif_expr ctx.equations a b then
@@ -435,18 +485,8 @@ let rec subtype =
            end
           (* NOTE may need a backtrack because a right rule could work *)
           else gen_subtype ctx a b
-      (* Mu left and Nu right rules. *)
       | (FixM(s,o,f,l), _          ) when t_is_val ->
-          begin (* heuristic to instanciate some unification variables *)
-            match b.elt with
-            | FixM(s,ol,f,_) ->
-               begin
-                 match (Norm.whnf ol).elt with
-                 | UVar(O,v) -> uvar_set v o
-                 | _ -> ()
-               end
-            | _ -> ()
-          end;
+          mu_nu_heuristique true s o l f b;
           let ctx, o' =
             let o = Norm.whnf o in
             match o.elt with
@@ -460,28 +500,19 @@ let rec subtype =
           in
           Sub_FixM_l(false, subtype ctx t (unroll_FixM s o' f l) b)
       | (_          , FixN(s,o,f,l)) when t_is_val ->
-         begin (* heuristic to instanciate some unification variables *)
-           match a.elt with
-           | FixN(s,ol,f,l) ->
-              begin
-                match (Norm.whnf ol).elt with
-                | UVar(O,v) -> uvar_set v o
-                | _ -> ()
-              end
-           | _ -> ()
-         end;
-         let ctx, o' =
-           let o = Norm.whnf o in
-           match o.elt with
-             Succ o' -> (ctx, o')
-           | _ ->
-              let f o = unroll_FixN s (Pos.none o) f l in
-              let f = raw_binder "o" true 0 (mk_free O) f in
-              let (o', ctx_names) = ownu ctx.ctx_names o t (None, f) in
+          mu_nu_heuristique false s o l f a;
+          let ctx, o' =
+            let o = Norm.whnf o in
+            match o.elt with
+              Succ o' -> (ctx, o')
+            | _ ->
+               let f o = unroll_FixN s (Pos.none o) f l in
+               let f = raw_binder "o" true 0 (mk_free O) f in
+               let (o', ctx_names) = ownu ctx.ctx_names o t (None, f) in
               let ctx = { ctx with ctx_names } in
               (add_positive ctx o o', o')
-         in
-         Sub_FixN_r(false, subtype ctx t a (unroll_FixN s o' f l))
+          in
+          Sub_FixN_r(false, subtype ctx t a (unroll_FixN s o' f l))
       | _ ->
       match Chrono.add_time check_sub_chrono (check_sub ctx a) b with
       | Sub_Applies prf    -> prf
