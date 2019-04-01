@@ -408,7 +408,7 @@ val zero_or_inv
   }
 }
 
-val rec print_man : nat ⇒ man → {} = fun n x {
+val rec print_man : nat ⇒ man →_(p) {} = fun n x {
   case n {
     Zero → {}
     S[p] → let { hd = x0; tl = x } = x {};
@@ -420,7 +420,7 @@ val rec print_man : nat ⇒ man → {} = fun n x {
   }
 }
 
-val rec print_bds : nat ⇒ ∀k, bds⟨k⟩ → {} = fun n x {
+val rec print_bds : nat ⇒ ∀k, bds⟨k⟩ →_(p) {} = fun n x {
   case n {
     Zero → {}
     S[p] → let { hd = x0; tl = x } = x {};
@@ -428,6 +428,6 @@ val rec print_bds : nat ⇒ ∀k, bds⟨k⟩ → {} = fun n x {
   }
 }
 
-val print_real : nat ⇒ real → {} = fun n x {
+val print_real : nat ⇒ real →_(p) {} = fun n x {
   print "0."; print_man n x.man; print "E"; print_nat x.exp
 }

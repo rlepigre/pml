@@ -98,7 +98,7 @@ let empty_ctxt () =
   ; add_calls = ref []
   ; auto      = auto_empty ()
   ; callgraph = Scp.create ()
-  (* Loop not allowed at toplevel *)
+  (* Loop and CallCC not allowed at toplevel *)
   ; totality  = Effect.(known[Print]) }
 
 let new_uvar : type a. ctxt -> a sort -> a ex loc = fun ctx s ->

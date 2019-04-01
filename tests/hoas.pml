@@ -35,7 +35,7 @@ val church : nat ⇒ term = fun n {
 }
 
 // printing for terms
-val rec print_term_aux : nat ⇒ pterm⟨nat⟩ → {} = fun i t {
+val rec print_term_aux : nat ⇒ pterm⟨nat⟩ →_(p) {} = fun i t {
   case t {
     Var[i]       → print_nat i
     App[(t1,t2)] → print "("; print_term_aux i t1;
@@ -46,7 +46,7 @@ val rec print_term_aux : nat ⇒ pterm⟨nat⟩ → {} = fun i t {
   }
 }
 
-val print_term : term → {} = fun t { print_term_aux 0 t; print "\n"; {} }
+val print_term : term →_(p) {} = fun t { print_term_aux 0 t; print "\n"; {} }
 
 val test0 : {} = print_term omega
 val testn : {} = print_term (church 10)

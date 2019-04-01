@@ -187,7 +187,7 @@ val succ : natbin ⇒ natbin = succ_b
 val dble : natbin ⇒ natbin = double
 
 // Print a natural number.
-val rec print_nat : natbin → {} =
+val rec print_nat : natbin →_(p) {} =
   fun n {
     case n {
       0     → {}
@@ -197,7 +197,7 @@ val rec print_nat : natbin → {} =
   }
 
 // Print a natural number with a newline.
-val println_nat : natbin → {} =
+val println_nat : natbin →_(p) {} =
   fun n { print_nat n; print "\n" }
 
 val rec fact2 : natbin ↝ natbin  = fun n {
@@ -238,7 +238,7 @@ val rec fact1 : ∀m∈nat, ∀n∈(natbin | n ≡ nat_to_natbin m), (fact2 n)�
   }
 }
 
-val rec fact : natbin → natbin = fun n {
+val fact : natbin ⇒ natbin = fun n {
     check { use bij2 n; fact1 (natbin_to_nat n) n }
     for { fact2 n }
 }

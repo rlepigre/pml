@@ -2,7 +2,7 @@ include lib.stream
 include lib.list
 include lib.nat
 
-val rec print_nat_list : list⟨nat⟩ → {} =
+val rec print_nat_list : list⟨nat⟩ →_(p) {} =
   fun l {
     case l {
       Nil     → print "\n"
