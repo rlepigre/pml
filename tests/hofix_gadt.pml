@@ -63,7 +63,7 @@ val rec app : ∀a:ο, ∀n1 n2:ι, slist⟨a,n1⟩ ⇒ slist⟨a,n2⟩ ⇒ slis
 
 type rec typ = [ A; F of typ × typ ]
 
-type rec term⟨c:ι→ο,a:ι⟩ =
+type rec term⟨c:τ→ο,a:τ⟩ =
   [ Var of c⟨a⟩
   ; App of ∃a' b:ι, term⟨c,F[(b,a')]⟩ × term⟨c,b⟩ | a ≡ a'
   ; Lam of ∃b d:ι, (c⟨b⟩ ⇒ term⟨c,d⟩) | a ≡ F[(b,d)]
@@ -72,22 +72,19 @@ type closed⟨a⟩ = ∀c, term⟨c,a⟩
 
 val var : ∀c, ∀a, c⟨a⟩ ⇒ term⟨c,a⟩ = fun v { Var[v] }
 
-val lam : ∀c, ∀a b:ι, (c⟨a⟩ ⇒ term⟨c,b⟩) ⇒ term⟨c,F[(a,b)]⟩ =
+val lam : ∀c:τ→ο, ∀a b:ι, (c⟨a⟩ ⇒ term⟨c,b⟩) ⇒ term⟨c,F[(a,b)]⟩ =
    fun f {  Lam[f] }
 
 val up : ∀o:κ, ∀c, ∀a:ι, term^o⟨c,a⟩ ⇒ term⟨c,a⟩ = fun t { t }
 
-// val app : ∀c, ∀a b:ι, term⟨c,F[(b,a)]⟩ ⇒ term⟨c,b⟩ ⇒ term⟨c,a⟩ =
-//   fun f u { let c, a such that _ : term⟨c,a⟩;
-//             let b such that u : term⟨c,b⟩;
-//             let p : term⟨c,F[(b,a)]⟩ × term⟨c,b⟩ = (f, u);
-//             set log "stu"; LOOP
-//             App[p] }
+val app : ∀c:τ→ο, ∀a b:ι, term⟨c,F[(b,a)]⟩ ⇒ term⟨c,b⟩ ⇒ term⟨c,a⟩ =
+  fun f u { let p = (f, u); App[p] } // App[(f,u)] not working ???
 
-// val idt : ∀a:τ, closed⟨F[(a,a)]⟩ =
-//   let f : ∀c, ∀a:τ, c⟨a⟩ ⇒ term⟨c,a⟩
-//                   = fun x { var x };
-//   lam f
+val idt : ∀c:τ→ο, ∀a:ι, term⟨c,F[(a,a)]⟩ =
+   Lam[fun x { var x }]
+
+
+//val idt : ∀a:ι, closed⟨F(a,a)⟩ = let x = idt {}; x // nt correct because of value restriction
 
 // include lib.either
 
