@@ -826,19 +826,16 @@ Figure~\ref{fig:axiomatization_equiv}.
     % Fixpoint step
     φa.v &\;≡\; v[a := φa.v]
     \tag{if $a ∈ \mathcal{V}_{τ}$, and $v ∈ Λ_{ι}$}\\
-    % Record filter
-    R(\{(l_i = v_i)_{i∈I}\},t) &\;≡\; t
-    \tag{if $I ⊆_\text{fin} \mathbb{N}$, $t ∈ Λ$, and $∀i∈I, v_i ∈ Λ_{ι}$}\\
     % Application with box
     t\;□ &\;≡\; □\;v \;≡\;□
-    \tag{if $t ∈ Λ$, resp. $v ∈ Λ_{ι}$}\\
+    \tag{if $t ∈ Λ$, resp. $v ∈ Λ_{ι} \setminus \mathcal{V}_{ι}$}\\
     % Box projection
     □.l_k &\;≡\; □
     \tag{if $k ∈ \mathbb{N}$}\\
     % Box matching
     [□\,| (C_i[x_i] → t_i)_{i∈I}] &\;≡\; □
-    \tag{if $k ∈ I ⊆_\text{fin} \mathbb{N}$,
-    and $∀i∈I, (x_i, t_i) ∈ \mathcal{V}_{ι} × Λ$}
+    \tag{if $I ⊆_\text{fin} \mathbb{N}$,
+    and $∀i∈I, (x_i, t_i) ∈ \mathcal{V}_{ι} × Λ$}\\
   \end{align*}
   %
   Derived equivalences
@@ -941,8 +938,9 @@ relation $(≡_{≻})$ coincides with $(≡_{↠_0})$ since $(↠_0) = (≻)$.}
 \end{theorem}
 \begin{proof}
   We have ${(λx.t)\;v ∗ π} ≻ {v ∗ [(λx.t)\;\,{-}]π} ≻ {λx.t ∗ [{-}\;\,v]π} ≻
-  t[x := v]$, so we can conclude using Lemma~\ref{lem:eqred}. Note that it is
-  important that $v ≠ □$ so that the second reduction step can be taken.
+  t[x := v]$ for all $π ∈ Π$, so we can conclude using Lemma~\ref{lem:eqred}.
+  Note that it is required that $v ≠ □$, since otherwise the second reduction
+  step could not be taken.
 \end{proof}
 
 % Record projection
@@ -951,8 +949,8 @@ relation $(≡_{≻})$ coincides with $(≡_{↠_0})$ since $(↠_0) = (≻)$.}
   we have $\{(l_i = v_i)_{i∈I}\}.l_k ≡ v_k$.
 \end{theorem}
 \begin{proof}
-  We have ${\{(l_i = v_i)_{i∈I}\}.l_k ∗ π} ≻ {v_k ∗ π}$ since $k ∈ I$, and
-  hence we can conclude by Lemma~\ref{lem:eqred}.
+  We have ${\{(l_i = v_i)_{i∈I}\}.l_k ∗ π} ≻ {v_k ∗ π}$ for all $π ∈ Π$ since
+  $k ∈ I$. As a consequence, we can conclude using Lemma~\ref{lem:eqred}.
 \end{proof}
 
 % Pattern-matching
@@ -963,33 +961,74 @@ relation $(≡_{≻})$ coincides with $(≡_{↠_0})$ since $(↠_0) = (≻)$.}
 \end{theorem}
 \begin{proof}
   We have ${[C_k[v]\,| (C_i[x_i] → t_i)_{i∈I}] ∗ π} ≻ {t_k[x_k := v] ∗ π}$
-  since $k ∈ I$, and we can hence conclude using Lemma~\ref{lem:eqred}.
+  for all stack $π ∈ Π$ since $k ∈ I$, and we can hence conclude using
+  Lemma~\ref{lem:eqred}.
 \end{proof}
 
 % Fixpoint step
-We have ${φa.v ∗ π} ≻ {v[a := φa.v] ∗ π}$.
+\begin{theorem}[equivalence for fixpoint unrolling]
+  For all $a ∈ \mathcal{V}_{τ}$ and $v ∈ Λ_{ι}$ we have
+  ${φa.v} ≡ {v[a := φa.v]}$.
+\end{theorem}
+\begin{proof}
+  We have ${φa.v ∗ π} ≻ {v[a := φa.v] ∗ π}$ for all $π ∈ Π$, hence we can
+  conclude using Lemma~\ref{lem:eqred}.
+\end{proof}
 
-% Record filter
-We have ${R(\{(l_i = v_i)_{i∈I}\},t) ∗ π} ≻ {t ∗ π}$.
+% Reduction steps involving the box.
+\begin{theorem}[equivalences involving $□$]
+  The following four equivalences are satisfied:
+  \begin{enumerate}
+    \item for all $t ∈ Λ$ we have $t\;□ ≡ □$,
+    \item for all $v ∈ Λ_{ι} \setminus \mathcal{V}_{ι}$ we have $□\;v ≡ □$,
+    \item for all $k ∈ \mathbb{N}$ we have $□.l_k ≡ □$, and
+    \item for all $I ⊆_\text{fin} \mathbb{N}$ and
+          $(x_i, t_i)_{i∈I} ∈ (\mathcal{V}_{ι} × Λ)^I$
+          we have $[□\,| (C_i[x_i] → t_i)_{i∈I}] ≡ □$.
+  \end{enumerate}
+\end{theorem}
+\begin{proof}
+  In all cases, we can conclude by Lemma~\ref{lem:eqred} thanks to the fact
+  that the following sequences of reductions hold for all $π ∈ Π$.
+  %
+  For (1) we have ${t\;□ ∗ π} ≻ {□ ∗ [t\;\,{-}]π} ≻ {□ ∗ π}$.
+  %
+  For (2) we have ${□\;v ∗ π} ≻ {v ∗ [□\;\,{-}]π} ≻ {□ ∗ π}$ if $v = □$, and
+  ${□\;v ∗ π} ≻ {v ∗ [□\;\,{-}]π} ≻ {□ ∗ [{-}\;\,v]π} ≻ {□ ∗ π}$ otherwise.
+  Note that if $v = x$ for some $x ∈ \mathcal{V}_{ι}$ then the equivalence is
+  false due to the fact that the process ${x ∗ [□\;\,{-}]π}$ is blocked,
+  while ${□ ∗ π}$ may not be.
+  %
+  For (3) we have have ${□.l_k ∗ π} ≻ {□ ∗ π}$,
+  %
+  and for (4) we have ${[□\,| (C_i[x_i] → t_i)_{i∈I}] ∗ π} ≻ {□ ∗ π}$.
+\end{proof}
 
-% Application with box
-We have ${t\;□ ∗ π} ≻ {□ ∗ [t\;\,{-}]π} ≻ {□ ∗ π}$. And similarly, we have
-${□\;v ∗ π} ≻ {v ∗ [□\;\,{-}]π} ≻ {v ∗ π}$. Note that in the last step, a
-different rule applies depending whether $v = □$ or $v ≠ □$.
-
-% Box projection
-We have ${□.l_k ∗ π} ≻ {□ ∗ π}$.
-
-% Box matching
-We have ${[□\,| (C_i[x_i] → t_i)_{i∈I}] ∗ π} ≻ {□ ∗ π}$.
-
-% TODO
-
+\begin{remark}
+  Note that $R(\{(l_i = v_i)_{i∈I}\},t) ≡ t$ for all $I ⊆_\text{fin}
+  \mathbb{N}$, $t ∈ Λ$, and $∀i∈I, v_i ∈ Λ_{ι}$. Indeed, we have
+  ${R(\{(l_i = v_i)_{i∈I}\},t) ∗ π} ≻ {t ∗ π}$ for all $π ∈ Π$, so we
+  can also use Lemma~\ref{lem:eqred}. However, this result is not
+  useful since terms of the form $R({-},{-})$ are only included for a
+  technical purpose. In particular, they will never be manipulated by
+  the user of the system, and they are not even included in the
+  implementation. Of course, such terms will still arise in the
+  model when we quantify over all stacks. However, the syntactic procedure
+  that is implemented will obviously not rely on an enumeration of all
+  stacks, but rather on local reasoning using the axioms derived in this
+  section.
+\end{remark}
 \begin{remark}
   It is not the case in general that $δ(v₁,v₂,t) ≡ t$ in the case where
   $v₁ \not\equiv v₂$. For example, we have ${δ(v₁,v₂,w) ∗ ε} {⇑}_0$ and
-  ${w ∗ ε} {⇓}_0$, which imply $δ(v₁,v₂,w) \not\equiv w$.
+  ${w ∗ ε} {⇓}_0$, which imply $δ(v₁,v₂,w) \not\equiv w$. Like with terms
+  of the form $R({-},{-})$, $δ$-like terms will never be manipulated by
+  the user explicitly, so the fact that they behave in a weird way with
+  respect to equivalence will not be a problem at all in practice.
 \end{remark}
+
+% TODO
+
 
 \section{Canonical values}
 
