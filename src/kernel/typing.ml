@@ -99,7 +99,7 @@ let empty_ctxt () =
   ; auto      = auto_empty ()
   ; callgraph = Scp.create ()
   (* Loop not allowed at toplevel *)
-  ; totality  = Effect.(known[CallCC; Print]) }
+  ; totality  = Effect.(known[Print]) }
 
 let new_uvar : type a. ctxt -> a sort -> a ex loc = fun ctx s ->
   let c = ctx.uvarcount in
