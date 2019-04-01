@@ -415,7 +415,6 @@ let rec subtype =
       let rec fn : p ex loc -> unit = fun b ->
         match ((Norm.whnf b).elt, is_mu) with
         | (Rest(b,_)     , _    ) -> fn b
-        | (Memb(_,b)     , _    ) -> fn b
         | (Impl(_,b)     , _    ) -> fn b
         | (FixM(s,o,g,l2), true ) -> do_fix s o g l2
         | (FixN(s,o,g,l2), false) -> do_fix s o g l2
