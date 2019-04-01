@@ -603,7 +603,9 @@ let rec subtype =
       (* Disjoint sum types. *)
       | (DSum(cs1)  , DSum(cs2)  ) when t_is_val ->
           (* NOTE: then next line can not raise contradiction, t_is_val !*)
-          let (wit, ctx) = learn_value ctx t a in
+          let (wit, ctx) = try learn_value ctx t a
+                           with Contradiction -> assert false
+          in
           let check_variant c (_,p,a1) ps =
             try
               let cwit = vdot wit c in
