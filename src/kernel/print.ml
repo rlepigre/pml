@@ -339,7 +339,7 @@ let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
                        in fprintf ch "(%s%a%s | %a)" l (ex (Prp R)) a r rel c
                    end
   | Impl(e,a)   -> begin
-                     fprintf ch "%a if %a" (ex (Prp R)) a rel e
+                     fprintf ch "%a ↪ %a" rel e (ex (Prp R)) a
                    end
   | LAbs(a,b,_) -> let (x,t) = bndr_open b in
                    begin

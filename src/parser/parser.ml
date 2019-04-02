@@ -179,6 +179,10 @@ let parser empty_s = "[.]" | "∅"
 let parser comma   = ","
 let parser semi    = ";"
 let parser column  = ":"
+let parser simpl   = "↪"
+let parser memb    = "∈"
+let parser rest    = "|"
+let parser cvg     = "↓"
 
 (* Such that. *)
 let parser _st_ = _:_such_ _:_that_
@@ -330,27 +334,21 @@ let parser expr @(m : mode) =
       -> let s = match s with Some s -> s | None -> new_sort_uvar (Some x) in
          in_pos _loc (EFixN(s,o,x,a))
   (* Proposition (membership) *)
-  | t:(expr (Trm I)) "∈" a:(expr (Prp M))
+  | t:(expr (Trm I)) memb a:(expr (Prp M))
       when m <<= Prp M
       -> in_pos _loc (EMemb(t,a))
   (* Proposition (restriction) *)
-  | a:(expr (Prp M)) "|" t:(expr (Trm I)) bu:{eq (expr (Trm I))}?
+  | a:(expr (Prp M)) rest e:(cond true)
       when m <<= Prp R
-      -> let (b,u) = match bu with
-           | Some(b,u) -> (b,u)
-           | None      -> (true, Pos.none (ECons(Pos.none "true", None)))
-         in in_pos _loc (ERest(Some a,EEquiv(t,b,u)))
+      -> in_pos _loc (ERest(Some a,e))
   (* Proposition (equivalence) *)
-  | t:(expr (Trm I)) b:eq u:(expr (Trm I))
+  | e:(cond false)
       when m <<= Prp A
-      -> in_pos _loc (ERest(None,EEquiv(t,b,u)))
+      -> in_pos _loc (ERest(None,e))
   (* Proposition (implication) *)
-  | a:(expr (Prp M)) _if_ t:(expr (Trm I)) bu:{eq (expr (Trm I))}?
+  | e:(cond true) simpl a:(expr (Prp M))
       when m <<= Prp R
-      -> let (b,u) = match bu with
-           | Some(b,u) -> (b,u)
-           | None      -> (true, Pos.none (ECons(Pos.none "true", None)))
-         in in_pos _loc (EImpl(EEquiv(t,b,u), Some a))
+      -> in_pos _loc (EImpl(e, Some a))
   (* Proposition (parentheses) *)
   | "(" e:(expr (Prp F')) ")"
       when m <<= Prp A
@@ -538,6 +536,15 @@ let parser expr @(m : mode) =
   | s:goal
       when m <<= Stk || m <<= Trm A
       -> in_pos _loc (EGoal(s))
+
+and parser cond opt =
+  | t:(expr (Trm I)) when opt
+            -> let u = Pos.none (ECons(Pos.none "true", None))
+               in EEquiv(t,true,u)
+  | t:(expr (Trm I)) b:eq u:(expr (Trm I))
+            -> EEquiv(t,b,u)
+  | t:(expr (Trm I)) cvg
+            -> ENoBox(t)
 
 (* Higher-order variable arguments. *)
 and parser ho_args = {_:langle (list1 any comma) _:rangle}
