@@ -81,7 +81,7 @@ val app : ∀c:τ→ο, ∀a b:ι, term⟨c,F[(b,a)]⟩ ⇒ term⟨c,b⟩ ⇒ te
   fun f u { let p = (f, u); App[p] } // App[(f,u)] not working ???
 
 val idt : ∀c:τ→ο, ∀a:ι, term⟨c,F[(a,a)]⟩ =
-   Lam[fun x { var x }]
+   lam(fun x { var x })
 
 
 //val idt : ∀a:ι, closed⟨F(a,a)⟩ = let x = idt {}; x // nt correct because of value restriction

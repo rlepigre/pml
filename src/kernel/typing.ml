@@ -142,18 +142,18 @@ let extract_swit_type : stac -> prop = fun s ->
   | _               -> assert false (* should not happen *)
 
 type typ_rule =
-  | Typ_VTyp   of sub_proof * typ_proof option
-  | Typ_TTyp   of sub_proof * typ_proof option
+  | Typ_VTyp   of sub_proof * typ_proof
+  | Typ_TTyp   of sub_proof * typ_proof
   | Typ_TSuch  of typ_proof
   | Typ_VSuch  of typ_proof
   | Typ_VWit   of sub_proof
   | Typ_VDef   of value * sub_proof
-  | Typ_DSum_i of sub_proof * typ_proof option
+  | Typ_DSum_i of sub_proof * typ_proof
   | Typ_DSum_e of typ_proof * typ_proof list
-  | Typ_Func_i of sub_proof * typ_proof option
+  | Typ_Func_i of sub_proof * typ_proof
   | Typ_Func_e of typ_proof * typ_proof
   | Typ_Func_s of typ_proof * typ_proof
-  | Typ_Prod_i of sub_proof * typ_proof list option
+  | Typ_Prod_i of sub_proof * typ_proof list
   | Typ_Prod_e of typ_proof
   | Typ_Name   of typ_proof * stk_proof
   | Typ_Mu     of typ_proof
@@ -164,6 +164,7 @@ type typ_rule =
   | Typ_Prnt   of sub_proof
   | Typ_Repl   of typ_proof
   | Typ_Delm   of typ_proof
+  | Typ_Cont
 
 and  stk_rule =
   | Stk_Push   of sub_rule * typ_proof * stk_proof
@@ -293,11 +294,13 @@ let rec is_singleton : prop -> term option = fun t ->
    Therefore, if c = Func(t in a,b) one must have arg t, otherwise
    arg could not be a counter example.
 *)
-let learn_neg_equivalences : ctxt -> valu -> term option -> prop -> ctxt =
+let learn_neg_equivalences
+    : ctxt -> valu -> term option -> prop -> prop * ctxt =
   fun ctx wit arg a ->
     let adone = ref [] in
     let twit = Pos.none (Valu wit) in
     let rec fn ctx a =
+      let a = Norm.whnf a in
       match (Norm.whnf a).elt, arg with
       | HDef(_,e), _ -> fn ctx e.expr_def
       | Impl(c,a), _ -> let equations = learn ctx.equations c in
@@ -306,17 +309,17 @@ let learn_neg_equivalences : ctxt -> valu -> term option -> prop -> ctxt =
                         let ctx = { ctx with ctx_names } in
                         let u = bndr_subst f t.elt in
                         fn ctx u
-      | Func(t,a,b), Some arg ->
+      | Func(t,b,_), Some arg ->
          begin
-           match is_singleton a with
+           match is_singleton b with
            | Some x ->
               let equations = learn ctx.equations (Equiv(arg,true,x)) in
-              {ctx with equations}
-           | None -> ctx
+              (a, {ctx with equations})
+           | None -> (a, ctx)
          end
       (** Learn positivity of the ordinal *)
       | FixN(s,o,f,l), _ ->
-       if List.memq (Obj.magic f) !adone then ctx else
+       if List.memq (Obj.magic f) !adone then (a, ctx) else
          begin
            adone := (Obj.magic f) :: !adone;
            let (bound, ctx) =
@@ -333,8 +336,29 @@ let learn_neg_equivalences : ctxt -> valu -> term option -> prop -> ctxt =
            let ctx = add_positive ctx o bound in
            fn ctx (unroll_FixN s bound f l)
          end
-      | _          -> ctx
+      | _          -> (a, ctx)
     in fn ctx a
+
+let learn_neg_equivalences_term
+    : ctxt -> term -> prop -> prop * ctxt =
+  fun ctx t c ->
+    (* term_is_value below cost too much if there is nothing to do *)
+    let rec learn_has_job a =
+      let a = Norm.whnf a in
+      match a.elt with
+      | HDef(_,e) -> learn_has_job e.expr_def
+      | Impl(c,a) -> true
+      | Univ(s,f) -> true
+      | FixN(s,o,f,l) -> true
+      | _ -> false
+    in
+    if learn_has_job c then
+      match to_value t ctx.equations with
+      | (None, equations)    -> (c, { ctx with equations })
+      | (Some(v), equations) ->
+         let ctx = { ctx with equations } in
+         learn_neg_equivalences ctx v None c
+    else (c, ctx)
 
 let term_is_value : term -> ctxt -> bool * bool * ctxt = fun t ctx ->
   let (is_val, no_box, equations) = is_value t ctx.equations in
@@ -1103,44 +1127,46 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
     | LAbs(ao,f,tot)  ->
        (* build the function type a => b with totality annotation
           tot as a fresh totality variable *)
-       let a =
-         match ao with
-         | None   -> new_uvar ctx P
-         | Some a -> a
-       in
-       let b = new_uvar ctx P in
-       let c' = Pos.none (Func(tot,a,b)) in
-       (* check subtyping *)
-       let p1 = subtype ctx t c' c in
-       (* build the witness for typing *)
-       let (wit,ctx_names) = vwit ctx.ctx_names f a b in
-       let ctx = { ctx with ctx_names; totality = tot } in
-       let twit = Pos.none(Valu wit) in
        begin
+         let a =
+           match ao with
+           | None   -> new_uvar ctx P
+           | Some a -> a
+         in
+         let b = new_uvar ctx P in
+         let (wit,ctx_names) = vwit ctx.ctx_names f a b in
          try
+           let ctx = { ctx with ctx_names; totality = tot } in
+           let twit = Pos.none(Valu wit) in
+           let (c, ctx) = learn_neg_equivalences ctx v (Some twit) c in
+           let c' = Pos.none (Func(tot,a,b)) in
+           (* check subtyping *)
+           let p1 = subtype ctx t c' c in
+           (* build the witness for typing *)
            (* Learn the equivalence that are valid in the witness. *)
            let ctx = learn_nobox ctx wit in
            let ctx = learn_equivalences ctx wit a in
-           let ctx = learn_neg_equivalences ctx v (Some twit) c in
            (* call typing *)
            let p2 = type_term ctx (bndr_subst f wit.elt) b in
-           Typ_Func_i(p1,Some p2)
+           Typ_Func_i(p1,p2)
          with Contradiction ->
            warn_unreachable ctx (bndr_subst f wit.elt);
-           Typ_Func_i(p1, None)
+           Typ_Cont
        end
     (* Constructor. *)
     | Cons(d,w)   ->
-        let a = new_uvar ctx P in
-        let c' = Pos.none (DSum(A.singleton d.elt (None, a))) in
-        let p1 = subtype ctx t c' c in
-        let p2 =
-          try
-            let ctx = learn_neg_equivalences ctx v None c in
-            Some(type_valu ctx w a)
-          with Contradiction -> None (* in fact, c is top type!*)
-        in
-        Typ_DSum_i(p1,p2)
+       begin
+         try
+           let a = new_uvar ctx P in
+           let c' = Pos.none (DSum(A.singleton d.elt (None, a))) in
+           let (c, ctx) = learn_neg_equivalences ctx v None c in
+           let p1 = subtype ctx t c' c in
+           let p2 = type_valu ctx w a in
+           Typ_DSum_i(p1,p2)
+         with Contradiction ->
+           warn_unreachable ctx t;
+           Typ_Cont
+       end
     (* Record. *)
     | Reco(m)     ->
         let has_mem k =
@@ -1170,57 +1196,74 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
           A.add l (None, box a) m
         in
         let pm = A.fold fn m A.empty in
-        let c' = unbox (strict_prod None pm) in
-        let p1 = subtype ctx t c' c in
-        let p2s =
+        begin
           try
-            let ctx_a = learn_neg_equivalences ctx v None c in
-            let fn l (p, v) ps =
-              log_typ "Checking case %s." l;
-              let (_,a) = A.find l pm in
-              let p = type_valu ctx_a v (unbox a) in
+            let (c, ctx) = learn_neg_equivalences ctx v None c in
+            let c' = unbox (strict_prod None pm) in
+            let p1 = subtype ctx t c' c in
+            let p2s =
+              let fn l (p, v) ps =
+                log_typ "Checking case %s." l;
+                let (_,a) = A.find l pm in
+                let p = type_valu ctx v (unbox a) in
               p::ps
+              in
+              A.fold fn m []
             in
-            Some(A.fold fn m [])
-          with Contradiction -> None
-        in
-        Typ_Prod_i(p1,p2s)
+            Typ_Prod_i(p1,p2s)
+          with Contradiction ->
+            warn_unreachable ctx t;
+            Typ_Cont
+        end
     (* Scissors. *)
     | Scis        ->
-        raise Reachable
+       begin
+         try
+           let _ = learn_neg_equivalences ctx v None c in
+           raise Reachable
+         with Contradiction -> Typ_Cont
+       end
     (* Coercion. *)
     | Coer(_,v,a) ->
-        let t = Pos.make v.pos (Valu(v)) in
-        let p1 = subtype ctx t a c in
-        let p2 =
-          try
-            let ctx = learn_neg_equivalences ctx v None c in
-            Some(type_valu ctx v a)
-          with Contradiction -> None (* c is top *)
-        in
-        Typ_VTyp(p1,p2)
+       begin
+         try
+           let t = Pos.make v.pos (Valu(v)) in
+           let (c, ctx) = learn_neg_equivalences ctx v None c in
+           let p1 = subtype ctx t a c in
+           let p2 = type_valu ctx v a in
+           Typ_VTyp(p1,p2)
+         with Contradiction ->
+           warn_unreachable ctx t;
+           Typ_Cont
+       end
     (* Such that. *)
     | Such(_,_,r) ->
-        let (a,v) = instantiate ctx r.binder in
-        let ctx = learn_neg_equivalences ctx v None c in
-        let (b,wopt,rev) =
-          match r.opt_var with
-          | SV_None    -> (c                  , Some(t), true)
-          | SV_Valu(v) -> (extract_vwit_type v, Some(Pos.none (Valu v)) , false)
-          | SV_Stac(s) -> (extract_swit_type s, None, false)
-        in
-        let _ =
-          try
-            match (wopt, rev) with
-            | (None  , false) -> ignore(gen_subtype ctx b a)
-            | (Some t, false) -> ignore(subtype ctx t b a)
-            | (Some t, true ) -> ignore(subtype ctx t a b)
-            | _               -> assert false
-          with Subtype_error _ -> cannot_unify b a
-        in Typ_TSuch(type_valu ctx v c)
-    (* Set auto lvl *)
+       begin
+         try
+           let (a,v) = instantiate ctx r.binder in
+           let (c,ctx) = learn_neg_equivalences ctx v None c in
+           let (b,wopt,rev) =
+             match r.opt_var with
+             | SV_None    -> (c                  , Some(t), true)
+             | SV_Valu(v) -> (extract_vwit_type v, Some(Pos.none (Valu v)) , false)
+             | SV_Stac(s) -> (extract_swit_type s, None, false)
+           in
+           let _ =
+             try
+               match (wopt, rev) with
+               | (None  , false) -> ignore(gen_subtype ctx b a)
+               | (Some t, false) -> ignore(subtype ctx t b a)
+               | (Some t, true ) -> ignore(subtype ctx t a b)
+               | _               -> assert false
+             with Subtype_error _ -> cannot_unify b a
+           in Typ_TSuch(type_valu ctx v c)
+         with Contradiction ->
+              warn_unreachable ctx t;
+              Typ_Cont
+       end
+         (* Set auto lvl *)
     | PSet(l,_,v) ->
-        begin
+       begin
           let (ctx, restore) = do_set_param ctx l in
           try
             let p = type_valu ctx v c in
@@ -1335,62 +1378,69 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
         let (_, _, r) = type_valu ctx v c in r
     (* Application or strong application. *)
     | Appl(f,u)   ->
-        (* a fresh unif var for the type of u *)
-        let a = new_uvar ctx P in
-        let tot = ctx.totality in
-        let rec check_f ctx strong a0 =
-          (* common code to check f *)
-          if strong then (* strong application *)
-            let (a, strong) = (* do not add singleton if it is one *)
-              if is_singleton a <> None then (a0, false)
-              else (Pos.none (Memb(u,a0)), true)
-            in
-            let c = Pos.none (Func(tot,a,c)) in
-            let st = UTimed.Time.save () in
-            try
-              let (v,ctx) = learn_value ctx u a in
-              let ctx = learn_equivalences ctx v a in
-              type_term ctx f c
-            with Contradiction      -> warn_unreachable ctx f; (t,c,Typ_Scis)
-               | Sys.Break as e     -> raise e
-               | Out_of_memory as e -> raise e
-               | _ when strong && is_typed VoT_T f ->
-                  UTimed.Time.rollback st;
+       begin
+         try
+           let (c, ctx) = learn_neg_equivalences_term ctx t c in
+           (* a fresh unif var for the type of u *)
+           let a = new_uvar ctx P in
+           let tot = ctx.totality in
+           let rec check_f ctx strong a0 =
+             (* common code to check f *)
+             if strong then (* strong application *)
+               let (a, strong) = (* do not add singleton if it is one *)
+                 if is_singleton a <> None then (a0, false)
+                 else (Pos.none (Memb(u,a0)), true)
+               in
+               let c = Pos.none (Func(tot,a,c)) in
+               let st = UTimed.Time.save () in
+               try
+                 let (v,ctx) = learn_value ctx u a in
+                 let ctx = learn_equivalences ctx v a in
+                 type_term ctx f c
+               with Contradiction      -> warn_unreachable ctx f; (t,c,Typ_Scis)
+                  | Sys.Break as e     -> raise e
+                  | Out_of_memory as e -> raise e
+                  | _ when strong && is_typed VoT_T f ->
+                     UTimed.Time.rollback st;
                   check_f ctx false a0
-          else
-            type_term ctx f (Pos.none (Func(tot,a,c)))
-        in
-        let (p1,p2,strong) =
-          (* when u is not typed and f is, typecheck f first *)
-          if is_typed VoT_T f && not (is_typed VoT_T u) then
-            (* f will be of type ae => c, with ae = u∈a if we know the
+             else
+               type_term ctx f (Pos.none (Func(tot,a,c)))
+           in
+           let (p1,p2,strong) =
+             (* when u is not typed and f is, typecheck f first *)
+             if is_typed VoT_T f && not (is_typed VoT_T u) then
+               (* f will be of type ae => c, with ae = u∈a if we know the
                function will be total (otherwise it is illegal) *)
-            let strong = Effect.(know_sub tot [Print]) in
-            (* type check f *)
-            let p1 = check_f ctx strong a in
-            (* check u *)
-            let p2 = type_term ctx u a in
-            (p1,p2,strong)
-          else
-            (* it we are not checking for a total application, we
+               let strong = Effect.(know_sub tot [Print]) in
+               (* type check f *)
+               let p1 = check_f ctx strong a in
+               (* check u *)
+               let p2 = type_term ctx u a in
+               (p1,p2,strong)
+             else
+               (* it we are not checking for a total application, we
                check with a fresh totality variable. Otherwise, the
                test is_tot bellow might force ctx.totality to Tot.
                tot1 < tot is checked at the end *)
-            let ctx_u = if Effect.(know_sub tot [Print]) then ctx else
-                          { ctx with totality = Effect.create () } in
-            let p2 = type_term ctx_u u a in
-            (* If the typing of u was total, we can use strong application *)
-            let strong = Effect.(absent Loop ctx_u.totality
-                                 && absent CallCC ctx_u.totality)
-            in
-            log_typ "sub1 %b" strong;
-            if not Effect.(sub ctx_u.totality tot) then
-              subtype_msg f.pos "Arrow clash";
-            (* type check f *)
-            let p1 = check_f ctx strong a in
-            (p1,p2,strong)
-        in
-        if strong then Typ_Func_s(p1,p2) else Typ_Func_e(p1,p2)
+               let ctx_u = if Effect.(know_sub tot [Print]) then ctx else
+                             { ctx with totality = Effect.create () } in
+               let p2 = type_term ctx_u u a in
+               (* If the typing of u was total, we can use strong application *)
+               let strong = Effect.(absent Loop ctx_u.totality
+                                    && absent CallCC ctx_u.totality)
+               in
+               log_typ "sub1 %b" strong;
+               if not Effect.(sub ctx_u.totality tot) then
+                 subtype_msg f.pos "Arrow clash";
+               (* type check f *)
+               let p1 = check_f ctx strong a in
+               (p1,p2,strong)
+           in
+           if strong then Typ_Func_s(p1,p2) else Typ_Func_e(p1,p2)
+         with Contradiction ->
+           warn_unreachable ctx t;
+           Typ_Cont
+       end
     (* Fixpoint *)
     | FixY(saf,b) ->
        let rec break_univ ctx c =
@@ -1424,8 +1474,8 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
         Typ_Name(p2,p1)
     (* Projection. *)
     | Proj(v,l)   ->
-        let c = Pos.none (Prod(A.singleton l.elt (None, c))) in
-        Typ_Prod_e(type_valu ctx v c)
+       let c = Pos.none (Prod(A.singleton l.elt (None, c))) in
+       Typ_Prod_e(type_valu ctx v c)
     (* Case analysis. *)
     | Case(v,m)   ->
         let a = new_uvar ctx P in
@@ -1462,24 +1512,16 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
         Typ_DSum_e(p,List.rev ps)
     (* Coercion. *)
     | Coer(_,t,a)   ->
-        let p1 = subtype ctx t a c in
-        let p2 =
-          try
-            let ctx =
-              match to_value t ctx.equations with
-              | (None, equations)    -> { ctx with equations }
-              | (Some(v), equations) ->
-                 let ctx = { ctx with equations } in
-                 learn_neg_equivalences ctx v None c
-            in
-            let p2 = type_term ctx t a in
-            Some p2
-          with Contradiction ->
-            (* NOTE Tot is ok, can raise contradiction only if to_value t
-               returned Some _ *)
-            None
-        in
-        Typ_TTyp(p1,p2)
+       begin
+         try
+           let (c, ctx) = learn_neg_equivalences_term ctx t c in
+           let p1 = subtype ctx t a c in
+           let p2 = type_term ctx t a in
+           Typ_TTyp(p1,p2)
+         with Contradiction ->
+           warn_unreachable ctx t;
+           Typ_Cont
+       end
     (* Such that. *)
     | Such(_,_,r) ->
         let (a,t) = instantiate ctx r.binder in
