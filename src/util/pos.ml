@@ -17,27 +17,31 @@ type pos =
 (** Convenient short name for an optional position. *)
 type popt = pos option
 
+type user = ..
+type user += Nothing : user
+
 (** Type constructor extending a type (e.g. an element of an abstract syntax
     tree) with a source code position. *)
 type 'a loc =
   { elt : 'a   (** The element that is being localised.        *)
-  ; pos : popt (** Position of the element in the source code. *) }
+  ; pos : popt (** Position of the element in the source code. *)
+  ; usr : user Timed.tref }
 
 (** Localised string type (widely used). *)
 type strloc = string loc
 
 (** [make pos elt] associates the position [pos] to [elt]. *)
 let make : popt -> 'a -> 'a loc =
-  fun pos elt -> { elt ; pos }
+  fun pos elt -> { elt ; pos; usr = Timed.tref Nothing }
 
 (** [in_pos pos elt] associates the position [pos] to [elt]. *)
 let in_pos : pos -> 'a -> 'a loc =
-  fun p elt -> { elt ; pos = Some p }
+  fun p elt -> { elt ; pos = Some p; usr = Timed.tref Nothing }
 
 (** [none elt] wraps [elt] in a localisation structure with no specified
     source position. *)
 let none : 'a -> 'a loc =
-  fun elt -> { elt ; pos = None }
+  fun elt -> { elt ; pos = None; usr = Timed.tref Nothing }
 
 let merge : pos -> pos -> pos = fun p1 p2 ->
   match compare p1.start_line p2.start_line with
