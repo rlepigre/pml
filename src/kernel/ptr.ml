@@ -201,3 +201,5 @@ let ptr_union_pars : par_map -> Ptr.t ->  Timed.Time.t -> Timed.Time.t =
     match p2 with
     | V_ptr vp -> Timed.set time vp.vlnk (Par ps)
     | T_ptr tp -> Timed.set time tp.tlnk (Par ps)
+
+type Pos.user += Ptr of ptr | VPtr of v_ptr

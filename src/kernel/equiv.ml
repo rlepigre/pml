@@ -796,7 +796,11 @@ let keep_intermediate = ref false
 
 (** Insertion and normalisation of actual terms and values to the pool. *)
 let rec add_term :  bool -> bool -> pool -> term
-                         -> Ptr.t * pool = fun o free po t0 ->
+                    -> Ptr.t * pool = fun o free po t0 ->
+  let t = Norm.whnf t0 in
+  match Timed.get po.time t0.usr with Ptr p  -> find p po
+                                    | VPtr _ -> assert false
+                                    | _      ->
   let add_term = add_term o free in
   let add_valu = add_valu o in
   let insert node po =
@@ -821,7 +825,6 @@ let rec add_term :  bool -> bool -> pool -> term
       end
   in
   (*log_edp2 "add_term %b %a" free Print.ex t0;*)
-  let t = Norm.whnf t0 in
   let (p, po) =
     match t.elt with
     | Valu(v)     -> let (pv, po) = add_valu po v in
@@ -881,12 +884,18 @@ let rec add_term :  bool -> bool -> pool -> term
       { po with os = (p, t0)::po.os }
     else po
   in
+  let po =
+    if free then {po with time = Timed.set po.time t0.usr (Ptr p)} else po
+  in
   (p, po)
 
 and     add_valu : bool -> pool -> valu -> VPtr.t * pool = fun o po v0 ->
   let add_valu = add_valu o in
   (*log_edp2 "add_valu %a" Print.ex v;*)
   let v = Norm.whnf v0 in
+  match Timed.get po.time v0.usr with VPtr p -> (p, po)
+                                    | Ptr _  -> assert false
+                                    | _      ->
   let (p,po) =
     match v.elt with
     | LAbs(_,b,t) -> let (b, po) = add_bndr_closure po V T b in
@@ -936,6 +945,7 @@ and     add_valu : bool -> pool -> valu -> VPtr.t * pool = fun o po v0 ->
       { po with os = (Ptr.V_ptr p, Pos.none (Valu v0))::po.os }
     else po
   in
+  let po = {po with time = Timed.set po.time v0.usr (VPtr p)} in
   (p, po)
 
 (** case of closure for binder *)
