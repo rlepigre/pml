@@ -358,7 +358,8 @@ let bind_spos_ordinals
         | Nil -> nil ()
         | Cns(a,l) -> cns (bind_all Any a) (fn l)
       in
-      match e.elt with
+      match (Norm.whnf e).elt with
+      | HApp(s,f,e) -> happ None s (recall f) (bind_all Any e)
       | HDef(_,e)   -> recall e.expr_def
       | Func(t,a,b) -> func e.pos t (bind_all (neg o) a) (recall b)
       | FixM(s, { elt = Conv},f,l) when o = Neg ->
