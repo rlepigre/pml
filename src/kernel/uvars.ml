@@ -43,7 +43,11 @@ let uvar_iter : type a. bool -> bool -> uvar_fun -> a ex loc -> unit =
       (** iteration on the list of unif variables used by epsilon *)
       let luvar_iter : type a b. (a, b) eps -> unit =
         fun w ->
-          List.iter (fun (U(s,v)) -> f.f s v) !(w.vars)
+          List.iter (fun (U(s,v)) ->
+              match !(v.uvar_val) with
+              | Set e   -> ()
+              | Unset _ -> f.f s v
+            ) !(w.vars)
       in
       let rec fuvar_iter : type a b. (a, b) fix_args -> unit =
         function
