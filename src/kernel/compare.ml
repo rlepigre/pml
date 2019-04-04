@@ -325,7 +325,7 @@ let {eq_expr; eq_bndr} =
     | (Case(v1,m1)   , Case(v2,m2)   ) ->
         let cmp (_,b1) (_,b2) = eq_bndr V b1 b2 in
         eq_expr v1 v2 && A.equal cmp m1 m2
-    | (FixY(_,f1)    , FixY(_,f2)    ) -> eq_bndr T f1 f2
+    | (FixY(f1)      , FixY(f2)      ) -> eq_bndr T f1 f2
     | (Prnt(s1)      , Prnt(s2)      ) -> s1 = s2
     | (Conv          , Conv          ) -> true
     | (Succ(o1)      , Succ(o2)      ) -> eq_expr o1 o2

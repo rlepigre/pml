@@ -76,7 +76,7 @@ let {hash_expr; hash_bndr; hash_ombinder; hash_vwit
     | Proj(v,l)   -> khash2 `Proj (hash l.elt) (hash_expr v)
     | Case(v,m)   -> khash2 `Case (hash_expr v)
                             (A.hash (fun (_,e) -> (hash_bndr V e)) m)
-    | FixY(_,f)   -> hash (`FixY (hash_bndr T f))
+    | FixY(f)     -> hash (`FixY (hash_bndr T f))
     | Prnt(s1)    -> khash1 `Prnt (hash s1)
     | Repl(_,u)   -> hash_expr u
     | Delm(u)     -> hash_expr u

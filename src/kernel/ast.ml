@@ -77,8 +77,8 @@ type _ ex =
   (** Value as a term. *)
   | Appl : t ex loc * t ex loc                       -> t  ex
   (** Application. *)
-  | FixY : bool * (t,  v) bndr                       -> t  ex
-  (** Fixpoint combinator Y(x.v). bool true: safe *)
+  | FixY : (t,  v) bndr                              -> t  ex
+  (** Fixpoint combinator Y(x.v). *)
   | MAbs : (s, t) bndr                               -> t  ex
   (** Mu abstraction. *)
   | Name : s ex loc * t ex loc                       -> t  ex
@@ -203,7 +203,8 @@ and value =
 
 and fix_schema =
   { fsch_index : Scp.index (** index of the schema in the call graph *)
-  ; fsch_judge : (t,v) bndr * (o ex, p ex loc) mbinder (** judgement *) }
+  ; fsch_judge : (t,v) bndr * (o ex, p ex loc) mbinder (** judgement *)
+  ; fsch_safe  : bool (** do we prove termination *) }
   (* NOTE: [sch_judge = (vb,mob)] represents "λx.Y(λr.t, x) : a" where
      [mob] corresponds to "λr.t" and "mob" corresponds to "a", which is
      the only part of the judgment which can contain parameters. *)
@@ -435,11 +436,11 @@ let case : popt -> vbox -> (popt * strloc * (vvar -> tbox)) A.t -> tbox =
     in
     box_apply2 (fun v m -> Pos.make p (Case(v,m))) v (A.map_box f m)
 
-let fixy : popt -> bool -> strloc -> (tvar -> vbox) -> tbox =
-  fun p safe x f ->
+let fixy : popt -> strloc -> (tvar -> vbox) -> tbox =
+  fun p x f ->
     let v = new_var (mk_free T) x.elt in
     let b = bind_var v (f v) in
-    box_apply (fun b -> Pos.make p (FixY(safe, (x.pos, b)))) b
+    box_apply (fun b -> Pos.make p (FixY(x.pos, b))) b
 
 let prnt : popt -> string -> tbox =
   fun p s -> box (Pos.make p (Prnt(s)))

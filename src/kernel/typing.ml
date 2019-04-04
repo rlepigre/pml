@@ -889,9 +889,24 @@ and check_sub : ctxt -> prop -> prop -> check_sub = fun ctx a b ->
 
   in find_suitable ihs
 
+and has_loop : prop -> bool =
+  fun c ->
+    let rec fn a =
+      let a = Norm.whnf a in
+      match a.elt with
+      | HDef(_,e) -> fn e.expr_def
+      | Impl(c,a) -> fn a
+      | Rest(a,c) -> fn a
+      | Univ(s,f) -> let t = bndr_term f in fn t
+      | Exis(s,f) -> let t = bndr_term f in fn t
+      | Memb(_,a) -> fn a
+      | Func(t,_,a) -> Effect.(know_present Loop t) || fn a
+      | _         -> false
+    in fn c
+
 and check_fix
-    : ctxt -> bool -> term -> (t, v) bndr -> prop -> unit -> typ_proof =
-  fun ctx saf t b c ->
+    : ctxt -> term -> (t, v) bndr -> prop -> unit -> typ_proof =
+  fun ctx t b c ->
   (* Looking for potential induction hypotheses. *)
   let ihs = Buckets.find b ctx.fix_ihs in
   log_typ "there are %i potential fixpoint induction hypotheses"
@@ -911,8 +926,10 @@ and check_fix
                (subtype ctx t (snd spe.fspe_judge)) c
            in
            log_typ "it matches\n%!";
+           (* Do we need to check for termination *)
+           let safe = ih.fsch_safe || not Effect.(present Loop ctx.totality) in
            (* Add call to call-graph and build the proof. *)
-           if Effect.(absent Loop ctx.totality) && saf then
+           if safe then
              add_call ctx (ih.fsch_index, spe.fspe_param) true;
            (t, c, Typ_Ind(ih,prf))
          with Subtype_error _ | Exit -> find_suitable ihs
@@ -925,7 +942,9 @@ and check_fix
   if ihs = [] then
     begin
       (* Construction of a new schema. *)
-      let (sch, os) = fix_generalise ctx b c in
+      (* Do we need to check for termination *)
+      let safe = not (has_loop c) in
+      let (sch, os) = fix_generalise safe ctx b c in
       (* Registration of the new top induction hypothesis and call. *)
       add_call ctx (sch.fsch_index, os) false;
       (* Recording of the new induction hypothesis. *)
@@ -986,10 +1005,13 @@ and sub_generalise : ctxt -> prop -> prop -> sub_schema * ordi array =
     ({ssch_index ; ssch_relat ; ssch_judge}, os)
 
 (* Generalisation (construction of a fix_schema). *)
-and fix_generalise : ctxt -> (t, v) bndr -> prop -> fix_schema * ordi array =
-  fun ctx b c ->
+and fix_generalise : bool -> ctxt -> (t, v) bndr -> prop -> fix_schema * ordi array =
+  fun safe ctx b c ->
     (* Extracting ordinal parameters from the goal type. *)
-    let (omb, os) = Misc.bind_spos_ordinals c in
+    let (omb, os) =
+      if safe then Misc.bind_spos_ordinals c
+      else Misc.fake_bind c
+    in
 
     (* Build the judgment. *)
     (* Output.bug_msg "Schema: %a" Print.omb omb; *)
@@ -1001,7 +1023,7 @@ and fix_generalise : ctxt -> (t, v) bndr -> prop -> fix_schema * ordi array =
       Scp.create_symbol ctx.callgraph name names
     in
     (* Assemble the schema. *)
-    ({fsch_index ; fsch_judge}, os)
+    ({fsch_index ; fsch_judge ; fsch_safe = safe }, os)
 
 (* Elimination of a schema using ordinal unification variables. *)
 and elim_fix_schema : ctxt -> fix_schema -> fix_specialised =
@@ -1442,7 +1464,7 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
            Typ_Cont
        end
     (* Fixpoint *)
-    | FixY(saf,b) ->
+    | FixY(b)     ->
        let rec break_univ ctx c =
          match (Norm.whnf c).elt with
          | Univ(O,f) -> let (eps, ctx_names) = uwit ctx.ctx_names O t f in
@@ -1452,7 +1474,7 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
        in
        let (c, ctx) = break_univ ctx c in
        let p =
-         Chrono.add_time check_fix_chrono (check_fix ctx saf t b) c ()
+         Chrono.add_time check_fix_chrono (check_fix ctx t b) c ()
        in
        Typ_FixY(p)
     (* μ-abstraction. *)

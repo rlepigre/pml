@@ -90,7 +90,7 @@ let uvar_iter : type a. bool -> bool -> uvar_fun -> a ex loc -> unit =
       | Proj(v,_)   -> uvar_iter v
       | Case(v,m)   -> let fn _ (_,b) = buvar_iter V b in
                        uvar_iter v; A.iter fn m
-      | FixY(_,f)   -> buvar_iter T f
+      | FixY(f)     -> buvar_iter T f
       | Prnt(_)     -> ()
       | Repl(t,u)   -> uvar_iter u (* Repl(_,u,_) = u *)
       | Delm(t)     -> uvar_iter t

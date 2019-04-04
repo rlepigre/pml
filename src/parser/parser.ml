@@ -94,7 +94,6 @@ let _take_    = Keyword.create "take"
 let _that_    = Keyword.create "that"
 let _true_    = Keyword.create "true"
 let _type_    = Keyword.create "type"
-let _unsafe_  = Keyword.create "unsafe"
 let _use_     = Keyword.create "use"
 let _using_   = Keyword.create "using"
 let _val_     = Keyword.create "val"
@@ -196,7 +195,6 @@ let parser neg =
 let parser v_rec =
   | EMPTY    -> `Non
   | _rec_    -> `Rec
-  | _unsafe_ -> `Unsafe
 
 (* Optional "rec" / "corec" annotation on a type definition. *)
 let parser t_rec =
@@ -489,10 +487,10 @@ let parser expr @(m : mode) =
       when m <<= Trm A
       -> qed _loc
   (* Term (fixpoint) *)
-  | _fix_ u:_unsafe_? arg:arg '{' t:term '}'
+  | _fix_ arg:arg '{' t:term '}'
       when m <<= Trm F
       -> let (a,ao) = arg in
-         let t = in_pos _loc (EFixY(u=None,a,t)) in
+         let t = in_pos _loc (EFixY(a,t)) in
          let t = match ao with
            | None -> t
            | Some ty -> in_pos _loc (ECoer(new_sort_uvar None,t,ty))

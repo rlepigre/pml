@@ -24,6 +24,11 @@ let is_wit : type a. a ex loc -> bool = fun e -> match e.elt with
   | UWit _ | EWit _ -> true
   | _ -> false
 
+let fake_bind :  type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
+  let e = box e in
+  let v = new_mvar (mk_free O) [||] in
+  (unbox (bind_mvar v e), [||])
+
 let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
   (* Compute the list of all the surface ordinal witnesses. *)
   let rec owits : type a. ordi list -> a ex loc -> ordi list = fun acc e ->
@@ -81,7 +86,7 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
 
     | Valu(v)     -> owits acc v
     | Appl(t,u)   -> owits (owits acc t) u
-    | FixY(_,f)   -> owits acc (bndr_term f)
+    | FixY(f)     -> owits acc (bndr_term f)
     | MAbs(f)     -> owits acc (bndr_term f)
     | Name(s,t)   -> owits (owits acc s) t
     | Proj(v,_)   -> owits acc v
@@ -247,7 +252,7 @@ let bind_params : Equiv.pool -> p ex loc -> sbndr box * slist = fun po e ->
 
     | Valu(v)     -> params acc v
     | Appl(t,u)   -> params (params acc t) u
-    | FixY(_,f)   -> let (_,t) = bndr_open f in params acc t
+    | FixY(f)     -> let (_,t) = bndr_open f in params acc t
     | MAbs(f)     -> let (_,t) = bndr_open f in params acc t
     | Name(s,t)   -> params (params acc s) t
     | Proj(v,_)   -> params acc v

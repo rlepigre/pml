@@ -386,9 +386,8 @@ let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
                    in
                    let pcase = print_map pelt " " in
                    fprintf ch "case %a {%a}" ext v pcase m
-  | FixY(sf,b)  -> let (x,t) = bndr_open b in
-                   let sf = if sf then "" else "unsafe " in
-                   fprintf ch "fix %s%s {%a}" sf (name_of x) ext t
+  | FixY(b)     -> let (x,t) = bndr_open b in
+                   fprintf ch "fix %s {%a}" (name_of x) ext t
   | Prnt(s)     -> fprintf ch "print(%S)" s
   | Repl(t,u)   -> fprintf ch "check {%a} for {%a}" ext t ext u
   | Delm(t)     -> fprintf ch "delim {%a}" ext t

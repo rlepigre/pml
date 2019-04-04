@@ -54,6 +54,9 @@ module type FinSet = sig
       equality is known *)
   val know_eq : t -> t -> bool
 
+  val know_absent : elt -> t -> bool
+  val know_present : elt -> t -> bool
+
   val hash : t -> int
 end
 
@@ -137,6 +140,11 @@ module Make(T:Timed)(E:Elt) = struct
     | Known l -> List.mem v l
     | Unkno c -> present_cts v c
 
+  let know_present v t =
+    match t with
+    | Known l -> List.mem v l
+    | Unkno c -> List.mem v !(c.prese)
+
   let rec absent_cts v c =
     let open T in
     if List.mem v !(c.absen) then true
@@ -155,6 +163,11 @@ module Make(T:Timed)(E:Elt) = struct
     match t with
     | Known l -> not (List.mem v l)
     | Unkno c -> absent_cts v c
+
+  let know_absent v t =
+    match t with
+    | Known l -> not (List.mem v l)
+    | Unkno c -> List.mem v !(c.absen)
 
   let subset s1 s2 = List.for_all (fun x -> List.mem x s2) s1
   let inter  s1 s2 = List.filter (fun x -> List.mem x s1) s2

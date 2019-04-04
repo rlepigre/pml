@@ -54,6 +54,9 @@ module type FinSet = sig
       is known *)
   val know_eq : t -> t -> bool
 
+  val know_absent : elt -> t -> bool
+  val know_present : elt -> t -> bool
+
   val hash : t -> int
 end
 
