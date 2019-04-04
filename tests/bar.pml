@@ -31,13 +31,13 @@ val rec assoc : ∀k,∀v:τ→ο, eq⟨k⟩ ⇒ ∀x∈k, map⟨k,v⟩ ⇒ opti
 // La bar recursion ⋯ qui ne passe pas le test de terminaison.
 // Mais ça type !!!
 
-def neg⟨a⟩ = a ↝ ∀x,x
+def neg⟨a⟩ = a →_(l) ∀x,x
 
 // notes
 // → : implication classique
 // ⇒ : implication intuitionniste
-// ↝ : implication non terminante
-val rec bar_aux : ∀a,∀v:τ→ο, ∀m∈map⟨a,v⟩, eq⟨a⟩ ⇒ (∀x∈a, neg⟨neg⟨v⟨x⟩⟩⟩) ⇒ neg⟨neg⟨∀x, x∈a ↝ v⟨x⟩⟩⟩ =
+// →_(l) : implication non terminante
+val rec bar_aux : ∀a,∀v:τ→ο, ∀m∈map⟨a,v⟩, eq⟨a⟩ ⇒ (∀x∈a, neg⟨neg⟨v⟨x⟩⟩⟩) ⇒ neg⟨neg⟨∀x, x∈a →_(l) v⟨x⟩⟩⟩ =
   fun m cmp f g {
     let a,v such that m : map⟨a,v⟩;
     g (fun x {
@@ -47,9 +47,9 @@ val rec bar_aux : ∀a,∀v:τ→ο, ∀m∈map⟨a,v⟩, eq⟨a⟩ ⇒ (∀x∈
             f x (fun u {
                 let m = add x u m;
                 bar_aux m cmp f g })}
-      } : ∀x, x∈a ↝ v⟨x⟩)}
+      } : ∀x, x∈a →_(l) v⟨x⟩)}
 
-val bar : ∀a,∀v:τ→ο, eq⟨a⟩ ⇒ (∀x∈a, neg⟨neg⟨v⟨x⟩⟩⟩) ⇒ neg⟨neg⟨∀x, x∈a ↝ v⟨x⟩⟩⟩ =
+val bar : ∀a,∀v:τ→ο, eq⟨a⟩ ⇒ (∀x∈a, neg⟨neg⟨v⟨x⟩⟩⟩) ⇒ neg⟨neg⟨∀x, x∈a →_(l) v⟨x⟩⟩⟩ =
   fun cmp f g { bar_aux [] cmp f g }
 
 // Axiome du choix intuitionniste On voudrait
@@ -63,12 +63,11 @@ val aci : ∀a,∀v, (∀x∈a, v⟨x⟩) ⇒ ∃f,∀x∈a, (f x)∈v⟨x⟩ =
 // val aci : ∀a,∀v, (∀x∈a, ∃y, v⟨x,y⟩) ⇒ ∃f,∀x∈a, v⟨x, f⟨x⟩⟩ =
 // Mais il faudrait des liaisons dans les epsilons (au moins les ewit)
 
-// This does not work because of value restriction
-//val aci2 : ∀a,∀v, (∀x, x∈a →_(l) v⟨x⟩) ⇒ ∃f,∀x, x∈a →_(l) (f x)∈v⟨x⟩ =
-//  fun f {
-//    let a, v such that f : ∀x, x∈a →_(l) v⟨x⟩;
-//    (fun x { let u = (f x : v⟨x⟩); u } : ∀x, x∈a →_(l) (f x)∈v⟨x⟩)
-//  }
+val aci2 : ∀a,∀v, (∀x, x∈a →_(l) v⟨x⟩) ⇒ ∃f,∀x, x∈a →_(l) (f x)∈v⟨x⟩ =
+  fun f {
+   let a, v such that f : ∀x, x∈a →_(l) v⟨x⟩;
+   (fun x { let u = (f x : v⟨x⟩); u } : ∀x, x∈a →_(l) (f x)∈v⟨x⟩)
+  }
 
 // La version classique ne marche pas, fort heureusement,
 // grâce à la value restriction.
@@ -79,5 +78,5 @@ val aci : ∀a,∀v, (∀x∈a, v⟨x⟩) ⇒ ∃f,∀x∈a, (f x)∈v⟨x⟩ =
 //   }
 
 // Et l'axiome du choix dénombrable et classique a besoin de aci2
-// val acc_den : ∀a,∀v:τ→ο, eq⟨a⟩ ⇒ (∀x∈a, neg⟨neg⟨v⟨x⟩⟩⟩) ⇒ neg⟨neg⟨∃f,∀x, x∈a ↝ (f x)∈v⟨x⟩⟩⟩ =
-//  fun cmp f g { bar cmp f (fun h { g (aci2 h) }) }
+val acc_den : ∀a,∀v:τ→ο, eq⟨a⟩ ⇒ (∀x∈a, neg⟨neg⟨v⟨x⟩⟩⟩) ⇒ neg⟨neg⟨∃f,∀x, x∈a →_(l) (f x)∈v⟨x⟩⟩⟩ =
+  fun cmp f g { bar cmp f (fun h { g (aci2 h) }) }

@@ -1448,9 +1448,7 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
                              { ctx with totality = Effect.create () } in
                let p2 = type_term ctx_u u a in
                (* If the typing of u was total, we can use strong application *)
-               let strong = Effect.(absent Loop ctx_u.totality
-                                    && absent CallCC ctx_u.totality)
-               in
+               let strong = Effect.(absent CallCC ctx_u.totality) in
                log_typ "sub1 %b" strong;
                if not Effect.(sub ctx_u.totality tot) then
                  subtype_msg f.pos "Arrow clash";
