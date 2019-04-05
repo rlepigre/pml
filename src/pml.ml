@@ -153,6 +153,16 @@ let _ =
         | None   -> ()
         | Some p -> Quote.quote_file stderr p
       end
+  | No_subtyping_IH(id1, id2)    ->
+      begin
+        err_msg "No typing induction hypothesis applies for %S < %S." id1.elt id2.elt;
+        (match id1.pos with
+        | None   -> ()
+        | Some p -> Quote.quote_file stderr p);
+        (match id2.pos with
+        | None   -> ()
+        | Some p -> Quote.quote_file stderr p)
+      end
   | Illegal_effect(e)         ->
       begin
         err_msg "Effect %a is not legal here." Effect.print e;

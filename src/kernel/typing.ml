@@ -46,6 +46,8 @@ exception Reachable
 
 exception No_typing_IH of strloc
 
+exception No_subtyping_IH of strloc * strloc
+
 exception Illegal_effect of Effect.effect
 
 exception Unexpected_error of string
@@ -64,12 +66,18 @@ type auto_ctxt =
   ; doing : bool
   ; tsted : blocked list }
 
+(* constant for loop detection in sub typing *)
+let sub_max = ref 10
+
 let default_auto_lvl = ref (0, 3)
 
 let auto_empty () =
   { level = !default_auto_lvl
   ; doing = false
   ; tsted = [] }
+
+type sub_adone =
+  SA : 'a sort * ('a, 'a) bndr * 'b sort * ('b,'b) bndr -> sub_adone
 
 (* Context. *)
 type ctxt  =
@@ -81,6 +89,7 @@ type ctxt  =
   ; positives : (ordi * ordi) list
   ; fix_ihs   : ((t,v) bndr, fix_schema) Buckets.t
   ; sub_ihs   : sub_schema list
+  ; sub_adone : (sub_adone * int) list
   ; top_ih    : Scp.index * ordi array
   ; add_calls : (unit -> unit) list ref
   ; auto      : auto_ctxt
@@ -94,6 +103,7 @@ let empty_ctxt () =
   ; positives = []
   ; fix_ihs   = Buckets.empty (==)
   ; sub_ihs   = []
+  ; sub_adone = []
   ; top_ih    = (Scp.root, [| |])
   ; add_calls = ref []
   ; auto      = auto_empty ()
@@ -456,6 +466,7 @@ let rec subtype =
         end
       else (
       log_sub "reflexivity does not applies";
+      let ctx = check_adone ctx a b in
       match (a.elt, b.elt) with
       (* Unfolding of definitions. *)
       | (HDef(_,d)  , _          ) ->
@@ -825,6 +836,35 @@ and gen_subtype : ctxt -> prop -> prop -> sub_rule =
     let ctx = learn_nobox ctx eps in
     let wit = Pos.none (Valu eps) in
     Sub_Gene(subtype ctx wit a b)
+
+and check_adone : ctxt -> prop -> prop -> ctxt = fun ctx a b ->
+  let gn (SA(s1,f1,s2,f2) as sa) =
+    let eq (SA(t1,g1,t2,g2),n) =
+      match (eq_sort s1 t1, eq_sort s2 t2) with
+      | (Eq.Eq, Eq.Eq) -> UTimed.pure_apply (fun () ->
+                              unif_bndr ctx.equations s1 f1 g1
+                              && unif_bndr ctx.equations s2 f2 g2) ()
+      | (_    , _    ) -> false
+    in
+    let n = try snd (List.find eq ctx.sub_adone) with Not_found -> 0 in
+    if n >= !sub_max then
+      begin
+        log_sub "loop detected";
+        raise (No_subtyping_IH (bndr_name f1, bndr_name f2))
+      end;
+    { ctx with sub_adone = (sa, n+1) :: ctx.sub_adone }
+  in
+  let rec fn a b =
+    match ((Norm.whnf a).elt, (Norm.whnf b).elt) with
+    | (HDef(_,d)      , _              ) -> fn d.expr_def b
+    | (_              , HDef(_,d)      ) -> fn a d.expr_def
+    | (FixM(s1,_,f1,_), FixM(s2,_,f2,_)) -> gn (SA(s1,f1,s2,f2))
+    | (FixM(s1,_,f1,_), FixN(s2,_,f2,_)) -> gn (SA(s1,f1,s2,f2))
+    | (FixN(s1,_,f1,_), FixM(s2,_,f2,_)) -> gn (SA(s1,f1,s2,f2))
+    | (FixN(s1,_,f1,_), FixN(s2,_,f2,_)) -> gn (SA(s1,f1,s2,f2))
+    | (_              , _              ) -> ctx
+  in
+  fn a b
 
 and check_sub : ctxt -> prop -> prop -> check_sub = fun ctx a b ->
   (* Looking for potential induction hypotheses. *)
