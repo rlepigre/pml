@@ -841,9 +841,7 @@ and check_adone : ctxt -> prop -> prop -> ctxt = fun ctx a b ->
   let gn (SA(s1,f1,s2,f2) as sa) =
     let eq (SA(t1,g1,t2,g2),n) =
       match (eq_sort s1 t1, eq_sort s2 t2) with
-      | (Eq.Eq, Eq.Eq) -> UTimed.pure_apply (fun () ->
-                              unif_bndr ctx.equations s1 f1 g1
-                              && unif_bndr ctx.equations s2 f2 g2) ()
+      | (Eq.Eq, Eq.Eq) -> f1 == g1 && f2 == g2
       | (_    , _    ) -> false
     in
     let n = try snd (List.find eq ctx.sub_adone) with Not_found -> 0 in
