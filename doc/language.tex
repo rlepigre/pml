@@ -1,0 +1,40 @@
+\chapter{PML language and syntax}
+
+\section{Sorts}
+
+PML language uses \emph{sorts} to classify all the expressions of the
+languages (excep sorts) like types, values, ordinals, \dots
+
+\begin{tabular}{ll}
+  $\iota$, \verb!<iota>! or \verb!<value>!
+  & denote the sort for values i.e. results of computation. \\
+
+  $\tau$, \verb!<tau>! or \verb!<term>!
+  & denote the sort for terms i.e. program that evaluates to value. \\
+
+  $\sigma$, \verb!<sigma>! of \verb!<stack>!
+  & denote the sort of stacks which is used when programming with classical
+  logic.\\
+
+  $o$, \verb!<omicron>! or \verb!<prop>!
+  & denote the sort of types for terms or propositions (following the
+  Curry-Howard correspondance PML identifies types and proposition).
+  $o$ is the unicode character omicron, not a lower case latin letter. \\
+
+  $\kappa$, \verb!<kappa>! or \verb!<ordinal>!
+  & denote the sort of ordinals used to index inductive and co-inductive
+  types. \\
+
+  \emph{sort} $\rightarrow$ \emph{sort}
+  & the sort for higher-order function like type with parameters. These
+  higher-order function should not be confused with functions as programs
+  which are of sort $\iota$ or $\tau$. \\
+
+  \verb!(! \emph{sort} \verb!)!
+  & parenthesis can be used for grouping \\
+\end{tabular}
+
+The sort $\iota$ is a subsort of $\tau$. This means that any value can also
+be considered as a term.
+
+\section{Expressions}

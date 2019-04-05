@@ -1,0 +1,78 @@
+\documentclass[oneside,a4]{book}
+
+\usepackage{amssymb,amsmath,amsthm}
+\usepackage[mathletters]{ucs}
+\usepackage[utf8x]{inputenc}
+\usepackage{bussproofs}
+\usepackage{enumitem}
+\usepackage{caption}
+\usepackage{xspace}
+\usepackage{subcaption}
+\usepackage{stmaryrd}
+\usepackage{hyperref}
+\usepackage{geometry}
+\usepackage{mdframed}
+\usepackage{thmbox}
+\usepackage{listings}
+
+% Boxed figures
+\usepackage{float}
+\floatstyle{boxed}
+\restylefloat{figure}
+
+\newcommand{\bnfeq}{\,\mathrel{::=}\;\,}
+\newcommand{\bnfor}{\;\mathrel{\vert}\;}
+\newcommand{\bnfst}{\\&\vert\;}
+\renewcommand{\emptyset}{\varnothing}
+\newcommand{\st}{\mid}
+\newcommand{\pml}{$\text{PML}_2$\xspace}
+\renewcommand\labelitemi{---}
+\setlist[itemize]{noitemsep,nolistsep}
+
+\newcommand*{\minw}[2]{%
+  \makebox[#2]{#1}%
+}
+
+\newcommand{\vars}{\mathcal{V}}
+\newcommand{\lvars}{\mathcal{V}_{ι}}
+\newcommand{\tvars}{\mathcal{V}_{τ}}
+\newcommand{\kvars}{\mathcal{V}_{κ}}
+\newcommand{\svars}{\mathcal{V}_{σ}}
+\newcommand{\ovars}{\mathcal{V}_{ο}}
+\newcommand{\cnsts}{\mathcal{C}}
+\newcommand{\props}{\mathcal{P}}
+\newcommand{\sorts}{\mathcal{S}}
+\newcommand{\terms}{\Lambda}
+\newcommand{\types}{\mathcal{F}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\arf}[1]{\lvert #1 \rvert_1}
+\newcommand{\ars}[1]{\lvert #1 \rvert_2}
+\newcommand{\sem}[1]{\ensuremath{\llbracket #1 \rrbracket}}
+
+\newtheorem{definition}{Definition}
+\newtheorem{example}{Example}
+\newtheorem{lemma}{Lemma}
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}{Corollary}
+\newtheorem{remark}{Remark}
+
+\begin{document}
+
+\title{PML documantation and user manual}
+\author{Rodolphe Lepigre \& Christophe Raffalli}
+\date{}
+
+\maketitle
+
+\tableofcontents
+
+\mainmatter
+
+\appendix
+
+\input{language.tex}
+
+\bibliographystyle{plain}
+\bibliography{biblio}
+
+\end{document}
