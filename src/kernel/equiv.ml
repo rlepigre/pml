@@ -2179,6 +2179,10 @@ let unif_expr : type a. pool -> a ex loc -> a ex loc -> bool =
   fun po a b ->
     eq_expr ~oracle:(oracle (ref po)) ~strict:false a b
 
+let unif_bndr : type a b. pool -> a sort -> (a, b) bndr -> (a, b) bndr -> bool =
+  fun po s a b ->
+    eq_bndr ~oracle:(oracle (ref po)) ~strict:false s a b
+
 let learn pool rel     = Chrono.add_time equiv_chrono (learn pool) rel
 let prove pool rel     = Chrono.add_time equiv_chrono (prove pool) rel
 let to_value t eqs    = Chrono.add_time equiv_chrono (to_value t) eqs

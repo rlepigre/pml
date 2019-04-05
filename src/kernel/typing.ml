@@ -433,18 +433,19 @@ let rec subtype =
         = fun s o g l2 ->
         unif_ord o;
         match eq_sort s s1 with
-        | Eq.Eq  -> if eq_bndr s f g then unif_args l1 l2
+        | Eq.Eq  -> if unif_bndr ctx.equations s f g then unif_args l1 l2
         | Eq.NEq -> ()
       in
       let rec fn : p ex loc -> unit = fun b ->
         match ((Norm.whnf b).elt, is_mu) with
+        | (HDef(s,d)     , _    ) -> fn d.expr_def
         | (Rest(b,_)     , _    ) -> fn b
         | (Impl(_,b)     , _    ) -> fn b
         | (FixM(s,o,g,l2), true ) -> do_fix s o g l2
         | (FixN(s,o,g,l2), false) -> do_fix s o g l2
         | _ -> ()
-       in
-       fn b
+      in
+      fn b
     in
     try let r =
       (* Same types.  *)

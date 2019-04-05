@@ -108,10 +108,7 @@ val rec whnf_aux : ∀c, ∀a:ι, sterm⟨c,a⟩ →_(l) sterm⟨c,a⟩ =
       case t {
         Var[v]     → t
         Lam[f]     → t
-        App[(f,u)] → //set log "st";
-                     let f = up f;
-                     let u = up u;
-                     let f = whnf_aux f;
+        App[(f,u)] → let f = whnf_aux f;
                      case f {
                        Var[_] → app f u
                        App[_] → app f u
