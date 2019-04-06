@@ -1492,10 +1492,12 @@ let equations _loc _loc_a a eqns =
 
 let from_int _loc n =
   let zero = evari (Some _loc) (in_pos _loc "zero") in
-  let succ = evari (Some _loc) (in_pos _loc "succ" ) in
+  let succ = evari (Some _loc) (in_pos _loc "succ") in
   let dble = evari (Some _loc) (in_pos _loc "dble") in
+  let opp  = evari (Some _loc) (in_pos _loc "opp" ) in
   let rec fn n =
     if n = 0 then zero
+    else if n < 0 then in_pos _loc (EAppl(opp,fn (- n)))
     else
       let t = in_pos _loc (EAppl(dble,fn (n/2))) in
       if n mod 2 = 0 then t

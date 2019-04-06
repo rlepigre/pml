@@ -141,7 +141,7 @@ let parser luid = id:uid       -> in_pos _loc id
 let parser lnum = id:num       -> in_pos _loc id
 
 (* Int. *)
-let parser int  = s:''[0-9]+'' -> int_of_string s
+let parser int  = s:''[-]?[0-9]+'' -> int_of_string s
 
 (* Bool. *)
 let parser bool = "true" -> true | "false" -> false
