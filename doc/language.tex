@@ -5,36 +5,240 @@
 PML language uses \emph{sorts} to classify all the expressions of the
 languages (excep sorts) like types, values, ordinals, \dots
 
-\begin{tabular}{ll}
-  $\iota$, \verb!<iota>! or \verb!<value>!
-  & denote the sort for values i.e. results of computation. \\
 
-  $\tau$, \verb!<tau>! or \verb!<term>!
-  & denote the sort for terms i.e. program that evaluates to value. \\
+\noindent \emph{sort} $::=$
 
-  $\sigma$, \verb!<sigma>! of \verb!<stack>!
-  & denote the sort of stacks which is used when programming with classical
-  logic.\\
+\def\w{9.2cm}
+\begin{tabular}{rll}
+  & $\iota$ \Mid {\tt <iota>} \Mid {\tt <value>}
+  & \parbox[t]{\w}{denote the sort for values i.e. results of computation.} \\
 
-  $o$, \verb!<omicron>! or \verb!<prop>!
-  & denote the sort of types for terms or propositions (following the
+  \Mid
+  & $\tau$ \Mid {\tt <tau>} \Mid {\tt <term>}
+  & \parbox[t]{\w}{denote the sort for terms i.e. program that evaluates to value.} \\
+
+  \Mid
+  & $\sigma$ \Mid {\tt <sigma>} \Mid {\tt <stack>}
+  & \parbox[t]{\w}{denote the sort of stacks which is used when programming with classical
+  logic.}\\
+
+  \Mid
+  & $o$ \Mid {\tt <omicron>} \Mid {\tt <prop>}
+  & \parbox[t]{\w}{denote the sort of types for terms or propositions (following the
   Curry-Howard correspondance PML identifies types and proposition).
-  $o$ is the unicode character omicron, not a lower case latin letter. \\
+  The letter $o$ is the unicode character omicron, not a lower case latin letter.} \\
 
-  $\kappa$, \verb!<kappa>! or \verb!<ordinal>!
-  & denote the sort of ordinals used to index inductive and co-inductive
-  types. \\
+  \Mid
+  & $\kappa$ \Mid {\tt <kappa>} \Mid {\tt <ordinal>}
+  & \parbox[t]{\w}{denote the sort of ordinals used to index inductive and co-inductive
+  types.} \\
 
-  \emph{sort} $\rightarrow$ \emph{sort}
-  & the sort for higher-order function like type with parameters. These
+  \Mid
+  & \emph{sort} $\rightarrow$ \emph{sort}
+  & \parbox[t]{\w}{the sort for higher-order function like type with parameters. These
   higher-order function should not be confused with functions as programs
-  which are of sort $\iota$ or $\tau$. \\
+  which are of sort $\iota$ or $\tau$. This symbol is right associative,
+  $s_1 \rightarrow  s_2 \rightarrow s_3$ means
+  $s_1 \rightarrow (s_2 \rightarrow s_3)$.} \\
 
-  \verb!(! \emph{sort} \verb!)!
-  & parenthesis can be used for grouping \\
+  \Mid
+  & {\tt (} \emph{sort} {\tt )}
+  & \parbox[t]{\w}{parenthesis can be used for grouping.} \\
 \end{tabular}
 
 The sort $\iota$ is a subsort of $\tau$. This means that any value can also
 be considered as a term.
 
 \section{Expressions}
+
+In this section we describe the BNF of PML's expression written \emph{expr}. We will denote
+\begin{itemize}
+\item \emph{value} the expression of sort $\iota$,
+\item \emph{term} the expression of sort $\tau$,
+\item \emph{stack} the expression of sort $\sigma$,
+\item \emph{prop} the expression of sort $o$,
+\item \emph{ordi} the expression of sort $\kappa$.
+\end{itemize}
+
+\subsection{Atoms}
+
+We now give a few atomic tokens used in the grammar below.
+
+\begin{tabular}{rll}
+\emph{uid} &$::=$& {\tt [A-Z\_][a-zA-Z0-9\_']+} \Mid {\tt true}
+\Mid {\tt false}\\
+\emph{lid} &$::=$& {\tt [a-z\_][a-zA-Z0-9\_']+} \\
+\emph{id}  &$::=$& \emph{lid} \Mid \emph{lid} : \emph{prop} \\
+\emph{int} &$::=$& {\tt [-]?[0-9]+} \\
+\end{tabular}
+
+\subsection{Values}
+
+\noindent \emph{value} $::=$
+
+\def\w{9.2cm}
+\begin{tabular}{rll}
+  & $\lambda \emph{id} \dots \emph{id } . \emph{term}$ & \\
+  \Mid & ${\tt fun} \; \emph{id} \dots \emph{id } \{ \emph{term} \}$ & \\
+  \Mid & ${\tt take} \; \emph{id} \dots \emph{id }  \{ \emph{term} \}$
+       & \parbox[t]{\w}{denotes function with one of more arguments. The form with
+    the {\tt take} keyword in more natural for proofs.} \\
+
+  \Mid & $\emph{uid} \mid \emph{uid} [ \emph{value} ]$
+  & \parbox[t]{\w}{constructor applied to no argument or one argument. In
+    fact, no argument means applied to unit, i.e. $\{\}$).} \\
+
+  \Mid & $\{ \emph{id} = \emph{value} ; \dots \}$
+  & \parbox[t]{\w}{construction of a record. As in OCaml, $\emph{id} ;$ as a
+    field means $\emph{id} = \emph{id}$.} \\
+
+  \Mid & $( \emph{value}, \dots)$
+  & \parbox[t]{\w}{tuple construction. As in standard ML this is equivalent
+    to a record with numerical labels $1,2,\dots$.} \\
+\end{tabular}
+
+
+\subsection{Terms}
+\noindent \emph{value} $::=$
+
+\def\w{9.2cm}
+\begin{tabular}{rll}
+  \Mid & $\emph{uid} [ \emph{term} ]$
+  & \parbox[t]{\w}{syntactic sugar : $C[t]$ means  $(\lambda x.\emph{uid}[x])
+    t$.} \\
+
+  \Mid & $\{ \emph{id} = \emph{term} ; \dots \}$
+  & \parbox[t]{\w}{As above, a redex is added for each field wich is not a
+    value in a record construction.} \\
+
+  \Mid & $( \emph{term}, \dots)$
+    & \parbox[t]{\w}{As above, a redex is added for each field wich is not a
+    value in a tuple construction.} \\
+\end{tabular}
+
+\subsection{Stacks}
+
+\noindent \emph{stack} $::=$
+
+\def\w{9.2cm}
+\begin{tabular}{rll}
+\end{tabular}
+
+\subsection{Ordinals}
+
+\noindent \emph{ordi} $::=$
+
+\def\w{9.2cm}
+\begin{tabular}{rll}
+\end{tabular}
+
+\subsection{Propositions}
+
+\noindent \emph{prop} $::=$
+
+\def\w{9.2cm}
+\begin{tabular}{rll}
+       & $\emph{prop} \Rightarrow \emph{expr}$ & \\
+  \Mid & $\emph{prop} \rightarrow \emph{expr}$ & \\
+  \Mid & $\emph{prop} ↝ \emph{expr}$ & \\
+  \Mid & $\emph{prop} \rightarrow_{(\emph{effects})} \emph{expr}$ &
+  \parbox[t]{\w}{propositional
+  implication and function type. The implication is indexed by the possible
+  effects of the function. Currently {\tt l} if the function may loop, {\tt
+    p} if the function perform some printing on the standard output and {\tt
+    c} if the function may restore a previously saved stack. The symbol
+  $\Rightarrow$ is a short cut for pure function type
+  i.e. $\rightarrow_{()}$. The symbol $\rightarrow$ and $↝$ mean respectively
+  $\rightarrow_{(cp)}$ and $\rightarrow_{(cpl)}$. }\\
+
+  \Mid & $\emph{prop} \times \emph{prop} \times \dots$ & product type (i.e. type
+  of tuple.). \\
+
+  \Mid & $\{ \emph{lid} : \emph{prop} ; \dots \}$ & \\
+  \Mid & $\{ \emph{lid} : \emph{prop} ; \dots ; {\tt ...} \}$ &
+  \parbox[t]{\w}{record type, indicating the type of each field. If there is
+    three dots before the closing brace, the record type is open, more field
+    may be present in an element of this type. I fact, the strict version is
+    a syntactic sugar.  $\{ l_1 : A_1; \dots; l_n : A_n \}$ means $\exists
+    x_1 \dots x_n:\iota, \{ l_1 = x_1, \dots, l_n = x_n \} : \{ l_1 : A_1;
+    \dots; l_n : A_n ; {\tt ...}  \}$.  The final dots may be one unicode
+    character or three ascii dots.} \\
+
+  \Mid & $\emptyset$ \Mid $[.]$ & \\
+  \Mid & $[ \emph{uid} \; {\tt of} \; \emph{prop} ; \dots ]$ &
+  \parbox[t]{\w}{sum type inicating the type of the argument of each
+    constructor. The ${\tt of} \emph{prop}$ may be ommited if the type is
+    unit, i.e. $\{\}$. $\emptyset$ and $[.]$ both denote the empty sum
+    type. $[]$ is the empty list and not a sum type.} \\
+
+  \Mid & $\emph{term} \in \emph{prop}$ &
+  \parbox[t]{\w}{denotes the singleton type containing only the given term of
+    the given type.} \\
+
+  \Mid & $\emph{prop} | \emph{term} \equiv \emph{term}$ & \\
+  \Mid & $\emph{prop} | \emph{term} \downarrow$ & \\
+  \Mid & $\emph{term} \equiv \emph{term}$ & \\
+  \Mid & $\emph{term}$ &
+  \parbox[t]{\w}{corresponds to the restiction type. It is the empty type if
+    the condition is false, otherwise it is the given type. The condition
+    $t_1 \equiv t_2$ is true when $t_1$ and $t_2$ are equivalent (PML
+    equivalence is more of less observational equivalence). $t_1\downarrow$
+    is true if $t_1$ evaluates to a value. The two last forms are syntactic
+    sugar: $t_1 \equiv t_2$ means $\{\} | t_1 \equiv t_2$ and $t_1$ means
+    $\{\} | t_1 \equiv {\tt true}$. The last form allows to use any term of
+    boolean type as a proposition. Because of syntactic ambiguïties,
+    variables and higher-order applications are forbidden in the last form.} \\
+
+  \Mid & $\emph{term} \equiv \emph{term} ↪ \emph{prop}$ & \\
+  \Mid & $\emph{term} \downarrow  ↪ \emph{prop}$ &
+  \parbox[t]{\w}{ dentes propositional implication. The type is the top type
+    containing all terms if the condition is false. It is the given type
+    otherwise. This type differs from restrction only when the condition is false.} \\
+
+  \Mid & $\forall \emph{id} \dots. \emph{prop}$ & \\
+  \Mid & $\forall \emph{id} \dots : \emph{sort}. \emph{prop}$ & \\
+  \Mid & $\forall \emph{id} \dots \in \emph{prop}. \emph{prop}$ &
+  \parbox[t]{\w}{denotes universal quantification. In the first form, the
+    sort of the variables is infered by PML while in the second form it is
+    explicitely written. The last form is a short cut for dependant type.
+    $\forall x_1 \dots x_n \in A.B$ means $\forall x_1 \dots x_n : \iota. x_1
+    \in A \Rightarrow \dots \Rightarrow x_n \in A \Rightarrow B$.} \\
+
+  \Mid & $\exists \emph{id} \dots. \emph{prop}$ & \\
+  \Mid & $\exists \emph{id} \dots : \emph{sort}. \emph{prop}$ & \\
+  \Mid & $\exists \emph{id} \dots \in \emph{prop}. \emph{prop}$ & \\
+  \Mid & $\{ \emph{id} \in \emph{prop}\}$ &
+  \parbox[t]{\w}{denotes universal quantification. In the first form, the
+    sort of the variables is infered by PML while in the second form it is
+    explicitely written. The last form is a short cut for dependant product.
+    $\exists x_1 \dots x_n \in A.B$ means $\exists x_1 \dots x_n : \iota. x_1
+    \in A \times \dots \times x_n \in A \times B$. The last for is also a
+    short cut: $\{x \in A\}$ means $\exists x. x \in A$.} \\
+
+\end{tabular}
+
+\subsection{General expressions}
+
+\noindent \emph{expr} $::=$
+
+\def\w{9.2cm}
+\begin{tabular}{rll}
+  & $ lib $ & variable. \\
+
+  \Mid & $( \emph{lid} : \emph{sort} \mapsto \emph{expr} )$ &
+  \parbox[t]{\w}{corresponds to
+  higher-order abstraction. If $e$ is an expression of sort $s_2$ using a
+  variable $x$ of sort $s_1$ then $(x : s_1 \mapsto e)$ is of sort $s_1
+  \rightarrow s_2$.} \\
+
+  \Mid & $\emph{expr}\langle\emph{expr}, \dots\rangle$ &
+  \parbox[t]{\w}{denotes higher-order application. $e_1\langle e_2,
+    e_3\rangle$ is a short cut for $e_1\langle e_2\rangle\langle
+    e_3\rangle$. $e_1\langle e_2\rangle$ is of sort $s_2$ if $e_1$ is of sort
+    $s_1 \rightarrow s_2$ and $e_2$ is of sort $s_1$.}\\
+
+  \Mid & ( \emph{expr} ) & parenthesis for grouping.\\
+
+
+\end{tabular}
+\section{Top level statements}
