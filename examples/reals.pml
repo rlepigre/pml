@@ -76,7 +76,7 @@ val rec divideBy : ∀o:κ, ∀n∈nat, ∀s∈sbds⟨o+ₒ2,n⟩, sman⟨o⟩ =
       let _ : le k n = (
         show le k (opp n + p2 * n)
           using add_increasing_left d (opp n) (p2 * n) {};
-        eqns (opp n) + p2 * n
+        show (opp n) + p2 * n
           ≡ (opp n + n) + n by add_associative (opp n) n n
           ≡ n by (add_inv n; add_commutative (opp n) n);
         {}
@@ -84,7 +84,7 @@ val rec divideBy : ∀o:κ, ∀n∈nat, ∀s∈sbds⟨o+ₒ2,n⟩, sman⟨o⟩ =
       let _ : ge k (opp n) = (
         show ge k (p3 * opp n + p2 * n)
           using add_increasing_left (p3 * opp n) d (p2 * n) {};
-        eqns p3 * opp n + p2 * n // better proof are possible ;-)
+        show p3 * opp n + p2 * n // better proof are possible ;-)
           ≡ (p3 * opp n + n) + n by add_associative (p3 * opp n) n n
           ≡ (p2 * opp n + (opp n + n)) + n
                by add_associative (p2 * opp n) (opp n) n
@@ -107,7 +107,7 @@ val rec divideBy : ∀o:κ, ∀n∈nat, ∀s∈sbds⟨o+ₒ2,n⟩, sman⟨o⟩ =
           using (add_increasing_left d (p3 * n) (opp (p2 * n)) {};
                  add_opp d (p2 * n);
                  add_opp (p3 * n) (p2 * n));
-        eqns p3 * n - p2 * n // better proof are possible ;-)
+        show p3 * n - p2 * n // better proof are possible ;-)
           ≡ p3 * n + opp (n + n)  by add_opp (p3 * n) (p2 * n)
           ≡ p3 * n + (opp n + opp n) by add_opp_opp n n
           ≡ (p3 * n + opp n) + opp n
@@ -124,7 +124,7 @@ val rec divideBy : ∀o:κ, ∀n∈nat, ∀s∈sbds⟨o+ₒ2,n⟩, sman⟨o⟩ =
           using (add_increasing_left n d (opp (p2 * n)) {};
                   add_opp n (p2 * n);
                   add_opp d (p2 * n));
-        eqns n - p2 * n
+        show n - p2 * n
           ≡ n + (opp n + opp n) by (add_opp n (p2 * n) ; add_opp_opp n n)
           ≡ (n + opp n) + opp n by add_associative n (opp n) (opp n)
           ≡ opp n by add_inv n;
@@ -337,7 +337,7 @@ val rec sign_approx : nat ⇒ man ⇒ sbit = fun n x {
 }
 
 //type for sign of real numbers
-type neg⟨a⟩ = a → ∀x,x
+type neg⟨a⟩ = a →_(c) ∀x,x
 type non_zero⟨x:τ⟩ = ∃n∈nat, sign_approx n x.man ≠ Z
 type is_zero⟨x:τ⟩ = ∀n∈nat, sign_approx n x.man ≡ Z
 type cis_zero⟨x:τ⟩ = ∀n∈nat, neg⟨sign_approx n x.man ≠ Z⟩

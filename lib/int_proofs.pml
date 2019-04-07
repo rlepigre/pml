@@ -11,10 +11,10 @@ val pre_suc : ∀n∈int, pre (suc n) ≡ n = fun n {
 val rec add_zero_right : ∀n∈int, n + Zero ≡ n = fun n {
   case n {
     Zero → {}
-    S[p] → eqns p + Zero ≡ p by add_zero_right p;
+    S[p] → show p + Zero ≡ p by add_zero_right p;
            showing suc(p+Zero) ≡ S[p];
            set auto 1 0; {}
-    P[s] → eqns s + Zero ≡ s by add_zero_right s;
+    P[s] → show s + Zero ≡ s by add_zero_right s;
            showing pre(s+Zero) ≡ P[s];
            set auto 1 0; {}
            //showing suc(s+Zero) ≡ S[s]; // FIXME #24: wrong but loops,
@@ -26,10 +26,10 @@ val rec add_S_right : ∀n∈ int, ∀m∈pos, n + S[m] ≡ suc(n + m) = fun n m
   case n {
     Zero → showing S[m] ≡ suc(m);
            set auto 1 0; {}
-    S[p] → eqns p + S[m] ≡ suc(p + m) by add_S_right p m;
+    S[p] → show p + S[m] ≡ suc(p + m) by add_S_right p m;
            showing p + S[m] ≡ suc(p + m);
            {}
-    P[s] → eqns s + S[m] ≡ suc(s + m) by add_S_right s m;
+    P[s] → show s + S[m] ≡ suc(s + m) by add_S_right s m;
            showing pre(suc(s + m)) ≡ suc(pre(s + m));
            pre_suc (s + m); suc_pre(s + m)
   }
@@ -39,10 +39,10 @@ val rec add_P_right : ∀n∈ int, ∀m∈neg, n + P[m] ≡ pre(n + m) = fun n m
   case n {
     Zero → showing P[m] ≡ pre(m);
            set auto 1 0; {}
-    S[p] → eqns p + P[m] ≡ pre(p + m) by add_P_right p m;
+    S[p] → show p + P[m] ≡ pre(p + m) by add_P_right p m;
            showing suc(pre(p + m)) ≡ pre(suc(p + m));
            use pre_suc (p + m); use suc_pre(p + m)
-    P[s] → eqns s + P[m] ≡ pre(s + m) by add_P_right s m;
+    P[s] → show s + P[m] ≡ pre(s + m) by add_P_right s m;
            showing s + P[m] ≡ pre(s + m);
            {}
   }
@@ -84,12 +84,12 @@ val rec add_associative : ∀m n p∈int, (m + n) + p ≡ m + (n + p) =
 val rec add_inv : ∀m∈int, m + opp m ≡ Zero = fun m {
   case m {
     Zero → {}
-    S[p] → eqns m + opp m
+    S[p] → show m + opp m
            ≡ suc (pre (p + opp_pos p)) by add_P_right p (opp_pos p)
            ≡ suc (pre (p + opp p)) by (case p {Zero → {} S[_] → {}})
            ≡ p + opp p by suc_pre (p + opp p);
            add_inv p
-    P[s] → eqns m + opp m
+    P[s] → show m + opp m
            ≡ pre (suc (s + opp_neg s)) by add_S_right s (opp_neg s)
            ≡ pre (suc (s + opp s)) by (case s {Zero → {} P[_] → {}})
            ≡ s + opp s by pre_suc (s + opp s);
@@ -225,7 +225,7 @@ val rec non_neg_add : ∀m n∈{ x ∈ int | non_negative x}, non_negative (m + 
 val rec add_increasing : ∀m n p q∈int, le m n ⇒ le p q ⇒ le (m + p) (n + q) =
   fun m n p q _ _ {
     showing non_negative ((n + q) - (m + p));
-    eqns (n + q) - (m + p)
+    show (n + q) - (m + p)
       ≡ n + (q - (m + p)) by sub_associative3 n q (m + p)
       ≡ n + ((q - m) - p) by sub_associative  q m p
       ≡ n + ((opp m + q) - p) by (add_opp q m; add_commutative (opp m) q)
@@ -239,7 +239,7 @@ val rec add_increasing : ∀m n p q∈int, le m n ⇒ le p q ⇒ le (m + p) (n +
 val le_reflexive : ∀m∈int, le m m = fun m { add_inv2 m }
 
 val not_le_is_gt : ∀m n∈int, le m n ≡ false ⇒ gt m n = fun m n _ {
-  eqns n - m ≡ opp (m - n) by (add_opp n m; add_opp m n;
+  show n - m ≡ opp (m - n) by (add_opp n m; add_opp m n;
                                add_commutative n (opp m);
                                add_opp_opp m (opp n); opp_idempotent n);
 

@@ -103,6 +103,9 @@ let parser lid = id:''[a-z][a-zA-Z0-9_']*'' -> Keyword.check id; id
 let parser uid = id:''[A-Z][a-zA-Z0-9_']*'' -> Keyword.check id; id
 let parser num = id:''[0-9]+''              -> id
 
+let parser because = _using_ | _by_ | _because_
+let parser deduce  = _show_  | _deduce_
+
 (* Infix *)
 let reserved_infix = [ "≡"; "∈"; "=" ]
 
@@ -445,31 +448,29 @@ let parser expr @(m : mode) =
       -> if_then_else _loc c t e
   (* Term (replacement) *)
   | _check_ '{' u:term '}' _for_ '{' t:term '}'
-    b:{_:_because_ '{' term '}' }?
+    b:{_:because '{' term '}' }?
       when m <<= Trm A
       -> in_pos _loc (ERepl(t,u,b))
   (* Term (totality by purity) *)
   | _delim_ '{' u:term '}'
       when m <<= Trm R
       -> in_pos _loc (EDelm(u))
-  (* Term ("deduce" tactic) *)
-  | _deduce_ a:prop $
-      when m <<= Trm A
-      -> deduce _loc a
   (* Term ("show" tactic) *)
-  | _show_ a:prop _using_ t:{(expr (Trm R)) | '{' term '}'}
+  | deduce a:prop p:{_:because {(expr (Trm R)) | '{' term '}'}}?
       when m <<= Trm R
-      -> show_using _loc a t
+      -> show _loc a p
+  (* Term ("eqns" tactic) *)
+  | deduce a:term eqns:{ _:equiv
+                           b:(expr (Trm R))
+                           p:{_:because {(expr (Trm R)) | '{' term '}'}}?
+                              -> (_loc,b,p) }+
+      when m <<= Trm R
+      -> if List.length eqns <= 1 then give_up ();
+         equations _loc _loc_a a eqns
   (* Term ("use" tactic) *)
   | _use_ t:(expr (Trm R))
       when m <<= Trm R
       -> use _loc t
-  (* Term ("eqns" tactic) *)
-  | _eqns_ a:term eqns:{ _:equiv b:(expr (Trm R))
-                         p:{ _:_by_ p:(expr (Trm R))
-                           | _:_using_ '{' p:term '}'}? -> (_loc,b,p) }*
-      when m <<= Trm R
-      -> equations _loc _loc_a a eqns
   (* Term ("showing" tactic) *)
   | _showing_   a:(expr (Prp R)) ';' p:(expr (Trm S))
       when m <<= Trm S

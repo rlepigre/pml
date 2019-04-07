@@ -9,15 +9,15 @@ include lib.bool
 val rec add_assoc : ∀m n p∈nat, m + (n + p) ≡ (m + n) + p =
   fun m n p {
     case m {
-      Zero → eqns 0 + (n + p)
+      Zero → show 0 + (n + p)
                     ≡ n + p
                     ≡ (0 + n) + p
-      S[k] → eqns m + (n + p)
+      S[k] → show m + (n + p)
                     ≡ S[k] + (n + p)
                     ≡ S[k + (n + p)]
                     ≡ S[(k + n) + p] by add_assoc k n p
                     ≡ S[k + n] + p;
-             eqns (m + n) + p
+             show (m + n) + p
                     ≡ (S[k] + n) + p
                     ≡ S[k + n] + p;
              qed
@@ -38,7 +38,7 @@ val rec add_n_zero : ∀n∈nat, n + 0 ≡ n =
   fun n {
     case n {
       Zero → qed
-      S[k] → eqns n + 0 ≡ S[k] + 0 ≡ S[k + 0]
+      S[k] → show n + 0 ≡ S[k] + 0 ≡ S[k + 0]
                         ≡ S[k] by add_n_zero k ≡ n
     }
   }
@@ -48,7 +48,7 @@ val rec add_n_succ : ∀m n∈nat, m + S[n] ≡ S[m + n] =
   fun m n {
     case m {
       Zero → qed
-      S[k] → eqns m + S[n] ≡ S[k + S[n]]
+      S[k] → show m + S[n] ≡ S[k + S[n]]
                            ≡ S[S[k + n]] by add_n_succ k n
                            ≡ S[m + n]
     }
@@ -58,8 +58,8 @@ val rec add_n_succ : ∀m n∈nat, m + S[n] ≡ S[m + n] =
 val rec add_comm : ∀m n∈nat, m + n ≡ n + m =
   fun m n {
     case m {
-      Zero → eqns 0 + n ≡ n ≡ n + 0 by add_n_zero n
-      S[k] → eqns m + n ≡ S[k + n]
+      Zero → show 0 + n ≡ n ≡ n + 0 by add_n_zero n
+      S[k] → show m + n ≡ S[k + n]
                         ≡ S[n + k]    by add_comm k n
                         ≡ n + m       by add_n_succ n k
     }
@@ -71,8 +71,8 @@ val rec add_comm : ∀m n∈nat, m + n ≡ n + m =
 val rec mul_n_zero : ∀n∈nat, n * 0 ≡ 0 =
   fun n {
     case n {
-      Zero → eqns 0 * 0 ≡ 0
-      S[k] → eqns S[k] * 0 ≡ 0 + k * 0
+      Zero → show 0 * 0 ≡ 0
+      S[k] → show S[k] * 0 ≡ 0 + k * 0
                            ≡ 0 + 0 by mul_n_zero k
                            ≡ 0
     }
@@ -86,8 +86,8 @@ val rec mul_n_succ : ∀n m∈nat, n * S[m] ≡ n + n * m =
   fun n m {
 
     case n {
-      Zero → eqns 0 * S[m] ≡ 0 + 0 * m ≡ 0
-      S[k] → eqns n * S[m] ≡ S[m] + k * S[m]
+      Zero → show 0 * S[m] ≡ 0 + 0 * m ≡ 0
+      S[k] → show n * S[m] ≡ S[m] + k * S[m]
                            ≡ S[m] + (k + k * m) by mul_n_succ k m
                            ≡ S[m + (k + k * m)]
                            ≡ S[(m + k) + k * m] by add_assoc m k (k * m)
@@ -102,8 +102,8 @@ val rec mul_n_succ : ∀n m∈nat, n * S[m] ≡ n + n * m =
 val rec mul_comm : ∀n m∈nat, mul n m ≡ mul m n =
   fun n m {
     case n {
-      Zero → eqns 0 * m ≡ 0;
-             eqns m * 0 ≡ 0 by mul_n_zero m;
+      Zero → show 0 * m ≡ 0;
+             show m * 0 ≡ 0 by mul_n_zero m;
              qed
       S[k] → show mul k m ≡ mul m k using mul_comm k m;
              deduce add m (mul k m) ≡ add m (mul m k);
@@ -434,7 +434,7 @@ val rec div_mod : ∀n∈nat,∀m∈[S of nat], (n / m) * m + n % m ≡ n =
       InR[n'] →
         case n' {
           0      → use add_n_zero m; qed
-          S[n''] → eqns n / m * m + n % m
+          S[n''] → show n / m * m + n % m
                       ≡ S[n' / m] * m + n' % m
                       ≡ (m + n' / m * m) + n' % m
                       ≡ m + (n' / m * m + n' % m)

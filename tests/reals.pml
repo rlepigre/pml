@@ -100,8 +100,8 @@ val rec average_aux_commutative :  ∀c∈int, ∀x y∈man,
     let d0 = dbl c + (sbit_to_int x0 + sbit_to_int y0);
     use add_commutative (sbit_to_int x0) (sbit_to_int y0);
     if even d0 {
-      eqns average_aux c x y {} ≡ { hd = sgn d0; tl = average_aux p0 xs ys };
-      eqns average_aux c y x {} ≡ { hd = sgn d0; tl = average_aux p0 ys xs };
+      show average_aux c x y {} ≡ { hd = sgn d0; tl = average_aux p0 xs ys };
+      show average_aux c y x {} ≡ { hd = sgn d0; tl = average_aux p0 ys xs };
       case n {
         Zero → {}
         S[p] → average_aux_commutative Zero xs ys p
@@ -112,11 +112,11 @@ val rec average_aux_commutative :  ∀c∈int, ∀x y∈man,
       let {hd = y1} = ys {};
       let d1 = dbl d0 + (sbit_to_int x1 + sbit_to_int y1);
       let d2 = dbl d0 + (sbit_to_int y1 + sbit_to_int x1);
-      eqns d1 ≡ d2 by add_commutative (sbit_to_int x1) (sbit_to_int y1);
+      show d1 ≡ d2 by add_commutative (sbit_to_int x1) (sbit_to_int y1);
       let e : sbit = if ge d1 p2 { S } else { if le d1 n2 { P } else { Z } };
       let c1 = d0 - (dbl (sbit_to_int e));
-      eqns average_aux c x y {} ≡ { hd = e; tl = average_aux c1 xs ys };
-      eqns average_aux c y x {} ≡ { hd = e; tl = average_aux c1 ys xs };
+      show average_aux c x y {} ≡ { hd = e; tl = average_aux c1 xs ys };
+      show average_aux c y x {} ≡ { hd = e; tl = average_aux c1 ys xs };
       case n {
         Zero → {}
         S[p] → average_aux_commutative c1 xs ys p

@@ -10,8 +10,8 @@ val rec sum_odd : nat ⇒ nat = fun n {
 
 val rec theorem : ∀n∈nat, sum_odd n ≡ n ** 2 = fun n {
   case n {
-    0    → eqns sum_odd 0 ≡ 0 ≡ 0 ** 2
-    S[p] → eqns
+    0    → show sum_odd 0 ≡ 0 ≡ 0 ** 2
+    S[p] → show
            sum_odd n ≡ sum_odd p + 1 + 2 * p
                      ≡ p ** 2 + 1 + 2 * p    by theorem p
                      ≡ (1 + p) ** 2           using {

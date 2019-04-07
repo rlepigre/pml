@@ -203,7 +203,7 @@ val rec equiv_apply_aux :
               Some[(e,f1)] →
                 deduce apply_aux fifo_pair f ops ≡
                          apply_aux fifo_pair f1 ops';
-                eqns translate⟨apply_aux fifo_pair f1 ops'⟩ ≡
+                show translate⟨apply_aux fifo_pair f1 ops'⟩ ≡
                   apply_aux fifo_simple translate⟨f1⟩ ops'
                   by equiv_apply_aux f1 ops';
                 {}
@@ -211,7 +211,7 @@ val rec equiv_apply_aux :
           Push[x] →
             use equiv_push x f;
             let f1:list⟨a⟩×list⟨a⟩ = ((x::l1), l2);
-            eqns translate⟨apply_aux fifo_pair f1 ops'⟩
+            show translate⟨apply_aux fifo_pair f1 ops'⟩
               ≡ apply_aux fifo_simple translate⟨f1⟩ ops'
               by equiv_apply_aux f1 ops';
             {}
@@ -229,8 +229,8 @@ val rec th : equiv_fifo⟨fifo_pair,fifo_simple⟩ =
     // apply_aux
     let f1 = apply_aux fifo_pair (fifo_pair.empty:list2⟨a⟩) ops;
     let f2 = apply_aux fifo_simple (fifo_simple.empty:list⟨a⟩) ops;
-    eqns translate⟨f1⟩ ≡ f2 by equiv_apply_aux fifo_pair.empty ops;
-    eqns translate_opt⟨fifo_pair.pop f1⟩ ≡ fifo_simple.pop f2 by
+    show translate⟨f1⟩ ≡ f2 by equiv_apply_aux fifo_pair.empty ops;
+    show translate_opt⟨fifo_pair.pop f1⟩ ≡ fifo_simple.pop f2 by
       equiv_pop f1;
     case fifo_pair.pop f1 {
       None        → {}

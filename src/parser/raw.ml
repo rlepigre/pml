@@ -1465,13 +1465,13 @@ let v_cons _loc t u =
   let arg = (Pos.none (EReco(args)), ref `T) in
   Pos.in_pos _loc (ECons(Pos.none "Cons", Some arg))
 
-(* "deduce a" := "{} : a" *)
-let deduce _loc a =
-  Pos.in_pos _loc (ECoer(_sv, Pos.none (EReco []), a))
-
 (* "show a using p" := "p : a" *)
-let show_using _loc a t =
-  Pos.in_pos _loc (ECoer(new_sort_uvar None, t, a))
+let show _loc a t =
+  let (s,t) = match t with
+    | None   -> (_sv, Pos.none (EReco []))
+    | Some t -> (new_sort_uvar None, t)
+  in
+  Pos.in_pos _loc (ECoer(s, t, a))
 
 let equations _loc _loc_a a eqns =
   let rec fn t l = (* t is a proof of a = x *)
