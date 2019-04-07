@@ -80,18 +80,13 @@ We now give a few atomic tokens used in the grammar below.
 \def\w{9.2cm}
 \begin{longtable}{rll}
   & $\lambda \emph{id} \dots \emph{id } . \emph{term}$ & \\
-  \Mid & ${\tt fun} \; \emph{id} \dots \emph{id } \{ \emph{term} \}$ & \\
-  \Mid & ${\tt take} \; \emph{id} \dots \emph{id }  \{ \emph{term} \}$ & \\
-  \Mid & ${\tt suppose}\; \emph{prop}, \dots ; \emph{term}$
-    & \parbox[t]{\w}{denotes function with one of more arguments. The forms
-      with the {\tt take} or {\tt suppose} keywords are more natural for
-      proofs. The last form denotes a sequence of abstraction with no name
-      for the variable.} \\
+  \Mid & ${\tt fun} \; \emph{id} \dots \emph{id } \{ \emph{term} \}$
+    & \parbox[t]{\w}{denotes function with one of more arguments.} \\
 
   \Mid & $[]$ \Mid $\emph{value} :: \emph{value}$ &\\
   \Mid & $\emph{uid} \mid \emph{uid} [ \emph{value} ]$
   & \parbox[t]{\w}{constructor applied to no argument or one argument. In
-    fact, no argument means applied to unit, i.e. $\{\}$. $[]$ is a shrt
+    fact, no argument means applied to unit, i.e. $\{\}$. $[]$ is a short
     hand for ${\tt Nil}$ and $t :: u$ means ${\tt Cons}[\{ {\tt hd} = t;
       {\tt tl} = u\}]$.} \\
 
@@ -276,14 +271,13 @@ There is no specific syntax for stack except for identifier introduced by the
     is used to prove productivity of programs.} \\
 \end{longtable}
 
-
 \subsection{General expressions}
 
 \noindent \emph{expr} $::=$
 
 \def\w{9.2cm}
 \begin{longtable}{rll}
-  & $ lib $ & variable. \\
+  & $ \emph{lid} $ & variable. \\
 
   \Mid & $( \emph{lid} : \emph{sort} \mapsto \emph{expr} )$ &
   \parbox[t]{\w}{corresponds to
@@ -298,7 +292,76 @@ There is no specific syntax for stack except for identifier introduced by the
     $s_1 \rightarrow s_2$ and $e_2$ is of sort $s_1$.}\\
 
   \Mid & ( \emph{expr} ) & parenthesis for grouping.\\
+\end{longtable}
 
+\subsection{proofs}
+
+PML does not have a specific language for proofs. However, we provide a few
+syntactic sugar to make proofs more readable for non specialist.
+
+We first give a BNF for a few equivalent keywords. Depending on the proofs,
+some keyword may give a more natural proofs than other.
+
+\noindent \emph{show} $::= {\tt show}$ \Mid ${\tt deduce}$ \Mid ${\tt prove}$
+
+\noindent \emph{assume} $::= {\tt assume}$ \Mid ${\tt know}$
+
+\noindent \emph{showing} $::= {\tt from}$ \Mid ${\tt showing}$
+
+\noindent \emph{because} $::= {\tt because}$ \Mid ${\tt using}$ \Mid ${\tt by}$
+
+First, we have the {\tt qed} keyword and
+two syntactic sugar to define function application that we use
+when the type of the variable are hypothesis of a theorem:
+
+\noindent \emph{value} $::= ...$
+\def\w{9.2cm}
+\begin{longtable}{rll}
+  \Mid & ${\tt qed}$ & a synonymous for the empty record $\{\}$.\\
+  \Mid & ${\tt take} \; \emph{id} \dots \emph{id }  \{ \emph{term} \}$ & \\
+  \Mid & ${\tt suppose}\; \emph{prop}, \dots ; \emph{term}$ &
+   \parbox[t]{\w}{the syntax with the {\tt take} keyword is fully equivalent
+     the same with {\tt fun} and is used to prove universal quantifications.
+     We use {\tt suppose} when we do not need
+   a name for the variables, typically for types which are hypothesis.} \\
+\end{longtable}
+
+Then, we have a few extension for expressions
+
+\noindent \emph{expr} $::= ...$
+\def\w{9.2cm}
+\begin{longtable}{rll}
+  \Mid & ${\tt use} \; \emph{term}$ & \parbox[t]{\w}{the statement ${\tt use}\;
+    t$ is equivalent to $t$ but may be more natural when $t$ is the
+    invocation of some lemma or theorem.}\\
+  \Mid & $\emph{show} \; \emph{prop} $ \\
+  \Mid & $\emph{show} \; \emph{prop} \;\emph{because} \; \emph{term} $ \\
+  \Mid & $\emph{show} \; \emph{term}
+         \begin{array}[t]{l}
+           \equiv \emph{term} \; \emph{because} \; \emph{term} \\
+           \equiv \emph{term} \; \emph{because} \; \emph{term} \\
+           \dots
+         \end{array}$ &
+         \parbox[t]{\w}{The first form ${\tt show}\; p; t$ is equivalent to
+           $({\tt qed} : p)$. The second ${\tt show}\; p \; {\tt because}
+           \; u$ means $(u : p)$. The term
+           following the keyword {\tt because} must be of priority prefix or
+           between curly braces. The last form is equivalence to a sequence
+           of {\tt show}, the justification of each line being optional. For
+           instance $\begin{array}[t]{ll}{\tt show}\; a &\equiv b \;
+             {\tt using} \; l \\&\equiv c \end{array}$ means $(l :
+           a \equiv b); ({\tt qed} : b \equiv c)$.}\\
+
+  \Mid & $\emph{showing} \; \emph{prop} ; \emph{term}$  & \parbox[t]{\w}{is
+    used for backward reasonning to mean that the current goal is implied by
+    the given proposition. This can not be the last statement of a proof
+    hence the term at the end. ${\tt showing}\; p; t$ means
+     ${\tt let}\; \_ : a = t; p$.}\\
+
+  \Mid & $\emph{assume} \; \emph{term}$  & \parbox[t]{\w}{${\tt assume}\; t$ perfome
+    a case analysis on $t$ to prove that $t$ is equal to {\tt true}. It is
+    expended to ${\tt let}\; x = t;\;{\tt case}\; t \{ {\tt false} \rightarrow
+    {\tt qed} \;  {\tt true} \rightarrow {\tt qed}  \}$.}
 
 \end{longtable}
 
