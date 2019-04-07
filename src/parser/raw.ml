@@ -1465,31 +1465,6 @@ let v_cons _loc t u =
   let arg = (Pos.none (EReco(args)), ref `T) in
   Pos.in_pos _loc (ECons(Pos.none "Cons", Some arg))
 
-(* "show a using p" := "p : a" *)
-let show _loc a t =
-  let (s,t) = match t with
-    | None   -> (_sv, Pos.none (EReco []))
-    | Some t -> (new_sort_uvar None, t)
-  in
-  Pos.in_pos _loc (ECoer(s, t, a))
-
-let equations _loc _loc_a a eqns =
-  let rec fn t l = (* t is a proof of a = x *)
-    match l with
-    | [] -> t
-    | (_loc_y,y,prf)::l ->
-       let prf = match prf with
-         | None -> Pos.none (EReco [])
-         | Some t -> t
-       in
-       let a = none (ERest(None, EEquiv(a,true,y))) in
-       let u = in_pos (Pos.merge _loc_a _loc_y)
-                      (ECoer(new_sort_uvar None, prf, a)) in
-       let t = in_pos _loc (ESequ(t,u)) in
-       fn t l
-  in
-  fn (Pos.none (EReco [])) eqns
-
 let from_int _loc n =
   let zero = evari (Some _loc) (in_pos _loc "zero") in
   let succ = evari (Some _loc) (in_pos _loc "succ") in
@@ -1505,30 +1480,68 @@ let from_int _loc n =
   in
   fn n
 
-(* "use a" := "a" *)
-let use _loc t =
-  t
+(* Sytactic sugar for proofs *)
 
 (* "qed" := "{}" *)
 let qed _loc =
   Pos.in_pos _loc (EReco([]))
 
-(* "from a; p" := "let _ = p : a in {}" *)
-let showing _loc a p =
-  let_binding _loc `Non (`LetArgVar(Pos.none "",None))
-    (Pos.in_pos _loc (ECoer(new_sort_uvar None, p,a)))
-    (Pos.in_pos _loc (EReco []))
+(* "show a" := "(qed : a"
+   "show a using p" := "p : a" *)
+let show _loc a t =
+  let (s,t) = match t with
+    | None   -> (_sv, qed _loc)
+    | Some t -> (new_sort_uvar None, t)
+  in
+  Pos.in_pos _loc (ECoer(s, t, a))
 
+(* "show a == b using t_1
+           == c"
+   := "(t_1 : a == b); (qed : b == c)" *)
+let equations _loc _loc_a a eqns =
+  let rec fn t l = (* t is a proof of a = x *)
+    match l with
+    | [] -> (match t with None -> assert false | Some t -> t)
+    | (_loc_y,y,prf)::l ->
+       let a = none (ERest(None, EEquiv(a,true,y))) in
+       let (s,prf) = match prf with
+         | None   -> (_sv, qed _loc)
+         | Some t -> (new_sort_uvar None, t)
+       in
+       let u = in_pos (Pos.merge _loc_a _loc_y) (ECoer(s, prf, a)) in
+       let t = match t with
+               | None   -> Some u
+               | Some t -> Some (in_pos _loc (ESequ(t,u)))
+       in
+       fn t l
+  in
+  fn None eqns
+
+(* "use a" := "a" *)
+let use _loc t =
+  t
+
+(* "from a; p" := "let _ = p : a in {}" *)
+let showing _loc a q p =
+  let q = match q with
+    | None   -> qed _loc
+    | Some q -> q
+  in
+  let_binding _loc `Non (`LetArgVar(Pos.none "",Some a)) p q
+
+(* "suppose p t" := "fun _:p { t }" *)
 let suppose _loc props t =
   let args = List.map (fun p -> (Pos.none "_", Some p)) props in
   in_pos _loc (ELAbs((List.hd args, List.tl args),t))
 
-let assume _loc t u =
-  in_pos _loc (ECase(t, ref `T,
-    [ ((Pos.none "false", None), in_pos _loc EUnit)
-    ; ((Pos.none "true" , None), u) ]))
-
-let know _loc t u =
-  in_pos _loc (ECase(t, ref `T,
-    [ ((Pos.none "false", None), in_pos _loc EScis)
-    ; ((Pos.none "true" , None), u) ]))
+(* "assume t" := "let x = t;
+                  (case x { true -> qed false -> qed } ; x == true" *)
+let assume _loc t =
+  let x = in_pos _loc (EVari(in_pos _loc"$x",_sv)) in
+  let c = in_pos _loc (ECase(x, ref `T,
+    [ ((Pos.none "false", None), qed _loc)
+    ; ((Pos.none "true" , None), qed _loc)]))
+  in
+  let_binding _loc `None
+              (`LetArgVar(Pos.none "$x",None))
+              t (in_pos _loc (ECoer(_st,c,x)))

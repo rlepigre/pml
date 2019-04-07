@@ -73,6 +73,7 @@ let _false_   = Keyword.create "false"
 let _fix_     = Keyword.create "fix"
 let _for_     = Keyword.create "for"
 let _fun_     = Keyword.create "fun"
+let _from_    = Keyword.create "from"
 let _if_      = Keyword.create "if"
 let _include_ = Keyword.create "include"
 let _infix_   = Keyword.create "infix"
@@ -80,6 +81,7 @@ let _know_    = Keyword.create "know"
 let _let_     = Keyword.create "let"
 let _of_      = Keyword.create "of"
 let _print_   = Keyword.create "print"
+let _prove_   = Keyword.create "prove"
 let _qed_     = Keyword.create "qed"
 let _rec_     = Keyword.create "rec"
 let _restore_ = Keyword.create "restore"
@@ -104,7 +106,8 @@ let parser uid = id:''[A-Z][a-zA-Z0-9_']*'' -> Keyword.check id; id
 let parser num = id:''[0-9]+''              -> id
 
 let parser because = _using_ | _by_ | _because_
-let parser deduce  = _show_  | _deduce_
+let parser deduce  = _show_  | _deduce_ | _prove_
+let parser from = _showing_ | _from_
 
 (* Infix *)
 let reserved_infix = [ "≡"; "∈"; "=" ]
@@ -459,7 +462,7 @@ let parser expr @(m : mode) =
   | deduce a:prop p:{_:because {(expr (Trm R)) | '{' term '}'}}?
       when m <<= Trm R
       -> show _loc a p
-  (* Term ("eqns" tactic) *)
+  (* Term ("show" tactic, sequences of eqns) *)
   | deduce a:term eqns:{ _:equiv
                            b:(expr (Trm R))
                            p:{_:because {(expr (Trm R)) | '{' term '}'}}?
@@ -472,17 +475,15 @@ let parser expr @(m : mode) =
       when m <<= Trm R
       -> use _loc t
   (* Term ("showing" tactic) *)
-  | _showing_   a:(expr (Prp R)) ';' p:(expr (Trm S))
+  | from a:(expr (Prp R))
+         q:{_:because {(expr (Trm R)) | '{' term '}'}}?
+         ';' p:(expr (Trm S))
       when m <<= Trm S
-      -> showing _loc a p
-  (* Term ("assume" tactic) *)
-  | _assume_   a:(expr (Prp R)) ';' p:(expr (Trm S))
+      -> showing _loc a q p
+  (* Term ("assume"/"know" tactic) *)
+  | {_assume_ | _know_}  a:(expr (Trm S)) $
       when m <<= Trm S
-      -> assume _loc a p
-  (* Term ("know" tactic) *)
-  | _know_   a:(expr (Prp R)) ';' p:(expr (Trm S))
-      when m <<= Trm S
-      -> know _loc a p
+      -> assume _loc a
   (* Term ("QED" tactic) *)
   | _qed_
       when m <<= Trm A
