@@ -322,12 +322,12 @@ let parser expr @(m : mode) =
       when m <<= Prp A
       -> esett _loc x a
   (* Proposition (least fixpoint) *)
-  | "μ" o:{_:'_' ordinal}?[none EConv] x:llid s:{':' s:sort}? ',' a:any
+  | "μ" o:{_:'_' ordinal}?[none EConv] (x,s):s_arg ',' a:any
       when m <<= Prp F
       -> let s = match s with Some s -> s | None -> new_sort_uvar (Some x) in
          in_pos _loc (EFixM(s,o,x,a))
   (* Proposition (greatest fixpoint) *)
-  | "ν" o:{_:'_' ordinal}?[none EConv] x:llid s:{':' s:sort}? ',' a:any
+  | "ν" o:{_:'_' ordinal}?[none EConv] (x,s):s_arg ',' a:any
       when m <<= Prp F
       -> let s = match s with Some s -> s | None -> new_sort_uvar (Some x) in
          in_pos _loc (EFixN(s,o,x,a))
