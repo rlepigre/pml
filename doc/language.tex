@@ -1,6 +1,6 @@
 \chapter{PML language and syntax}
 
-\section{Sorts}
+\section{Sorts}\label{lang-sort}
 
 PML language uses \emph{sorts} to classify all the expressions of the
 languages (excep sorts) like types, values, ordinals, \dots
@@ -9,7 +9,7 @@ languages (excep sorts) like types, values, ordinals, \dots
 \noindent \emph{sort} $::=$
 
 \def\w{9.2cm}
-\begin{tabular}{rll}
+\begin{longtable}{rll}
   & $\iota$ \Mid {\tt <iota>} \Mid {\tt <value>}
   & \parbox[t]{\w}{denote the sort for values i.e. results of computation.} \\
 
@@ -44,12 +44,12 @@ languages (excep sorts) like types, values, ordinals, \dots
   \Mid
   & {\tt (} \emph{sort} {\tt )}
   & \parbox[t]{\w}{parenthesis can be used for grouping.} \\
-\end{tabular}
+\end{longtable}
 
 The sort $\iota$ is a subsort of $\tau$. This means that any value can also
 be considered as a term.
 
-\section{Expressions}
+\section{Expressions}\label{lang-expr}
 
 In this section we describe the BNF of PML's expression written \emph{expr}. We will denote
 \begin{itemize}
@@ -64,29 +64,36 @@ In this section we describe the BNF of PML's expression written \emph{expr}. We 
 
 We now give a few atomic tokens used in the grammar below.
 
-\begin{tabular}{rll}
+\begin{longtable}{rll}
 \emph{uid} &$::=$& {\tt [A-Z\_][a-zA-Z0-9\_']+} \Mid {\tt true}
 \Mid {\tt false}\\
 \emph{lid} &$::=$& {\tt [a-z\_][a-zA-Z0-9\_']+} \\
 \emph{id}  &$::=$& \emph{lid} \Mid \emph{lid} : \emph{prop} \\
 \emph{int} &$::=$& {\tt [-]?[0-9]+} \\
-\end{tabular}
+\emph{infix} &$::=$& \hbox{ must be declared see \ref{lang-top}}.
+\end{longtable}
 
 \subsection{Values}
 
 \noindent \emph{value} $::=$
 
 \def\w{9.2cm}
-\begin{tabular}{rll}
+\begin{longtable}{rll}
   & $\lambda \emph{id} \dots \emph{id } . \emph{term}$ & \\
   \Mid & ${\tt fun} \; \emph{id} \dots \emph{id } \{ \emph{term} \}$ & \\
-  \Mid & ${\tt take} \; \emph{id} \dots \emph{id }  \{ \emph{term} \}$
-       & \parbox[t]{\w}{denotes function with one of more arguments. The form with
-    the {\tt take} keyword in more natural for proofs.} \\
+  \Mid & ${\tt take} \; \emph{id} \dots \emph{id }  \{ \emph{term} \}$ & \\
+  \Mid & ${\tt suppose}\; \emph{prop}, \dots ; \emph{term}$
+    & \parbox[t]{\w}{denotes function with one of more arguments. The forms
+      with the {\tt take} or {\tt suppose} keywords are more natural for
+      proofs. The last form denotes a sequence of abstraction with no name
+      for the variable.} \\
 
+  \Mid & $[]$ \Mid $\emph{value} :: \emph{value}$ &\\
   \Mid & $\emph{uid} \mid \emph{uid} [ \emph{value} ]$
   & \parbox[t]{\w}{constructor applied to no argument or one argument. In
-    fact, no argument means applied to unit, i.e. $\{\}$).} \\
+    fact, no argument means applied to unit, i.e. $\{\}$. $[]$ is a shrt
+    hand for ${\tt Nil}$ and $t :: u$ means ${\tt Cons}[\{ {\tt hd} = t;
+      {\tt tl} = u\}]$.} \\
 
   \Mid & $\{ \emph{id} = \emph{value} ; \dots \}$
   & \parbox[t]{\w}{construction of a record. As in OCaml, $\emph{id} ;$ as a
@@ -95,17 +102,24 @@ We now give a few atomic tokens used in the grammar below.
   \Mid & $( \emph{value}, \dots)$
   & \parbox[t]{\w}{tuple construction. As in standard ML this is equivalent
     to a record with numerical labels $1,2,\dots$.} \\
-\end{tabular}
+
+\end{longtable}
 
 
 \subsection{Terms}
 \noindent \emph{value} $::=$
 
 \def\w{9.2cm}
-\begin{tabular}{rll}
+\begin{longtable}{rll}
+  \Mid & $ \emph{term} \; \emph{term} $
+  & \parbox[t]{\w}{function application. It is left associative: $t_1 \; t_2
+    \; t_3$ means $(t_1 \; t_2) \; t_3)$.}\\
+
+  \Mid & $\emph{value} :: \emph{value}$ \\
   \Mid & $\emph{uid} [ \emph{term} ]$
   & \parbox[t]{\w}{syntactic sugar : $C[t]$ means  $(\lambda x.\emph{uid}[x])
-    t$.} \\
+    t$. The same for the syntactic sugar for {\tt Cons} if one of both
+    arguments are not values a redex is inserted.} \\
 
   \Mid & $\{ \emph{id} = \emph{term} ; \dots \}$
   & \parbox[t]{\w}{As above, a redex is added for each field wich is not a
@@ -114,34 +128,64 @@ We now give a few atomic tokens used in the grammar below.
   \Mid & $( \emph{term}, \dots)$
     & \parbox[t]{\w}{As above, a redex is added for each field wich is not a
     value in a tuple construction.} \\
-\end{tabular}
+
+  \Mid & \emph{int} & \parbox[t]{\w}{a syntactic sugar is created to
+    represent the given integer using function {\tt zero},  {\tt succ}, {\tt
+      dble}, and  {\tt opp}. For instance, {\tt 5} means {\tt succ (dble
+      (dble (succ zero)))}.} \\
+
+  \Mid & ${\tt if} \; \emph{term} \; {\tt then} \; \emph{term} \; {\tt else}
+  \; \emph{term}$ \\
+  \Mid & ${\tt case} \; \{ \emph{pat} \rightarrow \emph{term} \dots \}$ &
+    \parbox[t]{\w}{case analysis over sum type. See below for the definition
+      of the BNF \emph{pat}. The syntax ${\tt if}\; b \; {\tt then} \; t \;
+      {\tt else} \; u$ means ${\tt case}\;\{ {\tt true} \rightarrow t {\tt
+        false} \rightarrow u\}$.} \\
+
+  \Mid & U+2702 (scisors)  & \parbox[t]{\w}{used to denote inaccessible part of
+    a term, in general an impossible case}\\
+
+  \Mid & ${\tt save} \emph{lid} \{ \emph{term} \}$ & \parbox[t]{\w}{save the
+    current evaluation context (i.e. the stack) for future use with {\tt
+      restore}.} \\
+
+  \Mid & ${\tt restore} \emph{lid} \emph{term} $ & \parbox[t]{\w}{restore
+    a previously store evaluation context and evaluate the given term in
+    it. This statement corresponds to the $c$ effect.}\\
+
+  \Mid & ${\tt delim} \{ \emph{term} \} $ & \parbox[t]{\w}{If the given term
+    does not use the $c$ effect in its type of the type of its free variable,
+    then we know the the {\tt restore} statement can not escape the term and
+    the $c$ effect can be ignored for that term.} \\
+\end{longtable}
 
 \subsection{Stacks}
 
-\noindent \emph{stack} $::=$
+There is no specific syntax for stack except for identifier introduced by the
+{\tt save} keyword.
 
 \def\w{9.2cm}
-\begin{tabular}{rll}
-\end{tabular}
+\begin{longtable}{rll}
+\end{longtable}
 
 \subsection{Ordinals}
 
 \noindent \emph{ordi} $::=$
 
 \def\w{9.2cm}
-\begin{tabular}{rll}
-\end{tabular}
+\begin{longtable}{rll}
+\end{longtable}
 
 \subsection{Propositions}
 
 \noindent \emph{prop} $::=$
 
 \def\w{9.2cm}
-\begin{tabular}{rll}
-       & $\emph{prop} \Rightarrow \emph{expr}$ & \\
-  \Mid & $\emph{prop} \rightarrow \emph{expr}$ & \\
-  \Mid & $\emph{prop} ↝ \emph{expr}$ & \\
-  \Mid & $\emph{prop} \rightarrow_{(\emph{effects})} \emph{expr}$ &
+\begin{longtable}{rll}
+       & $\emph{prop} \Rightarrow \emph{prop}$ & \\
+  \Mid & $\emph{prop} \rightarrow \emph{prop}$ & \\
+  \Mid & $\emph{prop} ↝ \emph{prop}$ & \\
+  \Mid & $\emph{prop} \rightarrow_{(\emph{effects})} \emph{prop}$ &
   \parbox[t]{\w}{propositional
   implication and function type. The implication is indexed by the possible
   effects of the function. Currently {\tt l} if the function may loop, {\tt
@@ -215,14 +259,30 @@ We now give a few atomic tokens used in the grammar below.
     \in A \times \dots \times x_n \in A \times B$. The last for is also a
     short cut: $\{x \in A\}$ means $\exists x. x \in A$.} \\
 
-\end{tabular}
+  \Mid & $\mu \emph{id}, \emph{prop}$ & \\
+  \Mid & $\mu \emph{ordi} \; \emph{id}, \emph{prop}$ &
+  \parbox[t]{\w}{Least fixpoint of proposition or parametric
+    proposition. This means that $\mu x, a$ may be of sort $s_1 \rightarrow
+    \dots s_n \rightarrow o$ when both $x$ and $a$ have this sort. The
+    form with an ordinal denotes a partial construction of the fixpoint and
+    is used to prove termination of programs.} \\
+
+  \Mid & $\nu \emph{id}, \emph{prop}$ & \\
+  \Mid & $\nu \emph{ordi} \; \emph{id}, \emph{prop}$ &
+  \parbox[t]{\w}{Greatest fixpoint of proposition or parametric
+    proposition. This means that $\nu x, a$ may be of sort $s_1 \rightarrow
+    \dots s_n \rightarrow o$ when both $x$ and $a$ have this sort. The
+    form with an ordinal denotes a partial construction of the fixpoint and
+    is used to prove productivity of programs.} \\
+\end{longtable}
+
 
 \subsection{General expressions}
 
 \noindent \emph{expr} $::=$
 
 \def\w{9.2cm}
-\begin{tabular}{rll}
+\begin{longtable}{rll}
   & $ lib $ & variable. \\
 
   \Mid & $( \emph{lid} : \emph{sort} \mapsto \emph{expr} )$ &
@@ -240,5 +300,6 @@ We now give a few atomic tokens used in the grammar below.
   \Mid & ( \emph{expr} ) & parenthesis for grouping.\\
 
 
-\end{tabular}
-\section{Top level statements}
+\end{longtable}
+
+\section{Top level statements}\label{lang-top}
