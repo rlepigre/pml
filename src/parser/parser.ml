@@ -481,9 +481,11 @@ let parser expr @(m : mode) =
       when m <<= Trm S
       -> showing _loc a q p
   (* Term ("assume"/"know" tactic) *)
-  | {_assume_ | _know_}  a:(expr (Trm S)) $
+  | {_assume_ | _know_}  a:(expr (Trm R))
+         q:{_:because {(expr (Trm R)) | '{' term '}'}}?
+         ';' p:(expr (Trm S))
       when m <<= Trm S
-      -> assume _loc a
+      -> assume _loc a q p
   (* Term ("QED" tactic) *)
   | _qed_
       when m <<= Trm A

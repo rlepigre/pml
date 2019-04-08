@@ -1536,12 +1536,11 @@ let suppose _loc props t =
 
 (* "assume t" := "let x = t;
                   (case x { true -> qed false -> qed } ; x == true" *)
-let assume _loc t =
-  let x = in_pos _loc (EVari(in_pos _loc"$x",_sv)) in
-  let c = in_pos _loc (ECase(x, ref `T,
-    [ ((Pos.none "false", None), qed _loc)
-    ; ((Pos.none "true" , None), qed _loc)]))
+let assume _loc t q p =
+  let q = match q with
+    | None   -> qed _loc
+    | Some q -> q
   in
-  let_binding _loc `None
-              (`LetArgVar(Pos.none "$x",None))
-              t (in_pos _loc (ECoer(_st,c,x)))
+  in_pos _loc (ECase(t, ref `T,
+    [ ((Pos.none "false", None), q)
+    ; ((Pos.none "true" , None), p)]))
