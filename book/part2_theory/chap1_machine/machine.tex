@@ -548,7 +548,7 @@ values in a term yields equivalent terms.
   $ρ_0 ∘ ρ$ and the stack $π_0$.
 \end{proof}
 
-\begin{theorem}[extensionality for values]\label{fullextval}%
+\begin{theorem}[extensionality for values]\label{thm:extval}%
   Let $v_1$, $v_1 ∈ Λ_ι$ be values, $t ∈ Λ$ be a term and $x ∈ \cal{V}_ι$
   be a $λ$-variable. If we have $v_1 ≡ v_2$ then we also have
   ${t[x := v_1]} ≡ {t[x := v_2]}$.
@@ -592,7 +592,7 @@ values in a term yields equivalent terms.
   ${v_2ρ ∗ π} = {□ ∗ [{-}\;\,\{\}]ε} {⇓}_0$.
 \end{proof}
 
-A result analogous to Theorem~\ref{fullextval} also holds for substituting
+A result analogous to Theorem~\ref{thm:extval} also holds for substituting
 equivalent terms to a term variable. However, it is harder to prove, and it
 requires a proof by induction on the reduction levels. The core of the proof
 happens in that of Lemma~\ref{afullextlem}, which itself makes use of the
@@ -843,6 +843,9 @@ Figure~\ref{fig:axiomatization_equiv}.
     % Elimination of μ-abstraction
     μα.t &\;≡\; t
     \tag{if $α ∈ \mathcal{F}_{σ}$, $t ∈ Λ$, and $α ∉ FV(t)$}\\
+    % Restore after capture.
+    μα.[α]t &\;≡\; μα.t
+    \tag{if $α ∈ \mathcal{F}_σ$ and $t ∈ Λ$}\\
     % Contraction of μ-abstractions
     μα.μβ.t &\;≡\; μα.t[β := α]
     \tag{if $α, β ∈ \mathcal{F}_{σ}$, and $t ∈ Λ$}\\
@@ -863,10 +866,7 @@ Figure~\ref{fig:axiomatization_equiv}.
     \tag{if $t, u ∈ Λ$ and $π ∈ Π$}\\
     % Erasing a stack.
     [π₁][π₂]t &\;≡\; [π₂]t
-    \tag{if $t ∈ Λ$ and $π₁, π₂ ∈ Π$}\\
-    % Restore after capture.
-    μα.[α]t &\;≡\; μα.t
-    \tag{if $α ∈ \mathcal{F}_σ$ and $t ∈ Λ$}
+    \tag{if $t ∈ Λ$ and $π₁, π₂ ∈ Π$}
   \end{align*}
   %
   Distinguishable terms (inequivalences)
@@ -930,6 +930,18 @@ relation $(≡_{≻})$ coincides with $(≡_{↠_0})$ since $(↠_0) = (≻)$.}
   obtain ${tρ₀∗π₀} = {(t ∗ π₀σ)(ρ₀ \circ σ^{-1})} ≻^{∗} p₀(ρ₀ \circ σ^{-1})$,
   and similarly ${uρ₀ ∗ π₀} ≻^{∗} p₀(ρ₀ \circ σ^{-1})$.
 \end{proof}
+\begin{lemma}[base inequivalence implies inequivalence]\label{lem:stcntrex}%
+  We have $(≡) ⊆ (≡_{≻})$. In particular, if $t \not\equiv_{≻} u$ for some
+  $t, u ∈ Λ$ then $t \not\equiv u$. As a consequence, to show $t \not\equiv u$
+  it is enough to find $π∈Π$ and $ρ∈\mathcal{S}$ such that ${tρ ∗ π} {⇓}_{≻}$
+  and ${uρ ∗ π} {⇑}_{≻}$. And in particular, it is also enough to find $π∈Π$
+  such that ${t ∗ π} {⇓}_{≻}$ and ${u ∗ π} {⇑}_{≻}$.
+\end{lemma}
+\begin{proof}
+  The inclusion immediately follows by definition of $(≡)$ since $(≡_{≻})$
+  coincides with $(≡_{↠_0})$. The remaining of the lemma follows trivially
+  from the definition of $(≡_{≻})$.
+\end{proof}
 
 % CBV β-reduction
 \begin{theorem}[equivalence for $β$-reduction]
@@ -978,7 +990,7 @@ relation $(≡_{≻})$ coincides with $(≡_{↠_0})$ since $(↠_0) = (≻)$.}
 % Reduction steps involving the box.
 \begin{theorem}[equivalences involving $□$]
   The following four equivalences are satisfied:
-  \begin{enumerate}
+  \begin{enumerate}[topsep=0pt,itemsep=0ex]
     \item for all $t ∈ Λ$ we have $t\;□ ≡ □$,
     \item for all $v ∈ Λ_{ι} \setminus \mathcal{V}_{ι}$ we have $□\;v ≡ □$,
     \item for all $k ∈ \mathbb{N}$ we have $□.l_k ≡ □$, and
@@ -1027,9 +1039,193 @@ relation $(≡_{≻})$ coincides with $(≡_{↠_0})$ since $(↠_0) = (≻)$.}
   respect to equivalence will not be a problem at all in practice.
 \end{remark}
 
-% TODO
+% Elimination of μ-abstraction
+\begin{theorem}[equivalence with non-occuring $μ$-variable]
+  For all $α ∈ \mathcal{F}_{σ}$ and $t ∈ Λ$, if $α ∉ FV(t)$ then $μα.t ≡ t$.
+\end{theorem}
+\begin{proof}
+  We can conclude using Lemma~\ref{lem:eqred} since ${μα.t ∗ π} ≻ {t ∗ π}$ for
+  all stack $π ∈ Π$.
+\end{proof}
 
+% Restore after capture.
+\begin{theorem}[restore after capture]
+  For all $α ∈ \mathcal{F}_σ$ and $t ∈ Λ$ we have $μα.[α]t ≡ μα.t$.
+\end{theorem}
+\begin{proof}
+  Since ${μα.[α]t ∗ π} ≻ {([α]t)[α:=π] * π} = {[π]t[α := π] ∗ π} ≻
+  {t[α := π] ∗ π}$ and ${μα.t ∗ π} ≻ {t[α := π] ∗ π}$ for all $π ∈ Π$, we
+  can conclude using Lemma~\ref{lem:eqred}.
+\end{proof}
+
+\begin{remark}
+  If we combine the previous two results, we can obtain the equivalence
+  $μα.[α]t ≡ t$ for all $t ∈ Λ$ and $α ∈ \mathcal{V}_{σ}$ such that $α ∉
+  FV_{σ}(t)$. This can be seen as a form of $η$-equivalence for
+  for $μ$-abstractions, as remarked by Parigot~\cite{Parigot1992}.
+\end{remark}
+
+% Contraction of μ-abstractions
+\begin{theorem}[contraction of $μ$-abstractions]
+  For all $α, β ∈ \mathcal{F}_{σ}$ and $t ∈ Λ$ we have $μα.μβ.t ≡ μα.t[β := α]$.
+\end{theorem}
+\begin{proof}
+  By definition, we have ${μα.μβ.t ∗ π} ≻ {μβ.t[α := π] ∗ π} ≻
+  {(t[α := π])[β := π] ∗ π}$ and, similarly, ${μβ.t[α := β] ∗ π} ≻
+  {(t[α := β])[β := π] ∗ π}$. To be able to conclude using
+  Lemma~\ref{lem:eqred} we need to show that
+  ${(t[α := π])[β := π]} = {(t[α := β])[β := π]}$. This is immediate since
+  we may assume $β ∉ FV_{σ}(π)$ up to renaming.
+\end{proof}
+
+% Extraction of μ-abstractions on the right.
+\begin{theorem}[extraction of a $μ$-abstraction from an argument]
+  For all $t, u ∈ Λ$, $α, β ∈ \mathcal{F}_{σ}$, and $β \notin FV_σ(t) ∪
+  FV_σ(u)$ we have $t\;(μα.u) ≡ μβ.t\;u[α := [t\;\,{-}]β]$.
+\end{theorem}
+\begin{proof}
+  ... % TODO
+\end{proof}
+
+% Extraction of μ-abstractions on the left.
+\begin{theorem}[extraction of a $μ$-abstraction from a function]
+  For all $t ∈ Λ$, $α, β ∈ \mathcal{F}_{σ}$, $v ∈ Λ_{ι} \setminus
+  (\mathcal{V}_{ι} ∪ \{□\})$, if we have $β \notin FV_σ(t) ∪ FV_σ(v)$ then
+  the equivalence $(μα.t)\;v ≡ μβ.t[α := [{-}\;\,v]β]\;v$ is satisfied.
+\end{theorem}
+\begin{proof}
+  ... % TODO
+\end{proof}
+
+% Erasing an argument.
+\begin{theorem}[erasure of an argument]
+  For all $t ∈ Λ$, $π ∈ Π$ and $v ∈ Λ_{ι} \setminus (\mathcal{V}_{ι} ∪ \{□\})$
+  we have $([π]t)\;v ≡ [π]t$.
+\end{theorem}
+\begin{proof}
+  ... % TODO
+\end{proof}
+
+% Erasing a function.
+\begin{theorem}[erasure of a function]
+  For all $t, u ∈ Λ$ and $π ∈ Π$ we have $t\;([π]u) ≡ [π]u$.
+\end{theorem}
+\begin{proof}
+  ... % TODO
+\end{proof}
+
+% Erasing a stack.
+\begin{theorem}[erasure of a stack]
+  For all $t ∈ Λ$ and $π₁, π₂ ∈ Π$ we have $[π₁][π₂]t ≡ [π₂]t$.
+\end{theorem}
+\begin{proof}
+  Since we have ${[π₁][π₂]t ∗ π} ≻ {[π₂]t ∗ π₁} ≻ {t ∗ π₂}$ and ${[π₂]t ∗ π} ≻
+  {t ∗ π₂}$ for all $π ∈ Π$, we can conclude using Lemma~\ref{lem:eqred}.
+\end{proof}
 
 \section{Canonical values}
 
-% TODO
+The idea now is to characterise the equivalence classes of the different forms
+of values. The results presented here will be required to show that the
+semantics of our types is closed under equivalence. We will first start by
+showing that $□$ is only equivalent to itself among all values. Similarly, it
+is possible to show that $λ$-variables are only equivalent to themselves.
+\begin{theorem}[canonicity for $□$]\label{thm:canonbox}%
+  Let $v ∈ Λ_{ι}$ be a value. We have $\v{□} ≡ \v{v}$ if and only if $v = □$.
+\end{theorem}
+\begin{proof}
+  If $v = □$ then we immediately have $□ ≡ v$ by reflexivity. It remains to
+  show that $□ \not\equiv v$ for every value $v ≠ □$. In the case where
+  $v \notin \cal{V}_ι$ we can use Lemma~\ref{lem:stcntrex} with the stack
+  $π = [\{\}\;\,{-}]ε$ as we have ${□ ∗ [\{\}\;\,{-}]ε} ≻ {□ ∗ ε} {⇓}_{≻}$
+  and ${v ∗ [\{\}\;\,{-}]ε} ≻ {\{\} ∗ [{-}\;\,v]ε} {⇑}_{≻}$.
+  %
+  If $v = x ∈ \mathcal{V}_{ι}$ then we can use Lemma~\ref{lem:stcntrex}
+  with $ρ = [x := \{\}]$ and $π = {[\{\}\;\,{-}]ε}$ since
+  ${vρ ∗ π} = {\{\} ∗ [\{\}\;\,{-}]ε} ≻ {\{\} ∗ [{-}\;\,\{\}]ε} {⇑}_{≻}$ and
+  ${□ρ ∗ [\{\}\;\,{-}]ε} = {□ ∗ [\{\}\;\,{-}]ε} ≻ {□ ∗ ε} {⇓}_{≻}$ as above.
+\end{proof}
+\begin{theorem}[canonicity for $λ$-variables]\label{thm:varequiv}%
+  Let $x ∈ \mathcal{V}_{ι}$ be a $λ$-variable and $v ∈ Λ_{ι}$ be a value. We
+  have $x ≡ v$ if and only if $v = x$.
+\end{theorem}
+\begin{proof}
+  If $v = x$ then we have $v ≡ x$ by reflexivity. It remains to show that
+  $x \not\equiv v$ for every value $v ≠ x$. In the case where $v = □$ we
+  can conclude using Theorem~\ref{thm:canonbox}. If $v = y ∈ \mathcal{V}_{ι}$
+  we can use Lemma~\ref{lem:stcntrex} with $ρ = {[x := \{\}][y := □]}$ and
+  $π = {[\{\}\;\,{-}]ε}$. Indeed,
+  ${xρ ∗ π} = {\{\} ∗ [\{\}\;\,{-}]ε} ≻ {\{\} ∗ [{-}\;\,\{\}]ε} {⇑}_{≻}$ and
+  ${vρ ∗ π} = {□ ∗ [\{\}\;\,{-}]ε} ≻ {□ ∗ ε} {⇓}_{≻}$. Finally, if $v ≠ □$
+  and $v \notin \mathcal{V}_{ι}$ then we can use Lemma~\ref{lem:stcntrex}
+  with $ρ = [x := □]$ and $π = {[\{\}\;\,{-}]ε}$. Indeed,
+  ${xρ ∗ π} = {□ ∗ [\{\}\;\,{-}]ε} ≻ {□ ∗ ε} {⇓}_{≻}$, and since $vρ$ cannot
+  be $□$ or a $λ$-variable we have
+  ${vρ ∗ π} = {vρ ∗ [\{\}\;\,{-}]ε} ≻ {\{\} ∗ [{-}\;\,vρ]ε} {⇑}_{≻}$.
+\end{proof}
+
+We will now characterise the values that are equivalent to a given variant,
+and those that are equivalent to a given record. In both cases, the equivalent
+values have the same structure and equivalent subvalues.
+\begin{theorem}[canonicity for variants]\label{thm:canoncons}%
+  Let $k ∈ \mathbb{N}$ be a natural number and $v$, $w₀ ∈ Λ_{ι}$ be values.
+  The equivalence $C_k[v] ≡ w₀$ holds if and only if $w₀ = C_k[w]$ for some
+  $w ∈ Λ_{ι}$ such that $w ≡ v$.
+\end{theorem}
+\begin{proof}
+  Let us first assume $w₀ = C_k[w]$ for some $w ∈ Λ_{ι}$ such that $w ≡ v$.
+  To show ${C_k[v]} ≡ {C_k[w]}$, we can simply use Theorem~\ref{thm:extval}
+  with the term $t = {C_k[x]}$.
+  %
+  Let us now suppose that ${C_k[v]} ≡ w₀$, and show that $w₀$ is of the form
+  $C_k[w]$ for some $w ∈ Λ_{ι}$ such that $w ≡ v$. We reason by case on the
+  possible forms of the value $w₀$. Using Theorems~\ref{thm:varequiv},
+  \ref{thm:canonbox}, \ref{thm:nequivlamcons}, \ref{thm:consneqrecord} and
+  \ref{thm:consnequiv} we obtain $w₀ = C_k[w]$ for some $w ∈ Λ_{ι}$. Now, if
+  $w \not\equiv v$ then we immediately obtain that $C_k[v] \not\equiv C_k[w]$
+  using Theorem~\ref{thm:aux_cons}. As a consequence, it must be that $v ≡ w$.
+\end{proof}
+\begin{theorem}[canonicity for records]\label{thm:canonrecord}%
+  Let $I ⊆_{\text{fin}} \mathbb{N}$ be a set of indices such that $v_i ∈
+  Λ_{ι}$ for all $i∈I$, and let $w ∈ Λ_{ι}$ be a value. The equivalence
+  $\{(l_i = v_i)_{i∈I}\} ≡ w$ holds if and only if we have $w = \{(l_i =
+  w_i)_{i∈I}\}$ for some values $(w_i)_{i∈I} ∈ Λ_{ι}^I$ such that
+  $w_i ≡ v_i$ for all $i∈I$.
+\end{theorem}
+\begin{proof}
+  Let us first assume that we have $w = \{(l_i = w_i)_{i∈I}\}$ with $v_i ≡
+  w_i$ for all $i∈I$ and show $\{(l_i = v_i)_{i∈I}\} ≡ \{(l_i = w_i)_{i∈I}\}$.
+  Up to renaming, we may assume $I = \{i ∈ \mathbb{N} \st 1≤i≤n\}$ with $n =
+  |I|$. For all $0 ≤ k ≤ n$ we define $R_k = \{(l_i = r_i)_{i∈I}\}$ where
+  $r_i = w_i$ if $i < k$ and $r_i = v_i$ otherwise. We have $R₀ = \{(l_i =
+  v_i)_{i∈I}\}$ and $R_n = \{(l_i = w_i)_{i∈I}\}$, so we need to show that
+  $R₀ ≡ R_n$. We are going to prove that $R₀ ≡ R_k$ for all $0 ≤ k ≤ n$ by
+  induction on $k$. When $k = 0$ this is immediate by reflexivity. Let us now
+  suppose that $R₀ ≡ R_k$ for some $0 ≤ k < n$ and show that $R₀ ≡ R_{k+1}$.
+  By transitivity, it is enough to show $R_k ≡ R_{k+1}$ which follows easily
+  from Theorem~\ref{thm:extval} since we assumed $v_k ≡ w_k$.
+  %
+  Let us now suppose $\{(l_i = v_i)_{i∈I}\} ≡ w$ and show that $w$ is of the
+  form $\{(l_i = w_i)_{i∈I}\}$ with $w_i ≡ v_i$ for all $i ∈ I$. Using
+  Theorems~\ref{thm:varequiv}, \ref{thm:canonbox}, \ref{thm:nequivlamreco},
+  \ref{thm:consneqrec} and \ref{thm:reconequiv} we obtain $w = \{(l_i =
+  w_i)_{i∈I}\}$ with $(w_i)_{i∈I} ∈ Λ_ι^I$. Now, if $v_k \not\equiv w_k$ for
+  some $k ∈ I$ then we immediately get $\{(l_i = v_i)_{i∈I}\} \not\equiv
+  \{(l_i = w_i)_{i∈I}\}$ using Theorem~\ref{thm:aux_reco}. As a consequence,
+  it must be that $v_k ≡ w_k$ for all $k ∈ I$.
+\end{proof}
+
+To conclude this section, we provide a last theorem establishing that
+$λ$-abstractions can only be equivalent to $λ$-abstractions.
+\begin{theorem}[canonicity for $λ$-abstractions]\label{thm:canonlambda}%
+  Let $x ∈ \mathcal{V}_{ι}$ be a $λ$-variable, $t ∈ Λ$ be a term and
+  $v ∈ Λ_{ι}$ be a value. If the equivalence $λx.t ≡ v$ holds, then there
+  must be $y ∈ \mathcal{V}_{ι}$ and $u ∈ Λ$ such that $v = λy.u$.
+\end{theorem}
+\begin{proof}
+  We reason by case on the possible forms of $v$. Using
+  Theorems~\ref{thm:canonbox}, \ref{thm:varequiv}, \ref{thm:canoncons}
+  and~\ref{thm:canonrecord} we obtain that $v$ cannot be $□$,
+  a $λ$-variable, a record nor a variant. The only remaining possibility is
+  that $v = λy.u$ for some $y ∈ \mathcal{V}_{ι}$ and $u ∈ Λ$.
+\end{proof}
