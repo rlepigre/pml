@@ -12,8 +12,9 @@ bin:
 .PHONY: book
 book: book/pml_book.pdf
 
-book/pml_book.pdf: book/biblio.bib $(shell find book -name "*.tex")
-	@cd book && rubber -W all --pdf pml_book.tex
+book/pml_book.pdf: book/biblio.bib book/pml.py $(shell find book -name "*.tex")
+	@rm -rf book/_minted*
+	@cd book && rubber --unsafe -W all --pdf pml_book.tex
 
 # Checks on the source code.
 check:
@@ -46,6 +47,7 @@ clean:
 	@dune clean
 
 distclean: clean
+	@rm -rf book/_minted*
 	@find . -type f -name "*~" -exec rm {} \;
 	@find . -type f -name \#\* -exec rm {} \;
 	@find . -type f -name .\#\* -exec rm {} \;

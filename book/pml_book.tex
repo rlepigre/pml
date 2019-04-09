@@ -13,6 +13,21 @@
 \usepackage{geometry}
 \usepackage{mdframed}
 \usepackage{thmbox}
+\usepackage{minted}
+
+% PML environment and macro
+\newenvironment{pmlcode}
+  {\VerbatimEnvironment\begin{minted}{pml.py:PMLLexer -x}}
+  {\end{minted}}
+
+\newcommand{\dupml}[1]{\mintinline{pml.py:PMLLexer -x}{#1}}
+
+% OCaml environment and macro
+\newenvironment{camlcode}
+  {\VerbatimEnvironment\begin{minted}{ocaml}}
+  {\end{minted}}
+
+\newcommand{\ducaml}[1]{\mintinline{ocaml}{#1}}
 
 % Boxed figures
 \usepackage{float}
