@@ -3,13 +3,12 @@
 \section{Sorts}\label{lang-sort}
 
 PML language uses \emph{sorts} to classify all the expressions of the
-languages (excep sorts) like types, values, ordinals, \dots
+languages (except sorts) like types, values, ordinals, \dots
 
-
-\noindent \emph{sort} $::=$
 
 \def\w{9.2cm}
 \begin{longtable}{rll}
+\multicolumn{2}{l}{\noindent \emph{sort} $::=$}\\
   & $\iota$ \Mid {\tt <iota>} \Mid {\tt <value>}
   & \parbox[t]{\w}{denote the sort for values i.e. results of computation.} \\
 
@@ -35,8 +34,8 @@ languages (excep sorts) like types, values, ordinals, \dots
 
   \Mid
   & \emph{sort} $\rightarrow$ \emph{sort}
-  & \parbox[t]{\w}{the sort for higher-order function like type with parameters. These
-  higher-order function should not be confused with functions as programs
+  & \parbox[t]{\w}{the sort for higher-order function like types with parameters. These
+  higher-order functions should not be confused with functions as programs
   which are of sort $\iota$ or $\tau$. This symbol is right associative,
   $s_1 \rightarrow  s_2 \rightarrow s_3$ means
   $s_1 \rightarrow (s_2 \rightarrow s_3)$.} \\
@@ -51,7 +50,7 @@ be considered as a term.
 
 \section{Expressions}\label{lang-expr}
 
-In this section we describe the BNF of PML's expression written \emph{expr}. We will denote
+In this section we describe the BNF of PML's expressions written \emph{expr}. We will denote
 \begin{itemize}
 \item \emph{value} the expression of sort $\iota$,
 \item \emph{term} the expression of sort $\tau$,
@@ -65,120 +64,152 @@ In this section we describe the BNF of PML's expression written \emph{expr}. We 
 We now give a few atomic tokens used in the grammar below.
 
 \begin{longtable}{rll}
-\emph{uid} &$::=$& {\tt [A-Z\_][a-zA-Z0-9\_']+} \Mid {\tt true}
+\emph{uid} &$::=$& {\tt [A-Z\_][a-zA-Z0-9\_']*} \Mid {\tt true}
 \Mid {\tt false}\\
-\emph{lid} &$::=$& {\tt [a-z\_][a-zA-Z0-9\_']+} \\
+\emph{lid} &$::=$& {\tt [a-z\_][a-zA-Z0-9\_']*} \\
 \emph{id}  &$::=$& \emph{lid} \Mid \emph{lid} : \emph{prop} \\
+\emph{lbl} &$::=$& {\tt [a-zA-Z0-9\_']+} \\
 \emph{int} &$::=$& {\tt [-]?[0-9]+} \\
-\emph{infix} &$::=$& \hbox{ must be declared see \ref{lang-top}}.
+\emph{infix} &$::=$& \hbox{ must be declared see \ref{lang-top}}.\\
+\emph{string} &$::=$& \dupml{"}.*\dupml{"}
+  \hbox{ with the usual quoting like \dupml{"\n"}.}\\
 \end{longtable}
 
 \subsection{Values}
 
-\noindent \emph{value} $::=$
+The priority level for terms and values are, from the lowest to the highest priority:
+\begin{itemize}
+\item F: full
+\item S: sequence
+\item R: prefix
+\item I: infix
+\item P: application
+\item A: atom
+\end{itemize}
 
-\def\w{9.2cm}
-\begin{longtable}{rll}
-  & $\lambda \emph{id} \dots \emph{id } . \emph{term}$ & \\
-  \Mid & ${\tt fun} \; \emph{id} \dots \emph{id } \{ \emph{term} \}$
-    & \parbox[t]{\w}{denotes function with one of more arguments.} \\
+When the priority is not F, we subscrit the non terminal
+$\emph{value}$ and $\emph{term}$ with the priority.
+We write the priority of each rule at the end of the rule.
+The priority between infix symbols and their associativity are given
+at the declaration see \ref{lang-top}.
 
-  \Mid & $[]$ \Mid $\emph{value} :: \emph{value}$ &\\
-  \Mid & $\emph{uid} \mid \emph{uid} [ \emph{value} ]$
+\def\w{10cm}
+\begin{longtable}{rlcl}
+  \multicolumn{2}{l}{\emph{value} $::=$}\\
+  & $\dupml{λ}\emph{id} \dots \emph{id}\dupml{.} \emph{term}_I$ & R & \\
+  \Mid & $\dupml{fun} \; \emph{id} \dots \emph{id} \; \{ \emph{term} \}$ & A
+    & \parbox[t]{\w}{denotes function with one or more arguments.} \\
+
+  \Mid & \dupml{[]} & A &\\
+  \Mid & $\emph{value}_I \dupml{::} \emph{value}_I$ & I &\\
+  \Mid & $\emph{uid} \mid \emph{uid} \dupml{[} \emph{value} \dupml{]}$ & A
   & \parbox[t]{\w}{constructor applied to no argument or one argument. In
-    fact, no argument means applied to unit, i.e. $\{\}$. $[]$ is a short
-    hand for ${\tt Nil}$ and $t :: u$ means ${\tt Cons}[\{ {\tt hd} = t;
-      {\tt tl} = u\}]$.} \\
+    fact, no argument means applied to unit, i.e. \dupml{{}}. \dupml{[]} is a short
+    hand for $\dupml{Nil}$ and \dupml{t :: u} means \dupml{Cons[{hd = t; tl = u}]}.} \\
 
-  \Mid & $\{ \emph{id} = \emph{value} ; \dots \}$
-  & \parbox[t]{\w}{construction of a record. As in OCaml, $\emph{id} ;$ as a
-    field means $\emph{id} = \emph{id}$.} \\
+  \Mid & $\{ \emph{lbl} \dupml{=} \emph{value} \dupml{;} \dots \}$ & A
+  & \parbox[t]{\w}{construction of a record. As in OCaml, a label alone means
+    the label used both as label and value. For
+    instance, \dupml{{ hd; tl }} means  \dupml{{ hd = hd; tl = tl }}.} \\
 
-  \Mid & $( \emph{value}, \dots)$
+  \Mid & $\dupml{(} \emph{value}\dupml{,} \dots\dupml{)}$ & A
   & \parbox[t]{\w}{tuple construction. As in standard ML this is equivalent
     to a record with numerical labels $1,2,\dots$.} \\
 
+  \Mid & \dupml{(} \emph{value} \dupml{:} \emph{prop} \dupml{)} & A
+  & \parbox[t]{\w}{type annotation} \\
 \end{longtable}
 
 
 \subsection{Terms}
-\noindent \emph{value} $::=$
 
 \def\w{9.2cm}
-\begin{longtable}{rll}
-  \Mid & $ \emph{term} \; \emph{term} $
-  & \parbox[t]{\w}{function application. It is left associative: $t_1 \; t_2
-    \; t_3$ means $(t_1 \; t_2) \; t_3)$.}\\
+\begin{longtable}{rlcl}
+    \multicolumn{2}{l}{\emph{term} $::=$}\\
+  & $\emph{term}_P \; \emph{term}_A$ & P
+  & \parbox[t]{\w}{function application. It is left associative: \dupml{t1 t2
+    t3} means \dupml{(t1 t2) t3}.}\\
 
-  \Mid & $\emph{value} :: \emph{value}$ \\
-  \Mid & $\emph{uid} [ \emph{term} ]$
-  & \parbox[t]{\w}{syntactic sugar : $C[t]$ means  $(\lambda x.\emph{uid}[x])
-    t$. The same for the syntactic sugar for {\tt Cons} if one of both
-    arguments are not values a redex is inserted.} \\
+  \Mid & $\emph{term}_I \dupml{::} \emph{term}_I$ & I \\ \Mid & $\emph{uid}
+  \dupml{[}\emph{term}\dupml{]}$ & A & \parbox[t]{\w}{syntactic sugar :
+    \dupml{C[t]} means \dupml{(λx.C[x])t} when \dupml{t} is not a value. The
+    same for the syntactic sugar for {\tt Cons} if one or both arguments are
+    not valuesaf, one or two redexes are inserted.} \\
 
-  \Mid & $\{ \emph{id} = \emph{term} ; \dots \}$
-  & \parbox[t]{\w}{As above, a redex is added for each field wich is not a
+  \Mid & $\{ \emph{lbl} \dupml{=} \emph{term} ; \dots \}$ & A
+  & \parbox[t]{\w}{As above, a redex is added for each field which is not a
     value in a record construction.} \\
 
-  \Mid & $( \emph{term}, \dots)$
-    & \parbox[t]{\w}{As above, a redex is added for each field wich is not a
+  \Mid & $\dupml{(}\emph{term}, \dots\dupml{)}$ & A
+    & \parbox[t]{\w}{As above, a redex is added for each field which is not a
     value in a tuple construction.} \\
 
-  \Mid & \emph{int} & \parbox[t]{\w}{a syntactic sugar is created to
-    represent the given integer using function {\tt zero},  {\tt succ}, {\tt
-      dble}, and  {\tt opp}. For instance, {\tt 5} means {\tt succ (dble
+  \Mid & \emph{int} & A & \parbox[t]{\w}{a syntactic sugar is created to
+    represent the given integer using function {\tt zero},  \dupml{succ}, {\tt
+      dble}, and  \dupml{opp}. For instance, \dupml{5} means \dupml{succ (dble
       (dble (succ zero)))}.} \\
 
-  \Mid & ${\tt if} \; \emph{term} \; {\tt then} \; \emph{term} \; {\tt else}
-  \; \emph{term}$ \\
-  \Mid & ${\tt case} \; \{ \emph{pat} \rightarrow \emph{term} \dots \}$ &
-    \parbox[t]{\w}{case analysis over sum type. See below for the definition
-      of the BNF \emph{pat}. The syntax ${\tt if}\; b \; {\tt then} \; t \;
-      {\tt else} \; u$ means ${\tt case}\;\{ {\tt true} \rightarrow t {\tt
-        false} \rightarrow u\}$.} \\
+  \Mid & $\!\!\!\begin{array}[t]{l}\dupml{if} \; \emph{term} \; \{ \emph{term} \}\\ \dupml{else}
+  \; \{ \emph{term} \}\end{array}$ & A \\
+  \Mid & $\dupml{case} \; \emph {term} \; \{ \emph{pat}  \dupml{→}\emph{term} \dots \}$ & A &
+    \parbox[t]{\w}{case analysis over sum types. See below for the definition
+      of the BNF \emph{pat}. The syntax $\dupml{if b {t} else {u}}$ means
+      \dupml{case b { true → t false → u}}.} \\
 
-  \Mid & U+2702 (scisors)  & \parbox[t]{\w}{used to denote inaccessible part of
+  \Mid & U+2702 & A & \parbox[t]{\w}{scissors denote inaccessible part of
     a term, in general an impossible case}\\
 
-  \Mid & ${\tt save} \; \emph{lid} \{ \emph{term} \}$ & \parbox[t]{\w}{save the
+  \Mid & $\dupml{save} \; \emph{lid} \{ \emph{term} \}$ & A & \parbox[t]{\w}{saves the
     current evaluation context (i.e. the stack) for future use with {\tt
-      restore}.} \\
+      \dupml{restore}}.} \\
 
-  \Mid & ${\tt restore} \; \emph{lid} \; \emph{term} $ & \parbox[t]{\w}{restore
-    a previously store evaluation context and evaluate the given term in
+  \Mid & $\dupml{restore} \; \emph{lid} \; \emph{term}_A $ & I & \parbox[t]{\w}{restores
+    a previously stored evaluation context and evaluate the given term in
     it. This statement corresponds to the $c$ effect.}\\
 
-  \Mid & ${\tt delim} \; \{ \emph{term} \} $ & \parbox[t]{\w}{If the given term
-    does not use the $c$ effect in its type of the type of its free variable,
-    then we know the the {\tt restore} statement can not escape the term and
+  \Mid & $\dupml{delim} \; \{ \emph{term} \} $ & A & \parbox[t]{\w}{If the given term
+    does not use the $c$ effect in its type or the type of its free variables,
+    we know that the \dupml{restore} statement can not escape the term and
     the $c$ effect can be ignored for that term.} \\
 
-  \Mid & ${\tt print} \; \emph{string}$ & \parbox[t]{\w}{Print the given
-    string of the standard output. This expression is annotated with the $p$
+  \Mid & $\dupml{print} \; \emph{string}$ & A & \parbox[t]{\w}{Print the given
+    string on the standard output. This expression is annotated with the $p$
     effect.}\\
 
-  \Mid & ${\tt fix} \; \emph{id} \{ \emph{term} \}$ & \parbox[t]{\w}{
-      The term ${\tt fix} \; x \{ t \}$ is a fixpoint, meaning that
-      it is equivalent to $t[x:={\tt fix} \; x \{ t \}]$. PML must be aible
+  \Mid & $\dupml{fix} \; \emph{id} \{ \emph{term} \}$ & A & \parbox[t]{\w}{
+      The term $\dupml{fix x {t}}$ is a fixpoint, meaning that
+      it is equivalent to $\dupml{t}[\dupml{x}:=\dupml{fix x { t }}]$. PML must be able
       to prove the termination of this fixpoint unless the current context is
       annotated with the $l$ effect.} \\
 
-  \Mid & ${\tt let}\; \emph{id} = \emph{term}; \emph{term}$ \\
-  \Mid & ${\tt let\;rec}\; \emph{id} = \emph{term}; \emph{term}$ &
-    \parbox[t]{\w}{The first for is a syntactic sugar for a redex.
-      ${\tt let}\; x : a = u; t$ means $({\tt fun}\; x : a \{ t \}) u$.
-      The second form uses a fixpoint in the definition:
-      ${\tt let rec}\; x : a = u; t$ means $({\tt fun}\; x : a \{ t \}) ({\tt fix}\; x : a \{u\})$.} \\
+  \Mid & $\emph{term}_R \dupml{;} \emph{term}_S$ & S & \parbox[t]{\w}{
+    sequence of terms are redexes. The term \dupml{t; u} means \dupml{(fun x
+      {u}) t}.}\\
 
-    \Mid & $\{- \dots -\}$ & \parbox[t]{\w}{denotes a hole in a term, a term
+  \Mid & $\dupml{let}\; \emph{id} \dupml{=} \emph{term}_R\dupml{;} \emph{term}_S$ & S \\
+  \Mid & $\dupml{let rec}\; \emph{id} \dupml{=} \emph{term}_R\dupml{;} \emph{term}_S$ & S &
+    \parbox[t]{\w}{The first form is a syntactic sugar for a redex.
+      \dupml{let x : a = u; t} means \dupml{(fun x : a { t }) u}.
+      The second form uses a fixpoint in the definition:
+      \dupml{let rec x : a = u; t} means \dupml{(fun x : a { t }) (fix x : a {u})}.} \\
+
+  \Mid & \dupml{(} \emph{term} \dupml{:} \emph{prop} \dupml{)} & A
+  & \parbox[t]{\w}{type annotation} \\
+
+  \Mid & $\dupml{{- ⋯ -}}$ & A & \parbox[t]{\w}{denotes a hole in a term, a term
       yet to be written. It must not contain a newline, but could use any
-      charracter.}
+      other character.}\\
+
+  \Mid & $\dupml{set} \; \emph{option} \dupml{;} \emph{term}_S$ & S &
+      \parbox[t]{\w}{allow to set some option to tune pml
+        behavior for the typechecking of the given term. See \ref{lang-top}
+        for more detail.}\\
 \end{longtable}
 
 \subsection{Stacks}
 
-There is no specific syntax for stack except for identifier introduced by the
-{\tt save} keyword.
+There is no specific syntax for stacks except for identifier introduced by the
+\dupml{save} keyword.
 
 \def\w{9.2cm}
 \begin{longtable}{rll}
@@ -186,137 +217,144 @@ There is no specific syntax for stack except for identifier introduced by the
 
 \subsection{Ordinals}
 
-\noindent \emph{ordi} $::=$
+Ordinals are used only to index least and greatest fixpoint used to build
+inductive and co-inductive type. They are used to prove termination of
+programs by \emph{ordinal induction} but also to prove subtyping.
 
-\def\w{9.2cm}
+\def\w{12cm}
 \begin{longtable}{rll}
-  $\infty$ & \parbox[t]{\w}{denotes an ordinal large enough to imply the
+  \multicolumn{2}{l}{\emph{ordi} $::=$}\\
+  & $\infty$ & \parbox[t]{\w}{denotes an ordinal large enough to imply the
     convergence of all PML $mu$ and $nu$ fixpoint. $\mu x, p$ means $\mu\_\infty x, t$. } \\
-  $\emph{ordi} +_o \emph{int}$ & \parbox[t]{\w}{denotes the addition
+  \Mid & $\emph{ordi} +_o \emph{int}$ & \parbox[t]{\w}{denotes the addition
     of a positive natural to an ordinal.} \\
 \end{longtable}
 
 \subsection{Propositions}
 
-\noindent \emph{prop} $::=$
+Prorities for parsing proposition are the following from lowest to highest:
+\begin{itemize}
+  \item $F$ : full
+  \item $P$ : product
+  \item $R$ : restriction
+  \item $M$ : member
+  \item $A$ : atom
+\end{itemize}
 
-\def\w{9.2cm}
-\begin{longtable}{rll}
-       & $\emph{prop} \Rightarrow \emph{prop}$ & \\
-  \Mid & $\emph{prop} \rightarrow \emph{prop}$ & \\
-  \Mid & $\emph{prop} ↝ \emph{prop}$ & \\
-  \Mid & $\emph{prop} \rightarrow_{(\emph{effects})} \emph{prop}$ &
+\def\w{9.5cm}
+\begin{longtable}{rlcl}
+  \multicolumn{2}{l}{\emph{prop} $::=$}\\
+       & $\emph{prop}_P \dupml{⇒} \emph{prop}$ & F & \\
+  \Mid & $\emph{prop}_P \dupml{→} \emph{prop}$ & F & \\
+  \Mid & $\emph{prop}_P \dupml{↝} \emph{prop}$ & F &\\
+  \Mid & $\emph{prop}_P \dupml{→_}(\emph{effects}) \emph{prop}$ & F &
   \parbox[t]{\w}{propositional
   implication and function type. The implication is indexed by the possible
-  effects of the function. Currently {\tt l} if the function may loop, {\tt
-    p} if the function perform some printing on the standard output and {\tt
-    c} if the function may restore a previously saved stack. The symbol
-  $\Rightarrow$ is a short cut for pure function type
-  i.e. $\rightarrow_{()}$. The symbol $\rightarrow$ and $↝$ mean respectively
-  $\rightarrow_{(cp)}$ and $\rightarrow_{(cpl)}$. }\\
+  effects of the function. Currently $l$ if the function may loop, $p$
+    if the function performs some printing on the standard output and $c$
+    if the function may restore a previously saved stack. The symbol
+  \dupml{⇒} is a short cut for pure function type
+  i.e. \dupml{→_()}. The symbol \dupml{→} and \dupml{↝} mean respectively
+  \dupml{→_(cp)} and \dupml{→_(cpl)}. }\\
 
-  \Mid & $\emph{prop} \times \emph{prop} \times \dots$ & product type (i.e. type
+  \Mid & $\emph{prop}_R \dupml{×} \emph{prop}_R \dupml{×} \dots$ & P & product type (i.e. type
   of tuple.). \\
 
-  \Mid & $\{ \emph{lid} : \emph{prop} ; \dots \}$ & \\
-  \Mid & $\{ \emph{lid} : \emph{prop} ; \dots ; {\tt ...} \}$ &
+  \Mid & $\{ \emph{lid} : \emph{prop} \dupml{;} \dots \}$ & A &\\
+  \Mid & $\{ \emph{lid} : \emph{prop} \dupml{;} \dots \dupml{;} \dupml{...} \}$ & A &
   \parbox[t]{\w}{record type, indicating the type of each field. If there is
-    three dots before the closing brace, the record type is open, more field
-    may be present in an element of this type. I fact, the strict version is
-    a syntactic sugar.  $\{ l_1 : A_1; \dots; l_n : A_n \}$ means $\exists
-    x_1 \dots x_n:\iota, \{ l_1 = x_1, \dots, l_n = x_n \} : \{ l_1 : A_1;
-    \dots; l_n : A_n ; {\tt ...}  \}$.  The final dots may be one unicode
-    character or three ascii dots.} \\
+    three dots before the closing brace, the record type is open, more fields
+    may be present in an element of this type. In fact, the strict version is
+    a syntactic sugar.  \dupml{{ l : A; l' : B}} means \dupml{∃x y:ι, {
+        l = x; l' = y } ∈ { l : A; l' : B ; ⋯ }}.  The final dots may
+    be one unicode character or three ascii dots.} \\
 
-  \Mid & $\emptyset$ \Mid $[.]$ & \\
-  \Mid & $[ \emph{uid} \; {\tt of} \; \emph{prop} ; \dots ]$ &
-  \parbox[t]{\w}{sum type inicating the type of the argument of each
-    constructor. The ${\tt of} \emph{prop}$ may be ommited if the type is
-    unit, i.e. $\{\}$. $\emptyset$ and $[.]$ both denote the empty sum
-    type. $[]$ is the empty list and not a sum type.} \\
+  \Mid & $\emptyset$ & A &\\
+  \Mid & \dupml{[.]} & A &\\
+  \Mid & $\dupml{[} \emph{uid} \; \dupml{of} \; \emph{prop} ; \dots \dupml{]}$ & A &
+  \parbox[t]{\w}{sum type indicating the type of the argument of each
+    constructor. The annotation $\dupml{of}\; \emph{prop}$ may be ommited if the type is
+    unit, i.e. \dupml{{}}. $\emptyset$ and \dupml{[.]} both denote the empty sum
+    type. \dupml{[]} is the empty list and not a sum type.} \\
 
-  \Mid & $\emph{term} \in \emph{prop}$ &
+  \Mid & $\emph{term}_I \dupml{∈} \emph{prop}_M$ & M &
   \parbox[t]{\w}{denotes the singleton type containing only the given term of
     the given type.} \\
 
-  \Mid & $\emph{prop} | \emph{term} \equiv \emph{term}$ & \\
-  \Mid & $\emph{prop} | \emph{term} \downarrow$ & \\
-  \Mid & $\emph{term} \equiv \emph{term}$ & \\
-  \Mid & $\emph{term}$ &
+  \Mid & $\emph{prop}_R \dupml{|} \emph{term}_I \dupml{≡} \emph{term}_I$ & R &\\
+  \Mid & $\emph{prop}_R \dupml{|} \emph{term} \dupml{↓}$ & R &\\
+  \Mid & $\emph{term}_I \dupml{≡} \emph{term}_I$ & R &\\
+  \Mid & $\emph{term}_I$ & A &
   \parbox[t]{\w}{corresponds to the restiction type. It is the empty type if
     the condition is false, otherwise it is the given type. The condition
     $t_1 \equiv t_2$ is true when $t_1$ and $t_2$ are equivalent (PML
     equivalence is more of less observational equivalence). $t_1\downarrow$
     is true if $t_1$ evaluates to a value. The two last forms are syntactic
-    sugar: $t_1 \equiv t_2$ means $\{\} | t_1 \equiv t_2$ and $t_1$ means
-    $\{\} | t_1 \equiv {\tt true}$. The last form allows to use any term of
-    boolean type as a proposition. Because of syntactic ambiguïties,
-    variables and higher-order applications are forbidden in the last form.} \\
+    sugar: \dupml{t ≡ u} means \dupml{{} | t ≡ u} and \dupml{t} used as a
+    proposition means \dupml{{} | t ≡ true}. The last form allows to use any
+    term of boolean type as a proposition.} \\
 
-  \Mid & $\emph{term} \equiv \emph{term} ↪ \emph{prop}$ & \\
-  \Mid & $\emph{term} \downarrow  ↪ \emph{prop}$ &
-  \parbox[t]{\w}{ dentes propositional implication. The type is the top type
+  \Mid & $\emph{term}_I \dupml{≡} \emph{term}_I \dupml{↪} \emph{prop}_M$ & R & \\
+  \Mid & $\emph{term}_I \dupml{↓}  ↪ \emph{prop}_M$ & R &
+  \parbox[t]{\w}{denotes propositional implication. The type is the top type
     containing all terms if the condition is false. It is the given type
-    otherwise. This type differs from restrction only when the condition is false.} \\
+    otherwise. This type differs from restriction only when the condition is false.} \\
 
-  \Mid & $\forall \emph{id} \dots. \emph{prop}$ & \\
-  \Mid & $\forall \emph{id} \dots : \emph{sort}. \emph{prop}$ & \\
-  \Mid & $\forall \emph{id} \dots \in \emph{prop}. \emph{prop}$ &
+  \Mid & $\dupml{∀} \emph{id} \dots\dupml{,} \emph{prop}$ & F & \\
+  \Mid & $\dupml{∀} \emph{id} \dots\dupml{:} \emph{sort}\dupml{,} \emph{prop}$ & F &\\
+  \Mid & $\dupml{∀} \emph{id} \dots\dupml{∈} \emph{prop}\dupml{,} \emph{prop}$ & F &
   \parbox[t]{\w}{denotes universal quantification. In the first form, the
     sort of the variables is infered by PML while in the second form it is
     explicitely written. The last form is a short cut for dependant type.
-    $\forall x_1 \dots x_n \in A.B$ means $\forall x_1 \dots x_n : \iota. x_1
-    \in A \Rightarrow \dots \Rightarrow x_n \in A \Rightarrow B$.} \\
+    \dupml{∀ x y ∈  A,B} means \dupml{∀ x y : ι, x ∈ A ⇒ y ∈ A ⇒  B}.} \\
 
-  \Mid & $\exists \emph{id} \dots. \emph{prop}$ & \\
-  \Mid & $\exists \emph{id} \dots : \emph{sort}. \emph{prop}$ & \\
-  \Mid & $\exists \emph{id} \dots \in \emph{prop}. \emph{prop}$ & \\
-  \Mid & $\{ \emph{id} \in \emph{prop}\}$ &
-  \parbox[t]{\w}{denotes universal quantification. In the first form, the
+  \Mid & $\dupml{∃} \emph{id} \dots\dupml{,} \emph{prop}$ & F &\\
+  \Mid & $\dupml{∃} \emph{id} \dots\dupml{:} \emph{sort}\dupml{,} \emph{prop}$ & F &\\
+  \Mid & $\dupml{∃} \emph{id} \dots\dupml{∈} \emph{prop}\dupml{,} \emph{prop}$ & F &\\
+  \Mid & $\{ \emph{id} \dupml{∈} \emph{prop}\}$ & F &
+  \parbox[t]{\w}{denotes existential quantification. In the first form, the
     sort of the variables is infered by PML while in the second form it is
     explicitely written. The last form is a short cut for dependant product.
-    $\exists x_1 \dots x_n \in A.B$ means $\exists x_1 \dots x_n : \iota. x_1
-    \in A \times \dots \times x_n \in A \times B$. The last for is also a
-    short cut: $\{x \in A\}$ means $\exists x. x \in A$.} \\
+    \dupml{∃ x y ∈ A,B} means \dupml{∃ x y : ι, x
+    ∈ A × y ∈ A × B}. The last form is also a
+    short cut: \dupml{{x ∈  A}} means \dupml{∃ x, x ∈ A}.} \\
 
-  \Mid & $\mu \emph{id}, \emph{prop}$ & \\
-  \Mid & $\mu\_\emph{ordi} \; \emph{id}, \emph{prop}$ &
+  \Mid & $\dupml{μ} \emph{id}\dupml{,} \emph{expr}$ & F &\\
+  \Mid & $\dupml{μ_}\emph{ordi} \; \emph{id}\dupml{,} \emph{expr}$ & F &
   \parbox[t]{\w}{Least fixpoint of proposition or parametric
-    proposition. This means that $\mu x, a$ may be of sort $s_1 \rightarrow
-    \dots s_n \rightarrow o$ when both $x$ and $a$ have this sort. The
+    proposition. This means that \dupml{μx, a} may be of sort $s_1 \rightarrow
+    \dots s_n \rightarrow o$ when both \dupml{x} and \dupml{a} have this sort. The
     form with an ordinal denotes a partial construction of the fixpoint and
     is used to prove termination of programs.} \\
 
-  \Mid & $\nu \emph{id}, \emph{prop}$ & \\
-  \Mid & $\nu\_\emph{ordi} \; \emph{id}, \emph{prop}$ &
+  \Mid & $\dupml{ν} \emph{id}\dupml{,} \emph{expr}$ & F &\\
+  \Mid & $\dupml{ν_}\emph{ordi} \; \emph{id}\dupml{,} \emph{expr}$ & F &
   \parbox[t]{\w}{Greatest fixpoint of proposition or parametric
-    proposition. This means that $\nu x, a$ may be of sort $s_1 \rightarrow
-    \dots s_n \rightarrow o$ when both $x$ and $a$ have this sort. The
+    proposition. This means that \dupml{νx, a} may be of sort $s_1 \rightarrow
+    \dots s_n \rightarrow o$ when both \dupml{x} and \dupml{a} have this sort. The
     form with an ordinal denotes a partial construction of the fixpoint and
     is used to prove productivity of programs.} \\
 \end{longtable}
 
 \subsection{General expressions}
 
-\noindent \emph{expr} $::=$
 
-\def\w{9.2cm}
+\def\w{11cm}
 \begin{longtable}{rll}
+  \multicolumn{2}{l}{\emph{expr} $::=$}\\
   & $ \emph{lid} $ & variable. \\
 
-  \Mid & $( \emph{lid} : \emph{sort} \mapsto \emph{expr} )$ &
+  \Mid & $\dupml{(} \emph{lid} \dupml{:} \emph{sort} \dupml{↦} \emph{expr} \dupml{)}$ &
   \parbox[t]{\w}{corresponds to
-  higher-order abstraction. If $e$ is an expression of sort $s_2$ using a
-  variable $x$ of sort $s_1$ then $(x : s_1 \mapsto e)$ is of sort $s_1
-  \rightarrow s_2$.} \\
+  higher-order abstraction. If \dupml{e} is an expression of sort \dupml{s} using a
+  variable \dupml{x} of sort \dupml{t} then \dupml{(x : t ↦ e)} is of sort
+  \dupml{t → s}.} \\
 
-  \Mid & $\emph{expr}\langle\emph{expr}, \dots\rangle$ &
-  \parbox[t]{\w}{denotes higher-order application. $e_1\langle e_2,
-    e_3\rangle$ is a short cut for $e_1\langle e_2\rangle\langle
-    e_3\rangle$. $e_1\langle e_2\rangle$ is of sort $s_2$ if $e_1$ is of sort
-    $s_1 \rightarrow s_2$ and $e_2$ is of sort $s_1$.}\\
+  \Mid & $\emph{expr}\dupml{⟨}\emph{expr}, \dots\dupml{⟩}$ &
+  \parbox[t]{\w}{denotes higher-order application. \dupml{e1⟨e2,e3⟩} is a short cut for \dupml{e1⟨e2⟩⟨e3⟩}. \dupml{e1⟨e2⟩} is of sort \dupml{s} if \dupml{e1} is of sort
+    \dupml{t → s} and \dupml{e2} is of sort \dupml{s1}.}\\
 
-  \Mid & ( \emph{expr} ) & parenthesis for grouping.\\
+  \Mid & \dupml{(} \emph{expr} \dupml{)} & parenthesis for grouping.\\
 \end{longtable}
 
 \subsection{proofs}
@@ -327,72 +365,120 @@ syntactic sugar to make proofs more readable for non specialist.
 We first give a BNF for a few equivalent keywords. Depending on the proofs,
 some keyword may give a more natural proofs than other.
 
-\noindent \emph{show} $::= {\tt show}$ \Mid ${\tt deduce}$ \Mid ${\tt prove}$
+\begin{longtable}{lllclcl}
+\emph{show} &::= & \dupml{show} &\Mid& \dupml{deduce} &\Mid& \dupml{prove}\\
+\emph{know} &::= & \dupml{assume} &\Mid& \dupml{know}\\
+\emph{from} &::= & \dupml{from} &\Mid& \dupml{showing} \\
+\emph{by} &::= & \dupml{because} &\Mid& \dupml{using} &\Mid& \dupml{by} \\
+\end{longtable}
 
-\noindent \emph{assume} $::= {\tt assume}$ \Mid ${\tt know}$
-
-\noindent \emph{showing} $::= {\tt from}$ \Mid ${\tt showing}$
-
-\noindent \emph{because} $::= {\tt because}$ \Mid ${\tt using}$ \Mid ${\tt by}$
-
-First, we have the {\tt qed} keyword and
+First, we have the \dupml{qed} keyword and
 two syntactic sugar to define function application that we use
 when the type of the variable are hypothesis of a theorem:
 
-\noindent \emph{value} $::= ...$
-\def\w{9.2cm}
-\begin{longtable}{rll}
-  \Mid & ${\tt qed}$ & a synonymous for the empty record $\{\}$.\\
-  \Mid & ${\tt take} \; \emph{id} \dots \emph{id }  \{ \emph{term} \}$ & \\
-  \Mid & ${\tt suppose}\; \emph{prop}, \dots ; \emph{term}$ &
-   \parbox[t]{\w}{the syntax with the {\tt take} keyword is fully equivalent
-     the same with {\tt fun} and is used to prove universal quantifications.
-     We use {\tt suppose} when we do not need
-   a name for the variables, typically for types which are hypothesis.} \\
+\def\w{9.5cm}
+\begin{longtable}{rlcl}
+  \multicolumn{2}{l}{\emph{value} $::= ...$} & \\
+  \Mid & $\dupml{qed}$ & A & a synonymous for the empty record $\{\}$.\\
+  \Mid & $\dupml{take} \; \emph{id} \dots \emph{id }  \{ \emph{term} \}$ & A &\\
+  \Mid & $\dupml{suppose}\; \emph{prop}, \dots ; \emph{term}_S$ & S &
+   \parbox[t]{\w}{the syntax with the \dupml{take} keyword is fully equivalent
+     the same with \dupml{fun} and is used to prove universal quantifications.
+     We use \dupml{suppose} when we do not need
+   a name for the variables, typically for types which are equivalence. For
+   instance
+   \dupml{suppose a ≡ b; t} means \dupml{fun _ : a ≡ b { t }}.} \\
 \end{longtable}
 
 Then, we have a few extension for expressions
 
-\noindent \emph{expr} $::= ...$
 \def\w{9.2cm}
-\begin{longtable}{rll}
-  \Mid & ${\tt use} \; \emph{term}$ & \parbox[t]{\w}{the statement ${\tt use}\;
+\begin{longtable}{rlll}
+  \multicolumn{2}{l}{\emph{expr} $::= ...$} \\
+  \Mid & $\dupml{use} \; \emph{term}_R$ & R & \parbox[t]{\w}{the statement $\dupml{use}\;
     t$ is equivalent to $t$ but may be more natural when $t$ is the
     invocation of some lemma or theorem.}\\
-  \Mid & $\emph{show} \; \emph{prop} $ \\
-  \Mid & $\emph{show} \; \emph{prop} \;\emph{because} \; \emph{term} $ \\
-  \Mid & $\emph{show} \; \emph{term}
+  \Mid & $\emph{show} \; \emph{prop}_R $ & R \\
+  \Mid & $\emph{show} \; \emph{prop} \;\emph{by} \; \emph{term}_R $ & R\\
+  \Mid & $\emph{show} \; \emph{prop} \;\emph{by} \; \{\emph{term}\} $ & R \\
+  \Mid & $\emph{show} \; \emph{term}_R
          \begin{array}[t]{l}
-           \equiv \emph{term} \; \emph{because} \; \emph{term} \\
-           \equiv \emph{term} \; \emph{because} \; \emph{term} \\
+           \equiv \emph{term}_R \; \emph{by} \; \emph{term}_R \\
+           \equiv \emph{term}_R \; \emph{by} \; \emph{term}_R \\
            \dots
-         \end{array}$ &
-         \parbox[t]{\w}{The first form ${\tt show}\; p; t$ is equivalent to
-           $({\tt qed} : p)$. The second ${\tt show}\; p \; {\tt because}
-           \; u$ means $(u : p)$. The term
-           following the keyword {\tt because} must be of priority prefix or
-           between curly braces. The last form is equivalence to a sequence
-           of {\tt show}, the justification of each line being optional. For
-           instance $\begin{array}[t]{ll}{\tt show}\; a &\equiv b \;
-             {\tt using} \; l \\&\equiv c \end{array}$ means $(l :
-           a \equiv b); ({\tt qed} : b \equiv c)$.}\\
+         \end{array}$ & S &
+         \parbox[t]{\w}{The first form \dupml{show p} is equivalent to
+           \dupml{(qed : p)}. The second \dupml{show p by u} means \dupml{(u : p)}. The last form is equivalence to a sequence
+           of \dupml{show}, the justification of each line being optional. For
+           instance $\begin{array}[t]{ll}\dupml{show a} &\dupml{≡ b
+             using l} \\ &\dupml{≡ c} \end{array}$ means $(l :
+           a \equiv b); (\dupml{qed} : b \equiv c)$.}\\
 
-  \Mid & $\emph{showing} \; \emph{prop} ; \emph{term}$  & \parbox[t]{\w}{is
+  \Mid & $\emph{from} \; \emph{prop}\dupml{;} \emph{term}_S$ & S \\
+  \Mid & $\emph{from} \; \emph{prop} \; \emph{by} \; \emph{term}_R \dupml{;} \emph{term}_S$ & S & \parbox[t]{\w}{is
     used for backward reasonning to mean that the current goal is implied by
     the given proposition. This can not be the last statement of a proof
-    hence the term at the end. ${\tt showing}\; p; t$ means
-     ${\tt let}\; \_ : a = t; p$.}\\
+    hence the term at the end. \dupml{from a by u; t} means
+     \dupml{let _ : a = u; p}.}\\
 
-  \Mid & $\emph{assume} \; \emph{term}; \; \emph{term}$  \\
-  \Mid & $\emph{assume} \; \emph{term} \; \emph{because} \; \emph{term}; \; \emph{term}$  &
-   \parbox[t]{\w}{${\tt assume}\; t; p$ perfoms
-    a case analysis on $t$ to prove that $t$ is equal to {\tt true}. It is
-    expended to ${\tt case}\; t \{ {\tt false} \rightarrow
-    {\tt qed} \;  {\tt true} \rightarrow p  \}$. ${\tt know}\; t {\tt by}
-    q; p$ means ${\tt case}\; t \{ {\tt false} \rightarrow
-    q \;  {\tt true} \rightarrow p  \}$. Again, this can not be the last
+  \Mid & $\emph{know} \; \emph{term}_R; \; \emph{term}_S$ &S& \\
+  \Mid & $\emph{know} \; \emph{term}_R \; \emph{by} \; \emph{term}_R; \;
+  \emph{term}_S$ & S  &
+    \parbox[t]{\w}{\dupml{know t; p} perfoms
+    a case analysis on \dupml{t} to prove that \dupml{t} is equal to \dupml{true}. It is
+    expended to \dupml{case t { false → qed   true → p  }}. \dupml{know t by
+    q; p} means \dupml{case t { false → q     true → p  }}. Again, this can not be the last
     statement of a proof hence the final term.} \\
 
 \end{longtable}
 
 \section{Top level statements}\label{lang-top}
+
+PML support some options to tune its behavior using the \dupml{set} statement:
+  More details are given on the command line options in section \ref{lang-cmd}.
+
+$\begin{array}{lrl}
+  \emph{option} &::=& \dupml{log} \; \emph{string} \\
+  &\mid& \dupml{auto} \; \emph{int} \; \emph{int}\\
+  &\mid& \dupml{keep_intermediate}
+\end{array}
+$.
+
+
+\section{Command line}
+
+The command take a list of option described below and a list of pml file to
+compile.  Here is the result of \verb!pml --help!:
+
+\begin{verbatim}
+Usage: pml [args] [f1.pml] ... [fn.pml]
+  --log-file file      Write logs to the provided file.
+  --log str            Enable the provided logs. Available options:
+                    - a: automatic proving informations
+                    - c: comparing informations
+                    - e: equivalence decision procedure
+                    - f: details of equivalence decision
+                    - o: ordinal comparison
+                    - p: syntax analysis
+                    - s: subtyping informations
+                    - t: typing informations
+                    - u: unification informations
+                    - y: size change principle
+                    - z: effect computation.
+  --full-compare       Show all the steps when comparing expressions.
+  --always-colors      Always use colors.
+  --timed              Display a timing report after the execution.
+  --recompile          Force compilation of files given on command line.
+  --quiet              Disables the printing definition data.
+  --config             Prints local configuration.
+  --lazy               Use lazy evaluation (default).
+  --no-lazy            Do not use lazy evaluation.
+  --auto               Set the default level for automatic theorem proving.
+                       Two naturals: maximum number of nested case analysis
+                       and number of let statement for totality.
+  --keep-intermediate  Keep intermediate terms in normalisation in the pool
+                       (more complete, yet to prove ? but slower).
+  --help               Show this usage message.
+  -help                Show this usage message.
+  -h                   Show this usage message.
+\end{verbatim} 

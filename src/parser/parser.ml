@@ -434,7 +434,7 @@ let parser expr @(m : mode) =
        when m <<= Trm A
       -> in_pos _loc (EMAbs(arg,t))
   (* Term (name) *)
-  | _restore_ s:stack t:(expr (Trm A))
+  | _restore_ s:stack t:(expr (Trm P))
       when m <<= Trm I
       -> in_pos _loc (EName(s,t))
   (* Term (projection) *)
@@ -492,7 +492,7 @@ let parser expr @(m : mode) =
       -> qed _loc
   (* Term (fixpoint) *)
   | _fix_ arg:arg '{' t:term '}'
-      when m <<= Trm F
+      when m <<= Trm A
       -> let (a,ao) = arg in
          let t = in_pos _loc (EFixY(a,t)) in
          let t = match ao with

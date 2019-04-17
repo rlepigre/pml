@@ -58,9 +58,19 @@ let files =
     ; ( "--no-lazy"
       , Arg.Clear Eval.use_lazy
       , " Do not use lazy evaluation.")
+    ; ( "--auto"
+      , Typing. (
+        Arg.Tuple [Arg.Int (fun n ->
+                       default_auto_lvl := (n, snd !default_auto_lvl))
+                  ;Arg.Int (fun n ->
+                       default_auto_lvl := (fst !default_auto_lvl, n))
+      ])
+      , " Set the default level for automatic theorem proving. Two naturals: \
+          maximum number of nested case analysis and number of let statement for \
+          totality.")
     ; ( "--keep-intermediate"
       , Arg.Set Equiv.keep_intermediate
-      , " Keep intermediate terms in normalisation in the pool\
+      , " Keep intermediate terms in normalisation in the pool \
           (more complete, yet to prove ? but slower).")
     ] @ List.map help ["--help" ; "-help" ; "-h" ]
   in

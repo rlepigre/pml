@@ -1,3 +1,43 @@
+ % Test for “minted”
+The identity function is \dupml{fun x { x }} in \pml, and it is \ducaml{fun x
+-> x} in OCaml. The following is an example of \pml code.
+\begin{pmlcode}
+include lib.option
+include lib.nat
+
+type rec list⟨a⟩ = [Nil ; Cons of {hd : a ; tl : list}]
+
+val rec length : ∀a, list⟨a⟩ ⇒ nat =
+  fun l {
+    case l {
+      []       → zero
+      hd :: tl → succ (length tl)
+    }
+  }
+
+val rec map : ∀a b, (a ⇒ b) ⇒ list⟨a⟩ ⇒ list⟨b⟩ =
+  fun fn l {
+    case l {
+      []       → []
+      hd :: tl → fn hd :: map fn tl
+    }
+  }
+\end{pmlcode}
+
+And we can do some OCaml code as well to compare.
+\begin{camlcode}
+type 'a list = Nil | Cons of 'a * 'a list
+
+let rec length : 'a list -> int = fun l ->
+  match l with
+  | Nil       -> 0
+  | Cons(_,l) -> 1 + length l
+
+let rec map : ('a -> 'b) -> 'a list -> 'b list = fun f l ->
+  match l with
+  | Nil       -> Nil
+  | Cons(x,l) -> Cons(f x, map f l)
+\end{camlcode}
 
 
 \input{part1_doc/language.tex}
