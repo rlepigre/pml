@@ -59,7 +59,7 @@ In this section we describe the BNF of PML's expressions written \emph{expr}. We
 \item \emph{ordi} the expression of sort $\kappa$.
 \end{itemize}
 
-\subsection{Atoms}
+\subsection{Atoms}\label{lang-atoms}
 
 We now give a few atomic tokens used in the grammar below.
 
@@ -67,10 +67,13 @@ We now give a few atomic tokens used in the grammar below.
 \emph{uid} &$::=$& {\tt [A-Z\_][a-zA-Z0-9\_']*} \Mid {\tt true}
 \Mid {\tt false}\\
 \emph{lid} &$::=$& {\tt [a-z\_][a-zA-Z0-9\_']*} \\
+\emph{path} &$::=$& \emph{lid} \Mid \emph{lid}\dupml{.}\emph{path} \\
 \emph{id}  &$::=$& \emph{lid} \Mid \emph{lid} : \emph{prop} \\
 \emph{lbl} &$::=$& {\tt [a-zA-Z0-9\_']+} \\
 \emph{int} &$::=$& {\tt [-]?[0-9]+} \\
+\emph{float} &$::=$& {\tt [0-9]*('.'[0-9]*)?([eE][-+]?[0-9]*)?} \\
 \emph{infix} &$::=$& \hbox{ must be declared see \ref{lang-top}}.\\
+\emph{infix\_re} &$::=$& {\tt [\^~\!\!\!][(){}a-zA-Z0-9\_'"";,. $\backslash$n$\backslash$t$\backslash$r]+}\\
 \emph{string} &$::=$& \dupml{"}.*\dupml{"}
   \hbox{ with the usual quoting like \dupml{"\n"}.}\\
 \end{longtable}
@@ -342,7 +345,8 @@ Prorities for parsing proposition are the following from lowest to highest:
 \def\w{11cm}
 \begin{longtable}{rll}
   \multicolumn{2}{l}{\emph{expr} $::=$}\\
-  & $ \emph{lid} $ & variable. \\
+  & \emph{expr} \Mid \emph{value} \Mid \emph{ordi} \Mid \emph{prop} \\
+  \Mid & \emph{lid} & variable. \\
 
   \Mid & $\dupml{(} \emph{lid} \dupml{:} \emph{sort} \dupml{↦} \emph{expr} \dupml{)}$ &
   \parbox[t]{\w}{corresponds to
@@ -353,6 +357,12 @@ Prorities for parsing proposition are the following from lowest to highest:
   \Mid & $\emph{expr}\dupml{⟨}\emph{expr}, \dots\dupml{⟩}$ &
   \parbox[t]{\w}{denotes higher-order application. \dupml{e1⟨e2,e3⟩} is a short cut for \dupml{e1⟨e2⟩⟨e3⟩}. \dupml{e1⟨e2⟩} is of sort \dupml{s} if \dupml{e1} is of sort
     \dupml{t → s} and \dupml{e2} is of sort \dupml{s1}.}\\
+
+  \Mid & $\emph{lid}\dupml{^}\emph{ordi}\dupml{⟨}\emph{expr}, \dots\dupml{⟩}$ &
+  \parbox[t]{\w}{The identifier must have been declared with \dupml{type rec}
+    or \dupml{type corec} and then, this corresponds to the same type with
+    the \dupml{μ} or \dupml{ν} fixpoint indexed by the given ordinal (see
+    section \ref{lang-top}).} \\
 
   \Mid & \dupml{(} \emph{expr} \dupml{)} & parenthesis for grouping.\\
 \end{longtable}
@@ -434,18 +444,83 @@ Then, we have a few extension for expressions
 
 \section{Top level statements}\label{lang-top}
 
-PML support some options to tune its behavior using the \dupml{set} statement:
+PML supports some options to tune the behavior of its kernel using the \dupml{set} statement:
   More details are given on the command line options in section \ref{lang-cmd}.
 
-$\begin{array}{lrl}
+\begin{longtable}{lrl}
   \emph{option} &::=& \dupml{log} \; \emph{string} \\
-  &\mid& \dupml{auto} \; \emph{int} \; \emph{int}\\
-  &\mid& \dupml{keep_intermediate}
-\end{array}
-$.
+  &\Mid& \dupml{auto} \; \emph{int} \; \emph{int}\\
+  &\Mid& \dupml{keep_intermediate}
+\end{longtable}
 
+\def\w{9.2cm}
+\begin{longtable}{lrl}
+  \multicolumn{2}{l}{\emph{top} ::=} \\
+  & \dupml{sort} \emph{lid} \dupml{=} \emph{sort} & \parbox[t]{\w}{Give a
+    definition for a sort.} \\
+  \Mid & \dupml{def} \emph{lid} \dupml{⟨}\emph{id}, ...\dupml{⟩} = \emph{expr} \\
+  \Mid & \dupml{def} \emph{lid} \dupml{⟨}\emph{id}, ...\dupml{⟩} : \emph{sort} =
+  \emph{expr} & \parbox[t]{\w}{Give a definition for an expression of any
+    sort. Arguments can be included. Most of the time the \dupml{let} or
+    \dupml{type} toplevel command are preferred. More important, a
+  value or an expression defined using \dupml{def} is typechecked when used, not
+  at the definition. This can be seen as a \emph{macro} mecanism.} \\
 
-\section{Command line}
+  \Mid & \dupml{type} \emph{lid} \dupml{⟨}\emph{id}, ...\dupml{⟩} =
+   \emph{prop} \\
+  \Mid & \dupml{type rec} \emph{lid} \dupml{⟨}\emph{id}, ...\dupml{⟩} =
+    \emph{prop} \\
+  \Mid & \dupml{type corec} \emph{lid} \dupml{⟨}\emph{id}, ...\dupml{⟩} =
+    \emph{prop} & \parbox[t]{\w}{The toplevel command \dupml{type t⟨a,b⟩ =
+        ty} is equivalent to \dupml{def t⟨a,b⟩ : ο = ty}. \dupml{type rec t⟨a,b⟩ =
+        ty} is equivalent to \dupml{def t⟨a,b⟩ : ο = μt , ty}. With
+      \dupml{corec} \dupml{μ} is replaced by \dupml{ν}. When using \dupml{type rec} or
+      \dupml{type corec}, the notation \dupml{t^o⟨a,b⟩} can be used to index
+      the fixpoint by the given ordinal.}\\
+
+  \Mid & \dupml{val} \emph{lid} : \emph{prop} = \emph{term} \\
+  \Mid & \dupml{val rec} \emph{lid} : \emph{prop} = \emph{term} &
+    \parbox[t]{\w}{This gives a name to the value resulting of the evaluation of the given
+      term. Typechecking is performed before evaluation. With \dupml{val rec} a
+      fixpoint is added in front of the definition.}\\
+
+  \Mid & \dupml{assert} \emph{prop} ⊂ \emph{prop} \\
+  \Mid & \dupml{assert} ¬ \emph{prop} ⊂ \emph{prop} & \parbox[t]{\w}{Allows
+    to check that a subtyping relation can or can not be proved to hold by PML.}  \\
+
+  \Mid & \dupml{include} \emph{path} & \parbox[t]{\w}{Load the definitions in
+    a PML file. The last component of the path must be the name of a {\tt
+      .pml} file without its extension. The previous elements of the path are
+    folder names. PML searches file in the current directory and in the path
+    directories (use {\tt --config} to know the current path).}\\
+
+  \Mid & \dupml{set} \; \emph{option} & \parbox[t]{\w}{Set option controling
+    PML kernel, see section \ref{lang-cmd}.}\\
+
+  \Mid &
+    \multicolumn{2}{l}{\dupml{infix (} \emph{infix\_re} \dupml{) =} \emph{lid} \dupml{priority}
+         \emph{float} \dupml{left associative}} \\
+  \Mid & \multicolumn{2}{l}{\dupml{infix (} \emph{infix\_re} \dupml{) =} \emph{lid} \dupml{priority}
+         \emph{float} \dupml{right associative}} \\
+  \Mid &\multicolumn{2}{l}{\dupml{infix (} \emph{infix\_re} \dupml{) =} \emph{lid} \dupml{priority}
+         \emph{float} \dupml{non associative}} \\
+  \Mid &
+    \multicolumn{2}{l}{\dupml{infix (} \emph{infix\_re} \dupml{) =} \emph{lid}
+      \dupml{⟨⟩ priority}
+         \emph{float} \dupml{left associative}} \\
+  \Mid & \multicolumn{2}{l}{\dupml{infix (} \emph{infix\_re} \dupml{) =} \emph{lid} \dupml{⟨⟩ priority}
+         \emph{float} \dupml{right associative}} \\
+  \Mid &\multicolumn{2}{l}{\dupml{infix (} \emph{infix\_re} \dupml{) =} \emph{lid} \dupml{⟨⟩ priority}
+    \emph{float} \dupml{non associative}} \\
+  & & \parbox[t]{\w}{Declaration of an infix symbol. The infix symbol is a
+    sequence of authorized characters (see section \ref{lang-atoms}) except
+    the reserved infix: \dupml{≡}, \dupml{∈} and \dupml{=}. The infix symbol
+    can be associated to a value (the first syntax) or a higher-order
+    definition (the latter syntax). The priority is a floating point
+    number. The lower the number, the higher the priority.}
+\end{longtable}
+
+\section{Command line}\label{lang-cmd}
 
 The command take a list of option described below and a list of pml file to
 compile.  Here is the result of \verb!pml --help!:
@@ -482,3 +557,6 @@ Usage: pml [args] [f1.pml] ... [fn.pml]
   -help                Show this usage message.
   -h                   Show this usage message.
 \end{verbatim} 
+
+%<!-- Local IspellDict: british -->
+%<!-- Local IspellPersDict: ~/.ispell-british -->
