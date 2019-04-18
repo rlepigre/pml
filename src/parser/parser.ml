@@ -153,7 +153,7 @@ let parser int  = s:''[-]?[0-9]+'' -> int_of_string s
 let parser bool = "true" -> true | "false" -> false
 
 (* Float. *)
-let parser float = s:''[0-9]*\('.'[0-9]*\)?\([eE][-+]?[0-9]*\)?'' ->
+let parser float = s:''[-]?[0-9]*\('.'[0-9]*\)?\([eE][-+]?[0-9]*\)?'' ->
   if s = "" then give_up (); float_of_string s
 
 (* Lowercase identifier or wildcard (located). *)
