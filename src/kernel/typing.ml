@@ -416,30 +416,33 @@ let rec subtype =
         | UVar(O,v) -> uvar_set v o1
         | _ -> ()
       in
-      let rec unif_args : type a b c d. (a,b) fix_args -> (c,d) fix_args -> unit =
-        fun l1 l2 ->
+      let rec unif_args
+              : type a b c d. (a,b) fix_args -> (c,d) fix_args -> unit
+      = fun l1 l2 ->
           match (l1, l2) with
           | (Ast.Cns(e1,l1), Ast.Cns(e2,l2)) ->
              let (s1, e1) = sort e1 in
              let (s2, e2) = sort e2 in
              begin
-               log_sub "heuristic %a %a %a" Print.ex e1 Print.sort s1 Print.sort s2;
                match eq_sort s1 s2 with
                | Eq.Eq          -> ignore (unif_expr ctx.equations e1 e2);
                                    unif_args l1 l2
                | Eq.NEq ->
                match (eq_sort s1 V, eq_sort s2 T) with
-               | (Eq.Eq, Eq.Eq) -> ignore (unif_expr ctx.equations (Pos.none (Valu e1)) e2);
+               | (Eq.Eq, Eq.Eq) -> ignore (unif_expr ctx.equations
+                                                     (Pos.none (Valu e1)) e2);
                                    unif_args l1 l2
                | _              ->
                match (eq_sort s1 T, eq_sort s2 V) with
-               | (Eq.Eq, Eq.Eq) -> ignore (unif_expr ctx.equations e1 (Pos.none (Valu e2)));
+               | (Eq.Eq, Eq.Eq) -> ignore (unif_expr ctx.equations
+                                                     e1 (Pos.none (Valu e2)));
                                    unif_args l1 l2
                | _              -> ()
              end
           | _ -> ()
       in
-      let do_fix : type b. b sort -> o ex loc -> (b,b) bndr -> (b,p) fix_args -> unit
+      let do_fix
+          : type b. b sort -> o ex loc -> (b,b) bndr -> (b,p) fix_args -> unit
         = fun s o g l2 ->
         unif_ord o;
         match eq_sort s s1 with
@@ -966,7 +969,9 @@ and check_fix
            in
            log_typ "it matches\n%!";
            (* Do we need to check for termination *)
-           let safe = ih.fsch_safe || not Effect.(present Loop ctx.totality) in
+           let safe =
+             ih.fsch_safe || not Effect.(present Loop ctx.totality)
+           in
            (* Add call to call-graph and build the proof. *)
            if safe then
              add_call ctx (ih.fsch_index, spe.fspe_param) true;
@@ -1044,8 +1049,9 @@ and sub_generalise : ctxt -> prop -> prop -> sub_schema * ordi array =
     ({ssch_index ; ssch_relat ; ssch_judge}, os)
 
 (* Generalisation (construction of a fix_schema). *)
-and fix_generalise : bool -> ctxt -> (t, v) bndr -> prop -> fix_schema * ordi array =
-  fun safe ctx b c ->
+and fix_generalise
+    : bool -> ctxt -> (t, v) bndr -> prop -> fix_schema * ordi array
+  = fun safe ctx b c ->
     (* Extracting ordinal parameters from the goal type. *)
     let (omb, os) =
       if safe then Misc.bind_spos_ordinals c
@@ -1306,7 +1312,8 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
            let (b,wopt,rev) =
              match r.opt_var with
              | SV_None    -> (c                  , Some(t), true)
-             | SV_Valu(v) -> (extract_vwit_type v, Some(Pos.none (Valu v)) , false)
+             | SV_Valu(v) -> (extract_vwit_type v
+                             , Some(Pos.none (Valu v)) , false)
              | SV_Stac(s) -> (extract_swit_type s, None, false)
            in
            let _ =
@@ -1458,7 +1465,8 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
                  let (v,ctx) = learn_value ctx u a in
                  let ctx = learn_equivalences ctx v a in
                  type_term ctx f c
-               with Contradiction      -> warn_unreachable ctx f; (t,c,Typ_Scis)
+               with Contradiction      -> warn_unreachable ctx f;
+                                          (t,c,Typ_Scis)
                   | Sys.Break as e     -> raise e
                   | Out_of_memory as e -> raise e
                   | _ when strong && is_typed VoT_T f ->
@@ -1486,7 +1494,8 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
                let ctx_u = if Effect.(know_sub tot [Print]) then ctx else
                              { ctx with totality = Effect.create () } in
                let p2 = type_term ctx_u u a in
-               (* If the typing of u was total, we can use strong application *)
+               (* If the typing of u was total,
+               we can use strong application *)
                let strong = Effect.(absent CallCC ctx_u.totality) in
                log_typ "sub1 %b" strong;
                if not Effect.(sub ctx_u.totality tot) then

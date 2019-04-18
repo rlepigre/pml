@@ -66,8 +66,8 @@ let files =
                        default_auto_lvl := (fst !default_auto_lvl, n))
       ])
       , " Set the default level for automatic theorem proving. Two naturals: \
-          maximum number of nested case analysis and number of let statement for \
-          totality.")
+          maximum number of nested case analysis and number of let statement \
+          for totality.")
     ; ( "--keep-intermediate"
       , Arg.Set Equiv.keep_intermediate
       , " Keep intermediate terms in normalisation in the pool \
@@ -165,7 +165,8 @@ let _ =
       end
   | No_subtyping_IH(id1, id2)    ->
       begin
-        err_msg "No typing induction hypothesis applies for %S < %S." id1.elt id2.elt;
+        err_msg "No typing induction hypothesis applies for %S < %S."
+                id1.elt id2.elt;
         (match id1.pos with
         | None   -> ()
         | Some p -> Quote.quote_file stderr p);

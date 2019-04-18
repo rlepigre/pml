@@ -296,8 +296,9 @@ let bind_params : Equiv.pool -> p ex loc -> sbndr box * slist = fun po e ->
   (* Building the actual binder. *)
   let rec bind : sassoc -> pbox -> pbox -> sbndr box = fun l e1 e2 ->
     match l with
-    | Nil -> box_apply2 (fun e1 e2 -> Cst(e1, e2)) e1 e2
-    | Cns(s,_,v,l) -> box_apply (fun f -> Bnd(s,f)) (bind_var v (bind l e1 e2))
+    | Nil          -> box_apply2 (fun e1 e2 -> Cst(e1, e2)) e1 e2
+    | Cns(s,_,v,l) -> box_apply (fun f -> Bnd(s,f))
+                                (bind_var v (bind l e1 e2))
   in
   let fn e =
     match (unbox e).elt with
