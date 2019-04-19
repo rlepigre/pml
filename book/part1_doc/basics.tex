@@ -318,28 +318,175 @@ For instance \dupml{42} is replaced by \dupml{dble (succ (dble (dble (succ (dble
 This allows to use integer constants for any representation of numbers once the above
 functions are provided.
 
-We can define more interesting function and give them an infix notation:
+We can define more interesting function and gives them an infix notation:
 
 \begin{pmlcode}
-// Addition function.
-infix (+) = add priority 3 left associative
+  // Addition function.
+  infix (+) = add priority 3 left associative
 
-val rec (+) : nat ⇒ nat ⇒ nat =
-  fun n m {
+  val rec (+) : nat ⇒ nat ⇒ nat = fun n m {
     case n {
       0    → m
       S[k] → succ (k + m)
     }
   }
 
-// Multiplication function.
-infix (*) = mul priority 2 left associative
+  // Multiplication function.
+  infix (*) = mul priority 2 left associative
 
-val rec (*) : nat ⇒ nat ⇒ nat =
-  fun n m {
+  val rec (*) : nat ⇒ nat ⇒ nat = fun n m {
     case n {
       0    → 0
-      S[k] → m + (k * m)
+      S[k] → m + k * m
+    }
+  }
+\end{pmlcode}
+
+Here we introduce the infix symbol before the definition to use it inside the
+definition. We also remark that PML allos to use \dupml{0} for \dupml{Zero}
+in case analysis. These are again recursive programs based on the
+following equations:
+
+\begin{eqnarray*}
+  0 + m &= m \\
+  {\rm succ}(n) + m &= {\rm succ}(n + m) \\
+  0 × m &= 0 \\
+  {\rm succ}(n) × m &= m + n × m \\
+\end{eqnarray*}
+
+Many other definitions are possible using other equations as long as they
+lead to terminating functions. For instance an alternative definition of
+addition could be:
+
+\begin{pmlcode}
+  val rec fast_add : nat ⇒ nat ⇒ nat = fun n m {
+    case n {
+      0    → m
+      S[k] → succ (fast_add m k)
+    }
+  }
+\end{pmlcode}
+
+This definition is faster because the complexity of the first definition is
+$O(n)$ while the latter is $O(\min(n,m))$. Let us prove that the two
+definitions above are equivalent. Here is the beginning of the proof:
+
+\begin{pmlcode}
+  val rec add_eq_fast_add : ∀n m∈nat, n + m ≡ fast_add n m =
+    take n m;
+    case n {
+      0    → qed
+      S[k] → showing S[k + m] ≡ S[fast_add m k];
+              showing k + m ≡ fast_add m k;
+              {- unfinished -}
+    }
+\end{pmlcode}
+
+The zero case is immediate because both \dupml{0 + m} and \dupml{fast_add 0
+  m} evaluate to m. For the successor case, we use the \dupml{showing}
+keyword to write the current goal, transformed as far as possible using
+evaluation. The first \dupml{showing} correspond to evaluation,
+The second corresponds to a simplification of the successor on both side.
+
+Using \dupml{showing} corresponds to what is call backward reasonning, we
+starts from the goal and make progress toward something which is true.
+Forward reasonning is also possible as we will see later.
+
+As for programs, proofs can be recursive, but here using
+what we are proving on \dupml{k} and \dupml{m} would lead to
+\dupml{k + m ≡ fast_add k m} which is not what we need. A solution is to
+prove commutativity of addition which is anyway very usefull. Notice the
+notion of \emph{goal} in PML written \dupml{{- ⋯ -}} which allows to
+type-check unfinished programs or proofs.
+
+For commutativity we first need two lemmas:
+\begin{pmlcode}
+  val rec add_n_zero : ∀n∈nat, n + 0 ≡ n =
+    take n;
+    case n {
+      0    → qed
+      S[k] → showing S[k] + 0 ≡ S[k];
+              showing k + 0 ≡ k;
+              use add_n_zero k
+    }
+
+  val rec add_n_sm : ∀n m∈nat, n + S[m] ≡ S[n + m] =
+    take n m;
+    case n {
+      0    → qed
+      S[k] → showing S[k] + S[m] ≡ S[S[k] + m];
+              showing k + S[m] ≡ S[k + m];
+              use add_n_sm k m
+    }
+\end{pmlcode}
+
+In this two lemmas we immediately see that the current goal corresponds to an
+induction hypothesis that we can use to finish the proof. It is important
+to know that the \dupml{take}, \dupml{showing} and \dupml{use} keywords are
+simple syntactic sugar that one can use to make proof readable and also
+to gather some knowledge when we are struggling with a difficult proof.
+For instance, if a \dupml{showing} fails, this means we don't know what we
+must prove or somme lemmas should be use to reach the wanted goal.
+
+In fact, much shorter proofs are possible:
+\begin{pmlcode}
+  val rec add_n_zero : ∀n∈nat, n + 0 ≡ n = fun n {
+    case n {
+      0    → qed
+      S[k] → add_n_zero k
+    }
+  }
+
+  val rec add_n_sm : ∀n m∈nat, n + S[m] ≡ S[n + m] = fun n m {
+    case n {
+      0    → qed
+      S[k] → add_n_sm k m
+    }
+  }
+\end{pmlcode}
+
+Using these lemmas we can finish the proof of commutativity and
+our result on \dupml{fast_add}.
+
+\begin{pmlcode}
+  val rec add_commutative : ∀n m∈nat, n + m ≡ m + n =
+    take n m;
+    case n {
+      0    → showing 0 + m ≡ m + 0;
+              use add_n_zero m
+      S[k] → showing S[k] + m ≡ m + S[k];
+              showing S[k + m] ≡ S[m + k] by add_n_sm m k;
+              showing k + m ≡ m + k;
+              use add_commutative k m
+    }
+
+  val rec add_eq_fast_add : ∀n m∈nat, n + m ≡ fast_add n m =
+    take n m;
+    case n {
+      0    → qed
+      S[k] → showing S[k + m] ≡ S[fast_add m k];
+              showing k + m ≡ fast_add m k;
+              showing m + k ≡ fast_add m k by add_commutative m k;
+              use add_eq_fast_add m k
+    }
+\end{pmlcode}
+
+You should notice the use of \dupml{by} together with \dupml{showing} to
+justify a reasoning with a proof. Again much shorter (but less readable
+proofs) are possible.
+
+\begin{pmlcode}
+  val rec add_commutative : ∀n m∈nat, n + m ≡ m + n = fun n m {
+    case n {
+      0    → add_n_zero m
+      S[k] → add_n_sm m k; add_commutative k m
+    }
+  }
+
+  val rec add_eq_fast_add : ∀n m∈nat, n + m ≡ fast_add n m = fun n m {
+    case n {
+      0    → qed
+      S[k] → add_commutative m k; add_eq_fast_add m k
     }
   }
 \end{pmlcode}
