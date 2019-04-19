@@ -513,5 +513,36 @@ proofs) are possible.
 
 \subsection{Lists}
 
+Here is the definition of the type for lists:
+\begin{pmlcode}
+  type rec list⟨a⟩ = [Nil ; Cons of {hd : a ; tl : list⟨a⟩}]
+\end{pmlcode}
+
+Here we see two novelties. First, \dupml{list} is a parametric type
+depending on one other type. This means that \dupml{list} is
+an expression of sort \dupml{ο → ο}.
+
+Second, we are using records. A record is some kind of association list
+which associates values to some labels. The labels are names.
+
+In PML constructor of a sum type
+are always applied to exactly one argument. Previously,
+\dupml{Monday} and \dupml{Zero} where only shortcut for
+\dupml{Monday[{}]} and \dupml{Zero[{}]} that is constructors applied to the
+record with no field.
+
+In the type of list, The constructor \dupml{Cons} must be applied to a record
+with exactly two labels \dupml{hd} (the head of the list) and \dupml{tl} (the
+tail of the list).
+
+Therefore the above definition should be read as an element of type
+\dupml{list⟨a⟩} is either \dupml{Nil} or \dupml{Cons[{ hd = h; tl = l}]}
+where \dupml{h} is of type \dupml{a} and \dupml{l} is of type
+\dupml{list⟨a⟩}.
+
+
+
+
+
 %<!-- Local IspellDict: british -->
 %<!-- Local IspellPersDict: ~/.ispell-british -->
