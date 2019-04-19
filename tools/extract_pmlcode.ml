@@ -50,7 +50,6 @@ let _ =
         with Exit -> lines := "" :: !lines
     done
   with End_of_file ->
-    Printf.printf "%d\n%!" !min_space;
     List.iter (fun line ->
         let line = remove_space line in
         output_string chout line;

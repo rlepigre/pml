@@ -37,7 +37,7 @@ book_tests: bin lib $(TEXPML)
 
 # Test target.
 .PHONY: tests
-TEST_FILES = $(TEXPML) $(shell find examples tests -name "*.pml")
+TEST_FILES = $(shell find examples tests -name "*.pml")
 tests: bin lib $(TEST_FILES)
 	@for f in $(TEST_FILES); do \
      echo $$f; \
