@@ -25,10 +25,6 @@ let parsing_chrono = Chrono.create "parsing"
 (* Definition of the [locate] function used by [Earley]. *)
 #define LOCATE locate
 
-(* Reject if the given locatio is not on a single line. *)
-let single_line _loc =
-  if _loc.start_line <> _loc.end_line then give_up ()
-
 (* String litteral. *)
 let str_lit =
   let normal = List.fold_left Charset.del Charset.full ['\\'; '"'; '\r'] in
@@ -53,7 +49,8 @@ let parser path = ps:{path_atom '.'}* f:path_atom no_dot -> ps @ [f]
 
 (* Parser for the contents of a goal. *)
 let parser goal_name = s:''\([^-]\|\(-[^}]\)\)*''
-let parser goal = "{-" str:goal_name "-}" -> String.trim str
+let parser goal =
+  "{-" str:goal_name* "-}" -> String.trim (String.concat " " str)
 
 (* Keywords. *)
 let _assert_  = Keyword.create "assert"
@@ -377,8 +374,7 @@ let parser expr @(m : mode) =
       -> suppose _loc props t
   | lambda args:arg+ '.' t:(expr (Trm I))
       when m <<= Trm R
-      -> single_line _loc;
-         in_pos _loc (ELAbs((List.hd args, List.tl args),t))
+      -> in_pos _loc (ELAbs((List.hd args, List.tl args),t))
   (* Term (constructor) *)
   | c:luid t:{"[" t:term "]"}?
       when m <<= Trm A
