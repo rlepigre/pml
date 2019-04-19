@@ -256,6 +256,17 @@ We can prove a few properties:
 Nothing if new in these proofs as we are still manipulating finite data
 types.
 
+\begin{exercise}
+  Define implication with the infix notation \dupml{⇒} of lower priority than
+  \dupml{&&} and \dupml{||} and prove \dupml{b1 && b2 ⇒ b3 ≡ b1 ⇒ b2 ⇒ b3}.
+\end{exercise}
+
+\begin{exercise}
+  Prove that \dupml{xor} and \dupml{&&} satisfy the axiom of a commutative
+  semi ring (the are both associative and commutative and \dupml{xor} distributes
+  on \dupml{and}.
+\end{exercise}
+
 \subsection{Unary natural numbers}
 
 A unary natural number is either zero or the successor of a natural
@@ -490,6 +501,15 @@ proofs) are possible.
     }
   }
 \end{pmlcode}
+
+\begin{exercise}
+  Prove the other semi ring axioms for addition and multiplication.
+\end{exercise}
+
+\begin{exercise}
+  Define the power function ($n^m$) and prove that $n^{m+p} = n^m × n^p$ and
+  $n^{m × p} = (n^m)^p$.
+\end{exercise}
 
 \subsection{Lists}
 
