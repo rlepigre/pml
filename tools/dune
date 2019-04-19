@@ -1,0 +1,7 @@
+(include_subdirs unqualified)
+
+(executable
+  (name extract_pmlcode)
+  (public_name extract_pmlcode)
+  (modules :standard)
+  (libraries str))

@@ -26,9 +26,18 @@ LIB_FILES = $(shell find lib -name "*.pml")
 lib: bin $(LIB_FILES)
 	@for f in $(LIB_FILES); do dune exec -- pml --quiet $$f || break ; done
 
+# Book test target, testing pml code in the book
+.PHONY: book_tests
+TEXPML= book/part1_doc/basics.pml
+book_tests: bin lib $(TEXPML)
+	@for f in $(TEXPML); do \
+     echo $$f; \
+     dune exec -- pml --quiet $$f || break ; \
+   done
+
 # Test target.
 .PHONY: tests
-TEST_FILES = $(shell find examples tests -name "*.pml")
+TEST_FILES = $(TEXPML) $(shell find examples tests -name "*.pml")
 tests: bin lib $(TEST_FILES)
 	@for f in $(TEST_FILES); do \
      echo $$f; \
@@ -68,3 +77,6 @@ release: distclean
 	git push origin
 	git tag -a pml_$(VERSION)
 	git push origin pml_$(VERSION)
+
+%.pml: %.tex
+	dune exec -- extract_pmlcode $< $@
