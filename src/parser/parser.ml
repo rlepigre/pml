@@ -48,7 +48,7 @@ let no_dot =
 let parser path = ps:{path_atom '.'}* f:path_atom no_dot -> ps @ [f]
 
 (* Parser for the contents of a goal. *)
-let parser goal_name = s:''\([^-]\|\(-[^}]\)\)*''
+let parser goal_name = s:''\([^- \t\n\r]\|\(-[^}]\)\)*''
 let parser goal =
   "{-" str:goal_name* "-}" -> String.trim (String.concat " " str)
 
