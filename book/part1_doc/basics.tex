@@ -1,0 +1,129 @@
+\chapter{PML Basics}
+
+\section{functions and algebraic data types}
+
+\subsection{A simple enumerated type}
+
+We start with a very simple example defining a data type for the day of the
+week\footnote{Example insipired by the software foundation course of Benjamin
+  Peirce et all.}:
+
+\begin{pmlcode}
+  type day = [ Monday ; Tuesday ; Wednesday
+    ; Thursday ; Friday ; Saturday ; Sunday ]
+\end{pmlcode}
+
+This defines a data type \dupml{day} with seven constant elements
+representing each day of the week. This kind of type is
+called \emph{enumerated type}, \emph{variant type} or \emph{sum type}.
+The seven elements are distinct constants and must start with an upper case
+letter to distinguish them from variables.
+
+We define functions using this type:
+
+\begin{pmlcode}
+  val next_day : day ⇒ day =
+    fun d {
+      case d {
+        Monday    → Tuesday
+        Tuesday   → Wednesday
+        Wednesday → Thursday
+        Thursday  → Friday
+        Friday    → Saturday
+        Saturday  → Sunday
+        Sunday    → Monday
+      }
+    }
+
+  val previous_day : day ⇒ day =
+    fun d {
+      case d {
+        Monday    → Sunday
+        Tuesday   → Monday
+        Wednesday → Tuesday
+        Thursday  → Wednesday
+        Friday    → Thursday
+        Saturday  → Friday
+        Sunday    → Saturday
+      }
+    }
+
+  val second_next_day : day ⇒ day =
+    fun d { next_day (next_day d) }
+\end{pmlcode}
+
+The \dupml{val} keyword indicates that we define a pml value and is followed
+by a name for this value and its type. Here \dupml{day ⇒ day} means a total
+pure function that takes a \dupml{day} as argument and returns an element of
+the same type.
+
+The \dupml{fun} keyword denotes a function definition, followed by
+a name for the argument of the function and the body of the function.
+Finally, \dupml{case} denotes a case analysis on the value of the variable
+\dupml{d}.
+
+We can now prove two simple properties of these two functions:
+
+\begin{pmlcode}
+  val trivial : second_next_day Monday ≡ Wednesday = qed
+\end{pmlcode}
+
+For properties, we define values as for programs using the \dupml{val} keyword!
+PML follows the Curry-Howard correspondence and identify properties and types.
+The type used for properties are richer, here it is an equality which is a
+type inhabited if and only if the equality holds (we will see later what is
+the element of this type). The body of the definition is just
+\dupml{qed} meaning that the proof results only from a computation.
+
+This first property is trivial for PML
+\begin{pmlcode}
+  val next_previous_day : ∀d∈day, next_day (previous_day d) ≡ d =
+    take d;
+    case d {
+      Monday    → qed
+      Tuesday   → qed
+      Wednesday → qed
+      Thursday  → qed
+      Friday    → qed
+      Saturday  → qed
+      Sunday    → qed
+    }
+\end{pmlcode}
+
+Here, the tpe is mode complex. it expresses that for any element \dupml{d}
+applying the function \dupml{previous_day} to \dupml{d} and then applying
+\dupml{next_day} to the result gives the initial value back.
+
+The proof starts with the \dupml{take} keyword to introduce a fresh variable
+\dupml{d} for an arbitrary day. In fact, we could use then \dupml{fun} keyword, both
+are equivalent. The we perform a case analysis on \dupml{d} and in each case,
+the proof result of a computation hence we can use \dupml{qed}.
+
+\begin{pmlcode}
+  val previous_next_day : ∀d∈day, previous_day (next_day d) ≡ d =
+    take d;
+    set auto 1 0;
+    qed
+\end{pmlcode}
+
+For the converse property, we give a shorter proof using the hability of PML
+to perform some automatic theorem proving. In fact, it is very limited!
+The directive \dupml{set auto 1 0} tells PML to perform at most one case
+analysis (the first 1) and no totality proof (we will see later what this
+means. In fact, the is no magic: PML sees that the computation of
+\dupml{next_day d} is blocked on a case analysis and try to proceed in the
+proof using the same case analysis.
+
+\begin{exercise}
+  Prove that applying seven times the function \dupml{next_day} returns the initial
+  day.
+\end{exercise}
+
+\subsection{Booleans}
+
+\subsection{Unary natural numbers}
+
+\subsection{Lists}
+
+%<!-- Local IspellDict: british -->
+%<!-- Local IspellPersDict: ~/.ispell-british -->
