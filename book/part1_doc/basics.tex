@@ -4,7 +4,7 @@
 
 \subsection{A simple enumerated type}
 
-We start with a very simple example defining a data type for the day of the
+We start with a very simple example defining a data type for the days of the
 week\footnote{Example insipired by the software foundation course of Benjamin
   Peirce et all.}:
 
@@ -74,8 +74,8 @@ The type used for properties are richer, here it is an equality which is a
 type inhabited if and only if the equality holds (we will see later what is
 the element of this type). The body of the definition is just
 \dupml{qed} meaning that the proof results only from a computation.
-
 This first property is trivial for PML
+
 \begin{pmlcode}
   val next_previous_day : ∀d∈day, next_day (previous_day d) ≡ d =
     take d;
@@ -90,14 +90,16 @@ This first property is trivial for PML
     }
 \end{pmlcode}
 
-Here, the tpe is mode complex. it expresses that for any element \dupml{d}
-applying the function \dupml{previous_day} to \dupml{d} and then applying
+Here, the type is more complex. It expresses that for any element \dupml{d}
+of type \dupml{day}, applying the function \dupml{previous_day} to \dupml{d} and then applying
 \dupml{next_day} to the result gives the initial value back.
 
 The proof starts with the \dupml{take} keyword to introduce a fresh variable
 \dupml{d} for an arbitrary day. In fact, we could use then \dupml{fun} keyword, both
-are equivalent. The we perform a case analysis on \dupml{d} and in each case,
-the proof result of a computation hence we can use \dupml{qed}.
+are equivalent. Then, we perform a case analysis on \dupml{d} and in each case,
+the proof result of a computation hence we can use \dupml{qed}. Indeed, if
+\dupml{d ≡ Monday}, by definition \dupml{previous_day d ≡ Sunday}
+and \dupml{next_day Sunday ≡ Monday ≡ d}. The same happens for all seven cases.
 
 \begin{pmlcode}
   val previous_next_day : ∀d∈day, previous_day (next_day d) ≡ d =
@@ -109,10 +111,10 @@ the proof result of a computation hence we can use \dupml{qed}.
 For the converse property, we give a shorter proof using the hability of PML
 to perform some automatic theorem proving. In fact, it is very limited!
 The directive \dupml{set auto 1 0} tells PML to perform at most one case
-analysis (the first 1) and no totality proof (we will see later what this
-means. In fact, the is no magic: PML sees that the computation of
+analysis (the 1) and no totality proof (the 0, we will see later what this
+means). In fact, the is no magic: PML sees that the computation of
 \dupml{next_day d} is blocked on a case analysis and try to proceed in the
-proof using the same case analysis.
+proof using the same case analysis as the one in the program.
 
 \begin{exercise}
   Prove that applying seven times the function \dupml{next_day} returns the initial
@@ -155,8 +157,7 @@ These examples are not different from the previous ones. The only novelty
 are the function with two arguments. The type \dupml{bool ⇒ bool ⇒ bool}
 should be read as \dupml{bool ⇒ (bool ⇒ bool)} (the function type is right
 associative). This means that a function with two arguments is in fact
-a function taking one argument returning a funcition.
-
+a function taking one argument returning a function.
 The notation \dupml{fun b1 b2 { ⋯ }} is equivalent to \dupml{fun b1 { fun b2
     { ⋯ }}} making this more explicit.
 
@@ -178,18 +179,66 @@ It is possible to fix this using the \dupml{def} keyword as follows
   def lor ⟨a:τ,b:τ⟩ = if a { true } else { b }
 \end{pmlcode}
 
+In PML we define \emph{expressions} of various \emph{sorts}. For now we have seen
+three sorts of expressions:
+\begin{itemize}
+\item propositions or types like \dupml{day}, \dupml{bool ⇒ bool}
+  or \dupml{∀d∈day, previous_day (next_day d) ≡ d}. These are expressions of
+  sort \dupml{ο} (omicron).
+\item Values like \dupml{Monday}, \dupml{Tuesday} or \dupml{fun b { not b }}
+  which are evaluated programs. These are expressiosn of sort \dupml{ι}
+  (iota).
+\item Terms or programs like \dupml{not b} or \dupml{if b { true } else {
+    false }}. These are expressions of sort \dupml{τ} (tau). Moreover any
+  value is also a term. We say that the sort \dupml{ι} is a \emph{subsort} of
+  \dupml{τ}.
+\end{itemize}
+
+PML also support parametric expressions. Above,
+\dupml{land} and \dupml{lor} are two expressions of sort \dupml{τ → τ →
+  τ}. They can be seen as macros with two parameters. An important difference
+between values defined with the \dupml{val} keyword and macros is that
+\begin{itemize}
+  \item Values are defined by giving a term and a type and PML performs
+    type-checking to ensure that the term indeed belong to the given type.
+    This ensures that the evaluation can not fail and will always returns
+    a value of the given type.
+  \item At the contrary, general expressions are not type-checked at their
+    definition. PML checks that they have the intended sort, that is that
+    \dupml{land} and \dupml{lor} returns terms when applied to two terms.
+    But it does not check that these terms evaluates to boolean if given
+    booleans. Macros are expended and type-checked only when used.
+\end{itemize}
+
+This means that \dupml{land⟨e1,e2⟩} is exactly the same
+as \dupml{if e1 { e2 } else { false }}. This is what we want to
+ensure that \dupml{e2} is only evaluated when \dupml{e1} evaluates to
+\dupml{true}.
+
+Then, we can give an infix syntax for conjunction and disjonction.
 \begin{pmlcode}
   infix (&&) = land⟨⟩ priority 6 right associative
   infix (||) = lor ⟨⟩ priority 7 right associative
 \end{pmlcode}
 
+To do so we give the infix symbol between parenthesis (mostly all special
+characteres are allowed except delimiters). We give the name of the associated macro (we
+could also give an infix notation for a value if we remove \dupml{⟨⟩}).
+The priority is a floating point number (the lower the number the
+higher the priority) and finally the associativity of the symbol
+(\dupml{left}, \dupml{right} or \dupml{none}).
+
+We can now use our macros and their infix notation to define some functions:
 \begin{pmlcode}
   val and : bool ⇒ bool ⇒ bool = fun b1 b2 { b1 && b2 }
   val or  : bool ⇒ bool ⇒ bool = fun b1 b2 { b1 || b2 }
+  val xor : bool ⇒ bool ⇒ bool =
+    fun b1 b2 { (b1 && not b2) || (b2 && not b1) }
 \end{pmlcode}
 
+We can prove a few properties:
 \begin{pmlcode}
-  val not_idem_potent : ∀b∈bool, not (not b) ≡ b =
+  val not_idempotent : ∀b∈bool, not (not b) ≡ b =
     take b;
     if b { qed } else { qed }
 
@@ -202,10 +251,98 @@ It is possible to fix this using the \dupml{def} keyword as follows
     take b1 b2;
     set auto 1 0;
     qed
-
 \end{pmlcode}
 
+Nothing if new in these proofs as we are still manipulating finite data
+types.
+
 \subsection{Unary natural numbers}
+
+A unary natural number is either zero or the successor of a natural
+numbers. This is expressed by the following recursive type:
+
+\begin{pmlcode}
+  type rec nat = [ Zero; S of nat ]
+\end{pmlcode}
+
+The \dupml{rec} keyword allows to use \dupml{nat} in its own definition.
+This definition should be read as ``an element of \dupml{nat} is either the
+constant \dupml{Zero} or the \emph{constructor} \dupml{S} applied to an
+element of type \dupml{nat}''. The application of a constructor is written
+with
+square bracket, hence this means that all elements of type \dupml{nat} are
+\dupml{Zero}, \dupml{S[Zero]}, \dupml{S[S[Zero]]}, ⋯
+
+Using this we define a few functions on natural numbers:
+
+\begin{pmlcode}
+  val zero : nat = Zero
+  val succ : nat ⇒ nat = fun n { S[n] }
+  val rec dble : nat ⇒ nat = fun n {
+    case n {
+      Zero → Zero
+      S[p] → S[S[dble p]]
+    }
+  }
+\end{pmlcode}
+
+The last function is recursive (indicated by the \dupml{rec} keyword).
+Its case analysis is also more complex, in the second case, when
+\dupml{n} is a successor, we give a name to the predecessor of \dupml{n}.
+This case analysis can be read as either \dupml{n} is equal to \dupml{Zero}
+or it is equal to \dupml{S[p]} for some natural number \dupml{p}. This is the
+natural case analysis resulting from the definition of the type \dupml{nat}.
+
+Then, in the second case we say that the double of \dupml{n ≡ S[p]} is
+\dupml{S[S[dble p]]} and it is here that the function \dupml{dble} calls
+itself recursively.
+
+It is important to remark that PML, contrary to most computer languages,
+checks the termination of the function \dupml{dble}. For instance the
+following is rejected with the error message \dupml{Cannot prove termination}.
+
+\begin{badpmlcode}
+  val rec dble : nat ⇒ nat = fun n {
+    case n {
+      Zero → Zero
+      S[p] → S[S[dble n]]
+    }
+  }
+\end{badpmlcode}
+
+We defined the three functions above for a precise reason. PML allows to write
+integer constants like \dupml{0}, \dupml{2}, \dupml{-2} or \dupml{42} and they are
+replaced by terms using \dupml{zero}, \dupml{succ}, \dupml{dble} and \dupml{opp}.
+For instance \dupml{42} is replaced by \dupml{dble (succ (dble (dble (succ (dble
+  (dble (succ zero)))))))}.
+This allows to use integer constants for any representation of numbers once the above
+functions are provided.
+
+We can define more interesting function and give them an infix notation:
+
+\begin{pmlcode}
+// Addition function.
+infix (+) = add priority 3 left associative
+
+val rec (+) : nat ⇒ nat ⇒ nat =
+  fun n m {
+    case n {
+      0    → m
+      S[k] → succ (k + m)
+    }
+  }
+
+// Multiplication function.
+infix (*) = mul priority 2 left associative
+
+val rec (*) : nat ⇒ nat ⇒ nat =
+  fun n m {
+    case n {
+      0    → 0
+      S[k] → m + (k * m)
+    }
+  }
+\end{pmlcode}
 
 \subsection{Lists}
 
