@@ -777,9 +777,9 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
       let (l1,l2) = ctx.auto.level in
       let level =
         if n = 1 then
-          if l2 <= 0 then raise exn else (l1, l2 - 1)
+          if l2 <= 0 then raise Exit else (l1, l2 - 1)
         else
-          if l1 <= 0 then raise exn else (l1 - 1, l2)
+          if l1 <= 0 then raise Exit else (l1 - 1, l2)
       in
       { ctx with auto = { ctx.auto with level } }
 
@@ -807,6 +807,7 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
           with
           | Sys.Break as e     -> raise e
           | Out_of_memory as e -> raise e
+          | Exit
           | Failed_to_prove _
           | Type_error _           -> fn ctx bls)
       | BCas(e,cs) as b :: bls ->
@@ -828,6 +829,7 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
           with
           | Sys.Break as e     -> raise e
           | Out_of_memory as e -> raise e
+          | Exit
           | Failed_to_prove _
           | Type_error _       -> fn ctx bls)
     in fn ctx bls
