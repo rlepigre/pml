@@ -15,6 +15,9 @@ val suc : int ⇒ int = fun n {
   }
 }
 
+val zero : int = Zero
+val succ : int ⇒ int = suc //for parsing constant
+
 val pre : int ⇒ int = fun n {
   case n {
     Zero → P[Zero]
@@ -109,6 +112,9 @@ val rec (*) : int ⇒ int ⇒ int = fun n m {
     P[n] → n * m - m
   }
 }
+
+val dble : int ⇒ int = fun n { n + n }
+
 val sgn : int ⇒ [P;Z;S] = fun n {
   case n {
     Zero → Z
