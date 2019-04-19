@@ -121,6 +121,90 @@ proof using the same case analysis.
 
 \subsection{Booleans}
 
+The type of booleans is defined by
+
+\begin{pmlcode}
+  //type bool = [ true; false ]
+\end{pmlcode}
+
+Normally enumerated type should start with a capital letter. PML allows for an
+exception with \dupml{true} and \dupml{false} as OCaml do. In fact booleans
+are predefined and can not be redefined as they play a special role in a
+few places in PML. This is why we give the definition as a comment.
+
+Most definition in this section are in the standard library but we here redefine them
+as they provide good examples.
+
+We now define some standard function on booleans:
+
+\begin{pmlcode}
+  val not : bool ⇒ bool = fun b {
+    case b { true → false | false → true }
+  }
+
+  val and : bool ⇒ bool ⇒ bool = fun b1 b2 {
+    case b1 { true → b2 | false → false }
+  }
+
+  val or : bool ⇒ bool ⇒ bool = fun b1 b2 {
+    if b1 { true } else { b2 }
+  }
+\end{pmlcode}
+
+These examples are not different from the previous ones. The only novelty
+are the function with two arguments. The type \dupml{bool ⇒ bool ⇒ bool}
+should be read as \dupml{bool ⇒ (bool ⇒ bool)} (the function type is right
+associative). This means that a function with two arguments is in fact
+a function taking one argument returning a funcition.
+
+The notation \dupml{fun b1 b2 { ⋯ }} is equivalent to \dupml{fun b1 { fun b2
+    { ⋯ }}} making this more explicit.
+
+The last definition show the \dupml{if ⋯ else ⋯} notation in PML which
+is just a syntactic sugar for the case notation for booleans.
+
+However, there is a problem with the definition of \dupml{and} and
+\dupml{or}. Indeed, one usually expects that when evaluating a conjunction
+(resp. a disjunction) of
+two expressions, the second expression is only evaluated if the first
+expression evaluates to \dupml{true} (resp. \dupml{false}).
+As pml is in call by value, all arguments of a function are evaluated
+before calling the function.
+
+It is possible to fix this using the \dupml{def} keyword as follows
+
+\begin{pmlcode}
+  def land⟨a:τ,b:τ⟩ = if a { b } else { false }
+  def lor ⟨a:τ,b:τ⟩ = if a { true } else { b }
+\end{pmlcode}
+
+\begin{pmlcode}
+  infix (&&) = land⟨⟩ priority 6 right associative
+  infix (||) = lor ⟨⟩ priority 7 right associative
+\end{pmlcode}
+
+\begin{pmlcode}
+  val and : bool ⇒ bool ⇒ bool = fun b1 b2 { b1 && b2 }
+  val or  : bool ⇒ bool ⇒ bool = fun b1 b2 { b1 || b2 }
+\end{pmlcode}
+
+\begin{pmlcode}
+  val not_idem_potent : ∀b∈bool, not (not b) ≡ b =
+    take b;
+    if b { qed } else { qed }
+
+  val demorgan_and : ∀b1 b2∈bool, not (b1 && b2) ≡ not b1 || not b2 =
+    take b1 b2;
+    set auto 1 0;
+    qed
+
+  val demorgan_or : ∀b1 b2∈bool, not (b1 || b2) ≡ not b1 && not b2 =
+    take b1 b2;
+    set auto 1 0;
+    qed
+
+\end{pmlcode}
+
 \subsection{Unary natural numbers}
 
 \subsection{Lists}
