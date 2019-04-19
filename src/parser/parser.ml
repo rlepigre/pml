@@ -127,17 +127,18 @@ let parser infix =
         in
         let name = in_pos _loc_s name in
         let sym = evari (Some _loc_s) name in
-        (sym, name, p, pl, pr, hiho)
+        let minus = s.[String.length s - 1] = '-' in
+        (sym, name, p, pl, pr, hiho, minus)
       with Not_found -> give_up ()
     end
-| (_,s,p,pl,pr,ho):infix - '_' - m:lid ->
+| (_,s,p,pl,pr,ho,_):infix - '_' - m:lid ->
     let m = evari (Some _loc_m) (in_pos _loc_m m) in
     let t = in_pos _loc (EProj(m,ref `T, s)) in
-    (t, s, p, pl, pr,ho)
+    (t, s, p, pl, pr, ho, false)
 
 (* Located identifiers. *)
 let parser llid = id:lid       -> in_pos _loc id
-  | '(' (_,id,_,_,_,_):infix ')' -> id
+  | '(' (_,id,_,_,_,_,_):infix ')' -> id
 let parser luid = id:uid       -> in_pos _loc id
                 | _true_       -> in_pos _loc "true"
                 | _false_      -> in_pos _loc "false"
@@ -236,6 +237,16 @@ let parser s_arg  = id:llid so:{_:column s:sort}?
 let parser s_lst  = l:(list1 s_arg comma)
 let parser s_args = {_:langle l:s_lst _:rangle}?[[]]
 
+let no_digit_if_minus =
+  let digits = Charset.range '0' '9' in
+  fun minus ->
+    if minus then
+      parser EMPTY
+    else
+      Earley.blank_test Charset.full
+                        (fun b p _ _ ->
+                          let (c,_,_) = Input.read b p in
+                          ((), not (Charset.mem digits c)))
 let (<<=) = fun p1 p2 ->
   match p1, p2 with
   | _     , HO     -> true
@@ -388,9 +399,10 @@ let parser expr @(m : mode) =
       when m <<= Trm A
       -> from_int _loc n
   (* Term (infix symbol) *)
-  | t:(expr (Trm I)) (s,_,p,pl,pr,ho):infix when m <<= Trm I ->>
+  | t:(expr (Trm I)) (s,_,p,pl,pr,ho,minus):infix when m <<= Trm I ->>
       let pl' = match t.elt with EInfx(_,p) -> p | _ -> 0.0 in
       let _ = if pl' > pl then give_up () in
+      (no_digit_if_minus minus)
       u:(expr (Trm I))
       -> let pr' = match u.elt with EInfx(_,p) -> p | _ -> 0.0 in
          if pr' > pr then give_up ();
