@@ -534,12 +534,42 @@ record with no field.
 In the type of list, The constructor \dupml{Cons} must be applied to a record
 with exactly two labels \dupml{hd} (the head of the list) and \dupml{tl} (the
 tail of the list).
-
 Therefore the above definition should be read as an element of type
 \dupml{list⟨a⟩} is either \dupml{Nil} or \dupml{Cons[{ hd = h; tl = l}]}
 where \dupml{h} is of type \dupml{a} and \dupml{l} is of type
 \dupml{list⟨a⟩}.
 
+Let us define a few usual functions on lists:
+
+\begin{pmlcode}
+  val rec length : ∀a, list⟨a⟩ ⇒ nat = fun l {
+    case l {
+      []       → zero
+      hd :: tl → succ (length tl)
+    }
+  }
+
+  val ucons : ∀a b, a ⇒ b ⇒ [ Cons of { hd : a; tl : b} ] =
+    fun hd tl { Cons[{hd;tl}] }
+
+  infix (::) = ucons priority 5 right associative
+
+  val rec map : ∀a b, (a ⇒ b) ⇒ list⟨a⟩ ⇒ list⟨b⟩ = fun fn l {
+    case l {
+      []       → []
+      hd :: tl → fn hd :: map fn tl
+    }
+  }
+
+  infix (@) = app priority 3 left associative
+
+  val rec (@) : ∀b, list⟨b⟩ ⇒ list⟨b⟩ ⇒ list⟨b⟩ = fun l1 l2 {
+    case l1 {
+      []       → l2
+      hd :: tl → hd :: (tl @ l2)
+    }
+  }
+\end{pmlcode}
 
 
 
