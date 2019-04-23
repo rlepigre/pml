@@ -4,8 +4,6 @@ type rec list⟨a⟩ = [ Nil ; Cons of { hd : a; tl : list⟨a⟩}  ]
 val cons : ∀a b, a ⇒ b ⇒ [ Cons of { hd : a; tl : b} ] =
   fun hd tl { Cons[{hd;tl}] }
 
-infix (::) = cons priority 5 right associative
-
 val rec map : ∀a b, ((a ⇒ b) ⇒ list⟨a⟩ ⇒ list⟨b⟩) =
   fun f l {
     case l {

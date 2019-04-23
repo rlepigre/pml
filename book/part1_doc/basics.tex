@@ -549,11 +549,6 @@ Let us define a few usual functions on lists:
     }
   }
 
-  val ucons : ∀a b, a ⇒ b ⇒ [ Cons of { hd : a; tl : b} ] =
-    fun hd tl { Cons[{hd;tl}] }
-
-  infix (::) = ucons priority 5 right associative
-
   val rec map : ∀a b, (a ⇒ b) ⇒ list⟨a⟩ ⇒ list⟨b⟩ = fun fn l {
     case l {
       []       → []

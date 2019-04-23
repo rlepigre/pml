@@ -107,10 +107,12 @@ let parser deduce  = _show_  | _deduce_ | _prove_
 let parser from = _showing_ | _from_
 
 (* Infix *)
-let reserved_infix = [ "≡"; "∈"; "=" ]
+let reserved_infix = [ "≡"; "∈"; "="; "::" ]
 
 let parser infix_re = s:''[^][(){}a-zA-Z0-9_'"";,. \n\t\r]+'' ->
     if List.mem s reserved_infix then give_up (); s
+
+let epsilon = 1e-6
 
 let parser infix =
   s:infix_re ->
@@ -118,7 +120,6 @@ let parser infix =
       try
         let open Env in
         let {name; prio=p; asso; hiho} = Hashtbl.find infix_tbl s in
-        let epsilon = 1e-6 in
         let q = p -. epsilon in
         let (pl, pr) = match asso with
           | LeftAssoc  -> (p, q)
@@ -256,6 +257,10 @@ let (<<=) = fun p1 p2 ->
   | Stk   , Stk    -> true
   | Ord p1, Ord p2 -> p1 <= p2
   | _     , _      -> false
+
+let get_infix_prio u =
+  match u.elt with EInfx(_,p) -> p
+                 | _ -> 0.0
 
 let to_full = function
 (* Parser for expressions. *)
@@ -399,12 +404,25 @@ let parser expr @(m : mode) =
       when m <<= Trm A
       -> from_int _loc n
   (* Term (infix symbol) *)
+  | t:(expr (Trm I)) s:"::" when m <<= Trm I ->>
+      let p = 5.0 in
+      let pl' = get_infix_prio t in
+      let _ = if pl' > p -. epsilon then give_up () in
+      u:(expr (Trm I)) ->
+        let pr' = get_infix_prio u in
+        if pr' > p then give_up ();
+        let t =
+          Pos.in_pos _loc (ECons(Pos.in_pos _loc_s "Cons",
+            Some (record _loc [(Pos.none "hd", Some t)
+                              ; (Pos.none "tl", Some u)], ref `T)))
+        in
+        Pos.in_pos _loc (EInfx(t,p))
   | t:(expr (Trm I)) (s,_,p,pl,pr,ho,minus):infix when m <<= Trm I ->>
-      let pl' = match t.elt with EInfx(_,p) -> p | _ -> 0.0 in
+      let pl' = get_infix_prio t in
       let _ = if pl' > pl then give_up () in
       (no_digit_if_minus minus)
       u:(expr (Trm I))
-      -> let pr' = match u.elt with EInfx(_,p) -> p | _ -> 0.0 in
+      -> let pr' = get_infix_prio u in
          if pr' > pr then give_up ();
          let t =
            if ho then

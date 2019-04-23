@@ -7,11 +7,6 @@ val nil : ∀a, list⟨a⟩ = []
 val cons : ∀a, a ⇒ list⟨a⟩ ⇒ list⟨a⟩ =
   fun hd tl { Cons[{hd;tl}] }
 
-val ucons : ∀a b, a ⇒ b ⇒ [ Cons of { hd : a; tl : b} ] =
-  fun hd tl { Cons[{hd;tl}] }
-
-infix (::) = ucons priority 5 right associative
-
 val head : ∀a, list⟨a⟩ ⇒ option⟨a⟩ =
   fun l {
     case l {
@@ -80,11 +75,11 @@ val sum : list⟨nat⟩ ⇒ nat = (fold_left add zero)
 
 infix (@) = app priority 3 left associative
 
-val rec app : ∀b, list⟨b⟩ ⇒ list⟨b⟩ ⇒ list⟨b⟩ =
+val rec (@) : ∀b, list⟨b⟩ ⇒ list⟨b⟩ ⇒ list⟨b⟩ =
   fun l1 l2 {
     case l1 {
       []       → l2
-      hd :: tl → cons hd (app tl l2)
+      hd :: tl → hd :: (tl @ l2)
     }
   }
 
