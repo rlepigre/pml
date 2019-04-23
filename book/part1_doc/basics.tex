@@ -566,6 +566,17 @@ Let us define a few usual functions on lists:
   }
 \end{pmlcode}
 
+First, as lists are very common, two syntactic sugars are provided:
+\dupml{[]} for \dupml{Nil} and \dupml{h :: t} for
+\dupml{Cons[{hd = h; tl = t}]}. They can be used both in terms and pattern.
+  The symbol  \dupml{(::)} is right associative with a priority of 5.
+
+The \dupml{length} and \dupml{map} function should not be very surprising.
+One should note the \dupml{∀} in their type as they are \emph{polymorphic}:
+they work for lists of elements of any type. For the append function, as we
+previously did, we declare the infix symbol we want to use prior to the
+definition.
+
 
 
 
