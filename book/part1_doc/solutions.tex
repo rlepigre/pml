@@ -1,0 +1,82 @@
+
+\chapter{Solutions}
+
+\begin{description}
+\item[\ref{exo-day-1}]
+  \begin{pmlcode}
+    include book.part1_doc.basics
+
+    val rec iter : nat ⇒ ∀a, (a ⇒ a) ⇒ a ⇒ a = fun n f a {
+      case n {
+        0 → a
+        S[n] → iter n f (f a)
+      }
+    }
+
+    val next_day_seven : ∀d∈day, iter 7 next_day d ≡ d =
+      take d;
+      case d {
+        Monday    → qed
+        Tuesday   → qed
+        Wednesday → qed
+        Thursday  → qed
+        Friday    → qed
+        Saturday  → qed
+        Sunday    → qed
+      }
+  \end{pmlcode}
+
+\item[\ref{exo-bool-1}]
+
+  \begin{pmlcode}
+    infix (=>) = imply⟨⟩ priority 8 right associative
+
+    def (=>)⟨b1:τ,b2:τ⟩ = if b1 { b2 } else { true }
+
+    val tauto1 : ∀b1 b2 b3∈bool, (b1 && b2) => b3 ≡ b1 => (b2 => b3) =
+      take b1 b2 b3;
+      if b1 { if b2 { qed } else { qed }} else { qed }
+  \end{pmlcode}
+
+\item[\ref{exo-bool-2}]
+
+  \begin{pmlcode}
+    infix (^^) = xor priority 7 right associative
+
+    val xor : bool ⇒ bool ⇒ bool = fun b1 b2 {
+      if b1 { not b2 } else { b2 }
+    }
+
+    set auto 3 0
+
+    val xor_com : ∀b1 b2∈bool, b1 ^^ b2 ≡ b2 ^^ b1 =
+      take b1 b2; qed
+
+    val xor_ass : ∀b1 b2 b3∈bool, b1 ^^ (b2 ^^ b3) ≡ (b1 ^^ b2) ^^ b3 =
+      take b1 b2 b3; qed
+
+    val xor_neutral : ∀b1∈bool, b1 ^^ false ≡ b1 =
+      take b1; qed
+
+    val xor_opp : ∀b1∈bool, b1 ^^ b1 ≡ false =
+      take b1; qed
+
+    val and_com : ∀b1 b2∈bool, b1 && b2 ≡ b2 && b1 =
+      take b1 b2; qed
+
+    val and_ass : ∀b1 b2 b3∈bool, b1 && (b2 && b3) ≡ (b1 && b2) && b3 =
+      take b1 b2 b3; qed
+
+    val and_abs :  ∀b1∈bool, b1 && false ≡ false =
+      take b1; qed
+
+    val and_neutral : ∀b1∈bool, b1 && true ≡ b1 =
+      take b1; qed
+
+    val xor_dist_and :
+        ∀b1 b2 b3∈bool, b1 && (b2 ^^ b3) ≡ (b1 && b2) ^^ (b1 && b3) =
+      take b1 b2 b3; qed
+  \end{pmlcode}
+\end{description}
+%<!-- Local IspellDict: british -->
+%<!-- Local IspellPersDict: ~/.ispell-british -->

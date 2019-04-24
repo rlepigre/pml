@@ -28,7 +28,7 @@ lib: bin $(LIB_FILES)
 
 # Book test target, testing pml code in the book
 .PHONY: book_tests
-TEXPML= book/part1_doc/basics.pml
+TEXPML= book/part1_doc/basics.pml book/part1_doc/solutions.pml
 book_tests: bin lib $(TEXPML)
 	@for f in $(TEXPML); do \
      echo $$f; \
