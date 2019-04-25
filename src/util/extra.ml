@@ -65,6 +65,12 @@ module Option =
         | None    -> d ()
         | Some(x) -> f x
 
+    let fold : type a b. (b -> a -> a) -> b option -> a -> a =
+      fun f xo a ->
+        match xo with
+        | None -> a
+        | Some b -> f b a
+
     let iter : type a. (a -> unit) -> a option -> unit =
       fun f xo ->
         match xo with

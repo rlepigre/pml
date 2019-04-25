@@ -52,6 +52,9 @@ module Option : sig
   (** [udefault_map] is a combination of [map] and [udefault]. *)
   val udefault_map : (unit -> 'b) -> ('a -> 'b) -> 'a option -> 'b
 
+  (** [fold f o a] gives a or f b a if o = Some b *)
+  val fold : ('b -> 'a -> 'a) -> 'b option -> 'a -> 'a
+
   (** [iter f xo] applies [f] to the value stored in [xo]. *)
   val iter : ('a -> unit) -> 'a option -> unit
 
