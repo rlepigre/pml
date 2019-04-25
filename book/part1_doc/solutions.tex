@@ -3,6 +3,7 @@
 
 \begin{description}
 \item[\ref{exo-day-1}]
+
   \begin{pmlcode}
     include book.part1_doc.basics
 
@@ -47,7 +48,7 @@
       if b1 { not b2 } else { b2 }
     }
 
-    set auto 3 0
+    set auto 3 3
 
     val xor_com : ∀b1 b2∈bool, b1 ^^ b2 ≡ b2 ^^ b1 =
       take b1 b2; qed
@@ -76,6 +77,61 @@
     val xor_dist_and :
         ∀b1 b2 b3∈bool, b1 && (b2 ^^ b3) ≡ (b1 && b2) ^^ (b1 && b3) =
       take b1 b2 b3; qed
+  \end{pmlcode}
+
+\item[\ref{exo-nat-1}] See {\tt lib/nat\_proofs.pml}
+
+\item[\ref{exo-nat-2}]
+
+  \begin{pmlcode}
+    include lib.nat
+    include lib.nat_proofs
+
+    val rec pow : nat ⇒ nat ⇒ nat = fun n e {
+      case e {
+        0    → 1
+        S[e] → n * pow n e
+      }
+    }
+
+    val rec pow_add
+        : ∀n e1 e2∈nat, pow n (e1 + e2) ≡ pow n e1 * pow n e2 =
+      take n e1 e2;
+      case e1 {
+        0    → show pow n e1 * pow n e2 ≡ 1 * pow n e2
+                 ≡ pow n e2 by mul_one_n (pow n e2)
+        S[e] → show pow n (e1 + e2) ≡ n * pow n (e + e2)
+                 ≡ n * (pow n e * pow n e2) by pow_add n e e2
+                 ≡ (n * pow n e) * pow n e2
+                   by mul_assoc n (pow n e) (pow n e2)
+                 ≡ pow n e1 * pow n e2
+      }
+
+    val rec pow_one_n : ∀n∈nat, pow 1 n ≡ 1 =
+      take n;
+      case n {
+        0    → qed
+        S[m] → show 1 * pow 1 m ≡ pow 1 m by mul_one_n (pow 1 m)
+                                ≡ 1 by pow_one_n m
+      }
+
+    val rec pow_mul_rev
+        : ∀n e1 e2∈nat, pow n (e1 * e2) ≡ pow (pow n e2) e1 =
+      take n e1 e2;
+      case e1 {
+        0    → qed
+        S[e] → show pow n (e2 + e * e2) ≡ pow n e2 * pow n (e * e2)
+                 by pow_add n e2 (e * e2)
+               ≡ pow n e2 * pow (pow n e2) e by pow_mul_rev n e e2
+               ≡ pow (pow n e2) e1
+        }
+
+    val rec pow_mul
+        : ∀n e1 e2∈nat, pow n (e1 * e2) ≡ pow (pow n e1) e2 =
+      take n e1 e2;
+      use mul_comm e1 e2;
+      use pow_mul_rev n e2 e1;
+      qed
   \end{pmlcode}
 \end{description}
 %<!-- Local IspellDict: british -->
