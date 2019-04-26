@@ -12,7 +12,6 @@
 \usepackage{hyperref}
 \usepackage{geometry}
 \usepackage{mdframed}
-\usepackage{thmbox}
 \usepackage{longtable}
 \usepackage{minted}
 
@@ -69,13 +68,13 @@
 \newcommand{\sem}[1]{\ensuremath{\llbracket #1 \rrbracket}}
 \newcommand{\Mid}{$\vert$}
 
-\newtheorem{definition}{Definition}
-\newtheorem{example}{Example}
-\newtheorem{lemma}{Lemma}
-\newtheorem{theorem}{Theorem}
-\newtheorem{corollary}{Corollary}
+\newmdtheoremenv{definition}{Definition}
+\newmdtheoremenv{lemma}{Lemma}
+\newmdtheoremenv{theorem}{Theorem}
+\newmdtheoremenv{corollary}{Corollary}
+\newmdtheoremenv{exercise}{Exercise}
 \newtheorem{remark}{Remark}
-\newtheorem{exercise}{Exercise}
+\newtheorem{example}{Example}
 
 \begin{document}
 
