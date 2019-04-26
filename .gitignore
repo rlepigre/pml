@@ -13,6 +13,8 @@ book/pml_book.log
 book/pml_book.out
 book/pml_book.pdf
 book/pml_book.toc
+book/pml_book.pygmented
+book/_minted*
 book/part2_theory/chap2_types/new_types.aux
 book/part2_theory/chap2_types/new_types.log
 book/part2_theory/chap2_types/new_types.pdf

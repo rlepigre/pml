@@ -57,7 +57,7 @@ clean:
 	@rm -f $(TEXPML)
 
 distclean: clean
-	@rm -rf book/_minted*
+	@rm -rf book/_minted* book/pml_book.pygmented
 	@find . -type f -name "*~" -exec rm {} \;
 	@find . -type f -name \#\* -exec rm {} \;
 	@find . -type f -name .\#\* -exec rm {} \;
