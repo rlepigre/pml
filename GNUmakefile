@@ -54,7 +54,7 @@ time: bin
 clean:
 	@find . -name \*.pmi -exec rm {} \;
 	@dune clean
-	- rm $(TEXPML)
+	@rm -f $(TEXPML)
 
 distclean: clean
 	@rm -rf book/_minted*
