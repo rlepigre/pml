@@ -306,7 +306,7 @@ let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
                    print_app f; fprintf ch "%a⟩" exa a
   | HDef(_,d)   -> output_string ch d.expr_name.elt
   | Func(t,a,b) -> let (l,r) = if Prp F < pr then ("(",")") else ("","") in
-                   fprintf ch "%s%a%s %a %a" l (ex (Prp P)) a r arrow t exp b
+                   fprintf ch "%s%a %a %a%s" l (ex (Prp P)) a arrow t exp b r
   | Prod(m)     -> let pelt ch (l,(_,a)) = fprintf ch "%s : %a" l exp a in
                    let elp = if A.is_empty m then " ⋯" else "; ⋯" in
                    fprintf ch "{%a%s}" (print_map pelt "; ") m elp
@@ -329,7 +329,7 @@ let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
                      | Some(e1,s,e2) -> fprintf ch "%a%s%a" exi e1 s exi e2
                      | None ->
                        let (l,r) = if Prp M <= pr then ("(",")") else ("","")
-                       in fprintf ch "%a ∈ %s%a%s" exi t l (ex (Prp M)) a r
+                       in fprintf ch "%s%a ∈ %a%s" l exi t (ex (Prp M)) a r
                    end
   | Rest(a,c)   -> begin
                      match is_eq e with
