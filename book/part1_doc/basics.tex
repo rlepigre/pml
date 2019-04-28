@@ -5,8 +5,8 @@
 \subsection{A simple enumerated type}\label{basics-day}
 
 We start with a very simple example defining a data type for the days of the
-week\footnote{Example insipired by the software foundation course of Benjamin
-  Peirce et all.}:
+week. This example is inspired by the software foundation course of Benjamin
+  Pierce et all\cite{Pierce:SF1}:
 
 \begin{pmlcode}
   type day = [ Monday ; Tuesday ; Wednesday
@@ -52,7 +52,7 @@ We define functions using this type:
     fun d { next_day (next_day d) }
 \end{pmlcode}
 
-The \dupml{val} keyword indicates that we define a pml value and is followed
+The \dupml{val} keyword indicates that we define a PML value and is followed
 by a name for this value and its type. Here \dupml{day ⇒ day} means a total
 pure function that takes a \dupml{day} as argument and returns an element of
 the same type.
@@ -74,7 +74,7 @@ The type used for properties are richer, here it is an equality which is a
 type inhabited if and only if the equality holds (we will see later what is
 the element of this type). The body of the definition is just
 \dupml{qed} meaning that the proof results only from a computation.
-This first property is trivial for PML
+This first property is trivial for PML.
 
 \begin{pmlcode}
   val next_previous_day : ∀d∈day, next_day (previous_day d) ≡ d =
@@ -95,9 +95,9 @@ of type \dupml{day}, applying the function \dupml{previous_day} to \dupml{d} and
 \dupml{next_day} to the result gives the initial value back.
 
 The proof starts with the \dupml{take} keyword to introduce a fresh variable
-\dupml{d} for an arbitrary day. In fact, we could use then \dupml{fun} keyword, both
+\dupml{d} for an arbitrary day. In fact, we could use the \dupml{fun} keyword, both
 are equivalent. Then, we perform a case analysis on \dupml{d} and in each case,
-the proof result of a computation hence we can use \dupml{qed}. Indeed, if
+the proof results of a computation hence we can use \dupml{qed}. Indeed, if
 \dupml{d ≡ Monday}, by definition \dupml{previous_day d ≡ Sunday}
 and \dupml{next_day Sunday ≡ Monday ≡ d}. The same happens for all seven cases.
 
@@ -169,7 +169,7 @@ However, there is a problem with the definition of \dupml{and} and
 (resp. a disjunction) of
 two expressions, the second expression is only evaluated if the first
 expression evaluates to \dupml{true} (resp. \dupml{false}).
-As pml is in call by value, all arguments of a function are evaluated
+As PML is in call by value, all arguments of a function are evaluated
 before calling the function.
 
 It is possible to fix this using the \dupml{def} keyword as follows
@@ -253,7 +253,7 @@ We can prove a few properties:
     qed
 \end{pmlcode}
 
-Nothing if new in these proofs as we are still manipulating finite data
+Nothing is new in these proofs as we are still manipulating finite data
 types.
 
 \begin{exercise}\label{exo-bool-1}
@@ -354,8 +354,8 @@ We can define more interesting function and gives them an infix notation:
   }
 \end{pmlcode}
 
-Here we introduce the infix symbol before the definition to use it inside the
-definition. We also remark that PML allos to use \dupml{0} for \dupml{Zero}
+We introduce the infix symbol before the definition to use it inside the
+definition. We also remark that PML allows to use \dupml{0} for \dupml{Zero}
 in case analysis. These are again recursive programs based on the
 following equations:
 
@@ -433,12 +433,12 @@ For commutativity we first need two lemmas:
 \end{pmlcode}
 
 In this two lemmas we immediately see that the current goal corresponds to an
-induction hypothesis that we can use to finish the proof. It is important
-to know that the \dupml{take}, \dupml{showing} and \dupml{use} keywords are
-simple syntactic sugar that one can use to make proof readable and also
-to gather some knowledge when we are struggling with a difficult proof.
-For instance, if a \dupml{showing} fails, this means we don't know what we
-must prove or somme lemmas should be use to reach the wanted goal.
+induction hypothesis that we can use to finish the proof. It is important to
+know that the \dupml{take}, \dupml{showing} and \dupml{use} keywords are
+simple syntactic sugar that one can use to make proof readable and also to
+gather some knowledge when we are struggling with a difficult proof.  For
+instance, if a \dupml{showing} fails, either the current goal is not implied
+by what we wrote of we must prove some lemmas to reach the wanted goal.
 
 In fact, much shorter proofs are possible:
 \begin{pmlcode}
@@ -520,7 +520,7 @@ Here is the definition of the type for lists:
 \end{pmlcode}
 
 Here we see two novelties. First, \dupml{list} is a parametric type
-depending on one other type. This means that \dupml{list} is
+depending on another type. This means that \dupml{list} is
 an expression of sort \dupml{ο → ο}.
 
 Second, we are using records. A record is some kind of association list
@@ -578,8 +578,100 @@ they work for lists of elements of any type. For the append function, as we
 previously did, we declare the infix symbol we want to use prior to the
 definition.
 
+Here are two classical functions on lists:
+\begin{pmlcode}
+  val rec rev_app : ∀a, list⟨a⟩ ⇒ list⟨a⟩ ⇒ list⟨a⟩ =
+    fun l1 l2 {
+      case l1 {
+        [] → l2
+        hd::tl → rev_app tl (hd::l2)
+      }
+    }
 
+  val rec rev : ∀a, list⟨a⟩ ⇒ list⟨a⟩ =
+    fun l { rev_app l [] }
 
+  val rec fold_left : ∀a b, (a ⇒ b ⇒ a) ⇒ a ⇒ list⟨b⟩ ⇒ a =
+    fun f a l {
+      case l {
+        []     → a
+        hd::tl → fold_left f (f a hd) tl
+      }
+    }
 
+  val rec fold_right : ∀a b, (b ⇒ a ⇒ a) ⇒ list⟨b⟩ ⇒ a ⇒ a =
+    fun f l a {
+      case l {
+        []     → a
+        hd::tl → f hd (fold_right f tl a)
+      }
+    }
+\end{pmlcode}
+
+The function \dupml{rev_app} is similar to \dupml{(@)}
+except it reverse its first argument while concatenating it
+on the second. However, it is more efficient because
+\dupml{(@)} must remember in the stack the job to do after
+the recursive call while for \dupml{rev_app}, the result of the recursive
+call is the final result. This means that the second function is not using
+a lot of stack space. We say that \dupml{rev_app} is \emph{recursive terminal}.
+
+Then, from \dupml{rev_app} we can define \dupml{rev} to reverse a list.
+
+the two last functions are very classical and defined by the following
+equations:
+\begin{eqnarray*}
+  \dupml{fold_left f a [b1; b2; ⋯ ; bn]} &= \dupml{f (⋯ (f (f a b1) b2) ⋯)
+    bn}\\
+  \dupml{fold_right f [b1; b2; ⋯ ; bn] a} &= \dupml{f b1 (f b2 (⋯ (f bn a) ⋯))}
+\end{eqnarray*}
+
+Notice that the order of the variables \dupml{a}, \dupml{b1}, ⋯, \dupml{bn}
+is the same on both side of each equation. The order of the parameters where
+chosen to ensure this. Again, \dupml{fold_left} is recursive terminal.
+We can now prove a property of these two functions:
+
+\begin{pmlcode}
+  val swap : ∀a b c, (a ⇒ b ⇒ c) ⇒ (b ⇒ a ⇒ c) =
+    fun f { fun b a { f a b } }
+
+  val rec fold_rev_app : ∀a b, ∀f∈(b ⇒ a ⇒ a), ∀x∈a, ∀l1 l2∈list⟨b⟩,
+      fold_left (swap f) x (rev_app l1 l2)
+      ≡ fold_left (swap f) (fold_right f l1 x) l2 =
+    take f x l1 l2;
+    case l1 {
+      []     → show fold_left (swap f) x (rev_app l1 l2)
+               ≡ fold_left (swap f) x l2
+               ≡ fold_left (swap f) (fold_right f l1 x) l2
+      hd::tl → show fold_left (swap f) x (rev_app l1 l2)
+               ≡ fold_left (swap f) x (rev_app tl (hd::l2))
+               ≡ fold_left (swap f) (fold_right f tl x) (hd::l2)
+                 by fold_rev_app f x tl (hd::l2)
+               ≡ fold_left (swap f) (f hd (fold_right f tl x)) l2
+               ≡ fold_left (swap f) (fold_right f l1 x) l2
+    }
+
+  val rec fold_rev :  ∀a b, ∀f∈(b ⇒ a ⇒ a), ∀x∈a, ∀l∈list⟨b⟩,
+      fold_right f l x ≡ fold_left (swap f) x (rev l) =
+    take f x l;
+    use fold_rev_app f x l []
+\end{pmlcode}
+
+This property is usefull in practice because it might be easier to
+prove the correctness of some code with \dupml{fold_right} while
+one might want to use \dupml{fold_left} for efficiency. This results allows
+to do both!
+
+\begin{exercice}\label{exo-list-1}
+  Prove that reversing twice a list gives the original list. You will need a
+  lemma about \dupml{rev_app} which is not surprising ⋯ but also a lemma
+  about \dupml{(@)}.
+\end{exercice}
+
+\begin{exercice}\label{exo-list-2}
+  Prove some result about the composition of \dupml{map}, \dupml{fold_right}
+  and \dupml{fold_left}. This kind of lemmas is useful to avoid building and
+  intermediate list.
+\end{exercice}
 %<!-- Local IspellDict: british -->
 %<!-- Local IspellPersDict: ~/.ispell-british -->

@@ -133,6 +133,76 @@
       use pow_mul_rev n e2 e1;
       qed
   \end{pmlcode}
+
+\item[\ref{exo-list-1}]
+  \begin{pmlcode}
+    val rec rev_app_rev_app : ∀a, ∀l1 l2 l3∈list⟨a⟩,
+        rev_app (rev_app l1 l2) l3 ≡ rev_app l2 (l1 @ l3) =
+      take l1 l2 l3;
+      case l1 {
+        []   → qed
+        h::l → show rev_app (rev_app l1 l2) l3
+               ≡ rev_app (rev_app l (h::l2)) l3
+               ≡ rev_app (h::l2) (l @ l3)
+                 by rev_app_rev_app l (h::l2) l3
+               ≡ rev_app l2 (l1 @ l3)
+      }
+
+    val rec app_l_nil : ∀a, ∀l∈list⟨a⟩, l @ [] ≡ l =
+      take l;
+      case l {
+        []   → qed
+        h::l → app_l_nil l
+      }
+
+    val rev_rev : ∀a, ∀l∈list⟨a⟩, rev (rev l) ≡ l =
+      take l;
+      deduce rev (rev l) ≡ l @ [] by rev_app_rev_app l [] [];
+      use app_l_nil l
+   \end{pmlcode}
+
+\item[\ref{exo-list-2}]
+  \begin{pmlcode}
+    infix (°) = compose priority 5 right associative
+    val (°) : ∀a b c, (b ⇒ c) ⇒ (a ⇒ b) ⇒ (a ⇒ c) =
+      fun f g { fun x { f (g x) } }
+
+    val rec map_map : ∀a b c, ∀f∈(b ⇒ c), ∀g∈(a ⇒ b), ∀l∈list⟨a⟩,
+                        map f (map g l) ≡ map (f ° g) l =
+      take f g l;
+      case l {
+        []   → qed
+        h::l → map_map f g l
+      }
+
+    val rec fold_right_map :
+      ∀a b c, ∀f ∈(b ⇒ c ⇒ c), ∀g∈(a ⇒ b), ∀l∈list⟨a⟩, ∀x∈c,
+       fold_right f (map g l) x ≡ fold_right (fun x y {f (g x) y}) l x =
+      take f g l x;
+      case l {
+        []    → qed
+        h::l' → let k = fun x y {f (g x) y};
+                show fold_right f (map g l) x
+                  ≡ f (g h) (fold_right f (map g l') x)
+                  ≡ k h (fold_right k l' x)
+                    by fold_right_map f g l' x
+                  ≡ fold_right k l x
+      }
+
+    val rec fold_left_map :
+      ∀a b c, ∀f ∈(c ⇒ b ⇒ c), ∀g∈(a ⇒ b), ∀l∈list⟨a⟩, ∀x∈c,
+       fold_left f x (map g l) ≡ fold_left (fun x y {f x (g y)}) x l =
+      take f g l x;
+      case l {
+        []    → qed
+        h::l' → let k = fun x y {f x (g y)};
+                show fold_left f x (map g l)
+                  ≡ fold_left f (f x (g h)) (map g l')
+                  ≡ fold_left k (k x h) l'
+                    by fold_left_map f g l' (k x h)
+                  ≡ fold_left k x l
+      }
+  \end{pmlcode}
 \end{description}
 %<!-- Local IspellDict: british -->
 %<!-- Local IspellPersDict: ~/.ispell-british -->
