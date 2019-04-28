@@ -13,15 +13,14 @@ type vec⟨a:ο,s:τ⟩ = ∃l:ι, l∈(list⟨a⟩ | length l ≡ s)
 
 val vnil : ∀a:ο, vec⟨a,zero⟩ = nil
 
-val vcns : ∀a:ο,∀s:ι, ∀x∈a, vec⟨a,s⟩ ⇒ vec⟨a,S[s]⟩ =
+val vcns : ∀a:ο,∀s:ι, a ⇒ vec⟨a,s⟩ ⇒ vec⟨a,S[s]⟩ =
   fun y ls { y::ls }
 
 val rec app : ∀a:ο, ∀n1 n2:ι, vec⟨a,n1⟩ ⇒ vec⟨a,n2⟩ ⇒ vec⟨a,add n1 n2⟩ =
   fun l1 l2 {
     case l1 {
-      []    → l2
-      h::l →
-        vcns h (app l l2)
+      []   → l2
+      h::l → vcns h (app l l2)
     }
   }
 

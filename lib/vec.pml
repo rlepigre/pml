@@ -12,10 +12,7 @@ val rec app : ∀a, ∀m n:ι, vec⟨a,m⟩ ⇒ vec⟨a,n⟩ ⇒ vec⟨a, add m 
   fun l1 l2 {
     case l1 {
       []   → l2
-      x::l → let _ = length l;
-             // NOTE: let _ = ⋯ is necessary to have l : vec⟨a,length l⟩
-             // It is not a totality issue
-             x::app l l2
+      x::l → x::app l l2
     }
   }
 

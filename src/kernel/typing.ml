@@ -589,8 +589,8 @@ let rec subtype =
          let rwit = Pos.none (Appl(t, wit)) in
          (* if the first function type is total, we can assume that
             the above witness is a value.
-            NOTE: we can not build ctf_f now, because we need to use
-            ctx first below and is would trigger reset of the pool *)
+            NOTE: we can not build ctx_f now, because we need to use
+            ctx first below and it would trigger reset of the pool *)
          let check_right () =
            try
              let (rwit,ctx_f) =
@@ -603,14 +603,18 @@ let rec subtype =
            with
              Contradiction -> None
          in
+         let is_uvar a = match (Norm.whnf a).elt
+           with UVar _ -> true | _ -> false
+         in
          let p1, p2 =
            (* heuristic to choose what to check first *)
-           match is_singleton a1 with
-           | Some _ ->
+           match is_singleton a1, is_singleton a2 with
+           | Some _, _ | _, Some _
+                when not (is_uvar a1) && not (is_uvar a2) ->
               let p1 = subtype ctx wit a2 a1 in
               let p2 = check_right () in
               (p1,p2)
-           | None ->
+           | _     , _ ->
               let p2 = check_right () in
               let p1 = subtype ctx wit a2 a1 in
               (p1,p2)
