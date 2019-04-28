@@ -13,7 +13,7 @@ type vec⟨a:ο,s:τ⟩ = ∃l:ι, l∈(list⟨a⟩ | length l ≡ s)
 
 val vnil : ∀a:ο, vec⟨a,zero⟩ = nil
 
-val vcns : ∀a:ο,∀s:ι, a ⇒ vec⟨a,s⟩ ⇒ vec⟨a,S[s]⟩ =
+val vcns : ∀a:ο,∀s:τ, a ⇒ vec⟨a,s⟩ ⇒ vec⟨a,S[s]⟩ = //FIXME: sort ι fails below
   fun y ls { y::ls }
 
 val rec app : ∀a:ο, ∀n1 n2:ι, vec⟨a,n1⟩ ⇒ vec⟨a,n2⟩ ⇒ vec⟨a,add n1 n2⟩ =
