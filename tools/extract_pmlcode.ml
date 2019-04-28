@@ -47,13 +47,23 @@ let _ =
             count_space line;
             lines := line :: !lines
           done
-        with Exit -> lines := "" :: !lines
+        with Exit ->
+          List.iter (fun line ->
+              let line = remove_space line in
+              output_string chout line;
+              output_char chout '\n') (List.rev !lines);
+          output_char chout '\n';
+          lines := []
     done
-  with End_of_file ->
-    List.iter (fun line ->
-        let line = remove_space line in
-        output_string chout line;
-        output_char chout '\n') (List.rev !lines)
+  with
+  | End_of_file ->
+    if !lines <> [] then
+      begin
+        Printf.eprintf "missing \\end{pmlcode}\n%!";
+        exit 1
+      end;
+    ()
+
 
 let _ = close_out chout
 let _ = close_in  chin
