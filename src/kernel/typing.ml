@@ -1420,6 +1420,7 @@ and is_typed : type a. a v_or_t -> a ex loc -> bool = fun t e ->
   | _, Valu(v)         -> is_typed VoT_V v
   | _, Proj(v,_)       -> is_typed VoT_V v
   | _, Cons(_,v)       -> is_typed VoT_V v
+  | _, LAbs(_,b,_)     -> is_typed VoT_T (bndr_term b)
   | _, Reco(m)         -> A.for_all (fun _ v -> is_typed VoT_V (snd v)) m
   | _, VDef _          -> true
   | _, FixY _          -> true
