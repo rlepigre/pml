@@ -476,22 +476,21 @@ let parser expr @(m : mode) =
       when m <<= Trm A
       -> if_then_else _loc c t e
   (* Term (replacement) *)
-  | _check_ '{' u:term '}' _for_ '{' t:term '}'
-    b:{_:because '{' term '}' }?
-      when m <<= Trm A
+  | _check_ '{' u:term '}' _for_ '{' t:term '}' b:justification?
+      when m <<= Trm R
       -> in_pos _loc (ERepl(t,u,b))
   (* Term (totality by purity) *)
   | _delim_ '{' u:term '}'
       when m <<= Trm R
       -> in_pos _loc (EDelm(u))
   (* Term ("show" tactic) *)
-  | deduce a:prop p:{_:because {(expr (Trm R)) | '{' term '}'}}?
+  | deduce a:prop p:justification?
       when m <<= Trm R
       -> show _loc a p
   (* Term ("show" tactic, sequences of eqns) *)
   | deduce a:term eqns:{ _:equiv
                            b:(expr (Trm R))
-                           p:{_:because {(expr (Trm R)) | '{' term '}'}}?
+                           p:justification?
                               -> (_loc,b,p) }+
       when m <<= Trm R
       -> if List.length eqns <= 1 then give_up ();
@@ -564,6 +563,9 @@ let parser expr @(m : mode) =
   | s:goal
       when m <<= Stk || m <<= Trm A
       -> in_pos _loc (EGoal(s))
+
+and parser justification =
+  _:because p:{(expr (Trm R)) | '{' term '}'} -> p
 
 and parser cond opt =
   | t:(expr (Trm I)) when opt
