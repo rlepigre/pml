@@ -1,5 +1,5 @@
 
-\chapter{Solutions}
+\chapter{Solutions of the exercises}
 
 \begin{description}
 \item[\ref{exo-day-1}]
@@ -172,7 +172,10 @@
       take f g l;
       case l {
         []   → qed
-        h::l → map_map f g l
+        h::l' → show map f (map g l)
+                  ≡ f (g h) :: map f (map g l')
+                  ≡ f (g h) :: map (f ° g) l' by map_map f g l'
+                  ≡ map (f ° g) l
       }
 
     val rec fold_right_map :
@@ -203,6 +206,68 @@
                   ≡ fold_left k x l
       }
   \end{pmlcode}
+
+  Remark: these proof could be summarized as ``by induction hypothesis'', which
+  could be translated in PML by:
+
+  \begin{pmlcode}
+    val rec map_map : ∀a b c, ∀f∈(b ⇒ c), ∀g∈(a ⇒ b), ∀l∈list⟨a⟩,
+                        map f (map g l) ≡ map (f ° g) l =
+      take f g l;
+      case l {
+        []    → qed
+        h::l' → map_map f g l'
+      }
+
+    val rec fold_right_map :
+      ∀a b c, ∀f ∈(b ⇒ c ⇒ c), ∀g∈(a ⇒ b), ∀l∈list⟨a⟩, ∀x∈c,
+       fold_right f (map g l) x ≡ fold_right (fun x y {f (g x) y}) l x =
+      take f g l x;
+      case l {
+        []    → qed
+        h::l' → fold_right_map f g l' x
+      }
+
+    val rec fold_left_map :
+      ∀a b c, ∀f ∈(c ⇒ b ⇒ c), ∀g∈(a ⇒ b), ∀l∈list⟨a⟩, ∀x∈c,
+       fold_left f x (map g l) ≡ fold_left (fun x y {f x (g y)}) x l =
+      take f g l x;
+      case l {
+        []    → qed
+        h::l' → fold_left_map f g l' (f x (g h))
+      }
+  \end{pmlcode}
+
+\item[\ref{exo-alist-1}]
+
+  Remark: we need the \dupml{map_app} lemma from \ref{sect-totality}.
+
+  \begin{pmlcode}
+    include book.part1_doc.more
+
+    val rec alist_map : ∀a b, (a ⇒ b) ⇒ alist⟨a⟩ ⇒ alist⟨b⟩ =
+      fun f l1 {
+        case l1 {
+          []   → []
+          h::l → f h :: alist_map f l
+          Append[{l;r}] → Append[{l=alist_map f l; r = alist_map f r}]
+        }
+      }
+
+    val rec alist_map_map : ∀a b, ∀f∈(a⇒b), ∀l∈alist⟨a⟩,
+      alist_to_list (alist_map f l) ≡ map f (alist_to_list l) =
+      take f l1;
+      case l1 {
+        []   → qed
+        h::l → alist_map_map f l
+        Append[{l;r}] →
+          alist_map_map f l; alist_map_map f r;
+          showing (map f (alist_to_list l) @ map f (alist_to_list r))
+            ≡ map f (alist_to_list l @ alist_to_list r);
+          use map_app f (alist_to_list l) (alist_to_list r)
+      }
+  \end{pmlcode}
+
 \end{description}
 %<!-- Local IspellDict: british -->
 %<!-- Local IspellPersDict: ~/.ispell-british -->

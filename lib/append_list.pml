@@ -16,8 +16,8 @@ val list_to_alist : ∀a, list⟨a⟩ ⇒ alist⟨a⟩ =
 val rec alist_to_list : ∀a, alist⟨a⟩ ⇒ list⟨a⟩ =
   fun l {
     case l {
-      Nil       → Nil
-      Cons[c]   → cons c.hd (alist_to_list c.tl)
-      Append[c] → app (alist_to_list c.l) (alist_to_list c.r)
+      []        → []
+      h::l      → h::alist_to_list l
+      Append[c] → alist_to_list c.l @ alist_to_list c.r
     }
   }

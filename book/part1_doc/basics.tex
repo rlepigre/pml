@@ -659,19 +659,110 @@ We can now prove a property of these two functions:
 
 This property is usefull in practice because it might be easier to
 prove the correctness of some code with \dupml{fold_right} while
-one might want to use \dupml{fold_left} for efficiency. This results allows
+one might want to use \dupml{fold_left} for efficiency. This result  allows
 to do both!
 
-\begin{exercice}\label{exo-list-1}
+\begin{exercise}\label{exo-list-1}
   Prove that reversing twice a list gives the original list. You will need a
   lemma about \dupml{rev_app} which is not surprising ⋯ but also a lemma
   about \dupml{(@)}.
-\end{exercice}
+\end{exercise}
 
-\begin{exercice}\label{exo-list-2}
-  Prove some result about the composition of \dupml{map}, \dupml{fold_right}
-  and \dupml{fold_left}. This kind of lemmas is useful to avoid building and
-  intermediate list.
-\end{exercice}
+\begin{exercise}\label{exo-list-2}
+  Prove some result about the composition of \dupml{map} with itself, \dupml{fold_right}
+  and \dupml{fold_left}. This kind of lemmas is useful to avoid building
+  intermediate lists.
+\end{exercise}
+
+\section{Totality issues}\label{sect-totality}
+
+PML, as already mentionned, uses a call-by-value evaluation strategy and
+supports some side effectq like LISP call-cc (see \ref{sect-classical}) or non
+termination.  This leads to difficulties\dots For instance, by definition of
+addition, we know that \dupml{S[x] + g y ≡ S[x + g y]}, but this can not be
+proved if \dupml{g y} does not evaluate to a value. If one know that \dupml{g
+  y} evaluates to a value, adding a line \dupml{let _ = g y;} will solve the
+problem.
+
+Moreover, PML will add such a let automatically when a computation is blocked
+by an application which is not know yet to be total. PML will do this at most
+3 times because the default level of automation is \dupml{set auto 0 3}. This
+means no case analysis added and at most three \dupml{let} definition.
+
+Here is an exemple that illustrates this. The following proof does not
+type-check.
+
+\begin{badpmlcode}
+   val rec map_app : ∀a b, ∀f∈(a ⇒ b), ∀l1 l2∈list⟨a⟩,
+                           map f l1 @ map f l2 ≡ map f (l1 @ l2) =
+     take f l1 l2;
+     case l1 {
+       [] → qed
+       h::l → use map_app f l l2
+     }
+\end{badpmlcode}
+
+Let us write a more detailed proof:
+\begin{pmlcode}
+   val rec map_app : ∀a b, ∀f∈(a ⇒ b), ∀l1 l2∈list⟨a⟩,
+                           map f l1 @ map f l2 ≡ map f (l1 @ l2) =
+     take f l1 l2;
+     case l1 {
+       [] → qed
+       h::l →  show map f l1 @ map f l2
+                 ≡ (f h :: map f l) @ map f l2
+                 ≡ f h :: (map f l @ map f l2)
+                 ≡ f h :: (map f (l @ l2)) by map_app f l l2
+                 ≡ map f (h :: (l @ l2))
+                 ≡ map f (l1 @ l2)
+     }
+\end{pmlcode}
+
+This works because there are more steps and each step needs less than three
+\dupml{let} added.
+
+Let us write a proof with all the needed \dupml{let} being explicit (these
+are terms that appears in the previous proof and that would block some
+evaluation if they where not values):
+
+\begin{pmlcode}
+   val rec map_app : ∀a b, ∀f∈(a ⇒ b), ∀l1 l2∈list⟨a⟩,
+                           map f l1 @ map f l2 ≡ map f (l1 @ l2) =
+     take f l1 l2;
+     case l1 {
+       [] → qed
+       h::l → set auto 0 0; // make sure no let added
+              let _ = map f l;
+              let _ = map f l2;
+              let _ = l @ l2;
+              let _ = f h;
+              use map_app f l l2
+     }
+\end{pmlcode}
+
+And a much simpler proof just increasing the auto level:
+\begin{pmlcode}
+   val rec map_app : ∀a b, ∀f∈(a ⇒ b), ∀l1 l2∈list⟨a⟩,
+                           map f l1 @ map f l2 ≡ map f (l1 @ l2) =
+     take f l1 l2;
+     case l1 {
+       [] → qed
+       h::l → set auto 0 4; use map_app f l l2
+     }
+\end{pmlcode}
+
+A few explanation on why this is needed beside the fact that
+by choice PML does not have only total functions (i.e. function yielding
+values). In the above example, we need the totality of for instance
+\dupml{map f l}. By typing, as we use only the arrow denoting total function,
+PML knows this yield a value. But in two of the four proofs above, this
+expression does not even appears. In the detailed proof, using the
+\dupml{show} keyword, the expression appears, but equivalence in PML is
+untyped! The use of an untyped equivalnce may seem strange, but is essential to allow proving and using
+correct programs that are untyped, provided one can prove their correction.
+Thus \dupml{let} (or something equivalent), are necessary to force PML
+to typecheck these expressions. As this is very annoying, PML
+ will add the needed \dupml{let} automatically.
+
 %<!-- Local IspellDict: british -->
 %<!-- Local IspellPersDict: ~/.ispell-british -->
