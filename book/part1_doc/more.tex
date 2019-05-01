@@ -1,0 +1,115 @@
+\chapter{Subtyping, polymorphic variants, ...}
+
+\section{Append lists}
+
+As first example using subtyping, we will consider the type of lists
+extended with a append constructor, this type is a kind of mixture of
+lists and binary trees. More importantly, any list will be an append list.
+
+\begin{pmlcode}
+  include lib.nat
+  include lib.list
+
+  type rec alist⟨a⟩ = [Nil
+                      ; Cons of {hd : a ; tl : alist⟨a⟩}
+                      ; Append of {l : alist⟨a⟩; r : alist⟨a⟩}]
+
+  assert list⟨nat⟩ ⊂ alist⟨nat⟩
+  assert ¬ alist⟨nat⟩ ⊂ list⟨nat⟩
+\end{pmlcode}
+
+We see that the type \dupml{alist} is identical to \dupml{list} except
+for an extra constructor \dupml{Append}. This implies that a \dupml{list}
+is also an \dupml{alist} while the converse is false. We say that the type
+\dupml{list} is a \emph{subtype} of \dupml{alist}. The converse is naturally
+false and this can be checked using the \dupml{assert} keyword.
+
+Here is a function converting an append list to a list.
+
+\begin{pmlcode}
+  val rec alist_to_list : ∀a, alist⟨a⟩ ⇒ list⟨a⟩ =
+  fun l {
+    case l {
+      []             → []
+      h::l           → h::alist_to_list l
+      Append[{l; r}] → alist_to_list l @ alist_to_list r
+    }
+  }
+\end{pmlcode}
+
+\begin{exercise}\label{exo-alist-1}
+  Define a \dupml{alist_map} function for \dupml{alist} and show that
+  mapping and converting to list or converting to list and then mapping yield
+  the same result.
+\end{exercise}
+
+\section{Integer}
+
+The fact we can use the same variants constructors for to distinct types is
+named \emph{polymorphic} variants. Another example of such polymorphic
+variant is for unary integer:
+
+\begin{pmlcode}
+  // Normalized integers
+  type rec pos = [Zero; S of pos]
+  type rec neg = [Zero; P of neg]
+  type int = [Zero; S of pos; P of neg]
+
+  // Non normalised
+  type rec nint = [Zero; S of nint; P of nint]
+
+  assert nat ⊂ int
+  assert int ⊂ nint
+\end{pmlcode}
+
+The way we define the type \dupml{int} forbids integer like
+\dupml{S[P[Zero]]} yielding a unique representation of each integer (its
+normal represetation). We also provide a type allowing non normal
+representation and we check the expected subtyping relatin using \dupml{assert}.
+
+Then, we can write the succesor and predecessor functions:
+
+\begin{pmlcode}
+  val suc : int ⇒ int = fun n {
+    case n {
+      Zero → S[Zero]
+      S[p] → S[S[p]]
+      P[s] → s
+    }
+  }
+
+  val pre : int ⇒ int = fun n {
+    case n {
+      Zero → P[Zero]
+      P[s] → P[P[s]]
+      S[p] → p
+    }
+  }
+\end{pmlcode}
+
+This code is not optimal because for the second case of \dupml{suc}, we need
+to write \dupml{S[p] → S[S[p]]} and \dupml{S[_]} → S[n]} would be preferable
+  but \dupml{n} is of type \dupml{int} and not of type {pos}.  However
+  \dupml{check ... for ...} offers a solution as we know that \dupml{S[p] ≡
+    n}.
+
+\begin{pmlcode}
+  val suc : int ⇒ int = fun n {
+    case n {
+      Zero → S[Zero]
+      S[p] → S[check S[p] for n]
+      P[s] → s
+    }
+  }
+
+  val pre : int ⇒ int = fun n {
+    case n {
+      Zero → P[Zero]
+      P[s] → P[check P[s] for n]
+      S[p] → p
+    }
+  }
+\end{pmlcode}
+
+%<!-- Local IspellDict: british -->
+%<!-- Local IspellPersDict: ~/.ispell-british -->

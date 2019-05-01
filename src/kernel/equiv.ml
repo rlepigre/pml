@@ -2049,7 +2049,7 @@ let get_orig : Ptr.t -> pool -> term =
            let u2 = fn u2 in
            Pos.none (Appl(u1, u2))
         | TN_Proj(u1,l) ->
-           Pos.none (Proj(Pos.none (VPtr u1), l))
+           unbox (t_proj None (box (fn (Ptr.V_ptr u1))) [(None, l)])
         | _ -> assert false
     in
     let t = fn p in
