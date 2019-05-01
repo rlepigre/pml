@@ -10,8 +10,8 @@ assert int ⊂ nint
 val suc : int ⇒ int = fun n {
   case n {
     Zero → S[Zero]
-    S[n] → S[S[n]]
-    P[n] → n
+    S[p] → S[check S[p] for n]
+    P[s] → s
   }
 }
 
@@ -21,8 +21,8 @@ val succ : int ⇒ int = suc //for parsing constant
 val pre : int ⇒ int = fun n {
   case n {
     Zero → P[Zero]
-    P[n] → P[P[n]]
-    S[n] → n
+    P[s] → P[check P[s] for n]
+    S[p] → p
   }
 }
 
