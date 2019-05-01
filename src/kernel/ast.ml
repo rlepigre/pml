@@ -449,9 +449,7 @@ let repl : popt -> tbox -> tbox -> tbox option -> tbox =
   fun p t u b ->
     let u = match b with
       | None -> u
-      | Some b ->
-         let fn x = sequ None b (valu None (vari None x)) in
-         appl None (valu None (labs None None (Pos.none "res") fn)) u
+      | Some b -> sequ None b u
     in
     box_apply2 (fun t u -> Pos.make p (Repl(t,u))) t u
 
