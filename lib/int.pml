@@ -60,17 +60,6 @@ val rec (+) : int ⇒ int ⇒ int = fun n m {
   }
 }
 
-// Difference function.
-infix (-) = minus priority 3 left associative
-
-val rec (-) : int ⇒ int ⇒ int = fun n m {
-  case m {
-    Zero → n
-    S[m] → pre (n - m)
-    P[m] → suc (n - m)
-  }
-}
-
 val rec opp_pos : pos ⇒ neg = fun n {
   case n {
     Zero → Zero
@@ -93,14 +82,13 @@ val rec opp : int ⇒ int = fun n {
   }
 }
 
+// Difference function.
+infix (-) = minus priority 3 left associative
+
+val rec (-) : int ⇒ int ⇒ int = fun n m { n + opp m }
+
 // double
-val rec dbl : int ⇒ int = fun n {
-  case n {
-    Zero → Zero
-    S[n] → suc (suc (dbl n))
-    P[n] → pre (pre (dbl n))
-  }
-}
+val rec dbl : int ⇒ int = fun n { n + n }
 
 // Multiplication function.
 infix (*) = mul priority 2 left associative
