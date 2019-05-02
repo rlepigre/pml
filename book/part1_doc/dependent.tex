@@ -1,0 +1,47 @@
+\chapter{Existential, singleton and dependent type}
+
+\section{Vector}
+
+\section{Set and search trees}
+
+PML also supports a form of subtyping for records. Let us illustrate this
+with set implemented using balances binary trees:
+
+\begin{pmlcode}
+  type rec st1⟨a⟩ = [ Nil
+                   ; Node of { l : st1⟨a⟩ ; e : a ; r : st1⟨a⟩ ; ⋯ } ]
+\end{pmlcode}
+
+Notice the dots in the record type. It means that more fields are allowed.
+By default in PML record are strict and shouldhave exactly the label
+mentionned in the type, but record with more fields are also possible.
+
+Before using this feature, there is another issue. This type is intended to represent binary search trees which means
+that elements stored in \dupml{l} (resp. \dupml{r}) should be smaller
+(resp. bigger) than \dupml{e}. But this is not written in the type.
+To overcome this, we can define a function and use a few more advanced
+feature of PML!
+
+\begin{pmlcode}
+  include lib.bool
+  include lib.comparison
+
+  val rec for_all : ∀a, (a ⇒ bool) ⇒ st1⟨a⟩ ⇒ bool = fun f t {
+    case t {
+      | []               → true
+      | Node[{ l; e; r}] → f e && for_all f l && for_all f r
+    }
+  }
+
+  type rec st⟨a,cmp⟩ = [ Nil
+    ; Node of
+    ∃e, { l : { t ∈ st⟨a,cmp⟩ | for_all (λx.is_Ls (cmp x e)) t }
+        ; e : e ∈ a
+        ; r : { t ∈ st⟨a,cmp⟩ | for_all (λx.is_Gs (cmp x e)) t }
+      ; ⋯ } ]
+
+  val rec add : ∀a, a ⇒ st1⟨a⟩ ⇒ st1⟨a⟩ = {--}
+\end{pmlcode}
+
+%<!-- Local IspellDict: british -->
+%<!-- Local IspellPersDict: ~/.ispell-british -->
