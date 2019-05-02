@@ -198,8 +198,8 @@ PML also supports a form of subtyping for records. Let us illustrate this
 with set implemented using balances binary trees:
 
 \begin{pmlcode}
-  type rec st⟨a⟩ = [ Nil
-                  ; Node of { l : st⟨a⟩ ; e : a ; r : st⟨a⟩ ; ⋯ } ]
+  type rec st1⟨a⟩ = [ Nil
+                   ; Node of { l : st1⟨a⟩ ; e : a ; r : st1⟨a⟩ ; ⋯ } ]
 \end{pmlcode}
 
 Notice the dots in the record type. It means that more fields are allowed.
@@ -216,7 +216,7 @@ feature of PML!
   include lib.bool
   include lib.comparison
 
-  val rec for_all : ∀a, (a ⇒ bool) ⇒ st⟨a⟩ ⇒ bool = fun f t {
+  val rec for_all : ∀a, (a ⇒ bool) ⇒ st1⟨a⟩ ⇒ bool = fun f t {
     case t {
       | []               → true
       | Node[{ l; e; r}] → f e && for_all f l && for_all f r
@@ -230,7 +230,7 @@ feature of PML!
         ; r : { t ∈ st⟨a,cmp⟩ | for_all (λx.is_Gs (cmp x e)) t }
       ; ⋯ } ]
 
-  val rec add : ∀a, a ⇒ st⟨a⟩ ⇒ st⟨a⟩ = {--}
+  val rec add : ∀a, a ⇒ st1⟨a⟩ ⇒ st1⟨a⟩ = {--}
 \end{pmlcode}
 
 %<!-- Local IspellDict: british -->
