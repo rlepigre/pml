@@ -268,6 +268,56 @@
       }
   \end{pmlcode}
 
+  \item[\ref{exo-int-1}] See \dupml{lib/int.pml} and
+    \dupml{lib/int_proofs.pml}.
+
+  \item[\ref{exo-int-2}]
+
+    Two solutions, using comprehension:
+
+    \begin{pmlcode}
+      val rec opp : ∀n∈int,
+        { r ∈ int | r ≡ case n { 0 → r | S[_] → opp_pos n | P[_] → opp_neg n
+        } } =
+        fun n {
+          case n {
+            0    → 0
+            S[p] → P[check opp_pos p for opp p]
+            P[s] → S[check opp_neg s for opp s]
+          }
+        }
+    \end{pmlcode}
+
+    or mutually recursive functions and lemmas (PML needs syntactic sugar):
+    \begin{pmlcode}
+      val rec r :
+        ∃r, r ∈ { opp : int ⇒ int
+        ; opp_pos_lem : ∀p∈pos, r.opp p ≡ opp_pos p
+        ; opp_neg_lem : ∀n∈neg, r.opp n ≡ opp_neg n } =
+        { opp = fun n {
+            case n {
+              0    → 0
+              S[p] → P[check opp_pos p for r.opp p by r.opp_pos_lem p]
+              P[s] → S[check opp_neg s for r.opp s by r.opp_neg_lem s]
+            }
+          }
+        ; opp_pos_lem = (
+          take p;
+          case p {
+            0    → qed
+            S[k] → r.opp_pos_lem k
+          })
+        ; opp_neg_lem = (
+          take n;
+          case n {
+            0    → qed
+            P[k] → r.opp_neg_lem k
+          })
+        }
+
+      val opp : int ⇒ int = r.opp
+    \end{pmlcode}
 \end{description}
+
 %<!-- Local IspellDict: british -->
 %<!-- Local IspellPersDict: ~/.ispell-british -->

@@ -45,9 +45,9 @@ Here is a function converting an append list to a list.
 
 \section{Integer}
 
-The fact we can use the same variants constructors for to distinct types is
+The fact we can use the same variants constructors for two distinct types is
 named \emph{polymorphic} variants. Another example of such polymorphic
-variant is for unary integer:
+variant is for unary integers.
 
 \begin{pmlcode}
   // Normalized integers
@@ -60,19 +60,21 @@ variant is for unary integer:
 
   assert nat ⊂ int
   assert int ⊂ nint
+
+  val zero : int = Zero // For 0 to work
 \end{pmlcode}
 
 The way we define the type \dupml{int} forbids integer like
 \dupml{S[P[Zero]]} yielding a unique representation of each integer (its
 normal represetation). We also provide a type allowing non normal
-representation and we check the expected subtyping relatin using \dupml{assert}.
+representation and we check the expected subtyping relation using \dupml{assert}.
 
-Then, we can write the succesor and predecessor functions:
+Then, we can write the successor and predecessor functions:
 
 \begin{pmlcode}
   val suc : int ⇒ int = fun n {
     case n {
-      Zero → S[Zero]
+      0    → S[0]
       S[p] → S[S[p]]
       P[s] → s
     }
@@ -80,7 +82,7 @@ Then, we can write the succesor and predecessor functions:
 
   val pre : int ⇒ int = fun n {
     case n {
-      Zero → P[Zero]
+      0    → P[0]
       P[s] → P[P[s]]
       S[p] → p
     }
@@ -88,15 +90,15 @@ Then, we can write the succesor and predecessor functions:
 \end{pmlcode}
 
 This code is not optimal because for the second case of \dupml{suc}, we need
-to write \dupml{S[p] → S[S[p]]} and \dupml{S[_]} → S[n]} would be preferable
-  but \dupml{n} is of type \dupml{int} and not of type {pos}.  However
+to write \dupml{S[p] → S[S[p]]} while \dupml{S[_] → S[n]} would be preferable
+  but \dupml{n} is of type \dupml{int} and not of type \dupml{pos}.  However
   \dupml{check ... for ...} offers a solution as we know that \dupml{S[p] ≡
     n}.
 
 \begin{pmlcode}
   val suc : int ⇒ int = fun n {
     case n {
-      Zero → S[Zero]
+      0    → S[0]
       S[p] → S[check S[p] for n]
       P[s] → s
     }
@@ -104,11 +106,131 @@ to write \dupml{S[p] → S[S[p]]} and \dupml{S[_]} → S[n]} would be preferable
 
   val pre : int ⇒ int = fun n {
     case n {
-      Zero → P[Zero]
+      0    → P[0]
       P[s] → P[check P[s] for n]
       S[p] → p
     }
   }
+\end{pmlcode}
+
+For the opposite, the following code is not accepted.
+\begin{badpmlcode}
+  val rec opp : int ⇒ int = fun n {
+    case n {
+      0    → 0
+      S[p] → P[opp p]
+      P[s] → S[opp s]
+    }
+  }
+\end{badpmlcode}
+
+Indeed, in the successor case, PML would need to know that
+\dupml{opp p} is of type \dupml{neg} while it is only of type
+\dupml{int}. Two solutions, first using \dupml{suc} and \dupml{pre}:
+\begin{pmlcode}
+  val rec opp : int ⇒ int = fun n {
+    case n {
+      0    → 0
+      S[p] → pre (opp p)
+      P[s] → suc (opp s)
+    }
+  }
+\end{pmlcode}
+or two auxiliary functions for the types \dupml{pos}
+and \dupml{neg}
+
+\begin{pmlcode}
+  val rec opp_pos : pos ⇒ neg = fun n {
+    case n {
+      0    → 0
+      S[p] → P[opp_pos p]
+    }
+  }
+
+  val rec opp_neg : neg ⇒ pos = fun n {
+    case n {
+    0    → 0
+    P[s] → S[opp_neg s]
+    }
+  }
+
+  val rec opp : int ⇒ int = fun n {
+    case n {
+      0    → 0
+      S[p] → P[opp_pos p]
+      P[s] → S[opp_neg s]
+    }
+  }
+\end{pmlcode}
+
+From the functions above, we easily get addition
+and subtraction:
+
+\begin{pmlcode}
+  infix (+) = add priority 3 left associative
+
+  val rec (+) : int ⇒ int ⇒ int = fun n m {
+    case n {
+      0    → m
+      S[n] → suc (n + m)
+      P[n] → pre (n + m)
+    }
+  }
+
+  infix (-) = minus priority 3 left associative
+
+  val rec (-) : int ⇒ int ⇒ int = fun n m { n + opp m }
+\end{pmlcode}
+
+\begin{exercise}\label{exo-int-1}
+  Define multiplication and prove the commutative ring axioms for
+  \dupml{int}.
+\end{exercise}
+
+\begin{exercise}\label{exo-int-2}
+  Use \dupml{check ⋯ for ⋯} to type-check the first version of \dupml{opp}
+  above. You will need advanced feature like comprehension and restriction described later in this document.
+\end{exercise}
+
+\section{Set and search trees}
+
+PML also supports a form of subtyping for records. Let us illustrate this
+with set implemented using balances binary trees:
+
+\begin{pmlcode}
+  type rec st⟨a⟩ = [ Nil
+                  ; Node of { l : st⟨a⟩ ; e : a ; r : st⟨a⟩ ; ⋯ } ]
+\end{pmlcode}
+
+Notice the dots in the record type. It means that more fields are allowed.
+By default in PML record are strict and shouldhave exactly the label
+mentionned in the type, but record with more fields are also possible.
+
+Before using this feature, there is another issue. This type is intended to represent binary search trees which means
+that elements stored in \dupml{l} (resp. \dupml{r}) should be smaller
+(resp. bigger) than \dupml{e}. But this is not written in the type.
+To overcome this, we can define a function and use a few more advanced
+feature of PML!
+
+\begin{pmlcode}
+  include lib.bool
+  include lib.comparison
+
+  val rec for_all : ∀a, (a ⇒ bool) ⇒ st⟨a⟩ ⇒ bool = fun f t {
+    case t {
+      | []               → true
+      | Node[{ l; e; r}] → f e && for_all f l && for_all f r
+    }
+  }
+
+  type rec st⟨a,cmp⟩ = [ Nil
+    ; Node of
+    ∃e, { l : { t ∈ st⟨a,cmp⟩ | for_all (λx.is_Ls (cmp x e)) t }
+        ; e : e ∈ a
+        ; r : { t ∈ st⟨a,cmp⟩ | for_all (λx.is_Gs (cmp x e)) t }
+      ; ⋯ } ]
+
+  val rec add : ∀a, a ⇒ st⟨a⟩ ⇒ st⟨a⟩ = {--}
 \end{pmlcode}
 
 %<!-- Local IspellDict: british -->
