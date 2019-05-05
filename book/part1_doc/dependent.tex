@@ -2,10 +2,43 @@
 
 \section{Vector}
 
-\section{Set and search trees}
+The canonical example of dependent type is the type of vector,
+that is list of a given size.
 
-PML also supports a form of subtyping for records. Let us illustrate this
-with set implemented using balances binary trees:
+PML offers two ways to define vectors.
+
+\begin{pmlcode}
+  include lib.nat
+  include lib.list
+
+  type vec⟨a,n⟩ = { l ∈ list⟨a⟩ | length l ≡ n }
+
+  val vec_to_list : ∀a, ∀n, vec⟨a,n⟩ ⇒ list⟨a⟩ = fun v { v }
+
+  val list_to_vec : ∀a, ∀l∈list⟨a⟩, vec⟨a, length l⟩ = fun v { v }
+\end{pmlcode}
+
+This exemple is using \emph{comprehension} to form type. In fact, this
+is not a primitive type, it is defined using:
+\begin{itemize}
+\item existential type: \dupml{∃x:s, t⟨x⟩} which is the union of all
+  type \dupml{t⟨x⟩} for all \dupml{x} of sort \dupml{s}. In general PML
+  can infer the sort of \dupml{x} and we can simly write \dupml{∃x, t⟨x⟩}.
+  It is often necessary to indicate the sort for \dupml{ι} and \dupml{τ}, because of subtyping.
+
+\item singleton type:\dupml{u ∈ t} hich is the type only inhabited bu
+  \dupml{u} of type \dupml{t}
+
+\item restriction: \dupml{t | u ≡ v} which is the same type as \dupml{t} if
+  the tw terms \dupml{u} and \dupml{v} are equivalent.
+\end{itemize}
+
+Using this, the type \dupml{{ l ∈ list⟨a⟩ | length l ≡ n }} is a syntactic
+sugar for \dupml{∃l, l ∈ list⟨a⟩ | length l ≡ n} which reads as
+``the union of all singleton \dupml{l ∈ list⟨a⟩} such that \dupml{length l ≡ n}''.
+
+
+\section{Set and search trees}
 
 \begin{pmlcode}
   type rec st1⟨a⟩ = [ Nil

@@ -1,4 +1,4 @@
-\chapter{Subtyping, polymorphic variants, ...}
+\chapter{Subtyping, polymorphic variants}
 
 \section{Append lists}
 
@@ -191,6 +191,74 @@ and subtraction:
   Use \dupml{check ⋯ for ⋯} to type-check the first version of \dupml{opp}
   above. You will need advanced feature like comprehension and restriction described later in this document.
 \end{exercise}
+
+\section{Extensible lists}
+
+PML also supports a form of subtyping for records. Here is an exemple which
+is a very small variation on lists.
+
+\begin{pmlcode}
+  type rec elist⟨a⟩ = [ Nil ; Cons of { hd : a; tl : elist⟨a⟩; ⋯} ]
+
+  assert list⟨nat⟩ ⊂ elist⟨nat⟩
+  assert ¬ elist⟨nat⟩ ⊂ list⟨nat⟩
+\end{pmlcode}
+
+The only difference are the dots at the end of the record type meaning
+that more fields may be present. Adding no field, we can use this type to represent set.
+We use \dupml{ens} as type name because \dupml{set} is a reserved keyword.
+\begin{pmlcode}
+  include lib.bool
+
+  type ens⟨a⟩ = elist⟨a⟩
+
+  val empty : ∀a, ens⟨a⟩ = []
+  val add : ∀a, a ⇒ ens⟨a⟩ ⇒ ens⟨a⟩ = fun x s { x :: s }
+  val rec mem : ∀a, (a ⇒ a ⇒ bool) ⇒ a ⇒ ens⟨a⟩ ⇒ bool = fun eq x s {
+    case s {
+      []    → false
+      y::tl → eq x y || mem eq x tl
+    }
+  }
+\end{pmlcode}
+
+Note that we could have written the same code with \dupml{list}, except that
+some subtyping below would fail. Because PML lacks a polymorphic equality
+working at all types the function \dupml{mem} requires the equality as
+argument. The relation \dupml{≡} can not be used as equality test, it
+is used to form types only.
+
+We can also use \dupml{elist} with one more field for association list.
+Notice the subtyping that works.
+
+\begin{pmlcode}
+  type rec asslist⟨a,b⟩ = [ Nil ; Cons of { hd : a; tl : asslist⟨a,b⟩; v : b ;⋯} ]
+
+  assert asslist⟨nat,bool⟩ ⊂ elist⟨nat⟩
+  assert ¬ elist⟨nat⟩ ⊂ asslist⟨nat,bool⟩
+  assert ¬ list⟨nat⟩ ⊂ asslist⟨nat,bool⟩
+  assert ¬ asslist⟨nat,bool⟩ ⊂ list⟨nat⟩
+
+  val add_assoc : ∀a b, a ⇒ b ⇒ asslist⟨a,b⟩ ⇒ asslist⟨a,b⟩ =
+    fun hd v tl { Cons[{hd; v; tl}] }
+
+  val mem_assoc : ∀a b, (a ⇒ a ⇒ bool) ⇒ a ⇒ asslist⟨a,b⟩ ⇒ bool = mem
+
+  type option⟨a⟩ = [ None ; Some of a ]
+
+  val rec find : ∀a b, (a ⇒ a ⇒ bool) ⇒ a ⇒ asslist⟨a,b⟩ ⇒ option⟨b⟩ =
+    fun eq x a {
+      case a {
+        []      → None
+        Cons[c] → if eq c.hd x { Some[c.v] } else { find eq x c.tl }
+      }
+    }
+\end{pmlcode}
+
+Thanks to subtyping, the function \dupml{mem} can also be used on association
+list because the type of \dupml{mem} is a subtype of the type of
+\dupml{memassoc}. This would fail if \dupml{set} were defined using
+\dupml{list} instead of \dupml{elist}.
 
 %<!-- Local IspellDict: british -->
 %<!-- Local IspellPersDict: ~/.ispell-british -->
