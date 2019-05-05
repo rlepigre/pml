@@ -81,7 +81,7 @@
  ("\\c>" ?↪)   ("\\hookarrow" ?↪))
  ("\\v" ?↓)     ("\\downarrow" ?↓)
 ;; ("\\ni" ?∉)    ("\\notin" ?∉)
-;; ("\\<" ?⊂)     ("\\subset" ?⊂)
+                ("\\subset" ?⊂)
  )
 
 ;; USEFUL FUNCTION FOR INLINING
