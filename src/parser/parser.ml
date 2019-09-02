@@ -1,18 +1,14 @@
 (** Main parsing module. This module defines an [Earley] parser for the
     language. *)
 
-open Earley_core
-open Earley
-open Extra
 open Pos
+open Pacomb
+open Extra
 open Output
 open Bindlib
 open Typing
 open Raw
 open Priority
-
-(** Exception raised in case of parse error. *)
-exception No_parse of pos
 
 exception Check_failed of Ast.prop * bool * Ast.prop
 
@@ -22,35 +18,35 @@ let recompile = ref false
 
 let parsing_chrono = Chrono.create "parsing"
 
-(* Definition of the [locate] function used by [Earley]. *)
-#define LOCATE locate
-
 (* String litteral. *)
 let str_lit =
   let normal = List.fold_left Charset.del Charset.full ['\\'; '"'; '\r'] in
-  let normal = in_charset normal in
-  let str_char = parser
-    | "\\\""   -> "\""
-    | "\\\\"   -> "\\"
-    | "\\n"    -> "\n"
-    | "\\t"    -> "\t"
-    | c:normal -> String.make 1 c
+  let normal = Grammar.term (Lex.charset normal) in
+  let%parser str_char =
+      "\\\""      => "\""
+    ; "\\\\"      => "\\"
+    ; "\\n"       => "\n"
+    ; "\\t"       => "\t"
+    ; (c::normal) => String.make 1 c
   in
-  let str = parser "\"" cs:str_char* "\"" -> String.concat "" cs in
-  change_layout str no_blank
+  let%parser [@layout Lex.noblank] str =
+    "\"" (cs:: ~*str_char) "\"" => String.concat "" cs
+  in
+  str
 
 (* Parser of a module path. *)
-let parser path_atom = id:''[a-zA-Z0-9_]+''
-let no_dot =
-  Earley.test ~name:"no_dot" Charset.full (fun buf pos ->
-    let c,buf,pos = Input.read buf pos in
-    if c <> '.' then ((), true) else ((), false))
-let parser path = ps:{path_atom '.'}* f:path_atom no_dot -> ps @ [f]
+
+let%parser path_atom = (id::RE"[a-zA-Z0-9_]+") => id
+let%parser path = (ps:: ~* ((p::path_atom) '.' => p)) (f::path_atom) => ps @ [f]
+
+let path = Grammar.test_after (fun buf pos _ _ ->
+               let (c,_,_) = Input.read buf pos in
+               c <> '.') path
 
 (* Parser for the contents of a goal. *)
-let parser goal_name = s:''\([^- \t\n\r]\|\(-[^}]\)\)+''
-let parser goal =
-  "{-" str:goal_name* "-}" -> String.trim (String.concat " " str)
+let%parser goal_name = (s::RE"\\([^- \t\n\r]\\|\\(-[^}]\\)\\)+") => s
+let%parser goal =
+  "{-" (str:: ~* goal_name) "-}" => String.trim (String.concat " " str)
 
 (* Keywords. *)
 let _assert_  = Keyword.create "assert"
@@ -98,24 +94,37 @@ let _using_   = Keyword.create "using"
 let _val_     = Keyword.create "val"
 
 (* Identifiers. *)
-let parser lid = id:''[a-z][a-zA-Z0-9_']*'' -> Keyword.check id; id
-let parser uid = id:''[A-Z][a-zA-Z0-9_']*'' -> Keyword.check id; id
-let parser num = id:''[0-9]+''              -> id
 
-let parser because = _using_ | _by_ | _because_
-let parser deduce  = _show_  | _deduce_ | _prove_
-let parser from = _showing_ | _from_
+let lid =
+  Grammar.term (Lex.appl (fun id -> Keyword.check id; id)
+      Regexp.(regexp (from_string "[a-z][a-zA-Z0-9_']*")))
+let uid =
+  Grammar.term (Lex.appl (fun id -> Keyword.check id; id)
+      Regexp.(regexp (from_string "[A-Z][a-zA-Z0-9_']*")))
+let%parser num = (id::RE"[0-9]+")              => id
+
+let%parser because = _using_ => () ; _by_ => () ; _because_ => ()
+let%parser deduce  = _show_  => () ; _deduce_ => () ; _prove_ => ()
+let%parser from = _showing_ => () ; _from_ => ()
 
 (* Infix *)
 let reserved_infix = [ "≡"; "∈"; "="; "::" ]
 
-let parser infix_re = s:''[^][(){}a-zA-Z0-9_'"";,. \n\t\r]+'' ->
-    if List.mem s reserved_infix then give_up (); s
+let%parser minus =
+  Grammar.test_after
+    (fun buf pos _ _ ->
+      let (c,_,_) = Input.read buf pos in
+      not (c >= '0' && c <= '9'))
+    ("-" => ())
+
+let%parser infix_re = (s::RE"[^][(){}a-zA-Z0-9_'\";,. \n\t\r]+") =>
+    (if s = "-" || List.mem s reserved_infix then Lex.give_up (); s)
+  ; minus => "-"
 
 let epsilon = 1e-6
 
-let parser infix =
-  s:infix_re ->
+let%parser rec infix =
+  (s::infix_re) =>
     begin
       try
         let open Env in
@@ -126,129 +135,121 @@ let parser infix =
           | RightAssoc -> (q, p)
           | NonAssoc   -> (q, q)
         in
-        let name = in_pos _loc_s name in
-        let sym = evari (Some _loc_s) name in
-        let minus = s.[String.length s - 1] = '-' in
-        (sym, name, p, pl, pr, hiho, minus)
-      with Not_found -> give_up ()
+        let name = in_pos s_pos name in
+        let sym = evari (Some s_pos) name in
+        (pl,(sym, name,p,pr,hiho))
+      with Not_found -> Lex.give_up ()
     end
-| (_,s,p,pl,pr,ho,_):infix - '_' - m:lid ->
-    let m = evari (Some _loc_m) (in_pos _loc_m m) in
-    let t = in_pos _loc (EProj(m,ref `T, s)) in
-    (t, s, p, pl, pr, ho, false)
+; ((pl,(__,s,p,pr,ho))::infix) '_' (m::lid) =>
+    begin
+      let m = evari (Some m_pos) (in_pos m_pos m) in
+      let t = in_pos _pos (EProj(m,ref `T, s)) in
+      (pl,(t, s,p,pr,ho))
+    end
+
+let%parser [@layout Lex.noblank] infix = (i::infix) => i
 
 (* Located identifiers. *)
-let parser llid = id:lid       -> in_pos _loc id
-  | '(' (_,id,_,_,_,_,_):infix ')' -> id
-let parser luid = id:uid       -> in_pos _loc id
-                | _true_       -> in_pos _loc "true"
-                | _false_      -> in_pos _loc "false"
-let parser lnum = id:num       -> in_pos _loc id
+let%parser llid = (id::lid)                => in_pos _pos id
+  ; '(' ((_1,(_2,id,_3,_4,_5))::infix) ')' => id
+let%parser luid = (id::uid)    => in_pos _pos id
+                ; _true_       => in_pos _pos "true"
+                ; _false_      => in_pos _pos "false"
+let%parser lnum = (id::num)    => in_pos _pos id
 
 (* Int. *)
-let parser int  = s:''[-]?[0-9]+'' -> int_of_string s
+let%parser int  = (s::INT) => s
 
 (* Bool. *)
-let parser bool = "true" -> true | "false" -> false
+let%parser bool = "true" => true ; "false" => false
 
 (* Float. *)
-let parser float = s:''[-]?[0-9]*\('.'[0-9]*\)?\([eE][-+]?[0-9]*\)?'' ->
-  if s = "" then give_up (); float_of_string s
+let%parser float = (s::FLOAT) => s
 
 (* Lowercase identifier or wildcard (located). *)
-let parser llid_wc =
-  | id:lid -> in_pos _loc id
-  | '_'    -> in_pos _loc "_"
+let%parser llid_wc =
+    (id::lid) => in_pos _pos id
+  ; '_'       => in_pos _pos "_"
 
 (* Some useful tokens. *)
-let parser elipsis = "⋯" | "..."
-let parser infty   = "∞" | "<inf>"
-let parser arrow   = "→"
-let parser eff     = "p" -> Effect.Print
-                   | "c" -> Effect.CallCC
-                   | "l" -> Effect.Loop
-let parser impl    = "⇒" -> Effect.bot
-                   | "→" -> Effect.(known [CallCC;Print])
-                   | "→" "_" "(" l:eff* ")" -> Effect.(known l)
-                   | "↝" -> Effect.top
-let parser scis    = "✂"
-let parser equiv   = "≡" | "=="
-let parser nequiv  = "≠" | "!="
-let parser neg_sym = "¬"
-let parser prod    = "×"
-let parser lambda  = "λ"
-let parser langle  = "⟨"
-let parser rangle  = "⟩"
-let parser empty_s = "[.]" | "∅"
-let parser comma   = ","
-let parser semi    = ";"
-let parser column  = ":"
-let parser simpl   = "↪"
-let parser memb    = "∈"
-let parser rest    = "|"
-let parser cvg     = "↓"
+let%parser elipsis = "⋯" => () ; "..." => ()
+let%parser infty   = "∞" => () ; "<inf>" => ()
+let%parser arrow   = "→" => ()
+let%parser eff     = "p" => Effect.Print
+                   ; "c" => Effect.CallCC
+                   ; "l" => Effect.Loop
+let%parser impl    = "⇒" => Effect.bot
+                   ; "→" => Effect.(known [CallCC;Print])
+                   ; "→" "_" "(" (l:: ~* eff) ")" => Effect.(known l)
+                   ; "↝" => Effect.top
+let%parser scis    = "✂" => ()
+let%parser equiv   = "≡" => () ; "==" => ()
+let%parser nequiv  = "≠" => () ; "!=" => ()
+let%parser neg_sym = "¬" => ()
+let%parser prod    = "×" => ()
+let%parser lambda  = "λ" => ()
+let%parser langle  = "⟨" => ()
+let%parser rangle  = "⟩" => ()
+let%parser empty_s = "[.]" => () ; "∅" => ()
+let%parser comma   = "," => ()
+let%parser semi    = ";" => ()
+let%parser column  = ":" => ()
+let%parser simpl   = "↪" => ()
+let%parser memb    = "∈" => ()
+let%parser rest    = "|" => ()
+let%parser cvg     = "↓" => ()
 
 (* Such that. *)
-let parser _st_ = _:_such_ _:_that_
+let%parser _st_ = _such_ _that_ => ()
 
 (* Optional negation symbol. *)
-let parser neg =
-  | EMPTY   -> true
-  | neg_sym -> false
+let%parser neg =
+    ()      => true
+  ; neg_sym => false
 
 (* Optional "rec" annotation on a value definition. *)
-let parser v_rec =
-  | EMPTY    -> `Non
-  | _rec_    -> `Rec
+let%parser v_rec =
+    ()       => `Non
+  ; _rec_    => `Rec
 
 (* Optional "rec" / "corec" annotation on a type definition. *)
-let parser t_rec =
-  | EMPTY   -> `Non
-  | _rec_   -> `Rec
-  | _corec_ -> `CoRec
+let%parser t_rec =
+    ()      => `Non
+  ; _rec_   => `Rec
+  ; _corec_ => `CoRec
 
 (* Optional elipsis for extensible records. *)
-let parser strict =
-  | EMPTY       -> true
-  | ';' elipsis -> false
+let%parser strict =
+    ()          => true
+  ; ';' elipsis => false
 
 (* Equivalence / inequivalence symbol. *)
-let parser eq =
-  | equiv   -> true
-  | nequiv  -> false
+let%parser eq =
+    equiv   => true
+  ; nequiv  => false
 
 type ps = Fs | As
 
 (* Parser for sorts. *)
-let parser sort @ (p : ps) =
-  | {"ι"|"<iota>"   | "<value>"  }  when p <= As -> in_pos _loc sv
-  | {"τ"|"<tau>"    | "<term>"   }  when p <= As -> in_pos _loc ST
-  | {"σ"|"<sigma>"  | "<stack>"  }  when p <= As -> in_pos _loc SS
-  | {"ο"|"<omicron>"| "<prop>"   }  when p <= As -> in_pos _loc SP
-  | {"κ"|"<kappa>"  | "<ordinal>"}  when p <= As -> in_pos _loc SO
-  | id:lid                          when p <= As -> in_pos _loc (SVar(id))
-  | "(" s:(sort Fs) ")"             when p <= As -> s
-  | s1:(sort As) arrow s2:(sort Fs) when p <= Fs -> in_pos _loc (SFun(s1,s2))
+let%parser rec sort (p : ps) =
+    ("ι" => () ; "<iota>"    => () ; "<value>"   => ()) => in_pos _pos sv
+  ; ("τ" => () ; "<tau>"     => () ; "<term>"    => ()) => in_pos _pos ST
+  ; ("σ" => () ; "<sigma>"   => () ; "<stack>"   => ()) => in_pos _pos SS
+  ; ("ο" => () ; "<omicron>" => () ; "<prop>"    => ()) => in_pos _pos SP
+  ; ("κ" => () ; "<kappa>"   => () ; "<ordinal>" => ()) => in_pos _pos SO
+  ; (id::lid)                                    => in_pos _pos (SVar(id))
+  ; "(" (s::sort Fs) ")"                         => s
+  ; (p<=Fs) (s1::sort As) arrow (s2::sort Fs)    => in_pos _pos (SFun(s1,s2))
 
 (* Entry point for sorts. *)
 let sort = sort Fs
 
 (* Auxiliary parser for sort arguments. *)
-let parser s_arg  = id:llid so:{_:column s:sort}?
-let parser s_lst  = l:(list1 s_arg comma)
-let parser s_args = {_:langle l:s_lst _:rangle}?[[]]
+let%parser s_arg  = (id::llid) (so:: ~? (column (s::sort) => s))  => (id,so)
+let%parser s_lst  = (l:: ~+ [comma] s_arg)                        => l
+let%parser s_args = (l:: ~? [[]] (langle (l::s_lst) rangle => l)) => l
 
-let no_digit_if_minus =
-  let digits = Charset.range '0' '9' in
-  fun minus ->
-    if minus then
-      parser EMPTY
-    else
-      Earley.blank_test Charset.full
-                        (fun b p _ _ ->
-                          let (c,_,_) = Input.read b p in
-                          ((), not (Charset.mem digits c)))
-let (<<=) = fun p1 p2 ->
+let (<=) = fun p1 p2 ->
   match p1, p2 with
   | _     , HO     -> true
   | Any   ,_       -> true
@@ -262,355 +263,297 @@ let get_infix_prio u =
   match u.elt with EInfx(_,p) -> p
                  | _ -> 0.0
 
-let to_full = function
+(*let to_full = function*)
 (* Parser for expressions. *)
-let parser expr @(m : mode) =
+let%parser [@cache] rec expr (m : mode) =
   (* Any (higher-order function) *)
-  | "(" x:llid ":" s:sort "↦" e:any ")"
-      when m <<= Any
-      -> in_pos _loc (EHOFn(x,s,e))
+    (m <= Any) "(" (x::llid) ":" (s::sort) "↦" (e::any) ")"
+      => in_pos _pos (EHOFn(x,s,e))
   (* Higher-order application *)
-  | e:(expr HO) args:ho_args
-      when m <<= HO && m <> Ord E
-      -> in_pos _loc (EHOAp(e, new_sort_uvar None, args))
+  ; (m <= HO && m <> Ord E) (e::expr HO) (args::ho_args)
+      => in_pos _pos (EHOAp(e, new_sort_uvar None, args))
   (* Variable *)
-  | id:llid s:{'^' (expr (Ord E))}?
-      when m <<= HO
-      -> begin
+  ; (m <= HO) (id::llid) (s:: ~? ('^' (e::expr (Ord E)) => e))
+      => begin
            match s with
-           | None   -> evari (Some _loc) id
-           | Some s -> let id = Pos.make id.pos (id.elt ^ "#") in
-                       let x = evari (Some _loc_id) id in
-                       in_pos _loc (EHOAp(x, new_sort_uvar None, [s]))
+           | None   -> evari (Some _pos) id
+           | Some s -> let id = make id.pos (id.elt ^ "#") in
+                       let x = evari (Some id_pos) id in
+                       in_pos _pos (EHOAp(x, new_sort_uvar None, [s]))
          end
   (* Parenthesis niveau HO *)
-  | '(' e:(expr Any) ')'
-      when m = HO
-      -> (match e.elt  with EInfx(e,_) -> e | _ -> e)
+  ; (m = HO) '(' (e::any) ')'
+      => (match e.elt  with EInfx(e,_) -> e | _ -> e)
 
   (* Proposition (boolean type) *)
-  | _bool_
-      when m <<= Prp A
-      -> p_bool (Some _loc)
+  ; (m <= Prp A) _bool_
+      => p_bool (Some _pos)
   (* Proposition (implication) *)
-  | a:(expr (Prp P)) t:impl b:prop
-      when m <<= Prp F
-      -> in_pos _loc (EFunc(t,a,b))
+  ; (m <= Prp F) (a::expr (Prp P)) (t::impl) (b::prop)
+      => in_pos _pos (EFunc(t,a,b))
   (* Proposition (tuple type) *)
-  | a:(expr (Prp R)) bs:{_:prod b:(expr (Prp R))}+
-      when m <<= Prp P
-      -> tuple_type _loc (a::bs)
+  ; (m <= Prp P) (a::expr (Prp R)) (bs:: ~+ (prod (b::expr (Prp R)) => b))
+      => tuple_type _pos (a::bs)
   (* Proposition (non-empty product) *)
-  | "{" fs:(list1 (parser l:llid ":" a:prop) semi) s:strict "}"
-      when m <<= Prp A
-      -> in_pos _loc (EProd(fs,s))
+  ; (m <= Prp A) "{" (fs::~+ [semi] ((l::llid) ":" (a::prop) => (l,a))) (s::strict) "}"
+      => in_pos _pos (EProd(fs,s))
   (* Proposition (extensible empty record) *)
-  | "{" elipsis "}"
-      when m <<= Prp A
-      -> in_pos _loc (EProd([],false))
+  ; (m <= Prp A) "{" elipsis "}"
+      => in_pos _pos (EProd([],false))
   (* Proposition / Term (empty product / empty record) *)
-  | "{" "}"
-      when m <<= HO (* HO level to avoid ambiguity *)
-      -> in_pos _loc EUnit
+  ; (m <= HO) "{" "}" (* HO level to avoid ambiguity *)
+      => in_pos _pos EUnit
   (* Proposition (disjoint sum) *)
-  | "[" fs:(list1 (parser l:luid a:{_:_of_ a:prop}?) semi) "]"
-      when m <<= Prp A
-      -> in_pos _loc (EDSum(fs))
+  ; (m <= Prp A) "[" (fs::~+ [semi] ((l::luid) (a::~? (_of_ (a::prop) => a)) => (l,a))) "]"
+      => in_pos _pos (EDSum(fs))
   (* empty type *)
-  | empty_s
-      when m <<= Prp A
-      -> in_pos _loc (EDSum [])
+  ; (m <= Prp A) empty_s
+      => in_pos _pos (EDSum [])
   (* Proposition (universal quantification) *)
-  | "∀" x:llid xs:llid* s:{':' s:sort}? ',' a:prop
-      when m <<= Prp F
-      -> euniv _loc x xs s a
+  ; (m <= Prp F) "∀" (x::llid) (xs::~* llid) (s::~? (':' (s::sort) => s)) ',' (a::prop)
+      => euniv _pos x xs s a
   (* Proposition (dependent function type) *)
-  | "∀" x:llid xs:llid* "∈" a:prop ',' b:prop
-      when m <<= Prp F
-      -> euniv_in _loc x xs a b
+  ; (m <= Prp F) "∀" (x::llid) (xs::~* llid) "∈" (a::prop) ',' (b::prop)
+      => euniv_in _pos x xs a b
   (* Proposition (existential quantification) *)
-  | "∃" x:llid xs:llid* s:{':' s:sort}? ',' a:prop
-      when m <<= Prp F
-      -> eexis _loc x xs s a
+  ; (m <= Prp F) "∃" (x::llid) (xs::~* llid) (s::~? (':' (s::sort) => s)) ',' (a::prop)
+      => eexis _pos x xs s a
   (* Proposition (dependent pair) *)
-  | "∃" x:llid xs:llid* "∈" a:prop ',' b:prop
-      when m <<= Prp F
-      -> eexis_in _loc x xs a b
+  ; (m <= Prp F) "∃" (x::llid) (xs::~* llid) "∈" (a::prop) ',' (b::prop)
+      => eexis_in _pos x xs a b
   (* Proposition (set type) *)
-  | "{" x:llid "∈" a:prop "}"
-      when m <<= Prp A
-      -> esett _loc x a
+  ; (m <= Prp A) "{" (x::llid) "∈" (a::prop) "}"
+      => esett _pos x a
   (* Proposition (least fixpoint) *)
-  | "μ" o:{_:'_' ordinal}?[none EConv] (x,s):s_arg ',' a:any
-      when m <<= Prp F
-      -> let s = match s with Some s -> s | None -> new_sort_uvar (Some x) in
-         in_pos _loc (EFixM(s,o,x,a))
+  ; (m <= Prp F) "μ" (o:: ~? [none EConv] ordinal) ((x,s)::s_arg) ',' (a::any)
+      => (let s = match s with Some s -> s | None -> new_sort_uvar (Some x) in
+         in_pos _pos (EFixM(s,o,x,a)))
   (* Proposition (greatest fixpoint) *)
-  | "ν" o:{_:'_' ordinal}?[none EConv] (x,s):s_arg ',' a:any
-      when m <<= Prp F
-      -> let s = match s with Some s -> s | None -> new_sort_uvar (Some x) in
-         in_pos _loc (EFixN(s,o,x,a))
+  ; (m <= Prp F) "ν" (o:: ~? [none EConv] ordinal) ((x,s)::s_arg) ',' (a::any)
+      => (let s = match s with Some s -> s | None -> new_sort_uvar (Some x) in
+         in_pos _pos (EFixN(s,o,x,a)))
   (* Proposition (membership) *)
-  | t:(expr (Trm I)) memb a:(expr (Prp M))
-      when m <<= Prp M
-      -> in_pos _loc (EMemb(t,a))
+  ; (m <= Prp M) (t::expr (Trm I)) memb (a::expr (Prp M))
+      => in_pos _pos (EMemb(t,a))
   (* Proposition (restriction) *)
-  | a:(expr (Prp M)) rest e:(cond true)
-      when m <<= Prp R
-      -> in_pos _loc (ERest(Some a,e))
+  ; (m <= Prp R) (a::expr (Prp M)) rest (e::cond true)
+      => in_pos _pos (ERest(Some a,e))
   (* Proposition (equivalence) *)
-  | e:(cond false)
-      when m <<= Prp A
-      -> in_pos _loc (ERest(None,e))
+  ; (m <= Prp A) (e::cond false)
+      => in_pos _pos (ERest(None,e))
   (* Proposition (implication) *)
-  | e:(cond true) simpl a:(expr (Prp M))
-      when m <<= Prp R
-      -> in_pos _loc (EImpl(e, Some a))
+  ; (m <= Prp R) (e::cond true) simpl (a::expr (Prp M))
+      => in_pos _pos (EImpl(e, Some a))
   (* Proposition (parentheses) *)
-  | "(" e:(expr (Prp F')) ")"
-      when m <<= Prp A
-      -> (match e.elt  with EInfx(e,_) -> e | _ -> e)
+  ;  (m <= Prp A) "(" (e::expr (Prp F')) ")"
+      => (match e.elt  with EInfx(e,_) -> e | _ -> e)
   (* Proposition (injection of term) *)
-  | t:(expr (Trm I))
-      when m <<= Prp A && m <> Any && m <> Prp F'
-      -> begin
+  ; (m <= Prp A && m <> Any && m <> Prp F') (t::expr (Trm I))
+      => begin
           match t.elt with
-            | EVari _ | EHOAp _ | EUnit -> give_up ()
+            | EVari _ | EHOAp _ | EUnit -> Lex.give_up ()
             | _                         -> t
          end
+
   (* Term (lambda abstraction) *)
-  | _fun_ args:arg+ '{' t:term '}'
-      when m <<= Trm A
-      -> in_pos _loc (ELAbs((List.hd args, List.tl args),t))
-  | _take_ args:arg+ ';' t:(expr (Trm S))
-      when m <<= Trm S
-      -> in_pos _loc (ELAbs((List.hd args, List.tl args),t))
-  | _suppose_ props:(list1 (expr (Prp F)) comma) ';' t:(expr (Trm S))
-      when m <<= Trm S
-      -> suppose _loc props t
-  | lambda args:arg+ '.' t:(expr (Trm I))
-      when m <<= Trm R
-      -> in_pos _loc (ELAbs((List.hd args, List.tl args),t))
+  ; (m <= Trm A) _fun_ (args::~+ arg) '{' (t::term) '}'
+      => in_pos _pos (ELAbs((List.hd args, List.tl args),t))
+  ; (m <= Trm S) _take_ (args::~+ arg) ';' (t::expr (Trm S))
+      => in_pos _pos (ELAbs((List.hd args, List.tl args),t))
+  ; (m <= Trm S) _suppose_ (props::~+ [comma] (expr (Prp F))) ';' (t::expr (Trm S))
+      => suppose _pos props t
+  ; (m <= Trm R) lambda (args::~+ arg) '.' (t::expr (Trm I))
+      => in_pos _pos (ELAbs((List.hd args, List.tl args),t))
   (* Term (constructor) *)
-  | c:luid t:{"[" t:term "]"}?
-      when m <<= Trm A
-      -> in_pos _loc (ECons(c, Option.map (fun t -> (t, ref `T)) t))
+  ; (m <= Trm A) (c::luid) (t::~? ('[' (t::term) ']' => t))
+      => in_pos _pos (ECons(c, Option.map (fun t -> (t, ref `T)) t))
   (* Term (empty list) *)
-  | '[' ']'
-      when m <<= Trm A
-      -> v_nil _loc
+  ; (m <= Trm A) '[' ']'
+      => v_nil _pos
   (* Term ("int") *)
-  | n:int
-      when m <<= Trm A
-      -> from_int _loc n
+  ; (m <= Trm A) (n::int)
+      => from_int _pos n
   (* Term (infix symbol) *)
-  | t:(expr (Trm I)) s:"::" when m <<= Trm I ->>
-      let p = 5.0 in
-      let pl' = get_infix_prio t in
-      let _ = if pl' > p -. epsilon then give_up () in
-      u:(expr (Trm I)) ->
+  ; (m <= Trm I) ((pl',t)>:((t::expr (Trm I)) => (get_infix_prio t,t))) (s::"::")
+      (u::(let p = 5.0 in
+      if pl' > p -. epsilon then Lex.give_up ();
+      expr (Trm I))) => (
+        let p = 5.0 in
         let pr' = get_infix_prio u in
-        if pr' > p then give_up ();
+        if pr' > p then Lex.give_up ();
         let t =
-          Pos.in_pos _loc (ECons(Pos.in_pos _loc_s "Cons",
-            Some (record _loc [(Pos.none "hd", Some t)
-                              ; (Pos.none "tl", Some u)], ref `T)))
+          in_pos _pos (ECons(in_pos s_pos "Cons",
+            Some (record _pos [(none "hd", Some t)
+                              ; (none "tl", Some u)], ref `T)))
         in
-        Pos.in_pos _loc (EInfx(t,p))
-  | t:(expr (Trm I)) (s,_,p,pl,pr,ho,minus):infix when m <<= Trm I ->>
-      let pl' = get_infix_prio t in
-      let _ = if pl' > pl then give_up () in
-      (no_digit_if_minus minus)
-      u:(expr (Trm I))
-      -> let pr' = get_infix_prio u in
-         if pr' > pr then give_up ();
+        in_pos _pos (EInfx(t,p)))
+  ; (m <= Trm I) ((pl',t)>:((t::expr (Trm I)) => (get_infix_prio t,t))) ((pl,(s,__,p,pr,ho))>:infix)
+      (u::(
+      if pl' > pl then Lex.give_up ();
+      expr (Trm I)))
+    => (let pr' = get_infix_prio u in
+         if pr' > pr then Lex.give_up ();
          let t =
            if ho then
              let sort = none (SFun(_st, none (SFun(_st,_st)))) in
-             in_pos _loc (EHOAp(s, sort, [t;u]))
+             in_pos _pos (EHOAp(s, sort, [t;u]))
            else
-             in_pos _loc (EAppl(none (EAppl(s,t)), u)) in
-         in_pos _loc (EInfx(t,p))
+             in_pos _pos (EAppl(none (EAppl(s,t)), u)) in
+         in_pos _pos (EInfx(t,p)))
   (* Term (record) *)
-  | "{" fs:(list1 field semi) "}"
-      when m <<= Trm A
-      -> record _loc fs
+  ; (m <= Trm A) "{" (fs::~+ [semi] field) "}"
+      => record _pos fs
   (* Term (tuple) *)
-  | "(" t:term "," ts:(list1 term comma) ")"
-      when m <<= Trm A
-      -> tuple_term _loc (t::ts)
+  ; (m <= Trm A) '(' (t::term) "," (ts::~+ [comma] term) ')'
+      => tuple_term _pos (t::ts)
   (* Term (scisors) *)
-  | scis
-      when m <<= Trm A
-      -> in_pos _loc EScis
+  ; (m <= Trm A) scis
+      => in_pos _pos EScis
   (* Term (application) *)
-  | t:(expr (Trm P)) u:(expr (Trm A))
-      when m <<= Trm P
-      -> in_pos _loc (EAppl(t,u))
+  ; (m <= Trm P) (t::expr (Trm P)) (u::expr (Trm A))
+      => in_pos _pos (EAppl(t,u))
   (* Term (let binding) *)
-  | _let_ r:v_rec arg:let_arg '=' t:(expr (Trm R)) ';' u:(expr (Trm S))
-      when m <<= Trm S
-      -> let_binding _loc r arg t u
+  ; (m <= Trm S) _let_ (r::v_rec) (arg::let_arg) '=' (t::expr (Trm R)) ';' (u::expr (Trm S))
+      => let_binding _pos r arg t u
   (* Term (sequencing). *)
-  | t:(expr (Trm R)) ';' u:(expr (Trm S))
-      when m <<= Trm S
-      -> in_pos _loc (ESequ(t,u))
+  ; (m <= Trm S) (t::expr (Trm R)) ';' (u::expr (Trm S))
+      => in_pos _pos (ESequ(t,u))
   (* Term (mu abstraction) *)
-  | _save_ arg:llid '{' t:term '}'
-       when m <<= Trm A
-      -> in_pos _loc (EMAbs(arg,t))
+  ; (m <= Trm A) _save_ (arg::llid) '{' (t::term) '}'
+      => in_pos _pos (EMAbs(arg,t))
   (* Term (name) *)
-  | _restore_ s:stack t:(expr (Trm P))
-      when m <<= Trm I
-      -> in_pos _loc (EName(s,t))
+  ; (m <= Trm I) _restore_ (s::stack) (t::expr (Trm P))
+      => in_pos _pos (EName(s,t))
   (* Term (projection) *)
-  | t:(expr (Trm A)) "." l:{llid | lnum}
-      when m <<= Trm A
-      -> in_pos _loc (EProj(t, ref `T, l))
+  ; (m <= Trm A) (t::expr (Trm A)) "." (l::((l::llid) => l ; (l::lnum) => l))
+      => in_pos _pos (EProj(t, ref `T, l))
   (* Term (case analysis) *)
-  | _case_ t:term '{' ps:{_:'|'? patt _:arrow term}* '}'
-      when m <<= Trm A
-      -> pattern_matching _loc t ps
+  ; (m <= Trm A) _case_ (t::term) '{'
+      (ps::~* ((~? '|') (p::patt) arrow (t::term) => (p,t)))
+      '}'
+      => pattern_matching _pos t ps
   (* Term (conditional) *)
-  | _if_ c:term '{' t:term '}' e:{_:_else_ '{' term '}'}?
-      when m <<= Trm A
-      -> if_then_else _loc c t e
+  ; (m <= Trm A) _if_ (c::term) '{' (t::term) '}' (e::~? (_else_ '{' (t::term) '}' => t))
+      => if_then_else _pos c t e
   (* Term (replacement) *)
-  | _check_ u:{(expr (Trm R)) | '{' term '}'}
-      _for_ t:{(expr (Trm R)) | '{' term '}'}
-            b:justification?
-      when m <<= Trm R
-      -> in_pos _loc (ERepl(t,u,b))
+  ; (m <= Trm R) _check_ (u::((e::expr (Trm R)) => e ; '{' (t::term) '}' => t))
+      _for_ (t::((e::expr (Trm R)) => e ; '{' (t::term) '}' => t))
+            (b::~? justification)
+      => in_pos _pos (ERepl(t,u,b))
   (* Term (totality by purity) *)
-  | _delim_ '{' u:term '}'
-      when m <<= Trm R
-      -> in_pos _loc (EDelm(u))
+  ; (m <= Trm R) _delim_ '{' (u::term) '}'
+      => in_pos _pos (EDelm(u))
   (* Term ("show" tactic) *)
-  | deduce a:prop p:justification?
-      when m <<= Trm R
-      -> show _loc a p
+  ; (m <= Trm R) deduce (a::prop) (p::~? justification)
+      => show _pos a p
   (* Term ("show" tactic, sequences of eqns) *)
-  | deduce a:term eqns:{ _:equiv
-                           b:(expr (Trm R))
-                           p:justification?
-                              -> (_loc,b,p) }+
-      when m <<= Trm R
-      -> if List.length eqns <= 1 then give_up ();
-         equations _loc _loc_a a eqns
+  ; (m <= Trm R) deduce (a::term) (eqns::~+( equiv
+                           (b::expr (Trm R))
+                           (p::~? justification)
+                              => (_pos,b,p)))
+      => (if Pervasives.(List.length eqns <= 1) then Lex.give_up ();
+         equations _pos a_pos a eqns)
   (* Term ("use" tactic) *)
-  | _use_ t:(expr (Trm R))
-      when m <<= Trm R
-      -> use _loc t
+  ; (m <= Trm R) _use_ (t::expr (Trm R))
+      => use _pos t
   (* Term ("showing" tactic) *)
-  | from a:(expr (Prp R))
-         q:{_:because {(expr (Trm R)) | '{' term '}'}}?
-         ';' p:(expr (Trm S))
-      when m <<= Trm S
-      -> showing _loc a q p
+  ; (m <= Trm S) from (a::expr (Prp R))
+         (q::~? (because (q::((e::expr (Trm R)) => e ; '{' (t::term) '}' => t)) => q))
+         ';' (p::expr (Trm S))
+      => showing _pos a q p
   (* Term ("assume"/"know" tactic) *)
-  | {_assume_ | _know_}  a:(expr (Trm R))
-         q:{_:because {(expr (Trm R)) | '{' term '}'}}?
-         ';' p:(expr (Trm S))
-      when m <<= Trm S
-      -> assume _loc a q p
+  ; (m <= Trm S) (_assume_ => (); _know_ => ())  (a::expr (Trm R))
+         (q::~? (because (q::((e::expr (Trm R)) => e ; '{' (t::term) '}' => t)) => q))
+         ';' (p::expr (Trm S))
+      => assume _pos a q p
   (* Term ("QED" tactic) *)
-  | _qed_
-      when m <<= Trm A
-      -> qed _loc
+  ; (m <= Trm A) _qed_
+      => qed _pos
   (* Term (fixpoint) *)
-  | _fix_ arg:arg '{' t:term '}'
-      when m <<= Trm A
-      -> let (a,ao) = arg in
-         let t = in_pos _loc (EFixY(a,t)) in
+  ; (m <= Trm A) _fix_ (arg::arg) '{' (t::term) '}'
+      => (let (a,ao) = arg in
+         let t = in_pos _pos (EFixY(a,t)) in
          let t = match ao with
            | None -> t
-           | Some ty -> in_pos _loc (ECoer(new_sort_uvar None,t,ty))
+           | Some ty -> in_pos _pos (ECoer(new_sort_uvar None,t,ty))
          in
-         t
+         t)
   (* Term (printing) *)
-  | _print_ s:str_lit
-      when m <<= Trm A
-      -> in_pos _loc (EPrnt(s))
+  ; (m <= Trm A) _print_ (s::str_lit)
+      => in_pos _pos (EPrnt(s))
   (* Term (type coersion) *)
-  | "(" t:term ":" a:prop ")"
-      when m <<= Trm A
-      -> in_pos _loc (ECoer(new_sort_uvar None,t,a))
+  ; (m <= Trm A) "(" (t::term) ":" (a::prop) ")"
+      => in_pos _pos (ECoer(new_sort_uvar None,t,a))
   (* Term (auto lvl) *)
-  | _set_ l:set_param ';' t:(expr (Trm S))
-      when m <<= Trm S
-      -> in_pos _loc (EPSet(new_sort_uvar None,l,t))
+  ; (m <= Trm S) _set_ (l::set_param) ';' (t::expr (Trm S))
+      => in_pos _pos (EPSet(new_sort_uvar None,l,t))
   (* Term (let such that) *)
-  | _let_ vs:s_lst _st_ x:llid_wc ':' a:prop ';' u:(expr (Trm S))
-      when m <<= Trm S
-      -> esuch _loc vs x a u
+  ; ( m <= Trm S) _let_ (vs::s_lst) _st_ (x::llid_wc) ':' (a::prop) ';' (u::expr (Trm S))
+      => esuch _pos vs x a u
   (* Term (parentheses) *)
-  | "(" t:term ")"
-      when m <<= Trm A
-      -> (match t.elt  with EInfx(t,_) -> t | _ -> t)
+  ; (m <= Trm A) "(" (t::term) ")"
+      => (match t.elt  with EInfx(t,_) -> t | _ -> t)
 
   (* Ordinal (infinite) *)
-  | infty
-      when m <<= Ord E
-      -> in_pos _loc EConv
+  ; (m <= Ord E) infty
+      => in_pos _pos EConv
   (* Ordinal (successor) *)
-  | o:ordinal "+ₒ" n:int
-      when m <<= Ord F
-      -> in_pos _loc (ESucc(o,n))
+  ; (m <= Ord F) (o::ordinal) "+ₒ" (n::int)
+      => in_pos _pos (ESucc(o,n))
   (* Ordinal (parenthesis) *)
-  | "(" o:ordinal ")"
-      when m <<= Ord E
-      -> (match o.elt  with EInfx(o,_) -> o | _ -> o)
-
+  ; (m <= Ord E) '(' (o::ordinal) ')'
+      => (match o.elt  with EInfx(o,_) -> o | _ -> o)
   (* Goal (term or stack) *)
-  | s:goal
-      when m <<= Stk || m <<= Trm A
-      -> in_pos _loc (EGoal(s))
+  ; (m <= Stk || m <= Trm A) (s::goal)
+      => in_pos _pos (EGoal(s))
 
-and parser justification =
-  _:because p:{(expr (Trm R)) | '{' term '}'} -> p
+and justification =
+  because (p::((t::expr (Trm R)) => t ; '{' (t::term)  '}' => t)) => p
 
-and parser cond opt =
-  | t:(expr (Trm I)) when opt
-            -> let u = Pos.none (ECons(Pos.none "true", None))
-               in EEquiv(t,true,u)
-  | t:(expr (Trm I)) b:eq u:(expr (Trm I))
-            -> EEquiv(t,b,u)
-  | t:(expr (Trm I)) cvg
-            -> ENoBox(t)
+and cond opt =
+    (opt = true) (t::expr (Trm I))
+            => (let u = none (ECons(none "true", None))
+               in EEquiv(t,true,u))
+  ; (t::expr (Trm I)) (b::eq) (u::expr (Trm I))
+            => EEquiv(t,b,u)
+  ; (t::expr (Trm I)) cvg
+            => ENoBox(t)
 
 (* Higher-order variable arguments. *)
-and parser ho_args = {_:langle (list1 any comma) _:rangle}
+
+and ho_args = langle (l:: ~+ [comma] any) rangle => l
 
 (* Variable with optional type. *)
-and parser arg_t = id:llid ao:{":" a:prop}?
+and arg_t = (id::llid) (ao::~? (":" (a::prop) => a)) => (id,ao)
 
 (* Function argument. *)
-and parser arg =
-  | id:llid_wc                    -> (id, None  )
-  | "(" id:llid_wc ":" a:prop ")" -> (id, Some a)
+and arg =
+    (id::llid_wc)                       => (id, None  )
+  ; "(" (id::llid_wc) ":" (a::prop) ")" => (id, Some a)
 
-and parser field_nt =
-  | a:arg_t            -> (fst a, a)
-  | l:llid '=' a:arg_t -> (l    , a)
+and field_nt =
+    (a::arg_t)               => (fst a, a)
+  ; (l::llid) '=' (a::arg_t) => (l    , a)
 
 (* Argument of let-binding. *)
-and parser let_arg =
-  | id:llid_wc ao:{':' a:prop}?                -> `LetArgVar(id,ao)
-  | '{' fs:(list1 field_nt semi) '}'           -> `LetArgRec(fs)
-  | '(' f:arg_t ',' fs:(list1 arg_t comma) ')' -> `LetArgTup(f::fs)
+and let_arg =
+    (id::llid_wc) (ao::~? (':' (a::prop) => a))   => `LetArgVar(id,ao)
+  ; '{' (fs::~+ [semi] field_nt) '}'              => `LetArgRec(fs)
+  ; '(' (f::arg_t) ',' (fs::~+ [comma] arg_t) ')' => `LetArgTup(f::fs)
 
 (* Record field. *)
-and parser field = l:llid {"=" t:(expr (Trm R))}?
+and field = (l::llid) (t::~? ("=" (t::expr (Trm R)) => t)) => (l,t)
 
 (* Pattern. *)
-and parser patt =
-  | '[' ']'                       -> (in_pos _loc "Nil"  , None)
-  | x:llid_wc "::" y:llid_wc      ->
-      let fs = if y.elt <> "_" then [(Pos.none "tl", (y, None))] else [] in
-      let fs = if x.elt <> "_" then (Pos.none "hd", (x, None))::fs else fs in
-      (in_pos _loc "Cons", Some (`LetArgRec fs))
-  | c:luid arg:{'[' let_arg ']'}? -> (c                  , arg )
-  | "0"                           -> (in_pos _loc "Zero" , None)
+and patt =
+    '[' ']'                        => (in_pos _pos "Nil"  , None)
+  ; (x::llid_wc) "::" (y::llid_wc) => (
+      let fs = if y.elt <> "_" then [(none "tl", (y, None))] else [] in
+      let fs = if x.elt <> "_" then (none "hd", (x, None))::fs else fs in
+      (in_pos _pos "Cons", Some (`LetArgRec fs)))
+  ; (c::luid) (arg::~?('[' (a::let_arg) ']' => a))
+                                   => (c                  , arg )
+  ; "0"                            => (in_pos _pos "Zero" , None)
 
 (* Common entry points. *)
 and term    = expr (Trm F)
@@ -620,55 +563,55 @@ and ordinal = expr (Ord F)
 and any     = expr Any
 
 (* Set general parameters *)
-and parser set_param =
-  | "auto" b:int d:int -> Ast.Alvl(b,d)
-  | "log"  s:str_lit   -> Ast.Logs(s)
-  | "keep_intermediate"
-           b:bool      -> Ast.Keep(b)
+and set_param =
+    "auto" (b::int) (d::int) => Ast.Alvl(b,d)
+  ; "log"  (s::str_lit)      => Ast.Logs(s)
+  ; "keep_intermediate"
+           (b::bool)         => Ast.Keep(b)
 
 (* Toplevel item. *)
-let parser toplevel =
+let%parser rec toplevel =
   (* Definition of a new sort. *)
-  | _sort_ id:llid '=' s:sort
-      -> fun () -> sort_def id s
+    _sort_ (id::llid) '=' (s::sort)
+      => (fun () -> sort_def id s)
 
   (* Definition of an expression. *)
-  | _def_  id:llid args:s_args s:{':' sort}? '=' e:any
-      -> fun () -> expr_def id args s e
+  ; _def_  (id::llid) (args::s_args) (s::~?(':' (s::sort) => s)) '=' (e::any)
+      => (fun () -> expr_def id args s e)
 
   (* Definition of a proposition (special case of expression). *)
-  | _type_ r:t_rec id:llid args:s_args '=' e:prop
-      -> fun () -> type_def _loc r id args e
+  ; _type_ (r::t_rec) (id::llid) (args::s_args) '=' (e::prop)
+      => (fun () -> type_def _pos r id args e)
 
   (* Definition of a value (to be computed). *)
-  | _val_ r:v_rec id:llid ':' a:prop '=' t:term
-      -> fun () -> val_def r id a t
+  ; _val_ (r::v_rec) (id::llid) ':' (a::prop) '=' (t::term)
+      => (fun () -> val_def r id a t)
 
   (* Check of a subtyping relation. *)
-  | _assert_ r:neg a:prop "⊂" b:prop
-      -> fun () -> check_sub a r b
+  ; _assert_ (r::neg) (a::prop) "⊂" (b::prop)
+      => (fun () -> check_sub a r b)
 
   (* Inclusion of a file. *)
-  | _include_ p:path
-      -> let fn = Env.find_module p in
-         load_infix fn; fun () -> Include fn
+  ; _include_ (p::path)
+      => (let fn = Env.find_module p in
+         load_infix fn; fun () -> Include fn)
 
-  | _set_ l:set_param
-      -> fun () -> Glbl_set l
+  ; _set_ (l::set_param)
+      => (fun () -> Glbl_set l)
 
-  | _infix_ '(' s:infix_re ')' '=' name:lid
-                                   hiho:{"⟨" "⟩"->true}?[false]
-                                   "priority" prio:float
-                                   asso:{ "left"  -> Env.LeftAssoc
-                                        | "right" -> Env.RightAssoc
-                                        | "non"   -> Env.NonAssoc }
-                                   "associative"
-      -> let infix = Env.{name;prio;asso;hiho} in
-         Hashtbl.replace Env.infix_tbl s infix;
-         fun () -> Infix(s,infix)
+  ; _infix_ '(' (s::infix_re) ')' '=' (name::lid)
+      (hiho::~? [false] ("⟨" "⟩"=>true))
+      "priority" (prio::float)
+      (asso::( "left"  => Env.LeftAssoc
+             ; "right" => Env.RightAssoc
+             ; "non"   => Env.NonAssoc ))
+               "associative"
+    => (let infix = Env.{name;prio;asso;hiho} in
+        Hashtbl.replace Env.infix_tbl s infix;
+        fun () -> Infix(s,infix))
 
 (* Entry point of the parser. *)
-and parser entry = toplevel*
+and entry = (l::~* toplevel) => l
 
 and interpret : bool -> Raw.toplevel -> unit =
   fun nodep top ->
@@ -722,12 +665,12 @@ and interpret : bool -> Raw.toplevel -> unit =
   | Infix(sym,infix) ->
      add_infix sym infix
 
-and load_infix fn =
-  try  Env.load_infix fn
-  with Env.Compile ->
-    compile_file false fn;
-    try Env.load_infix fn
-    with Env.Compile -> failwith "source changed during compilation"
+and load_infix : string -> unit = fun fn ->
+  (try  Env.load_infix fn
+   with Env.Compile ->
+     compile_file false fn;
+     try Env.load_infix fn
+     with Env.Compile -> failwith "source changed during compilation")
 
 and compile_file : bool -> string -> unit = fun nodep fn ->
   if !verbose then out "[%s]\n%!" fn;
@@ -740,7 +683,7 @@ and compile_file : bool -> string -> unit = fun nodep fn ->
   Env.env := save
 
 (* Handling the files. *)
-and handle_file nodep fn =
+and handle_file : bool -> string -> unit = fun nodep fn ->
   try
     if !recompile && nodep then compile_file nodep fn;
     try Env.load_file fn
@@ -755,9 +698,11 @@ and handle_file nodep fn =
       else (* allready compiled by load_infix if dep *)
         failwith "source changed during compilation"
   with
-  | No_parse(p)             ->
-      begin
-        err_msg "No parse %a." Pos.print_short_pos p;
+  | Pos.Parse_error(b,p,msg)             ->
+     begin
+        let p = Pos.get_pos b p in
+        let p = Pos.{ start = p; end_ = p } in
+        err_msg "No parse %a." print_short_pos p;
         Quote.quote_file stderr p;
         exit 1
       end
@@ -768,7 +713,7 @@ and handle_file nodep fn =
       end
   | Unbound_sort(s, Some p) ->
       begin
-        err_msg "Unbound sort %s (%a)." s Pos.print_short_pos p;
+        err_msg "Unbound sort %s (%a)." s print_short_pos p;
         Quote.quote_file stderr p;
         exit 1
       end
@@ -779,7 +724,7 @@ and handle_file nodep fn =
           | None   -> err_msg "Sort %a expected for %a."
                         pretty_print_raw_sort s print_raw_expr t
           | Some p -> err_msg "Sort %a expected %a."
-                        pretty_print_raw_sort s Pos.print_short_pos p;
+                        pretty_print_raw_sort s print_short_pos p;
                       Quote.quote_file stderr p
         in
         exit 1
@@ -802,7 +747,7 @@ and handle_file nodep fn =
           match p with
           | None   -> err_msg "Unbound variable %s." x;
           | Some p -> err_msg "Unbound variable %s %a." x
-                        Pos.print_short_pos p;
+                        print_short_pos p;
                       Quote.quote_file stderr p
         in
         exit 1
@@ -812,16 +757,18 @@ and handle_file nodep fn =
         match c.pos with
         | None   -> err_msg "%s has already been matched." c.elt;
         | Some p -> err_msg "%s (%a) has already been matched." c.elt
-                      Pos.print_short_pos p;
+                      print_short_pos p;
                     Quote.quote_file stderr p
       end;
       exit 1
 
 (** Main parsing function taking as input a file name. *)
 and parse_file : string -> toplevel list = fun fn ->
-  let blank = Blanks.line_comments "//" in
-  let parse = Earley.parse_file entry blank in
-  try List.map (fun act -> act ()) (parse fn)
-  with Parse_error(buf, pos) ->
-    let pos = Pos.locate buf pos buf pos in
-    raise (No_parse pos)
+  let blank = Regexp.blank_regexp "\\(\\(//[^\n]*\\)\\|[ \t\n\r]*\\)*" in
+  let parse f =
+    let ch = open_in f in
+    let r = Grammar.parse_channel ~utf8:Utf8.UTF8 ~filename:f entry blank ch in
+    close_in ch;
+    r
+  in
+  List.map (fun act -> act ()) (parse fn)

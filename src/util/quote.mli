@@ -1,5 +1,7 @@
 (** A module for quoting extracts of a text file. *)
 
+open Pacomb
+
 (** [get_from_to fname off1 off2] returns the list of the lines of the file
     [fname] starting at the [off1]-th line to the [off2]-th line. Lines not
     in range are ignored. *)
@@ -17,9 +19,9 @@ type config =
 val default_config : config
 
 (** Exception raised in cas of an error (e.g., invalid position). *)
-exception Quote_error of Pos.pos * string
+exception Quote_error of Pos.interval * string
 
 (** [quote_file ~config och pos] prints on [och] the extract of code at the
     position [pos] according the the [config]. In case of a problem (e.g. a
     non-existant file) the exception [Quote_error(pos,msg)] is raised. *)
-val quote_file : ?config:config -> out_channel -> Pos.pos -> unit
+val quote_file : ?config:config -> out_channel -> Pos.interval -> unit

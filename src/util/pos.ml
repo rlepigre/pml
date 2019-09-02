@@ -2,19 +2,10 @@
     elements of an abstract syntax tree to sequences of characters in a
     source file. *)
 
-open Earley_core
-
-(** Type of a position corresponding to a continuous range of characters in
-    a (utf8 encoded) source file. For denoting a zero-length position is to
-    have [end_col] equal to [start_col - 1]. *)
-type pos =
-  { fname       : string option (** File name for the position.       *)
-  ; start_line  : int (** Line number of the starting point.          *)
-  ; start_col   : int (** Column number (utf8) of the starting point. *)
-  ; end_line    : int (** Line number of the ending point.            *)
-  ; end_col     : int (** Column number (utf8) of the ending point.   *) }
+open Pacomb
 
 (** Convenient short name for an optional position. *)
+type pos = Pos.interval
 type popt = pos option
 
 type user = ..
@@ -44,12 +35,13 @@ let none : 'a -> 'a loc =
   fun elt -> { elt ; pos = None; usr = Timed.tref Nothing }
 
 let merge : pos -> pos -> pos = fun p1 p2 ->
-  match compare p1.start_line p2.start_line with
-  | n when n < 0 -> {p1 with end_line = p2.end_line ; end_col = p2.end_col}
-  | n when n > 0 -> {p2 with end_line = p1.end_line ; end_col = p1.end_col}
-  | _ (* n=0 *)  -> let start_col = min p1.start_col p2.start_col in
-                    let end_col   = max p1.start_col p2.start_col in
-                    {p1 with start_col ; end_col}
+  match compare p1.start.line p2.start.line with
+  | n when n < 0 -> {p1 with end_ = { p1.end_ with line = p2.end_.line ; col = p2.end_.col}}
+  | n when n > 0 -> {p2 with end_ = { p2.end_ with line = p1.end_.line ; col = p1.end_.col}}
+  | _ (* n=0 *)  -> let start_col = min p1.start.col p2.start.col in
+                    let end_col   = max p1.start.col p2.start.col in
+                    { start = { p1.start with col = start_col }
+                    ; end_  = { p1.end_  with col = end_col   }}
 
 let union : popt -> popt -> popt = fun p1 p2 ->
   match (p1, p2) with
@@ -58,78 +50,24 @@ let union : popt -> popt -> popt = fun p1 p2 ->
   | (None   , Some _ ) -> p2
   | (Some p1, Some p2) -> Some (merge p1 p2)
 
-(** [locate buf1 pos1 buf2 pos2] builds a position structure given two
-    DeCaP input buffers. This function can be used by DeCaP to generate
-    the position of elements during parsing.
-    @see <http://lama.univ-savoie.fr/decap/> DeCap *)
-let locate buf1 pos1 buf2 pos2 =
-  let fname =
-    match Input.filename buf1 with
-    | ""    -> None
-    | fname -> Some fname
-  in
-  let start_line = Input.line_num buf1 in
-  let end_line = Input.line_num buf2 in
-  let start_col = Input.utf8_col_num buf1 pos1 in
-  let end_col = Input.utf8_col_num buf2 pos2 in
-  assert(start_line <= end_line);
-  assert(start_line < end_line || start_col <= end_col);
-  { fname ; start_line ; start_col ; end_line ; end_col }
-
-(** [pos_to_string pos] transforms the position [pos] into a readable
-    format. *)
-let pos_to_string : pos -> string =
-  fun p ->
-    let fname =
-      match p.fname with
-      | None       -> ""
-      | Some fname -> Printf.sprintf "file <%s>, " fname
-    in
-    if p.start_line <> p.end_line then
-      Printf.sprintf "%sposition %d:%d to %d:%d"
-        fname p.start_line p.start_col p.end_line p.end_col
-    else if p.start_col = p.end_col then
-      Printf.sprintf "%sline %d, character %d"
-        fname p.start_line p.start_col
-    else
-      Printf.sprintf "%sline %d, characters %d to %d"
-        fname p.start_line p.start_col p.end_col
-
 (** [print_pos oc pos] prints the position [pos] to the channel [oc]. *)
 let print_pos : out_channel -> pos -> unit =
-  fun ch p -> output_string ch ("at " ^ (pos_to_string p))
+  Pos.print_interval ()
 
 (** [print_pos oc pos] prints the position [pos] to the channel [oc]. *)
-let print_pos_opt : out_channel -> pos option -> unit =
+let print_pos_opt : out_channel -> popt -> unit =
   fun ch p ->
     match p with
     | None   -> output_string ch "at an unknown location"
     | Some p -> print_pos ch p
 
-(** [short_pos_to_string pos] is similar to [pos_to_string pos] but uses
-    a shorter format. *)
-let short_pos_to_string : pos -> string =
-  fun p ->
-    let fname =
-      match p.fname with
-      | None       -> ""
-      | Some fname -> Printf.sprintf "%s, " fname
-    in
-    if p.start_line <> p.end_line then
-      Printf.sprintf "%s%d:%d-%d:%d" fname
-        p.start_line p.start_col p.end_line p.end_col
-    else if p.start_col = p.end_col then
-      Printf.sprintf "%s%d:%d" fname p.start_line p.start_col
-    else
-      Printf.sprintf "%s%d:%d-%d" fname p.start_line p.start_col p.end_col
-
 (** [print_short_pos oc pos] prints the position [pos] to the channel [oc]
     using a shorter format that [print_pos oc pos]. *)
 let print_short_pos : out_channel -> pos -> unit =
-  fun ch p -> output_string ch ("at " ^ (short_pos_to_string p))
+  Pos.print_interval ~style:Short ()
 
 (** [print_pos oc pos] prints the position [pos] to the channel [oc]. *)
-let print_short_pos_opt : out_channel -> pos option -> unit =
+let print_short_pos_opt : out_channel -> popt -> unit =
   fun ch p ->
     match p with
     | None   -> output_string ch "at an unknown location"

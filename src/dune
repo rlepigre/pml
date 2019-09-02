@@ -4,8 +4,8 @@
   (name pml)
   (public_name pml)
   (modules :standard)
-  (preprocess (per_module ((action (run pa_ocaml %{input-file})) parser)))
-  (libraries bindlib earley.core earley.str))
+  (preprocess (per_module ((pps pacomb.ppx) parser)))
+  (libraries unix bindlib pacomb))
 
 (rule
   (targets config.ml)

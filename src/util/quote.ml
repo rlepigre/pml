@@ -1,3 +1,5 @@
+open Pacomb
+
 let get_lines : string -> int -> int -> string list = fun fname off1 off2 ->
   let ch = open_in fname in
   for i = 1 to off1 - 1 do ignore (input_line ch) done;
@@ -37,20 +39,20 @@ let red : string -> string =
 let ulined : string -> string =
   fun s -> "\027[4m" ^ s ^ "\027[0m"
 
-exception Quote_error of Pos.pos * string
-let quote_error : type a. Pos.pos -> string -> a = fun pos msg ->
+exception Quote_error of Pos.interval * string
+let quote_error : type a. Pos.interval -> string -> a = fun pos msg ->
   raise (Quote_error(pos, msg))
 
-let quote_file : ?config:config -> out_channel -> Pos.pos -> unit =
+let quote_file : ?config:config -> out_channel -> Pos.interval -> unit =
   fun ?(config=default_config) oc pos ->
     let open Pos in
-    match pos.fname with
-    | None       -> quote_error pos "Unable to quote (no filename)"
-    | Some fname ->
-        if pos.start_line > pos.end_line then
+    match pos.start.name with
+    | ""    -> quote_error pos "Unable to quote (no filename)"
+    | fname ->
+        if pos.start.line > pos.end_.line then
           quote_error pos "Invalid line position (start after end)";
-        let off1 = max 1 (pos.start_line - config.leading)  in
-        let off2 = pos.end_line   + config.trailing in
+        let off1 = max 1 (pos.start.line - config.leading)  in
+        let off2 = pos.end_.line   + config.trailing in
         let lines =
           try get_lines fname off1 off2 with _ ->
             quote_error pos "Cannot obtain the lines from the file"
@@ -58,7 +60,7 @@ let quote_file : ?config:config -> out_channel -> Pos.pos -> unit =
         let max_num = String.length (string_of_int off2) in
         let print_i i line =
           let num = i + off1 in
-          let in_pos = pos.start_line <= num && num <= pos.end_line in
+          let in_pos = pos.start.line <= num && num <= pos.end_.line in
           let number =
             if config.numbers then
               let num = string_of_int num in
@@ -67,27 +69,27 @@ let quote_file : ?config:config -> out_channel -> Pos.pos -> unit =
             else ""
           in
           let line =
-            let len = Utf8.len line in
+            let len = Utf8.length line in
             if not in_pos then line else
-            if num = pos.start_line && num = pos.end_line then
-              let n = pos.end_col - pos.start_col + 1 in
-              if pos.end_col < pos.start_col then
+            if num = pos.start.line && num = pos.end_.line then
+              let n = pos.end_.col - pos.start.col + 1 in
+              if pos.end_.col < pos.start.col then
                 begin
-                  Printf.eprintf ">>> pos.start_col   = %i\n" pos.start_col;
-                  Printf.eprintf ">>> pos.end_col     = %i\n" pos.end_col;
+                  Printf.eprintf ">>> pos.start_col   = %i\n" pos.start.col;
+                  Printf.eprintf ">>> pos.end_col     = %i\n" pos.end_.col;
                   quote_error pos "Invalid column position (start after end)";
                 end;
-              let l = Utf8.sub line 0 (pos.start_col-1) in
-              let c = Utf8.sub line (pos.start_col-1) n in
-              let r = Utf8.sub line pos.end_col (len - pos.end_col) in
+              let l = Utf8.sub line 0 (pos.start.col-1) in
+              let c = Utf8.sub line (pos.start.col-1) n in
+              let r = Utf8.sub line pos.end_.col (len - pos.end_.col) in
               l ^ ulined (red c) ^ r
-            else if num = pos.start_line then
-              let n = pos.start_col - 1 in
+            else if num = pos.start.line then
+              let n = pos.start.col - 1 in
               let l = Utf8.sub line 0 n in
               let r = Utf8.sub line n (len - n) in
               l ^ ulined (red r)
-            else if num = pos.end_line then
-              let n = pos.end_col in
+            else if num = pos.end_.line then
+              let n = pos.end_.col in
               let l = Utf8.sub line 0 n in
               let r = Utf8.sub line n (len - n) in
               ulined (red l) ^ r
