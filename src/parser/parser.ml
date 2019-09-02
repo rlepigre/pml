@@ -325,11 +325,11 @@ let%parser [@cache] rec expr (m : mode) =
   ; (m <= Prp A) "{" (x::llid) "∈" (a::prop) "}"
       => esett _pos x a
   (* Proposition (least fixpoint) *)
-  ; (m <= Prp F) "μ" (o:: ~? [none EConv] ordinal) ((x,s)::s_arg) ',' (a::any)
+  ; (m <= Prp F) "μ" (o:: ~? [none EConv] ('_' (o::ordinal) => o)) ((x,s)::s_arg) ',' (a::any)
       => (let s = match s with Some s -> s | None -> new_sort_uvar (Some x) in
          in_pos _pos (EFixM(s,o,x,a)))
   (* Proposition (greatest fixpoint) *)
-  ; (m <= Prp F) "ν" (o:: ~? [none EConv] ordinal) ((x,s)::s_arg) ',' (a::any)
+  ; (m <= Prp F) "ν" (o:: ~? [none EConv] ('_' (o::ordinal) => o)) ((x,s)::s_arg) ',' (a::any)
       => (let s = match s with Some s -> s | None -> new_sort_uvar (Some x) in
          in_pos _pos (EFixN(s,o,x,a)))
   (* Proposition (membership) *)
