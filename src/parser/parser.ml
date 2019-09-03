@@ -675,6 +675,7 @@ and compile_file : bool -> string -> unit = fun nodep fn ->
   Env.start fn;
   let save = !Env.env in
   Env.env := Env.empty;
+  let _ = Grammar.compile entry in
   let ast = Chrono.add_time parsing_chrono parse_file fn in
   List.iter (interpret nodep) ast;
   Env.save_file fn;
