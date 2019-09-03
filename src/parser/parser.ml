@@ -374,11 +374,10 @@ let%parser [@cache] rec expr (m : mode) =
   ; (m <= Trm A) (n::int)
       => from_int _pos n
   (* Term (infix symbol) *)
-  ; (m <= Trm I) ((pl',t)>:((t::expr (Trm I)) => (get_infix_prio t,t))) (s::"::")
-      (u::(let p = 5.0 in
-      if pl' > p -. epsilon then Lex.give_up ();
-      expr (Trm I))) => (
-        let p = 5.0 in
+  ; (m <= Trm I) ((pl',t)>:((t::expr (Trm I)) => (get_infix_prio t,t)))
+      (s::(s::"::" => (let p = 5.0 in if pl' > p -. epsilon then Lex.give_up ();s)))
+      (u::expr (Trm I))
+    => (let p = 5.0 in
         let pr' = get_infix_prio u in
         if pr' > p then Lex.give_up ();
         let t =
@@ -387,19 +386,18 @@ let%parser [@cache] rec expr (m : mode) =
                               ; (none "tl", Some u)], ref `T)))
         in
         in_pos _pos (EInfx(t,p)))
-  ; (m <= Trm I) ((pl',t)>:((t::expr (Trm I)) => (get_infix_prio t,t))) ((pl,(s,__,p,pr,ho))>:infix)
-      (u::(
-      if pl' > pl then Lex.give_up ();
-      expr (Trm I)))
+  ; (m <= Trm I) ((pl',t)>:((t::expr (Trm I)) => (get_infix_prio t,t)))
+      ((s,__,p,pr,ho)::((pl,i)::infix => (if pl' > pl then Lex.give_up (); i)))
+      (u::expr (Trm I))
     => (let pr' = get_infix_prio u in
-         if pr' > pr then Lex.give_up ();
-         let t =
-           if ho then
-             let sort = none (SFun(_st, none (SFun(_st,_st)))) in
-             in_pos _pos (EHOAp(s, sort, [t;u]))
-           else
-             in_pos _pos (EAppl(none (EAppl(s,t)), u)) in
-         in_pos _pos (EInfx(t,p)))
+        if pr' > pr then Lex.give_up ();
+        let t =
+          if ho then
+            let sort = none (SFun(_st, none (SFun(_st,_st)))) in
+            in_pos _pos (EHOAp(s, sort, [t;u]))
+          else
+            in_pos _pos (EAppl(none (EAppl(s,t)), u)) in
+        in_pos _pos (EInfx(t,p)))
   (* Term (record) *)
   ; (m <= Trm A) "{" (fs::~+ [semi] field) "}"
       => record _pos fs
