@@ -24,7 +24,7 @@ check:
 .PHONY: lib
 LIB_FILES = $(shell find lib -name "*.pml")
 lib: bin $(LIB_FILES)
-	@for f in $(LIB_FILES); do dune exec -- pml --quiet $$f || break ; done
+	dune exec -- pml --quiet --timed $(LIB_FILES)
 
 # Book test target, testing pml code in the book
 .PHONY: book_tests

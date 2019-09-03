@@ -685,18 +685,16 @@ and compile_file : bool -> string -> unit = fun nodep fn ->
 (* Handling the files. *)
 and handle_file : bool -> string -> unit = fun nodep fn ->
   try
-    if !recompile && nodep then compile_file nodep fn;
-    try Env.load_file fn
+    try
+      if !recompile && nodep then raise Env.Compile;
+      Env.load_file fn
     with Env.Compile ->
-      if nodep then
         begin
           compile_file nodep fn;
           try Env.load_file fn
           with Env.Compile ->
             failwith "source changed during compilation"
         end
-      else (* allready compiled by load_infix if dep *)
-        failwith "source changed during compilation"
   with
   | Pos.Parse_error(b,p,msg)             ->
      begin
