@@ -41,7 +41,7 @@ let files =
       , Arg.Set Output.always_colors
       , " Always use colors.")
     ; ( "--timed"
-      , Arg.Tuple [Arg.Set timed; Arg.Set recompile]
+      , Arg.Tuple [Arg.Set timed]
       , " Display a timing report after the execution.")
     ; ( "--recompile"
       , Arg.Set recompile
