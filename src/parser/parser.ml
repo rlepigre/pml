@@ -332,12 +332,12 @@ and [@cache] prop_atom m =
   ; (e::cond false)
       => in_pos _pos (ERest(None,e))
   (* Proposition (injection of term) *)
-  ; (m <> Any && m <> Prp F') (t::expr (Trm I))
+  ; (m <> Any) (t::expr (Trm I))
       => begin
           match t.elt with
             | EVari _ | EHOAp _ | EUnit -> Lex.give_up ()
             | _                         -> t
-    end
+         end
 
 and [@cache] ord_full =
   (* Ordinal (successor) *)

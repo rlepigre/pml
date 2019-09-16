@@ -1,7 +1,5 @@
-(* Priorities for parsing propositions (Atom, Memb, Rest, Prod, Full).
-   F' is used to avoid the injection term -> prop inside parenthesis
-   otherwise, it is ambiguous *)
-type p_prio = F' | F | P | R | M | A
+(* Priorities for parsing propositions (Atom, Memb, Rest, Prod, Full). *)
+type p_prio = F | P | R | M | A
 
 (* Priorities for parsing terms (Atom, aPpl, Infix, pRefix, Sequ, Full). *)
 type t_prio = F | S | R | I | P | A
