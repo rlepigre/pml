@@ -21,10 +21,13 @@ check:
 	@sh tools/sanity_check.sh
 
 # Lib target (PML handles the dependencies).
-.PHONY: lib
 LIB_FILES = $(shell find lib -name "*.pml")
-lib: bin $(LIB_FILES)
+LIB_PMI   = $(LIB_FILES:.pml=.pmi)
+$(LIB_PMI): $(LIB_FILES)
 	dune exec -- pml --quiet --timed $(LIB_FILES)
+
+.PHONY: lib
+lib: $(LIB_PMI)
 
 # Book test target, testing pml code in the book
 .PHONY: book_tests
@@ -33,20 +36,14 @@ TEXPML= book/part1_doc/basics.pml \
         book/part1_doc/dependent.pml \
         book/part1_doc/advanced.pml \
         book/part1_doc/solutions.pml
-book_tests: bin lib $(TEXPML)
-	@for f in $(TEXPML); do \
-     echo $$f; \
-     dune exec -- pml --quiet $$f || break ; \
-   done
+book_tests: $(LIB_PMI) $(TEXPML)
+	dune exec -- pml --quiet --timed $(TEXPML)
 
 # Test target.
 .PHONY: tests
 TEST_FILES = $(shell find examples tests -name "*.pml")
-tests: bin lib $(TEST_FILES)
-	@for f in $(TEST_FILES); do \
-     echo $$f; \
-     dune exec -- pml --quiet $$f || break ; \
-   done
+tests: $(LIB_PMI) $(TEST_FILES)
+	dune exec -- pml --quiet --timed $(TEST_FILES)
 
 # target to mesure time
 .PHONY: time
