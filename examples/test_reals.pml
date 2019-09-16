@@ -13,7 +13,7 @@ val half : real = { exp = 0; man = cons S man0 }
 val rec man3 : man = fun _ { { hd = S; tl = fun _ { { hd = P; tl = man3 }}}}
 val third : real = { exp = 0; man = man3 }
 
-val size : nat = 5
+val size : nat = 3
 
 val ones : bds⟨2⟩ = repeat (p1 : bint⟨p2⟩)
 val test : {} = print_man size (divideBy 2 ones); print " = 1000000000\n"
