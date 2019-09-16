@@ -45,7 +45,7 @@ let path = Grammar.test_after (fun buf pos _ _ ->
 
 (* Parser for the contents of a goal. *)
 let%parser goal_name = (s::RE"\\([^- \t\n\r]\\|\\(-[^}]\\)\\)+") => s
-let%parser goal =
+let%parser [@cache] goal =
   "{-" (str:: ~* goal_name) "-}" => String.trim (String.concat " " str)
 
 (* Keywords. *)
@@ -173,7 +173,7 @@ let%parser llid_wc =
 
 (* Some useful tokens. *)
 let%parser elipsis = "⋯" => () ; "..." => ()
-let%parser infty   = "∞" => () ; "<inf>" => ()
+let%parser [@cache] infty   = "∞" => () ; "<inf>" => ()
 let%parser arrow   = "→" => ()
 let%parser eff     = "p" => Effect.Print
                    ; "c" => Effect.CallCC
@@ -249,16 +249,6 @@ let%parser s_arg  = (id::llid) (so:: ~? (column (s::sort) => s))  => (id,so)
 let%parser s_lst  = (l:: ~+ [comma] s_arg)                        => l
 let%parser s_args = (l:: ~? [[]] (langle (l::s_lst) rangle => l)) => l
 
-let (<=) = fun p1 p2 ->
-  match p1, p2 with
-  | _     , HO     -> true
-  | Any   ,_       -> true
-  | Prp p1, Prp p2 -> p1 <= p2
-  | Trm p1, Trm p2 -> p1 <= p2
-  | Stk   , Stk    -> true
-  | Ord p1, Ord p2 -> p1 <= p2
-  | _     , _      -> false
-
 let get_infix_prio u =
   match u.elt with EInfx(_,p) -> p
                  | _ -> 0.0
@@ -267,13 +257,46 @@ let get_infix_prio u =
 (* Parser for expressions. *)
 let%parser [@cache] rec expr (m : mode) =
   (* Any (higher-order function) *)
-    (m <= Any) "(" (x::llid) ":" (s::sort) "↦" (e::any) ")"
-      => in_pos _pos (EHOFn(x,s,e))
+    (e::ho_fun)                          => e
   (* Higher-order application *)
-  ; (m <= HO && m <> Ord E) (e::expr HO) (args::ho_args)
-      => in_pos _pos (EHOAp(e, new_sort_uvar None, args))
+  ; (m <<= HO && m <> Ord E) (e::ho_app) => e
   (* Variable *)
-  ; (m <= HO) (id::llid) (s:: ~? ('^' (e::expr (Ord E)) => e))
+  ; (m <<= HO) (e::expr_var)             => e
+  (* Parenthesis *)
+  ; (e::expr_par m)                      => e
+
+  ; (m <<= Prp A) (e::prop_atom m)       => e
+  ; (m <<= Prp F) (e::prop_full)         => e
+  ; (m <<= Prp P) (e::prop_prod)         => e
+  ; (m <<= Prp M) (e::prop_mem)          => e
+  ; (m <<= Prp R) (e::prop_rest)         => e
+  (* Proposition / Term (empty product / empty record) *)
+  ; (m <<= HO) "{" "}" (* HO level to avoid ambiguity *)
+      => in_pos _pos EUnit
+
+  ; (m <<= Trm I) (t::term_infix)        => t
+  ; (m <<= Trm A) (t::term_atom)         => t
+  ; (m <<= Trm S) (t::term_seq)          => t
+  ; (m <<= Trm R) (t::term_repl)         => t
+  ; (m <<= Trm P) (t::term_appl)         => t
+
+  (* Ordinal (infinite) *)
+  ; (m <<= Ord E) infty                  => in_pos _pos EConv
+  ; (m <<= Ord F) (o::ord_full)          => o
+
+  (* Goal (term or stack) *)
+  ; (m <<= Stk || m <<= Trm A) (s::goal) => in_pos _pos (EGoal(s))
+
+and [@cache] ho_fun =
+  "(" (x::llid) ":" (s::sort) "↦" (e::any) ")"
+      => in_pos _pos (EHOFn(x,s,e))
+
+and [@cache] ho_app =
+    (e::expr HO) (args::ho_args)
+      => in_pos _pos (EHOAp(e, new_sort_uvar None, args))
+
+and [@cache] expr_var =
+    (id::llid) (s:: ~? ('^' (e::expr (Ord E)) => e))
       => begin
            match s with
            | None   -> evari (Some _pos) id
@@ -281,100 +304,210 @@ let%parser [@cache] rec expr (m : mode) =
                        let x = evari (Some id_pos) id in
                        in_pos _pos (EHOAp(x, new_sort_uvar None, [s]))
          end
-  (* Parenthesis niveau HO *)
-  ; (m = HO) '(' (e::any) ')'
+
+and [@cache] expr_par m =
+    '(' (e::(expr (reset m))) ')'
       => (match e.elt  with EInfx(e,_) -> e | _ -> e)
 
+and [@cache] prop_atom m =
   (* Proposition (boolean type) *)
-  ; (m <= Prp A) _bool_
+    _bool_
       => p_bool (Some _pos)
-  (* Proposition (implication) *)
-  ; (m <= Prp F) (a::expr (Prp P)) (t::impl) (b::prop)
-      => in_pos _pos (EFunc(t,a,b))
-  (* Proposition (tuple type) *)
-  ; (m <= Prp P) (a::expr (Prp R)) (bs:: ~+ (prod (b::expr (Prp R)) => b))
-      => tuple_type _pos (a::bs)
   (* Proposition (non-empty product) *)
-  ; (m <= Prp A) "{" (fs::~+ [semi] ((l::llid) ":" (a::prop) => (l,a))) (s::strict) "}"
+  ; "{" (fs::~+ [semi] ((l::llid) ":" (a::prop) => (l,a))) (s::strict) "}"
       => in_pos _pos (EProd(fs,s))
   (* Proposition (extensible empty record) *)
-  ; (m <= Prp A) "{" elipsis "}"
+  ; "{" elipsis "}"
       => in_pos _pos (EProd([],false))
-  (* Proposition / Term (empty product / empty record) *)
-  ; (m <= HO) "{" "}" (* HO level to avoid ambiguity *)
-      => in_pos _pos EUnit
   (* Proposition (disjoint sum) *)
-  ; (m <= Prp A) "[" (fs::~+ [semi] ((l::luid) (a::~? (_of_ (a::prop) => a)) => (l,a))) "]"
+  ; "[" (fs::~+ [semi] ((l::luid) (a::~? (_of_ (a::prop) => a)) => (l,a))) "]"
       => in_pos _pos (EDSum(fs))
   (* empty type *)
-  ; (m <= Prp A) empty_s
+  ; empty_s
       => in_pos _pos (EDSum [])
-  (* Proposition (universal quantification) *)
-  ; (m <= Prp F) "∀" (x::llid) (xs::~* llid) (s::~? (':' (s::sort) => s)) ',' (a::prop)
-      => euniv _pos x xs s a
-  (* Proposition (dependent function type) *)
-  ; (m <= Prp F) "∀" (x::llid) (xs::~* llid) "∈" (a::prop) ',' (b::prop)
-      => euniv_in _pos x xs a b
-  (* Proposition (existential quantification) *)
-  ; (m <= Prp F) "∃" (x::llid) (xs::~* llid) (s::~? (':' (s::sort) => s)) ',' (a::prop)
-      => eexis _pos x xs s a
-  (* Proposition (dependent pair) *)
-  ; (m <= Prp F) "∃" (x::llid) (xs::~* llid) "∈" (a::prop) ',' (b::prop)
-      => eexis_in _pos x xs a b
   (* Proposition (set type) *)
-  ; (m <= Prp A) "{" (x::llid) "∈" (a::prop) "}"
+  ; "{" (x::llid) "∈" (a::prop) "}"
       => esett _pos x a
-  (* Proposition (least fixpoint) *)
-  ; (m <= Prp F) "μ" (o:: ~? [none EConv] ('_' (o::ordinal) => o)) ((x,s)::s_arg) ',' (a::any)
-      => (let s = match s with Some s -> s | None -> new_sort_uvar (Some x) in
-         in_pos _pos (EFixM(s,o,x,a)))
-  (* Proposition (greatest fixpoint) *)
-  ; (m <= Prp F) "ν" (o:: ~? [none EConv] ('_' (o::ordinal) => o)) ((x,s)::s_arg) ',' (a::any)
-      => (let s = match s with Some s -> s | None -> new_sort_uvar (Some x) in
-         in_pos _pos (EFixN(s,o,x,a)))
-  (* Proposition (membership) *)
-  ; (m <= Prp M) (t::expr (Trm I)) memb (a::expr (Prp M))
-      => in_pos _pos (EMemb(t,a))
-  (* Proposition (restriction) *)
-  ; (m <= Prp R) (a::expr (Prp M)) rest (e::cond true)
-      => in_pos _pos (ERest(Some a,e))
   (* Proposition (equivalence) *)
-  ; (m <= Prp A) (e::cond false)
+  ; (e::cond false)
       => in_pos _pos (ERest(None,e))
-  (* Proposition (implication) *)
-  ; (m <= Prp R) (e::cond true) simpl (a::expr (Prp M))
-      => in_pos _pos (EImpl(e, Some a))
-  (* Proposition (parentheses) *)
-  ;  (m <= Prp A) "(" (e::expr (Prp F')) ")"
-      => (match e.elt  with EInfx(e,_) -> e | _ -> e)
   (* Proposition (injection of term) *)
-  ; (m <= Prp A && m <> Any && m <> Prp F') (t::expr (Trm I))
+  ; (m <> Any && m <> Prp F') (t::expr (Trm I))
       => begin
           match t.elt with
             | EVari _ | EHOAp _ | EUnit -> Lex.give_up ()
             | _                         -> t
-         end
+    end
 
-  (* Term (lambda abstraction) *)
-  ; (m <= Trm A) _fun_ (args::~+ arg) '{' (t::term) '}'
+and [@cache] ord_full =
+  (* Ordinal (successor) *)
+    (o::ordinal) "+ₒ" (n::int)
+      => in_pos _pos (ESucc(o,n))
+
+and [@cache] prop_prod =
+  (* Proposition (tuple type) *)
+    (a::expr (Prp R)) (bs:: ~+ (prod (b::expr (Prp R)) => b))
+      => tuple_type _pos (a::bs)
+
+and [@cache] prop_mem =
+  (* Proposition (membership) *)
+    (t::expr (Trm I)) memb (a::expr (Prp M))
+      => in_pos _pos (EMemb(t,a))
+
+and [@cache] prop_rest =
+  (* Proposition (restriction) *)
+    (a::expr (Prp M)) rest (e::cond true)
+      => in_pos _pos (ERest(Some a,e))
+  (* Proposition (implication) *)
+  ; (e::cond true) simpl (a::expr (Prp M))
+      => in_pos _pos (EImpl(e, Some a))
+
+and [@cache] prop_full =
+  (* Proposition (implication) *)
+    (a::expr (Prp P)) (t::impl) (b::prop)
+      => in_pos _pos (EFunc(t,a,b))
+  (* Proposition (universal quantification) *)
+  ; "∀" (x::llid) (xs::~* llid) (s::~? (':' (s::sort) => s)) ',' (a::prop)
+      => euniv _pos x xs s a
+  (* Proposition (dependent function type) *)
+  ; "∀" (x::llid) (xs::~* llid) "∈" (a::prop) ',' (b::prop)
+      => euniv_in _pos x xs a b
+  (* Proposition (existential quantification) *)
+  ; "∃" (x::llid) (xs::~* llid) (s::~? (':' (s::sort) => s)) ',' (a::prop)
+      => eexis _pos x xs s a
+  (* Proposition (dependent pair) *)
+  ; "∃" (x::llid) (xs::~* llid) "∈" (a::prop) ',' (b::prop)
+      => eexis_in _pos x xs a b
+  (* Proposition (least fixpoint) *)
+  ; "μ" (o:: ~? [none EConv] ('_' (o::ordinal) => o)) ((x,s)::s_arg) ',' (a::any)
+      => (let s = match s with Some s -> s | None -> new_sort_uvar (Some x) in
+         in_pos _pos (EFixM(s,o,x,a)))
+  (* Proposition (greatest fixpoint) *)
+  ; "ν" (o:: ~? [none EConv] ('_' (o::ordinal) => o)) ((x,s)::s_arg) ',' (a::any)
+      => (let s = match s with Some s -> s | None -> new_sort_uvar (Some x) in
+         in_pos _pos (EFixN(s,o,x,a)))
+
+and [@cache] term_atom  =
+    (* Term (lambda abstraction) *)
+    _fun_ (args::~+ arg) '{' (t::term) '}'
       => in_pos _pos (ELAbs((List.hd args, List.tl args),t))
-  ; (m <= Trm S) _take_ (args::~+ arg) ';' (t::expr (Trm S))
-      => in_pos _pos (ELAbs((List.hd args, List.tl args),t))
-  ; (m <= Trm S) _suppose_ (props::~+ [comma] (expr (Prp F))) ';' (t::expr (Trm S))
-      => suppose _pos props t
-  ; (m <= Trm R) lambda (args::~+ arg) '.' (t::expr (Trm I))
-      => in_pos _pos (ELAbs((List.hd args, List.tl args),t))
+  (* Term (printing) *)
+  ; _print_ (s::str_lit)
+      => in_pos _pos (EPrnt(s))
+  (* Term (type coersion) *)
+  ; "(" (t::term) ":" (a::prop) ")"
+      => in_pos _pos (ECoer(new_sort_uvar None,t,a))
   (* Term (constructor) *)
-  ; (m <= Trm A) (c::luid) (t::~? ('[' (t::term) ']' => t))
+  ; (c::luid) (t::~? ('[' (t::term) ']' => t))
       => in_pos _pos (ECons(c, Option.map (fun t -> (t, ref `T)) t))
   (* Term (empty list) *)
-  ; (m <= Trm A) '[' ']'
+  ; '[' ']'
       => v_nil _pos
   (* Term ("int") *)
-  ; (m <= Trm A) (n::int)
+  ; (n::int)
       => from_int _pos n
+  (* Term (record) *)
+  ; "{" (fs::~+ [semi] field) "}"
+      => record _pos fs
+  (* Term (tuple) *)
+  ; '(' (t::term) "," (ts::~+ [comma] term) ')'
+      => tuple_term _pos (t::ts)
+  (* Term (scisors) *)
+  ; scis
+      => in_pos _pos EScis
+  (* Term (mu abstraction) *)
+  ; _save_ (arg::llid) '{' (t::term) '}'
+      => in_pos _pos (EMAbs(arg,t))
+  (* Term (projection) *)
+  ; (t::expr (Trm A)) "." (l::((l::llid) => l ; (l::lnum) => l))
+      => in_pos _pos (EProj(t, ref `T, l))
+  (* Term (case analysis) *)
+  ; _case_ (t::term) '{'
+      (ps::~* ((~? '|') (p::patt) arrow (t::term) => (p,t)))
+      '}'
+      => pattern_matching _pos t ps
+  (* Term (conditional) *)
+  ; _if_ (c::term) '{' (t::term) '}' (e::~? (_else_ '{' (t::term) '}' => t))
+      => if_then_else _pos c t e
+  (* Term ("QED" tactic) *)
+  ; _qed_
+      => qed _pos
+  (* Term (fixpoint) *)
+  ; _fix_ (arg::arg) '{' (t::term) '}'
+      => (let (a,ao) = arg in
+         let t = in_pos _pos (EFixY(a,t)) in
+         let t = match ao with
+           | None -> t
+           | Some ty -> in_pos _pos (ECoer(new_sort_uvar None,t,ty))
+         in
+         t)
+
+and [@cache] term_appl =
+  (* Term (application) *)
+    (t::expr (Trm P)) (u::expr (Trm A))
+      => in_pos _pos (EAppl(t,u))
+
+and [@cache] term_repl =
+  (* Term (replacement) *)
+    _check_ (u::((e::expr (Trm R)) => e ; '{' (t::term) '}' => t))
+      _for_ (t::((e::expr (Trm R)) => e ; '{' (t::term) '}' => t))
+            (b::~? justification)
+      => in_pos _pos (ERepl(t,u,b))
+  (* Term (totality by purity) *)
+  ; _delim_ '{' (u::term) '}'
+      => in_pos _pos (EDelm(u))
+  (* Term ("show" tactic) *)
+  ; deduce (a::prop) (p::~? justification)
+      => show _pos a p
+  (* Term ("show" tactic, sequences of eqns) *)
+  ; deduce (a::term) (eqns::~+( equiv
+                           (b::expr (Trm R))
+                           (p::~? justification)
+                              => (_pos,b,p)))
+      => (if List.length eqns <= 1 then Lex.give_up ();
+         equations _pos a_pos a eqns)
+  (* Term ("use" tactic) *)
+  ; _use_ (t::expr (Trm R))
+      => use _pos t
+  ; lambda (args::~+ arg) '.' (t::expr (Trm I))
+      => in_pos _pos (ELAbs((List.hd args, List.tl args),t))
+
+
+
+and [@cache] term_seq =
+    _take_ (args::~+ arg) ';' (t::expr (Trm S))
+      => in_pos _pos (ELAbs((List.hd args, List.tl args),t))
+  ; _suppose_ (props::~+ [comma] (expr (Prp F))) ';' (t::expr (Trm S))
+      => suppose _pos props t
+  (* Term (let binding) *)
+  ; _let_ (r::v_rec) (arg::let_arg) '=' (t::expr (Trm R)) ';' (u::expr (Trm S))
+      => let_binding _pos r arg t u
+  (* Term (sequencing). *)
+  ; (t::expr (Trm R)) ';' (u::expr (Trm S))
+      => in_pos _pos (ESequ(t,u))
+  (* Term ("showing" tactic) *)
+  ; from (a::expr (Prp R))
+         (q::~? (because (q::((e::expr (Trm R)) => e ; '{' (t::term) '}' => t)) => q))
+         ';' (p::expr (Trm S))
+      => showing _pos a q p
+  (* Term ("assume"/"know" tactic) *)
+  ; (_assume_ => (); _know_ => ())  (a::expr (Trm R))
+         (q::~? (because (q::((e::expr (Trm R)) => e ; '{' (t::term) '}' => t)) => q))
+         ';' (p::expr (Trm S))
+      => assume _pos a q p
+  (* Term (auto lvl) *)
+  ; _set_ (l::set_param) ';' (t::expr (Trm S))
+      => in_pos _pos (EPSet(new_sort_uvar None,l,t))
+  (* Term (let such that) *)
+  ; _let_ (vs::s_lst) _st_ (x::llid_wc) ':' (a::prop) ';' (u::expr (Trm S))
+      => esuch _pos vs x a u
+
+and [@cache] term_infix =
+  (* Term (name) *)
+    _restore_ (s::stack) (t::expr (Trm P))
+      => in_pos _pos (EName(s,t))
   (* Term (infix symbol) *)
-  ; (m <= Trm I) ((pl',t)>:((t::expr (Trm I)) => (get_infix_prio t,t)))
+  ; ((pl',t)>:((t::expr (Trm I)) => (get_infix_prio t,t)))
       (s::(s::"::" => (let p = 5.0 in if pl' > p -. epsilon then Lex.give_up ();s)))
       (u::expr (Trm I))
     => (let p = 5.0 in
@@ -386,7 +519,7 @@ let%parser [@cache] rec expr (m : mode) =
                               ; (none "tl", Some u)], ref `T)))
         in
         in_pos _pos (EInfx(t,p)))
-  ; (m <= Trm I) ((pl',t)>:((t::expr (Trm I)) => (get_infix_prio t,t)))
+  ; ((pl',t)>:((t::expr (Trm I)) => (get_infix_prio t,t)))
       ((s,__,p,pr,ho)::((pl,i)::infix => (if pl' > pl then Lex.give_up (); i)))
       (u::expr (Trm I))
     => (let pr' = get_infix_prio u in
@@ -398,112 +531,6 @@ let%parser [@cache] rec expr (m : mode) =
           else
             in_pos _pos (EAppl(none (EAppl(s,t)), u)) in
         in_pos _pos (EInfx(t,p)))
-  (* Term (record) *)
-  ; (m <= Trm A) "{" (fs::~+ [semi] field) "}"
-      => record _pos fs
-  (* Term (tuple) *)
-  ; (m <= Trm A) '(' (t::term) "," (ts::~+ [comma] term) ')'
-      => tuple_term _pos (t::ts)
-  (* Term (scisors) *)
-  ; (m <= Trm A) scis
-      => in_pos _pos EScis
-  (* Term (application) *)
-  ; (m <= Trm P) (t::expr (Trm P)) (u::expr (Trm A))
-      => in_pos _pos (EAppl(t,u))
-  (* Term (let binding) *)
-  ; (m <= Trm S) _let_ (r::v_rec) (arg::let_arg) '=' (t::expr (Trm R)) ';' (u::expr (Trm S))
-      => let_binding _pos r arg t u
-  (* Term (sequencing). *)
-  ; (m <= Trm S) (t::expr (Trm R)) ';' (u::expr (Trm S))
-      => in_pos _pos (ESequ(t,u))
-  (* Term (mu abstraction) *)
-  ; (m <= Trm A) _save_ (arg::llid) '{' (t::term) '}'
-      => in_pos _pos (EMAbs(arg,t))
-  (* Term (name) *)
-  ; (m <= Trm I) _restore_ (s::stack) (t::expr (Trm P))
-      => in_pos _pos (EName(s,t))
-  (* Term (projection) *)
-  ; (m <= Trm A) (t::expr (Trm A)) "." (l::((l::llid) => l ; (l::lnum) => l))
-      => in_pos _pos (EProj(t, ref `T, l))
-  (* Term (case analysis) *)
-  ; (m <= Trm A) _case_ (t::term) '{'
-      (ps::~* ((~? '|') (p::patt) arrow (t::term) => (p,t)))
-      '}'
-      => pattern_matching _pos t ps
-  (* Term (conditional) *)
-  ; (m <= Trm A) _if_ (c::term) '{' (t::term) '}' (e::~? (_else_ '{' (t::term) '}' => t))
-      => if_then_else _pos c t e
-  (* Term (replacement) *)
-  ; (m <= Trm R) _check_ (u::((e::expr (Trm R)) => e ; '{' (t::term) '}' => t))
-      _for_ (t::((e::expr (Trm R)) => e ; '{' (t::term) '}' => t))
-            (b::~? justification)
-      => in_pos _pos (ERepl(t,u,b))
-  (* Term (totality by purity) *)
-  ; (m <= Trm R) _delim_ '{' (u::term) '}'
-      => in_pos _pos (EDelm(u))
-  (* Term ("show" tactic) *)
-  ; (m <= Trm R) deduce (a::prop) (p::~? justification)
-      => show _pos a p
-  (* Term ("show" tactic, sequences of eqns) *)
-  ; (m <= Trm R) deduce (a::term) (eqns::~+( equiv
-                           (b::expr (Trm R))
-                           (p::~? justification)
-                              => (_pos,b,p)))
-      => (if Pervasives.(List.length eqns <= 1) then Lex.give_up ();
-         equations _pos a_pos a eqns)
-  (* Term ("use" tactic) *)
-  ; (m <= Trm R) _use_ (t::expr (Trm R))
-      => use _pos t
-  (* Term ("showing" tactic) *)
-  ; (m <= Trm S) from (a::expr (Prp R))
-         (q::~? (because (q::((e::expr (Trm R)) => e ; '{' (t::term) '}' => t)) => q))
-         ';' (p::expr (Trm S))
-      => showing _pos a q p
-  (* Term ("assume"/"know" tactic) *)
-  ; (m <= Trm S) (_assume_ => (); _know_ => ())  (a::expr (Trm R))
-         (q::~? (because (q::((e::expr (Trm R)) => e ; '{' (t::term) '}' => t)) => q))
-         ';' (p::expr (Trm S))
-      => assume _pos a q p
-  (* Term ("QED" tactic) *)
-  ; (m <= Trm A) _qed_
-      => qed _pos
-  (* Term (fixpoint) *)
-  ; (m <= Trm A) _fix_ (arg::arg) '{' (t::term) '}'
-      => (let (a,ao) = arg in
-         let t = in_pos _pos (EFixY(a,t)) in
-         let t = match ao with
-           | None -> t
-           | Some ty -> in_pos _pos (ECoer(new_sort_uvar None,t,ty))
-         in
-         t)
-  (* Term (printing) *)
-  ; (m <= Trm A) _print_ (s::str_lit)
-      => in_pos _pos (EPrnt(s))
-  (* Term (type coersion) *)
-  ; (m <= Trm A) "(" (t::term) ":" (a::prop) ")"
-      => in_pos _pos (ECoer(new_sort_uvar None,t,a))
-  (* Term (auto lvl) *)
-  ; (m <= Trm S) _set_ (l::set_param) ';' (t::expr (Trm S))
-      => in_pos _pos (EPSet(new_sort_uvar None,l,t))
-  (* Term (let such that) *)
-  ; ( m <= Trm S) _let_ (vs::s_lst) _st_ (x::llid_wc) ':' (a::prop) ';' (u::expr (Trm S))
-      => esuch _pos vs x a u
-  (* Term (parentheses) *)
-  ; (m <= Trm A) "(" (t::term) ")"
-      => (match t.elt  with EInfx(t,_) -> t | _ -> t)
-
-  (* Ordinal (infinite) *)
-  ; (m <= Ord E) infty
-      => in_pos _pos EConv
-  (* Ordinal (successor) *)
-  ; (m <= Ord F) (o::ordinal) "+ₒ" (n::int)
-      => in_pos _pos (ESucc(o,n))
-  (* Ordinal (parenthesis) *)
-  ; (m <= Ord E) '(' (o::ordinal) ')'
-      => (match o.elt  with EInfx(o,_) -> o | _ -> o)
-  (* Goal (term or stack) *)
-  ; (m <= Stk || m <= Trm A) (s::goal)
-      => in_pos _pos (EGoal(s))
 
 and justification =
   because (p::((t::expr (Trm R)) => t ; '{' (t::term)  '}' => t)) => p
@@ -675,6 +702,7 @@ and compile_file : bool -> string -> unit = fun nodep fn ->
   Env.start fn;
   let save = !Env.env in
   Env.env := Env.empty;
+  (* avoid timing of grammar compilation *)
   let _ = Grammar.compile entry in
   let ast = Chrono.add_time parsing_chrono parse_file fn in
   List.iter (interpret nodep) ast;
