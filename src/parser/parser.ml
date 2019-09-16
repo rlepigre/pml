@@ -631,7 +631,7 @@ let%parser rec toplevel =
              ; "right" => Env.RightAssoc
              ; "non"   => Env.NonAssoc ))
                "associative"
-    => (let infix = Env.{name;prio;asso;hiho} in
+    ==> (let infix = Env.{name;prio;asso;hiho} in
         Hashtbl.replace Env.infix_tbl s infix;
         fun () -> Infix(s,infix))
 
