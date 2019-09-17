@@ -265,7 +265,10 @@ let%parser [@cache] rec expr (m : mode) =
   (* Parenthesis *)
   ; (e::expr_par (reset m))              => e
 
-  ; (m <<= Prp A) (e::prop_atom (m = Any))  => e
+  ; (m <<= Prp A) (e::prop_atom)  => e
+  ; (m <<= Prp A) (e::cond false (m = Any))
+                                         => in_pos _pos (ERest(None,e))
+
   ; (m <<= Prp F) (e::prop_full)         => e
   ; (m <<= Prp P) (e::prop_prod)         => e
   ; (m <<= Prp M) (e::prop_mem)          => e
@@ -309,7 +312,7 @@ and [@cache] expr_par m =
     '(' (e::(expr (reset m))) ')'
       => (match e.elt  with EInfx(e,_) -> e | _ -> e)
 
-and [@cache] prop_atom any =
+and [@cache] prop_atom =
   (* Proposition (boolean type) *)
     _bool_
       => p_bool (Some _pos)
@@ -328,16 +331,6 @@ and [@cache] prop_atom any =
   (* Proposition (set type) *)
   ; "{" (x::llid) "∈" (a::prop) "}"
       => esett _pos x a
-  (* Proposition (equivalence) *)
-  ; (e::cond false)
-    => in_pos _pos (ERest(None,e))
-  ; (any = false) (t::expr (Trm I)) =>
-      begin
-         match t.elt with
-            | EVari _ | EHOAp _ | EUnit -> Lex.give_up ()
-            | _                         -> t
-      end
-
 
 and [@cache] ord_full =
   (* Ordinal (successor) *)
@@ -356,10 +349,10 @@ and [@cache] prop_mem =
 
 and [@cache] prop_rest =
   (* Proposition (restriction) *)
-    (a::expr (Prp M)) rest (e::cond true)
+    (a::expr (Prp M)) rest (e::cond true false)
       => in_pos _pos (ERest(Some a,e))
   (* Proposition (implication) *)
-  ; (e::cond true) simpl (a::expr (Prp M))
+  ; (e::cond true false) simpl (a::expr (Prp M))
       => in_pos _pos (EImpl(e, Some a))
 
 and [@cache] prop_full =
@@ -535,10 +528,19 @@ and [@cache] term_infix =
 and justification =
   because (p::((t::expr (Trm R)) => t ; '{' (t::term)  '}' => t)) => p
 
-and cond opt =
+and [@cache] cond opt any =
     (opt = true) (t::expr (Trm I))
             => (let u = none (ECons(none "true", None))
                in EEquiv(t,true,u))
+  ; (opt = false && any = false) (t::expr (Trm I)) =>
+      begin
+         match t.elt with
+            | EVari _ | EHOAp _ | EUnit -> Lex.give_up ()
+            | _                         ->
+               let u = none (ECons(none "true", None)) in
+               EEquiv(t,true,u)
+      end
+
   ; (t::expr (Trm I)) (b::eq) (u::expr (Trm I))
             => EEquiv(t,b,u)
   ; (t::expr (Trm I)) cvg
