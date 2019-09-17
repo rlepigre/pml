@@ -259,13 +259,13 @@ let%parser [@cache] rec expr (m : mode) =
   (* Any (higher-order function) *)
     (e::ho_fun)                          => e
   (* Higher-order application *)
-  ; (m <<= HO && m <> Ord E) (e::ho_app) => e
+  ; (m <> Ord E) (e::ho_app)             => e
   (* Variable *)
-  ; (m <<= HO) (e::expr_var)             => e
+  ; (e::expr_var)                        => e
   (* Parenthesis *)
-  ; (e::expr_par m)                      => e
+  ; (e::expr_par (reset m))              => e
 
-  ; (m <<= Prp A) (e::prop_atom m)       => e
+  ; (m <<= Prp A) (e::prop_atom (m = Any))  => e
   ; (m <<= Prp F) (e::prop_full)         => e
   ; (m <<= Prp P) (e::prop_prod)         => e
   ; (m <<= Prp M) (e::prop_mem)          => e
@@ -309,7 +309,7 @@ and [@cache] expr_par m =
     '(' (e::(expr (reset m))) ')'
       => (match e.elt  with EInfx(e,_) -> e | _ -> e)
 
-and [@cache] prop_atom m =
+and [@cache] prop_atom any =
   (* Proposition (boolean type) *)
     _bool_
       => p_bool (Some _pos)
@@ -330,14 +330,14 @@ and [@cache] prop_atom m =
       => esett _pos x a
   (* Proposition (equivalence) *)
   ; (e::cond false)
-      => in_pos _pos (ERest(None,e))
-  (* Proposition (injection of term) *)
-  ; (m <> Any) (t::expr (Trm I))
-      => begin
-          match t.elt with
+    => in_pos _pos (ERest(None,e))
+  ; (any = false) (t::expr (Trm I)) =>
+      begin
+         match t.elt with
             | EVari _ | EHOAp _ | EUnit -> Lex.give_up ()
             | _                         -> t
-         end
+      end
+
 
 and [@cache] ord_full =
   (* Ordinal (successor) *)
