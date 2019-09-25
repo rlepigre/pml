@@ -495,16 +495,18 @@ and [@cache] term_seq =
   ; _let_ (vs::s_lst) _st_ (x::llid_wc) ':' (a::prop) ';' (u::expr (Trm S))
       => esuch _pos vs x a u
 
+and term_iprio =
+  (t::expr (Trm I)) => (get_infix_prio t,t)
+
 and [@cache] term_infix =
   (* Term (name) *)
     _restore_ (s::stack) (t::expr (Trm P))
       => in_pos _pos (EName(s,t))
   (* Term (infix symbol) *)
-  ; ((pl',t)>:((t::expr (Trm I)) => (get_infix_prio t,t)))
+  ; ((pl',t)>:term_iprio)
       (s::(s::"::" => (let p = 5.0 in if pl' > p -. epsilon then Lex.give_up ();s)))
-      (u::expr (Trm I))
+      ((pr',u)::term_iprio)
     => (let p = 5.0 in
-        let pr' = get_infix_prio u in
         if pr' > p then Lex.give_up ();
         let t =
           in_pos _pos (ECons(in_pos s_pos "Cons",
@@ -512,11 +514,10 @@ and [@cache] term_infix =
                               ; (none "tl", Some u)], ref `T)))
         in
         in_pos _pos (EInfx(t,p)))
-  ; ((pl',t)>:((t::expr (Trm I)) => (get_infix_prio t,t)))
+  ; ((pl',t)>:term_iprio)
       ((s,__,p,pr,ho)::((pl,i)::infix => (if pl' > pl then Lex.give_up (); i)))
-      (u::expr (Trm I))
-    => (let pr' = get_infix_prio u in
-        if pr' > pr then Lex.give_up ();
+      ((pr',u)::term_iprio)
+    => (if pr' > pr then Lex.give_up ();
         let t =
           if ho then
             let sort = none (SFun(_st, none (SFun(_st,_st)))) in
