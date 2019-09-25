@@ -255,7 +255,7 @@ let get_infix_prio u =
 
 (*let to_full = function*)
 (* Parser for expressions. *)
-let%parser [@cache] rec expr (m : mode) =
+let%parser rec expr (m : mode) =
   (* Any (higher-order function) *)
     (e::ho_fun)                          => e
   (* Higher-order application *)
