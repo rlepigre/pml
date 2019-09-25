@@ -40,9 +40,10 @@ type sman⟨s⟩ = stream^s⟨sbit⟩
 // Unique representation of -1 and 1.
 val neg1 : man = repeat P
 val pos1 : man = repeat S
+val zer0 : man = repeat Z
 
 // To compute the opposite, we juste take the opposite of every digit.
-val opp_man : man ⇒ man =
+val opp_man : ∀s, sman⟨s⟩ ⇒ sman⟨s⟩ =
   map opp_sbit
 
 // Average of a single sbit and a man.
@@ -132,15 +133,18 @@ val rec average_commutative :  ∀x y∈man,
 // code for multiplication of mantissa
 val mul_sbit : sbit ⇒ sbit ⇒ sbit = fun a b {
   case a {
-    Z → Z
     S → b
+    Z → Z
     P → opp_sbit b
   }
 }
 
-val rec mul_sbit_man : ∀s, sbit ⇒ sman⟨s⟩ ⇒ sman⟨s⟩ = fun b x _ {
-  let { hd = x0; tl = x } = x {};
-  { hd = mul_sbit b x0; tl = mul_sbit_man b x }
+val rec mul_sbit_man : ∀s, sbit ⇒ sman⟨s⟩ ⇒ sman⟨s⟩ = fun b x {
+  case b {
+    P → opp_man x
+    S → x
+    Z → zer0
+  }
 }
 
 val rec mul_man : man ⇒ man ⇒ man = fun x y {
@@ -154,7 +158,7 @@ val rec mul_man : man ⇒ man ⇒ man = fun x y {
     let q : sman⟨s+ₒ1⟩ =
       fun (_ :{}){ { hd = mul_sbit x0 y0
                    ; tl = fun (_:{}) { { hd = mul_sbit x0 y1
-                                       ; tl = mul_man x y } } } };
+                                       ; tl = mul_man y x } } } };
     (p ⊕ q) {}
   }
 }
