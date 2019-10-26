@@ -12,7 +12,7 @@ type ('a, 'b) t =
 
 (* Full comparision function (compares closures with physical equality). *)
 let compare x y =
-  try Pervasives.compare x y = 0 with _ -> x == y
+  try compare x y = 0 with _ -> x == y
 
 (* Creates a fresh, empty table. *)
 let create initial_size =
