@@ -71,20 +71,20 @@ let quote_file : ?config:config -> out_channel -> Pos.interval -> unit =
           let line =
             let len = Utf8.length line in
             if not in_pos then line else
-            if num = pos.start.line && num = pos.end_.line then
-              let n = pos.end_.col - pos.start.col + 1 in
-              if pos.end_.col < pos.start.col then
-                begin
-                  Printf.eprintf ">>> pos.start_col   = %i\n" pos.start.col;
-                  Printf.eprintf ">>> pos.end_col     = %i\n" pos.end_.col;
-                  quote_error pos "Invalid column position (start after end)";
-                end;
-              let l = Utf8.sub line 0 (pos.start.col-1) in
-              let c = Utf8.sub line (pos.start.col-1) n in
-              let r = Utf8.sub line pos.end_.col (len - pos.end_.col) in
+              if num = pos.start.line && num = pos.end_.line then
+              let end_ =
+                if pos.end_.col = pos.start.col then
+                  pos.end_.col + 1
+                else
+                  pos.end_.col
+              in
+              let n = end_ - pos.start.col in
+              let l = Utf8.sub line 0 pos.start.col in
+              let c = Utf8.sub line pos.start.col n in
+              let r = Utf8.sub line end_ (len - end_) in
               l ^ ulined (red c) ^ r
             else if num = pos.start.line then
-              let n = pos.start.col - 1 in
+              let n = pos.start.col in
               let l = Utf8.sub line 0 n in
               let r = Utf8.sub line n (len - n) in
               l ^ ulined (red r)
