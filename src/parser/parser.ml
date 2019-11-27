@@ -495,7 +495,7 @@ and [@cache] term_seq =
   ; _let_ (vs::s_lst) _st_ (x::llid_wc) ':' (a::prop) ';' (u::expr (Trm S))
       => esuch _pos vs x a u
 
-and term_iprio =
+and [@cache] term_iprio =
   (t::expr (Trm I)) => (get_infix_prio t,t)
 
 and [@cache] term_infix =
