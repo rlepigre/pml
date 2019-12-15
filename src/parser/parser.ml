@@ -29,7 +29,7 @@ let str_lit =
     ; "\\t"       => "\t"
     ; (c::normal) => String.make 1 c
   in
-  let%parser [@layout Lex.noblank] str =
+  let%parser [@layout Blank.none] str =
     "\"" (cs:: ~*str_char) "\"" => String.concat "" cs
   in
   str
@@ -39,7 +39,7 @@ let str_lit =
 let%parser path_atom = (id::RE"[a-zA-Z0-9_]+") => id
 let%parser path = (ps:: ~* ((p::path_atom) '.' => p)) (f::path_atom) => ps @ [f]
 
-let path = Grammar.test_after (fun buf pos _ _ ->
+let path = Grammar.test_after (fun _ buf pos _ _ ->
                let (c,_,_) = Input.read buf pos in
                c <> '.') path
 
@@ -112,7 +112,7 @@ let reserved_infix = [ "≡"; "∈"; "="; "::" ]
 
 let%parser minus =
   Grammar.test_after
-    (fun buf pos _ _ ->
+    (fun _ buf pos _ _ ->
       let (c,_,_) = Input.read buf pos in
       not (c >= '0' && c <= '9'))
     ("-" => ())
@@ -147,7 +147,7 @@ let%parser rec infix =
       (pl,(t, s,p,pr,ho))
     end
 
-let%parser [@layout Lex.noblank] infix = (i::infix) => i
+let%parser [@layout Blank.none] infix = (i::infix) => i
 
 (* Located identifiers. *)
 let%parser llid = (id::lid)                => in_pos _pos id
