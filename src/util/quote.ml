@@ -44,15 +44,15 @@ let quote_error : type a. Pos.interval -> string -> a = fun pos msg ->
   raise (Quote_error(pos, msg))
 
 let quote_file : ?config:config -> out_channel -> Pos.interval -> unit =
-  fun ?(config=default_config) oc pos ->
+  fun ?(config=default_config) oc ({ start = lazy start; end_ = lazy end_ } as pos) ->
     let open Pos in
-    match pos.start.name with
+    match start.name with
     | ""    -> quote_error pos "Unable to quote (no filename)"
     | fname ->
-        if pos.start.line > pos.end_.line then
+        if start.line > end_.line then
           quote_error pos "Invalid line position (start after end)";
-        let off1 = max 1 (pos.start.line - config.leading)  in
-        let off2 = pos.end_.line   + config.trailing in
+        let off1 = max 1 (start.line - config.leading)  in
+        let off2 = end_.line   + config.trailing in
         let lines =
           try get_lines fname off1 off2 with _ ->
             quote_error pos "Cannot obtain the lines from the file"
@@ -60,7 +60,7 @@ let quote_file : ?config:config -> out_channel -> Pos.interval -> unit =
         let max_num = String.length (string_of_int off2) in
         let print_i i line =
           let num = i + off1 in
-          let in_pos = pos.start.line <= num && num <= pos.end_.line in
+          let in_pos = start.line <= num && num <= end_.line in
           let number =
             if config.numbers then
               let num = string_of_int num in
@@ -71,25 +71,25 @@ let quote_file : ?config:config -> out_channel -> Pos.interval -> unit =
           let line =
             let len = Utf8.length line in
             if not in_pos then line else
-              if num = pos.start.line && num = pos.end_.line then
+              if num = start.line && num = end_.line then
               let end_ =
-                if pos.end_.col = pos.start.col then
-                  pos.end_.col + 1
+                if end_.col = start.col then
+                  end_.col + 1
                 else
-                  pos.end_.col
+                  end_.col
               in
-              let n = end_ - pos.start.col in
-              let l = Utf8.sub line 0 pos.start.col in
-              let c = Utf8.sub line pos.start.col n in
+              let n = end_ - start.col in
+              let l = Utf8.sub line 0 start.col in
+              let c = Utf8.sub line start.col n in
               let r = Utf8.sub line end_ (len - end_) in
               l ^ ulined (red c) ^ r
-            else if num = pos.start.line then
-              let n = pos.start.col in
+            else if num = start.line then
+              let n = start.col in
               let l = Utf8.sub line 0 n in
               let r = Utf8.sub line n (len - n) in
               l ^ ulined (red r)
-            else if num = pos.end_.line then
-              let n = pos.end_.col in
+            else if num = end_.line then
+              let n = end_.col in
               let l = Utf8.sub line 0 n in
               let r = Utf8.sub line n (len - n) in
               ulined (red l) ^ r

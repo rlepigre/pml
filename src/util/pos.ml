@@ -34,14 +34,17 @@ let in_pos : pos -> 'a -> 'a loc =
 let none : 'a -> 'a loc =
   fun elt -> { elt ; pos = None; usr = Timed.tref Nothing }
 
-let merge : pos -> pos -> pos = fun p1 p2 ->
-  match compare p1.start.line p2.start.line with
-  | n when n < 0 -> {p1 with end_ = { p1.end_ with line = p2.end_.line ; col = p2.end_.col}}
-  | n when n > 0 -> {p2 with end_ = { p2.end_ with line = p1.end_.line ; col = p1.end_.col}}
-  | _ (* n=0 *)  -> let start_col = min p1.start.col p2.start.col in
-                    let end_col   = max p1.start.col p2.start.col in
-                    { start = { p1.start with col = start_col }
-                    ; end_  = { p1.end_  with col = end_col   }}
+let merge : pos -> pos -> pos = fun ({ start = lazy s1; end_ = lazy e1 } as p1)
+                                    ({ start = lazy s2; end_ = lazy e2 } as p2) ->
+  match compare s1.line s2.line with
+  | n when n < 0 ->
+     {p1 with end_ = lazy { e1 with line = e2.line ; col = e2.col}}
+  | n when n > 0 ->
+     {p2 with end_ = lazy { e2 with line = e1.line ; col = e1.col}}
+  | _ (* n=0 *)  -> let start_col = min s1.col s2.col in
+                    let end_col   = max s1.col s2.col in
+                    { start = lazy { s1 with col = start_col }
+                    ; end_  = lazy { e1  with col = end_col   }}
 
 let union : popt -> popt -> popt = fun p1 p2 ->
   match (p1, p2) with

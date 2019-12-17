@@ -48,6 +48,13 @@ let%parser goal_name = (s::RE"\\([^- \t\n\r]\\|\\(-[^}]\\)\\)+") => s
 let%parser [@cache] goal =
   "{-" (str:: ~* goal_name) "-}" => String.trim (String.concat " " str)
 
+module S = struct
+  let id_charset = Charset.from_string "a-zA-2Z0-9_'"
+  let reserved = []
+end
+
+module Keyword = Keywords.Make(S)
+
 (* Keywords. *)
 let _assert_  = Keyword.create "assert"
 let _assume_  = Keyword.create "assume"
