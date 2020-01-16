@@ -19,9 +19,9 @@ type config =
 val default_config : config
 
 (** Exception raised in cas of an error (e.g., invalid position). *)
-exception Quote_error of Pos.interval * string
+exception Quote_error of (Pos.t * Pos.t) * string
 
 (** [quote_file ~config och pos] prints on [och] the extract of code at the
     position [pos] according the the [config]. In case of a problem (e.g. a
     non-existant file) the exception [Quote_error(pos,msg)] is raised. *)
-val quote_file : ?config:config -> out_channel -> Pos.interval -> unit
+val quote_file : ?config:config -> out_channel -> Pos.t * Pos.t -> unit

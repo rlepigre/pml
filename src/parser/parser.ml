@@ -641,7 +641,7 @@ let%parser rec toplevel =
              ; "right" => Env.RightAssoc
              ; "non"   => Env.NonAssoc ))
                "associative"
-    ==> (let infix = Env.{name;prio;asso;hiho} in
+    => (let infix = Env.{name;prio;asso;hiho} in
         Hashtbl.replace Env.infix_tbl s infix;
         fun () -> Infix(s,infix))
 
@@ -735,10 +735,9 @@ and handle_file : bool -> string -> unit = fun nodep fn ->
   with
   | Pos.Parse_error(b,p,msg)             ->
      begin
-        let p = Pos.get_pos b p in
-        let p = Pos.{ start = p; end_ = p } in
-        err_msg "No parse %a." print_short_pos p;
-        Quote.quote_file stderr p;
+        let p = Input.spos b p in
+        err_msg "No parse %a." print_short_pos (p,p);
+        Quote.quote_file stderr (p,p);
         exit 1
       end
   | Unbound_sort(s, None  ) ->
@@ -801,9 +800,6 @@ and handle_file : bool -> string -> unit = fun nodep fn ->
 and parse_file : string -> toplevel list = fun fn ->
   let blank = Regexp.blank_regexp "\\(\\(//[^\n]*\\)\\|[ \t\n\r]*\\)*" in
   let parse f =
-    let ch = open_in f in
-    let r = Grammar.parse_channel ~utf8:Utf8.UTF8 ~filename:f entry blank ch in
-    close_in ch;
-    r
+    Grammar.parse_file ~utf8:Utf8.UTF8 entry blank f
   in
   List.map (fun act -> act ()) (parse fn)

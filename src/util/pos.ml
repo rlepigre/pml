@@ -5,7 +5,7 @@
 open Pacomb
 
 (** Convenient short name for an optional position. *)
-type pos = Pos.interval
+type pos = Pos.t * Pos.t
 type popt = pos option
 
 type user = ..
@@ -34,17 +34,9 @@ let in_pos : pos -> 'a -> 'a loc =
 let none : 'a -> 'a loc =
   fun elt -> { elt ; pos = None; usr = Timed.tref Nothing }
 
-let merge : pos -> pos -> pos = fun ({ start = lazy s1; end_ = lazy e1 } as p1)
-                                    ({ start = lazy s2; end_ = lazy e2 } as p2) ->
-  match compare s1.line s2.line with
-  | n when n < 0 ->
-     {p1 with end_ = lazy { e1 with line = e2.line ; col = e2.col}}
-  | n when n > 0 ->
-     {p2 with end_ = lazy { e2 with line = e1.line ; col = e1.col}}
-  | _ (* n=0 *)  -> let start_col = min s1.col s2.col in
-                    let end_col   = max s1.col s2.col in
-                    { start = lazy { s1 with col = start_col }
-                    ; end_  = lazy { e1  with col = end_col   }}
+let merge : pos -> pos -> pos = fun ((infos,p1), (_,p2)) ((_,q1),(_,q2)) ->
+  ((infos, min p1 q1), (infos, max p2 q2))
+
 
 let union : popt -> popt -> popt = fun p1 p2 ->
   match (p1, p2) with
@@ -55,7 +47,7 @@ let union : popt -> popt -> popt = fun p1 p2 ->
 
 (** [print_pos oc pos] prints the position [pos] to the channel [oc]. *)
 let print_pos : out_channel -> pos -> unit =
-  Pos.print_interval ()
+  Pos.print_spos2 ()
 
 (** [print_pos oc pos] prints the position [pos] to the channel [oc]. *)
 let print_pos_opt : out_channel -> popt -> unit =
@@ -67,7 +59,7 @@ let print_pos_opt : out_channel -> popt -> unit =
 (** [print_short_pos oc pos] prints the position [pos] to the channel [oc]
     using a shorter format that [print_pos oc pos]. *)
 let print_short_pos : out_channel -> pos -> unit =
-  Pos.print_interval ~style:Short ()
+  Pos.print_spos2 ~style:Short ()
 
 (** [print_pos oc pos] prints the position [pos] to the channel [oc]. *)
 let print_short_pos_opt : out_channel -> popt -> unit =
