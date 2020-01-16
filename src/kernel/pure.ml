@@ -48,7 +48,8 @@ let pure : type a. a ex loc -> bool =
     | HFun(s,_,b) -> biter s b
     | HApp(_,a,b) -> iter a; iter b
     | HDef(_,d)   -> iter d.expr_def
-    | Func(t,a,b) -> if not Effect.(absent CallCC t) then raise Exit;
+    | Func(t,a,b,_)
+                  -> if not Effect.(absent CallCC t) then raise Exit;
                      iter a; iter b
     | Prod(m)     -> A.iter (fun _ (_,a) -> iter a) m
     | DSum(m)     -> A.iter (fun _ (_,a) -> iter a) m
@@ -68,7 +69,7 @@ let pure : type a. a ex loc -> bool =
     | Scis        -> ()
     | VDef(d)     -> () (* no type in value def *)
     | Valu(v)     -> iter v
-    | Appl(t,u)   -> iter t; iter u
+    | Appl(t,u,_) -> iter t; iter u
     (* NOTE type annotation ignored. *)
     | MAbs(b)     -> biter S b
     | Name(s,t)   -> iter s; iter t

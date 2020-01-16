@@ -161,7 +161,7 @@ and raw_ex' =
   | EHOAp of raw_ex * raw_sort * raw_ex list
   | EHOFn of strloc * raw_sort * raw_ex
 
-  | EFunc of Effect.t * raw_ex * raw_ex
+  | EFunc of Effect.t * raw_ex * raw_ex * laz
   | EProd of (strloc * raw_ex) list * bool
   | EUnit (* Empty record as a type or a term *)
   | EDSum of (strloc * raw_ex option) list
@@ -173,11 +173,11 @@ and raw_ex' =
   | ERest of raw_ex option * raw_cond
   | EImpl of raw_cond * raw_ex option
 
-  | ELAbs of (strloc * raw_ex option) ne_list * raw_ex
+  | ELAbs of (strloc * raw_ex option) ne_list * raw_ex * laz
   | ECons of strloc * (raw_ex * flag) option
   | EReco of (strloc * raw_ex * flag) list
   | EScis
-  | EAppl of raw_ex * raw_ex
+  | EAppl of raw_ex * raw_ex * laz
   | ESequ of raw_ex * raw_ex
   | EMAbs of strloc * raw_ex
   | EName of raw_ex * raw_ex
@@ -207,8 +207,8 @@ let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
                          (print_list print "; ") es
     | EHOFn(x,s,e)  -> Printf.fprintf ch "EHOFn(%S,%a,%a)" x.elt
                          print_raw_sort s print e
-    | EFunc(t,a,b)  -> Printf.fprintf ch "EFunc(%a %a %a)"
-                                      print a Print.arrow t print b
+    | EFunc(t,a,b,l)-> Printf.fprintf ch "EFunc(%a,%a,%a,%b)"
+                                      print a Print.arrow t print b (l = Lazy)
     | EProd(l,str)  -> Printf.fprintf ch "EProd([%a], %s)"
                          (print_list aux_ls "; ") l
                          (if str then "strict" else "extensible")
@@ -228,14 +228,14 @@ let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
     | EMemb(t,a)    -> Printf.fprintf ch "EMemb(%a,%a)" print t print a
     | ERest(a,eq)   -> Printf.fprintf ch "ERest(%a,%a)" aux_opt a aux_eq eq
     | EImpl(eq,a)   -> Printf.fprintf ch "EImpl(%a,%a)" aux_opt a aux_eq eq
-    | ELAbs(args,t) -> Printf.fprintf ch "ELAbs([%a],%a)"
+    | ELAbs(ls,t,l) -> Printf.fprintf ch "ELAbs([%a],%a,%b)"
                          (print_list aux_arg "; ")
-                         (ne_list_to_list args) print t
+                         (ne_list_to_list ls) print t (l = Lazy)
     | ECons(c,ao)   -> Printf.fprintf ch "ECons(%S,%a)" c.elt aux_cons ao
     | EReco(l)      -> Printf.fprintf ch "EReco([%a])"
                          (print_list aux_rec "; ") l
     | EScis         -> Printf.fprintf ch "EScis"
-    | EAppl(t,u)    -> Printf.fprintf ch "EAppl(%a,%a)" print t print u
+    | EAppl(t,u,l)  -> Printf.fprintf ch "EAppl(%a,%a,%b)" print t print u (l = Lazy)
     | ESequ(t,u)    -> Printf.fprintf ch "ESequ(%a,%a)" print t print u
     | EMAbs(arg,t)  -> Printf.fprintf ch "EMAbs(%a,%a)" aux_var arg print t
     | EName(s,t)    -> Printf.fprintf ch "EName(%a,%a)" print s print t
@@ -377,9 +377,9 @@ let infer_sorts : raw_ex -> raw_sort -> unit = fun e s ->
                                     infer vars e s
     | (EHOFn(_,_,_) , _        ) -> sort_clash e s
     (* Propositions. *)
-    | (EFunc(_,a,b) , SP       ) -> infer vars a _sp; infer vars b _sp
-    | (EFunc(_,_,_) , SUni(r)  ) -> sort_uvar_set r _sp; infer vars e s
-    | (EFunc(_,_,_) , _        ) -> sort_clash e s
+    | (EFunc(_,a,b,_), SP       ) -> infer vars a _sp; infer vars b _sp
+    | (EFunc(_,_,_,_), SUni(r)  ) -> sort_uvar_set r _sp; infer vars e s
+    | (EFunc(_,_,_,_), _        ) -> sort_clash e s
     | (EUnit        , SP       )
     | (EUnit        , SV _     )
     | (EUnit        , ST       ) -> ()
@@ -446,8 +446,8 @@ let infer_sorts : raw_ex -> raw_sort -> unit = fun e s ->
     | (EImpl(_,_)   , SUni(r)  ) -> sort_uvar_set r _sp; infer vars e s
     | (EImpl(_,_)   , _        ) -> sort_clash e s
     (* Terms / Values. *)
-    | (ELAbs(args,t), SV _     )
-    | (ELAbs(args,t), ST       ) ->
+    | (ELAbs(args,t,_), SV _   )
+    | (ELAbs(args,t,_), ST     ) ->
         begin
           let fn vs (x, ao) =
             begin
@@ -460,8 +460,8 @@ let infer_sorts : raw_ex -> raw_sort -> unit = fun e s ->
           let vars = List.fold_left fn vars (ne_list_to_list args) in
           infer vars t _st
         end
-    | (ELAbs(_,_)   , SUni(r)  ) -> sort_uvar_set r _sv; infer vars e s
-    | (ELAbs(_,_)   , _        ) -> sort_clash e s
+    | (ELAbs(_,_,_) , SUni(r)  ) -> sort_uvar_set r _sv; infer vars e s
+    | (ELAbs(_,_,_) , _        ) -> sort_clash e s
     | (ECons(_,vo)  , SV _     ) ->
         begin
           match vo with
@@ -527,10 +527,10 @@ let infer_sorts : raw_ex -> raw_sort -> unit = fun e s ->
     | (EGoal(str)   , SS       ) -> ()
     | (EGoal(str)   , SUni(r)  ) -> sort_uvar_set r _sv; infer vars e s
     | (EGoal(_)     , _        ) -> sort_clash e s
-    | (EAppl(t,u)   , ST       ) -> infer vars t s; infer vars u s
-    | (EAppl(t,u)   , SP       ) -> infer vars t _st; infer vars u _st
-    | (EAppl(_,_)   , SUni(r)  ) -> sort_uvar_set r _st; infer vars e s
-    | (EAppl(_,_)   , _        ) -> sort_clash e s
+    | (EAppl(t,u,_) , ST       ) -> infer vars t s; infer vars u s
+    | (EAppl(t,u,_) , SP       ) -> infer vars t _st; infer vars u _st
+    | (EAppl(_,_,_) , SUni(r)  ) -> sort_uvar_set r _st; infer vars e s
+    | (EAppl(_,_,_) , _        ) -> sort_clash e s
     | (ESequ(t,u)   , ST       ) -> infer vars t s; infer vars u s
     | (ESequ(_,_)   , SUni(r)  ) -> sort_uvar_set r _st; infer vars e s
     | (ESequ(_,_)   , _        ) -> sort_clash e s
@@ -755,10 +755,10 @@ let unsugar_expr : raw_ex -> raw_sort -> boxed = fun e s ->
        let t = to_term (unsugar env vars t _st) in
        Box(P, eq_true e.pos t)
     (* Propositions. *)
-    | (EFunc(t,a,b) , SP       ) ->
+    | (EFunc(t,a,b,l), SP      ) ->
         let a = unsugar env vars a s in
         let b = unsugar env vars b s in
-        Box(P, func e.pos t (to_prop a) (to_prop b))
+        Box(P, func e.pos t l (to_prop a) (to_prop b))
     | (EUnit        , SP       ) -> Box(P, strict_prod e.pos A.empty)
     | (EUnit        , SV _     ) -> Box(V, reco e.pos A.empty)
     | (EUnit        , ST       ) -> Box(T, valu e.pos (reco e.pos A.empty))
@@ -869,7 +869,7 @@ let unsugar_expr : raw_ex -> raw_sort -> boxed = fun e s ->
         in
         Box(P, impl e.pos c a)
     (* Values. *)
-    | (ELAbs(args,t), SV _     ) ->
+    | (ELAbs(args,t,l), SV _   ) ->
         begin
           match args with
           | ((x,ao), []   ) ->
@@ -880,10 +880,11 @@ let unsugar_expr : raw_ex -> raw_sort -> boxed = fun e s ->
                 let vars = M.add x.elt xx vars in
                 to_term (unsugar env vars t _st)
               in
-              Box(V, labs e.pos ao x fn)
+              Box(V, labs e.pos l ao x fn)
           | (x     , y::xs) ->
-              let t = make e.pos (ELAbs((y,xs),t)) in
-              let t = make e.pos (ELAbs((x,[]),t)) in
+              assert (l = NoLz);
+              let t = make e.pos (ELAbs((y,xs),t,l)) in
+              let t = make e.pos (ELAbs((x,[]),t,l)) in
               unsugar env vars t _sv
         end
     | (ECons(c,vo)  , SV _     ) ->
@@ -908,7 +909,7 @@ let unsugar_expr : raw_ex -> raw_sort -> boxed = fun e s ->
         let l = ref [] in
         let v = to_valu (unsugar env vars e (_sv_store l)) in
         Box(T, redexes e.pos !l (valu e.pos v))
-    | (ELAbs(_,_)   , ST       )
+    | (ELAbs(_,_,_) , ST       )
     | (EScis        , ST       ) ->
         begin
           match unsugar env vars e _sv with
@@ -916,10 +917,10 @@ let unsugar_expr : raw_ex -> raw_sort -> boxed = fun e s ->
           | _        -> assert false
         end
     (* Terms. *)
-    | (EAppl(t,u)   , ST       ) ->
+    | (EAppl(t,u,l) , ST       ) ->
         let t = to_term (unsugar env vars t _st) in
         let u = to_term (unsugar env vars u _st) in
-        Box(T, appl e.pos t u)
+        Box(T, appl e.pos l t u)
     | (EAppl(_)     , SP       ) ->
         let t = to_term (unsugar env vars e _st) in
         Box(P, eq_true e.pos t)
@@ -1136,7 +1137,7 @@ let filter_args : string -> (strloc * raw_sort) list -> raw_ex ->
          fn e (es @ stack) bounded
       | EInfx _ -> ()
       | EHOFn(x,k,f) -> if x.elt <> id then fn e stack (x.elt::bounded)
-      | EFunc(_,a,b) -> fn a stack bounded; fn b stack bounded
+      | EFunc(_,a,b,_) -> fn a stack bounded; fn b stack bounded
       | EUnit -> ()
       | EDSum(l) -> List.iter (fun (_,a) ->
                         match a with None -> ()
@@ -1162,7 +1163,7 @@ let filter_args : string -> (strloc * raw_sort) list -> raw_ex ->
            | None   -> ()
            | Some a -> fn a stack bounded
          end
-      | ELAbs((l1,l2),t) ->
+      | ELAbs((l1,l2),t,_) ->
          let l = List.map (fun (x,ao) ->
                      begin
                        match ao with
@@ -1182,7 +1183,7 @@ let filter_args : string -> (strloc * raw_sort) list -> raw_ex ->
          List.iter (fun (_,v,_) -> fn v stack bounded) l
       | EScis -> ()
       | EGoal _ -> ()
-      | EAppl(t,u)
+      | EAppl(t,u,_)
       | ESequ(t,u) -> fn t stack bounded; fn u stack bounded
       | EMAbs(arg,t) ->
          if arg.elt <> id then fn t stack (arg.elt::bounded)
@@ -1345,7 +1346,7 @@ let euniv_in _loc x xs a b =
   let p x = in_pos _loc x in
   let c = List.fold_right (fun x c ->
     (* FIXME #21: notation for partial dependant product ? *)
-    p (EFunc(Effect.bot, p (EMemb(evari (Some _loc) x, a)), c))) (x::xs) b
+    p (EFunc(Effect.bot, p (EMemb(evari (Some _loc) x, a)), c, NoLz))) (x::xs) b
   in
   p (EUniv((x,xs),p sv,c))
 
@@ -1395,29 +1396,29 @@ let let_binding _loc r arg t u =
         | None   -> t
         | Some a -> make t.pos (ECoer(new_sort_uvar None,t,a))
       in
-      in_pos _loc (EAppl(make u.pos (ELAbs(((id, ao), []), u)), t))
+      in_pos _loc (EAppl(make u.pos (ELAbs(((id, ao), []), u, NoLz)), t, NoLz))
   | `LetArgRec(fs)    ->
       if r <> `Non then Lex.give_up (); (* "let rec" meaningless here. *)
       let xs = List.map snd fs in
-      let u = make u.pos (ELAbs((List.hd xs, List.tl xs), u)) in
+      let u = make u.pos (ELAbs((List.hd xs, List.tl xs), u, NoLz)) in
       let x = none "$rec$" in
       let fn u (l,_) =
         let pr = none (EProj(evari None x, ref `T,  l)) in
-        make u.pos (EAppl(u, pr))
+        make u.pos (EAppl(u, pr, NoLz))
       in
       let u = List.fold_left fn u fs in
-      in_pos _loc (EAppl(make u.pos (ELAbs(((x, None), []), u)), t))
+      in_pos _loc (EAppl(make u.pos (ELAbs(((x, None), []), u, NoLz)), t, NoLz))
   | `LetArgTup(fs)    ->
       if r <> `Non then Lex.give_up (); (* "let rec" meaningless here. *)
-      let u = make u.pos (ELAbs((List.hd fs, List.tl fs), u)) in
+      let u = make u.pos (ELAbs((List.hd fs, List.tl fs), u, NoLz)) in
       let x = none "$tup$" in
       let is = List.mapi (fun i _ -> none (string_of_int (i+1))) fs in
       let fn u l =
         let pr = none (EProj(evari None x, ref `T,  l)) in
-        make u.pos (EAppl(u, pr))
+        make u.pos (EAppl(u, pr, NoLz))
       in
       let u = List.fold_left fn u is in
-      in_pos _loc (EAppl(make u.pos (ELAbs(((x, None), []), u)), t))
+      in_pos _loc (EAppl(make u.pos (ELAbs(((x, None), []), u, NoLz)), t, NoLz))
 
 let pattern_matching _loc t ps =
   let fn ((c,pat), t) =
@@ -1427,20 +1428,20 @@ let pattern_matching _loc t ps =
       | Some(`LetArgVar(id,ao)) -> (Some (id,ao), t)
       | Some(`LetArgRec(fs)   ) ->
           let xs = List.map snd fs in
-          let t = make t.pos (ELAbs((List.hd xs, List.tl xs), t)) in
+          let t = make t.pos (ELAbs((List.hd xs, List.tl xs), t, NoLz)) in
           let x = none "$rec$" in
           let fn t (l,_) =
             let pr = none (EProj(evari None x, ref `T,  l)) in
-            make t.pos (EAppl(t, pr))
+            make t.pos (EAppl(t, pr, NoLz))
           in
           (Some (x, None), List.fold_left fn t fs)
       | Some(`LetArgTup(fs)   ) ->
-          let t = make t.pos (ELAbs((List.hd fs, List.tl fs), t)) in
+          let t = make t.pos (ELAbs((List.hd fs, List.tl fs), t, NoLz)) in
           let x = none "$tup$" in
           let is = List.mapi (fun i _ -> none (string_of_int (i+1))) fs in
           let fn t l =
             let pr = none (EProj(evari None x, ref `T,  l)) in
-            make t.pos (EAppl(t, pr))
+            make t.pos (EAppl(t, pr, NoLz))
           in
           (Some (x, None), List.fold_left fn t is)
     in ((c,pat), t)
@@ -1472,11 +1473,11 @@ let from_int _loc n =
   let opp  = evari (Some _loc) (in_pos _loc "opp" ) in
   let rec fn n =
     if n = 0 then zero
-    else if n < 0 then in_pos _loc (EAppl(opp,fn (- n)))
+    else if n < 0 then in_pos _loc (EAppl(opp,fn (- n), NoLz))
     else
-      let t = in_pos _loc (EAppl(dble,fn (n/2))) in
+      let t = in_pos _loc (EAppl(dble,fn (n/2), NoLz)) in
       if n mod 2 = 0 then t
-      else in_pos _loc (EAppl(succ,t))
+      else in_pos _loc (EAppl(succ,t,NoLz))
   in
   fn n
 
@@ -1532,7 +1533,7 @@ let showing _loc a q p =
 (* "suppose p t" := "fun _:p { t }" *)
 let suppose _loc props t =
   let args = List.map (fun p -> (none "_", Some p)) props in
-  in_pos _loc (ELAbs((List.hd args, List.tl args),t))
+  in_pos _loc (ELAbs((List.hd args, List.tl args),t,NoLz))
 
 (* "assume t" := "let x = t;
                   (case x { true -> qed false -> qed } ; x == true" *)

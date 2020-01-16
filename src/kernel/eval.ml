@@ -23,16 +23,13 @@ let mk_svari : e_stac Bindlib.var -> e_stac =
   fun x -> SVari(x)
 
 (* Smart constructors for values. *)
-let vlabs : string -> (e_vvar -> e_tbox) -> bool -> e_vbox =
-  fun x f tot ->
+let vlabs : string -> (e_vvar -> e_tbox) -> e_vbox =
+  fun x f ->
     box_apply
-      (fun b ->
-        let r = if not tot || binder_occur b then
-                  None
-                else Some (ref None)
-        in VLAbs(b,r))
-      (let v = new_var mk_vvari x in
-       bind_var v (f v))
+      (fun b -> VLAbs(b))
+      (let v = new_var mk_vvari x in bind_var v (f v))
+
+let vlazy : e_tbox -> e_vbox = box_apply (fun t -> VLazy(ref (Frz t)))
 
 let vcons : string -> e_vbox -> e_vbox =
   fun c -> box_apply (fun v -> VCons(c,v))
@@ -52,6 +49,9 @@ let tvalu : e_vbox -> e_tbox =
 
 let tappl : e_tbox -> e_tbox -> e_tbox =
   box_apply2 (fun t u -> TAppl(t,u))
+
+let tfrce : e_tbox -> e_tbox =
+  box_apply (fun t -> TFrce t)
 
 let tfixy : string -> (e_tvar -> e_vbox) -> e_tbox =
   fun x f -> box_apply (fun b -> TFixY(b))
@@ -97,25 +97,20 @@ exception Runtime_error of string
 let runtime_error : type a. string -> a =
   fun msg -> raise (Runtime_error msg)
 
-let use_lazy = ref true
-
 let rec eval : e_term -> e_stac -> e_valu = fun t s -> match (t, s) with
   | (TValu(v)          , SEpsi      ) -> v
   | (TValu(v)          , SFram(t,pi)) -> eval t (SPush(v,pi))
   | (TValu(VVdef(d))   , pi         ) -> eval (TValu(d.value_eval)) pi
-  | (TValu(VLAbs(b,r)) , SPush(v,pi)) ->
-     begin
-       match r with
-       | Some r when !use_lazy ->
-          let w =
-            match !r with
-            | Some w -> w
-            | None   -> let w = eval (subst b v) SEpsi in
-                        assert (!r = None); r := Some w; w
-          in eval (TValu w) pi
-       | _ -> eval (subst b v) pi
-     end
+  | (TValu(VLAbs(b))   , SPush(v,pi)) -> eval (subst b v) pi
+  | (TValu(VLazy(e))   , SPush(_,pi)  ) ->
+     let v =
+       match !e with
+       | Frz t -> let v = eval t SEpsi in e := Val v; v
+       | Val v -> v
+     in
+     eval (TValu v) pi
   | (TAppl(t,u)        , pi         ) -> eval u (SFram(t,pi))
+  | (TFrce(t)          , pi         ) -> eval t (SPush(VReco A.empty,pi))
   | (TFixY(b) as t     , pi         ) -> eval (TValu(subst b t)) pi
   | (TMAbs(b)          , pi         ) -> eval (subst b pi) pi
   | (TName(pi,t)       , _          ) -> eval t pi

@@ -52,12 +52,6 @@ let files =
     ; ( "--config"
       , Arg.Unit(show_config)
       , " Prints local configuration." )
-    ; ( "--lazy"
-      , Arg.Set Eval.use_lazy
-      , " Use lazy evaluation (default).")
-    ; ( "--no-lazy"
-      , Arg.Clear Eval.use_lazy
-      , " Do not use lazy evaluation.")
     ; ( "--auto"
       , Typing. (
         Arg.Tuple [Arg.Int (fun n ->

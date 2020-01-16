@@ -64,7 +64,8 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
     | UVar(_,_)   -> acc
     | Goal(_,_)   -> acc
 
-    | Func(_,a,b) -> owits (owits acc a) b
+    | Func(_,a,b,l)
+                  -> owits (owits acc a) b
     | Prod(m)     -> A.fold (fun _ (_,a) acc -> owits acc a) m acc
     | DSum(m)     -> A.fold (fun _ (_,a) acc -> owits acc a) m acc
     | Univ(s,f)   -> owits acc (bndr_term f)
@@ -85,7 +86,7 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
     | VDef(_)     -> acc
 
     | Valu(v)     -> owits acc v
-    | Appl(t,u)   -> owits (owits acc t) u
+    | Appl(t,u,l) -> owits (owits acc t) u
     | FixY(f)     -> owits acc (bndr_term f)
     | MAbs(f)     -> owits acc (bndr_term f)
     | Name(s,t)   -> owits (owits acc s) t
@@ -228,7 +229,8 @@ let bind_params : Equiv.pool -> p ex loc -> sbndr box * slist = fun po e ->
     | UVar(_,_)   -> acc
     | Goal(_,_)   -> acc
 
-    | Func(_,a,b) -> params (params acc a) b
+    | Func(_,a,b,l)
+                  -> params (params acc a) b
     | Prod(m)     -> A.fold (fun _ (_,a) acc -> params acc a) m acc
     | DSum(m)     -> A.fold (fun _ (_,a) acc -> params acc a) m acc
     | Univ(s,f)   -> let (_,t) = bndr_open f in params acc t
@@ -251,7 +253,7 @@ let bind_params : Equiv.pool -> p ex loc -> sbndr box * slist = fun po e ->
     | VDef(_)     -> acc
 
     | Valu(v)     -> params acc v
-    | Appl(t,u)   -> params (params acc t) u
+    | Appl(t,u,_) -> params (params acc t) u
     | FixY(f)     -> let (_,t) = bndr_open f in params acc t
     | MAbs(f)     -> let (_,t) = bndr_open f in params acc t
     | Name(s,t)   -> params (params acc s) t
@@ -367,7 +369,7 @@ let bind_spos_ordinals
       match (Norm.whnf e).elt with
       | HApp(s,f,e) -> happ None s (recall f) (bind_all Any e)
       | HDef(_,e)   -> recall e.expr_def
-      | Func(t,a,b) -> func e.pos t (bind_all (neg o) a) (recall b)
+      | Func(t,a,b,l) -> func e.pos t l (bind_all (neg o) a) (recall b)
       | FixM(s, { elt = Conv},f,l) when o = Neg ->
          fixm e.pos s (new_ord ()) (bndr_name f)
               (fun x -> recall (bndr_subst f (mk_free s x))) (fn l)

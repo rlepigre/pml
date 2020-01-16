@@ -72,12 +72,14 @@ let _eqns_    = Keyword.create "eqns"
 let _false_   = Keyword.create "false"
 let _fix_     = Keyword.create "fix"
 let _for_     = Keyword.create "for"
+let _force_   = Keyword.create "force"
 let _fun_     = Keyword.create "fun"
 let _from_    = Keyword.create "from"
 let _if_      = Keyword.create "if"
 let _include_ = Keyword.create "include"
 let _infix_   = Keyword.create "infix"
 let _know_    = Keyword.create "know"
+let _lazy_    = Keyword.create "lazy"
 let _let_     = Keyword.create "let"
 let _of_      = Keyword.create "of"
 let _print_   = Keyword.create "print"
@@ -365,7 +367,9 @@ and [@cache] prop_rest =
 and [@cache] prop_full =
   (* Proposition (implication) *)
     (a::expr (Prp P)) (t::impl) (b::prop)
-      => in_pos _pos (EFunc(t,a,b))
+      => in_pos _pos (EFunc(t,a,b,NoLz))
+  ; _lazy_ langle (b::prop) rangle
+      => in_pos _pos (EFunc(Effect.bot,in_pos _pos (EProd([],true)), b, Lazy))
   (* Proposition (universal quantification) *)
   ; "∀" (x::llid) (xs::~* llid) (s::~? (':' (s::sort) => s)) ',' (a::prop)
       => euniv _pos x xs s a
@@ -390,7 +394,10 @@ and [@cache] prop_full =
 and [@cache] term_atom  =
     (* Term (lambda abstraction) *)
     _fun_ (args::~+ arg) '{' (t::term) '}'
-      => in_pos _pos (ELAbs((List.hd args, List.tl args),t))
+      => in_pos _pos (ELAbs((List.hd args, List.tl args),t,NoLz))
+  ; _lazy_ '{' (t::term) '}'
+      => (let unit = Some(in_pos _pos (EProd([],true))) in
+          in_pos _pos (ELAbs(((in_pos _pos "_", unit), []),t,Lazy)))
   (* Term (printing) *)
   ; _print_ (s::str_lit)
       => in_pos _pos (EPrnt(s))
@@ -445,7 +452,9 @@ and [@cache] term_atom  =
 and [@cache] term_appl =
   (* Term (application) *)
     (t::expr (Trm P)) (u::expr (Trm A))
-      => in_pos _pos (EAppl(t,u))
+      => in_pos _pos (EAppl(t,u,NoLz))
+  ; _force_ (t::expr (Trm A))
+      => in_pos _pos (EAppl(t,in_pos _pos (EReco []),Lazy))
 
 and [@cache] term_repl =
   (* Term (replacement) *)
@@ -470,13 +479,13 @@ and [@cache] term_repl =
   ; _use_ (t::expr (Trm R))
       => use _pos t
   ; lambda (args::~+ arg) '.' (t::expr (Trm I))
-      => in_pos _pos (ELAbs((List.hd args, List.tl args),t))
+      => in_pos _pos (ELAbs((List.hd args, List.tl args),t,NoLz))
 
 
 
 and [@cache] term_seq =
     _take_ (args::~+ arg) ';' (t::expr (Trm S))
-      => in_pos _pos (ELAbs((List.hd args, List.tl args),t))
+      => in_pos _pos (ELAbs((List.hd args, List.tl args),t,NoLz))
   ; _suppose_ (props::~+ [comma] (expr (Prp F))) ';' (t::expr (Trm S))
       => suppose _pos props t
   (* Term (let binding) *)
@@ -530,7 +539,7 @@ and [@cache] term_infix =
             let sort = none (SFun(_st, none (SFun(_st,_st)))) in
             in_pos _pos (EHOAp(s, sort, [t;u]))
           else
-            in_pos _pos (EAppl(none (EAppl(s,t)), u)) in
+            in_pos _pos (EAppl(none (EAppl(s,t,NoLz)), u,NoLz)) in
         in_pos _pos (EInfx(t,p)))
 
 and justification =

@@ -16,10 +16,16 @@ let rec valu_erasure : valu -> e_vbox = fun v ->
   | Vari(_,x)   -> box_var (copy_var x mk_vvari (name_of x))
   | HApp(_)     -> erasure_error "not a normalisation value (value)"
   | HDef(_,d)   -> valu_erasure d.expr_def
-  | LAbs(_,b,t) -> let f x =
-                     let x = copy_var x (mk_free V) (name_of x) in
-                     term_erasure (bndr_subst b (mk_free V x))
-                   in vlabs (binder_name (snd b)) f Effect.(know_sub t [])
+  | LAbs(_,b,l) -> begin
+                     match l with
+                     | NoLz ->
+                        let f x =
+                          let x = copy_var x (mk_free V) (name_of x) in
+                          term_erasure (bndr_subst b (mk_free V x))
+                        in vlabs (binder_name (snd b)) f
+                     | Lazy ->
+                        vlazy (term_erasure (bndr_subst b (Reco A.empty)))
+                   end
   | Cons(c,v)   -> vcons c.elt (valu_erasure v)
   | Reco(m)     -> vreco (A.map (fun (_,v) -> valu_erasure v) m)
   | Scis        -> vscis
@@ -45,7 +51,11 @@ and     term_erasure : term -> e_tbox = fun t ->
   | HApp(_)     -> erasure_error "not a normalisation value (term)"
   | HDef(_,d)   -> term_erasure d.expr_def
   | Valu(v)     -> tvalu (valu_erasure v)
-  | Appl(t,u)   -> tappl (term_erasure t) (term_erasure u)
+  | Appl(t,u,l) -> begin
+                     match l with
+                     | NoLz -> tappl (term_erasure t) (term_erasure u)
+                     | Lazy -> tfrce (term_erasure t)
+                   end
   | FixY(b)     -> let f x =
                      let x = copy_var x (mk_free T) (name_of x) in
                      valu_erasure (bndr_subst b (mk_free T x))
@@ -113,10 +123,16 @@ let stac_erasure : stac -> e_stac =
 let rec to_valu : e_valu -> vbox = fun v ->
   match v with
   | VVari(x)   -> vari None (copy_var x (mk_free V) (name_of x))
-  | VLAbs(b,_) -> let f x =
+  | VLAbs(b)   -> let f x =
                     let x = copy_var x mk_vvari (name_of x) in
                     to_term (subst b (mk_vvari x))
-                  in labs None None (Pos.none (binder_name b)) f
+                  in labs None NoLz None (Pos.none (binder_name b)) f
+  | VLazy(e)   -> begin
+                    match !e with
+                    | Frz t -> labs None Lazy None
+                                 (Pos.none "_") (fun _ -> to_term t)
+                    | Val v -> to_valu v
+                  end
   | VCons(c,v) -> cons None (Pos.none c) (to_valu v)
   | VReco(m)   -> reco None (A.map (fun v -> (None, to_valu v)) m)
   | VVdef(d)   -> box (Pos.none (VDef d))
@@ -126,7 +142,8 @@ and to_term : e_term -> tbox = fun t ->
   match t with
   | TVari(a)   -> vari None (copy_var a (mk_free T) (name_of a))
   | TValu(v)   -> valu None (to_valu v)
-  | TAppl(t,u) -> appl None (to_term t) (to_term u)
+  | TAppl(t,u) -> appl None NoLz (to_term t) (to_term u)
+  | TFrce(t)   -> appl None Lazy (to_term t) (to_term (TValu (VReco A.empty)))
   | TFixY(b)   -> let f x =
                     let x = copy_var x mk_tvari (name_of x) in
                     to_valu (subst b (mk_tvari x))
@@ -152,8 +169,8 @@ and to_stac : e_stac -> tbox -> tbox = fun s t ->
     | SVari(a)   -> name None (vari None
                        (copy_var a (mk_free S) (name_of a))) t
     | SEpsi      -> t
-    | SPush(v,s) -> fn s (appl None t (valu None (to_valu v)))
-    | SFram(u,s) -> fn s (appl None (to_term u) t)
+    | SPush(v,s) -> fn s (appl None NoLz t (valu None (to_valu v)))
+    | SFram(u,s) -> fn s (appl None NoLz (to_term u) t)
   in fn s t
 
 let to_valu : e_valu -> valu =

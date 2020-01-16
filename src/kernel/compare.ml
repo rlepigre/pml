@@ -203,10 +203,10 @@ let {eq_expr; eq_bndr} =
          match b.elt with
          | Impl(c,e) when uvar_occurs_rel u1 c
            -> remove_occur_check e
-         | Func(tot,{elt = Memb(t,a)}, b) when uvar_occurs u1 t
-           -> remove_occur_check (Pos.none (Func(tot,a,b)))
-         | Func(tot,{elt = Rest(a,c)}, b) when uvar_occurs_rel u1 c
-           -> remove_occur_check (Pos.none (Func(tot,a,b)))
+         | Func(tot,{elt = Memb(t,a)}, b, l) when uvar_occurs u1 t
+           -> remove_occur_check (Pos.none (Func(tot,a,b,l)))
+         | Func(tot,{elt = Rest(a,c)}, b, l) when uvar_occurs_rel u1 c
+           -> remove_occur_check (Pos.none (Func(tot,a,b,l)))
          | _ -> b (* NOTE #48: more cases are possible *)
        in
        let e2 = remove_occur_check e2 in
@@ -219,8 +219,8 @@ let {eq_expr; eq_bndr} =
              remove_occur_check e
          | Memb(t,a) when uvar_occurs u2 t     ->
              remove_occur_check a
-         | Func(tot,{elt = Impl(c,a)}, b) when uvar_occurs_rel u2 c ->
-             remove_occur_check (Pos.none (Func(tot,a,b)))
+         | Func(tot,{elt = Impl(c,a)}, b, l) when uvar_occurs_rel u2 c ->
+             remove_occur_check (Pos.none (Func(tot,a,b,l)))
          | _ -> b (* NOTE #48: more cases are possible *)
        in
        let e1 = remove_occur_check e1 in
@@ -252,9 +252,9 @@ let {eq_expr; eq_bndr} =
        eq_expr (Pos.none (HApp(s2,e1,Pos.none (Vari(s2,v))))) t
     | (HDef(_,d)     , _             ) -> eq_expr d.expr_def e2
     | (_             , HDef(_,d)     ) -> eq_expr e1 d.expr_def
-    | (Func(t1,a1,b1), Func(t2,a2,b2)) ->
+    | (Func(t1,a1,b1,l1), Func(t2,a2,b2,l2)) ->
        (if strict then Effect.know_eq else Effect.eq) t1 t2
-       && eq_expr a1 a2 && eq_expr b1 b2
+       && eq_expr a1 a2 && eq_expr b1 b2 && l1 = l2
     | (DSum(m1)      , DSum(m2)      ) ->
         A.equal (fun (_,a1) (_,a2) -> eq_expr a1 a2) m1 m2
     | (Prod(m1)      , Prod(m2)      ) ->
@@ -307,7 +307,7 @@ let {eq_expr; eq_bndr} =
                 false
           end
     (* NOTE type annotation ignored. *)
-    | (LAbs(_,b1,_)  , LAbs(_,b2,_))   -> eq_bndr V b1 b2
+    | (LAbs(_,b1,l1) , LAbs(_,b2,l2) ) -> eq_bndr V b1 b2 && l1 = l2
     | (Cons(c1,v1)   , Cons(c2,v2)   ) -> c1.elt = c2.elt && eq_expr v1 v2
     | (Reco(m1)      , Reco(m2)      ) ->
         A.equal (fun (_,v1) (_,v2) -> eq_expr v1 v2) m1 m2
@@ -317,7 +317,7 @@ let {eq_expr; eq_bndr} =
     | (VDef(d1)      , _             ) -> eq_expr d1.value_eras e2
     | (_             , VDef(d2)      ) -> eq_expr e1 d2.value_eras
     | (Valu(v1)      , Valu(v2)      ) -> eq_expr v1 v2
-    | (Appl(t1,u1)   , Appl(t2,u2)   ) -> eq_expr t1 t2 && eq_expr u1 u2
+    | (Appl(t1,u1,_) , Appl(t2,u2,_) ) -> eq_expr t1 t2 && eq_expr u1 u2
     (* NOTE type annotation ignored. *)
     | (MAbs(b1)      , MAbs(b2)      ) -> eq_bndr S b1 b2
     | (Name(s1,t1)   , Name(s2,t2)   ) -> eq_expr s1 s2 && eq_expr t1 t2

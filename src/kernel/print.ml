@@ -305,8 +305,13 @@ let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
                    in
                    print_app f; fprintf ch "%a⟩" exa a
   | HDef(_,d)   -> output_string ch d.expr_name.elt
-  | Func(t,a,b) -> let (l,r) = if Prp F < pr then ("(",")") else ("","") in
+  | Func(t,a,b,l) ->
+     begin
+       match l with
+       | NoLz   -> let (l,r) = if Prp F < pr then ("(",")") else ("","") in
                    fprintf ch "%s%a %a %a%s" l (ex (Prp P)) a arrow t exp b r
+       | Lazy   -> fprintf ch "lazy⟨%a⟩" exp b
+     end
   | Prod(m)     -> let pelt ch (l,(_,a)) = fprintf ch "%s : %a" l exp a in
                    let elp = if A.is_empty m then " ⋯" else "; ⋯" in
                    fprintf ch "{%a%s}" (print_map pelt "; ") m elp
@@ -341,7 +346,10 @@ let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
   | Impl(e,a)   -> begin
                      fprintf ch "%a ↪ %a" rel e (ex (Prp R)) a
                    end
-  | LAbs(a,b,_) -> let (x,t) = bndr_open b in
+  | LAbs(a,b,l) ->
+     begin
+       match l with
+       | NoLz   -> let (x,t) = bndr_open b in
                    begin
                      match a with
                      | None   ->
@@ -350,7 +358,7 @@ let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
                           | Valu(v) ->
                              begin
                                match (Norm.repr v).elt with
-                               | LAbs(None,b,_) ->
+                               | LAbs(None,b,NoLz) ->
                                   let (x,t) = bndr_open b in
                                   fn (x::acc) t
                                | _            -> (acc, t)
@@ -365,6 +373,9 @@ let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
                      | Some a -> fprintf ch "fun (%s:%a) {%a}"
                                          (name_of x) exp a ext t
                    end
+       | Lazy   -> let (x,t) = bndr_open b in
+                   fprintf ch "fun {%a}" ext t
+     end
   | Cons(c,v)   -> if is_unit v then fprintf ch "%s" c.elt
                    else fprintf ch "%s[%a]" c.elt ext v
   | Reco(m)     -> let pelt ch (l,(_,a)) =
@@ -373,8 +384,13 @@ let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
   | Scis        -> output_string ch "✂"
   | VDef(d)     -> output_string ch d.value_name.elt
   | Valu(v)     -> ex pr ch v
-  | Appl(t,u)   -> let (l,r) = if Trm P < pr then ("(",")") else ("","") in
-                   fprintf ch "%s%a %a%s" l (ex (Trm P)) t (ex (Trm A)) u r
+  | Appl(t,u,lz)->
+     begin
+       let (l,r) = if Trm P < pr then ("(",")") else ("","") in
+       match lz with
+       | NoLz   -> fprintf ch "%s%a %a%s" l (ex (Trm P)) t (ex (Trm A)) u r
+       | Lazy   -> fprintf ch "%sforce %a%s" l (ex (Trm P)) t r
+     end
   | MAbs(b)     -> let (x,t) = bndr_open b in
                    fprintf ch "save %s {%a}" (name_of x) ext t
   | Name(s,t)   -> fprintf ch "restore %a %a" exa s ext t

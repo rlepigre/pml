@@ -19,10 +19,10 @@ val ex : ∀a,∀b, (∀n∈nat, ∃m∈b, a⟨n,m⟩) ⇒
            ∃s∈stream⟨∃n∈nat, ∃m∈b, a⟨n,m⟩⟩, ∀n∈nat, (nth n s).1 ≡ n =
   fun g {
     let a,b such that g : ∀n∈nat, ∃m∈b, a⟨n,m⟩;
-    let rec fn : nat ⇒ stream⟨∃n∈nat,∃m∈b, a⟨n,m⟩⟩ = fun n _ {
+    let rec fn : nat ⇒ stream⟨∃n∈nat,∃m∈b, a⟨n,m⟩⟩ = fun n { lazy {
       let hd : ∃n∈nat,∃m∈b, a⟨n,m⟩ = (n, g n);
       { hd; tl = fn (S[n]) }
-    };
+    } };
     let rec lem : ∀n k∈nat, (nth k (fn n)).1 ≡ add n k = fun n k {
       case k {
         Zero  → use add_n_zero n;

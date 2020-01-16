@@ -43,7 +43,7 @@ let map : type a. ?mapper:mapper -> a ex loc -> a ebox
         | ITag(_,_)     -> Bindlib.box e
         | Goal(_,_)     -> Bindlib.box e
 
-        | Func(t,a,b)   -> func e.pos t (map a) (map b)
+        | Func(t,a,b,l) -> func e.pos t l (map a) (map b)
         | Prod(m)       -> prod e.pos (A.map (fun (p,a) -> (p, map a)) m)
         | DSum(m)       -> dsum e.pos (A.map (fun (p,a) -> (p, map a)) m)
         | Univ(s,f)     -> univ e.pos (bndr_name f) s
@@ -61,7 +61,7 @@ let map : type a. ?mapper:mapper -> a ex loc -> a ebox
         | Impl(c,a)     -> impl e.pos (map_cond c) (map a)
 
         | VWit(_)       -> Bindlib.box e
-        | LAbs(a,f,t)   -> labs e.pos (Option.map map a) (bndr_name f)
+        | LAbs(a,f,l)   -> labs e.pos l (Option.map map a) (bndr_name f)
                                 (fun x -> map (bndr_subst f (mk_free V x)))
         | Cons(c,v)     -> cons e.pos c (map v)
         | Reco(m)       -> reco e.pos (A.map (fun (p,v) -> (p, map v)) m)
@@ -99,7 +99,7 @@ let map : type a. ?mapper:mapper -> a ex loc -> a ebox
         | PSet(l,s,t)   -> pset e.pos l s (map t)
 
         | Valu(v)       -> valu e.pos (map v)
-        | Appl(t,u)     -> appl e.pos (map t) (map u)
+        | Appl(t,u,l)   -> appl e.pos l (map t) (map u)
         | MAbs(f)       -> mabs e.pos (bndr_name f)
                                 (fun x -> map (bndr_subst f (mk_free S x)))
         | Name(s,t)     -> name e.pos (map s) (map t)

@@ -13,6 +13,10 @@ module A = Assoc
 
 (** {6 Main abstract syntax tree type} *)
 
+(** lazy type constructor reuses application, lambda and function type,
+    anotated with the Lazy constant. In this case, argument is always unit *)
+type laz = NoLz | Lazy
+
 (** Type of (well-sorted) expressions, which is the core PML abstract syntax
     representation. Everything is unified as a single GADT as  the  language
     provides higher-order types. *)
@@ -33,7 +37,7 @@ type _ ex =
 
   (* Proposition constructors. *)
 
-  | Func : Effect.t * p ex loc * p ex loc            -> p  ex
+  | Func : Effect.t * p ex loc * p ex loc * laz      -> p  ex
   (** Arrow type. *)
   | Prod : (pos option * p ex loc) A.t               -> p  ex
   (** Product (or record) type. *)
@@ -58,7 +62,7 @@ type _ ex =
 
   (* Value constructors. *)
 
-  | LAbs : p ex loc option * (v, t) bndr * Effect.t  -> v  ex
+  | LAbs : p ex loc option * (v, t) bndr * laz       -> v  ex
   (** Lambda abstraction. λx.t *)
   | Cons : A.key loc * v ex loc                      -> v  ex
   (** Constructor with exactly one argument. *)
@@ -75,7 +79,7 @@ type _ ex =
 
   | Valu : v ex loc                                  -> t  ex
   (** Value as a term. *)
-  | Appl : t ex loc * t ex loc                       -> t  ex
+  | Appl : t ex loc * t ex loc * laz                 -> t  ex
   (** Application. *)
   | FixY : (t,  v) bndr                              -> t  ex
   (** Fixpoint combinator Y(x.v). *)
@@ -267,11 +271,12 @@ and ('a, 'b) bndr = popt * ('a ex, 'b ex loc) binder
     @see <https://www.lama.univ-savoie.fr/~raffalli/bindlib.html> bindlib *)
 and 'a ebox = 'a ex loc box
 
-and e_lazy = e_valu option ref
+and e_lazy = Frz of e_term | Val of e_valu
 
 and e_valu =
   | VVari of e_valu Bindlib.var
-  | VLAbs of (e_valu, e_term) binder * e_lazy option
+  | VLAbs of (e_valu, e_term) binder
+  | VLazy of e_lazy ref
   | VCons of string * e_valu
   | VReco of e_valu A.t
   | VVdef of value
@@ -280,6 +285,7 @@ and  e_term =
   | TVari of e_term Bindlib.var
   | TValu of e_valu
   | TAppl of e_term * e_term
+  | TFrce of e_term
   | TFixY of (e_term, e_valu) Bindlib.binder
   | TMAbs of (e_stac, e_term) Bindlib.binder
   | TName of e_stac * e_term
@@ -371,18 +377,16 @@ let happ : type a b. popt -> a sort -> (a -> b) ebox -> a ebox -> b ebox =
 
 let v_vari : popt -> vvar -> vbox = vari
 
-let labs : popt -> pbox option -> strloc -> (vvar -> tbox) -> vbox =
-  fun p ao x f ->
+let labs : popt -> laz -> pbox option -> strloc -> (vvar -> tbox) -> vbox =
+  fun p l ao x f ->
     let v = new_var (mk_free V) x.elt in
     let b = bind_var v (f v) in
-    let t = Effect.create () in
-    box_apply2 (fun ao b -> Pos.make p (LAbs(ao, (x.pos, b), t)))
+    box_apply2 (fun ao b -> Pos.make p (LAbs(ao, (x.pos, b), l)))
                (box_opt ao) b
 
-let lvabs : popt -> pbox option -> vvar -> tbox -> vbox =
-  fun p ao v t ->
-    let tot = Effect.create () in
-    box_apply2 (fun ao b -> Pos.make p (LAbs(ao, (None, b), tot)))
+let lvabs : popt -> laz -> pbox option -> vvar -> tbox -> vbox =
+  fun p l ao v t ->
+    box_apply2 (fun ao b -> Pos.make p (LAbs(ao, (None, b), l)))
                (box_opt ao) (bind_var v t)
 
 let cons : popt -> strloc -> vbox -> vbox =
@@ -408,12 +412,12 @@ let idt_valu : (v, t) bndr =
   let x = new_var (mk_free V) "x" in
   (None, Bindlib.unbox (Bindlib.bind_var x (valu None (vari None x))))
 
-let appl : popt -> tbox -> tbox -> tbox =
-  fun p -> box_apply2 (fun t u -> Pos.make p (Appl(t,u)))
+let appl : popt -> laz -> tbox -> tbox -> tbox =
+  fun p l -> box_apply2 (fun t u -> Pos.make p (Appl(t,u,l)))
 
 let sequ : popt -> tbox -> tbox -> tbox =
   fun p t u ->
-    appl p (valu None (labs None None (Pos.none "_") (fun _ -> u))) t
+    appl p NoLz (valu None (labs None NoLz None (Pos.none "_") (fun _ -> u))) t
 
 let mabs : popt -> strloc -> (svar -> tbox) -> tbox =
   fun p x f ->
@@ -500,8 +504,8 @@ let s_vari : popt -> svar -> sbox = vari
 
 let p_vari : popt -> pvar -> pbox = vari
 
-let func : popt -> Effect.t -> pbox -> pbox -> pbox =
-  fun p t -> box_apply2 (fun a b -> Pos.make p (Func(t,a,b)))
+let func : popt -> Effect.t -> laz -> pbox -> pbox -> pbox =
+  fun p t l -> box_apply2 (fun a b -> Pos.make p (Func(t,a,b,l)))
 
 let prod : popt -> (popt * pbox) A.t -> pbox =
   fun p m ->
@@ -594,19 +598,19 @@ let t_proj : popt -> tbox -> (popt * strloc) list -> tbox =
       | []    -> assert false
       | [(p,l)]   ->
          let f x = proj p (v_vari None x) l in
-         valu p (labs p None (Pos.none "x") f)
+         valu p (labs p NoLz None (Pos.none "x") f)
       | (p,l)::ls ->
-         let f x = appl p (fn ls) (proj p (v_vari None x) l) in
-         valu p (labs p None (Pos.none "x") f)
+         let f x = appl p NoLz (fn ls) (proj p (v_vari None x) l) in
+         valu p (labs p NoLz None (Pos.none "x") f)
     in
-    appl p (fn ls) t
+    appl p NoLz (fn ls) t
 
 (** Syntactic sugar to build redexes *)
 let rec redexes : pos option -> (vvar * tbox) list -> tbox -> tbox =
   fun pos l t -> match l with
   | [] -> t
   | (v,t0)::l ->
-     redexes pos l (appl pos (valu None (lvabs None None v t)) t0)
+     redexes pos l (appl pos NoLz (valu None (lvabs None NoLz None v t)) t0)
 
 (** Syntactic sugar for strict product type. *)
 let strict_prod : popt -> (popt * pbox) A.t -> pbox =

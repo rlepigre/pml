@@ -10,7 +10,7 @@ val r1   : real = { exp = 1; man = cons S man0 }
 val rn1  : real = { exp = 1; man = cons P man0 }
 
 val half : real = { exp = 0; man = cons S man0 }
-val rec man3 : man = fun _ { { hd = S; tl = fun _ { { hd = P; tl = man3 }}}}
+val rec man3 : man = lazy { { hd = S; tl = lazy { { hd = P; tl = man3 }}}}
 val third : real = { exp = 0; man = man3 }
 
 val size : nat = 3

@@ -49,8 +49,6 @@ val itl : stream⟨nat⟩ ⇒ either⟨stream⟨even⟩, stream⟨odd⟩⟩ =
     }
   }
 
-include tests.stream_nat
-
 // Compute the list of the first n elements of a stream.
 val rec takes : ∀a, nat ⇒ stream⟨a⟩ →_(c) list⟨a⟩ =
   fun n s {
@@ -65,10 +63,17 @@ val rec takes : ∀a, nat ⇒ stream⟨a⟩ →_(c) list⟨a⟩ =
 // take2 is rejected (and should be rejected, s is in the context and classical
 // val take2 : ∀a, nat ⇒ stream⟨a⟩ ⇒ list⟨a⟩ = fun n s { delim { take n s } }
 
-type istream⟨a⟩ = ν stream, {} ⇒ {hd : a; tl : stream}
+type istream⟨a⟩ = ν stream, lazy⟨{hd : a; tl : stream}⟩
 
 // marche avec le sous typage stream intuitioniste ⟨ stream classique
 val take2 : ∀a, nat ⇒ istream⟨a⟩ ⇒ list⟨a⟩ = fun n s { delim { takes n s } }
+
+// Stream of the natural numbers starting at n.
+val rec naturals_from : nat ⇒ istream⟨nat⟩ =
+  fun n { lazy { {hd = n; tl = naturals_from S[n]} } }
+
+// Stream of the natural numbers.
+val naturals : istream⟨nat⟩ = naturals_from Zero
 
 val test : nat ⇒ either⟨list⟨nat⟩,list⟨nat⟩⟩ =
   fun n {
@@ -76,6 +81,14 @@ val test : nat ⇒ either⟨list⟨nat⟩,list⟨nat⟩⟩ =
       InL[s] → InL[takes n s]
       InR[s] → InR[takes n s]
     } }
+  }
+
+val rec print_nat_list : list⟨nat⟩ →_(p) {} =
+  fun l {
+    case l {
+      Nil     → print "\n"
+      Cons[c] → print ","; print_nat c.hd; print_nat_list c.tl
+    }
   }
 
 val print_test : nat →_(p) {} =

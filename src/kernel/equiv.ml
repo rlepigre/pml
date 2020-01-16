@@ -131,7 +131,7 @@ type _ ho_appl =
 
 (** Type of a value node. *)
 type v_node =
-  | VN_LAbs of (v, t) bndr_closure * Effect.t
+  | VN_LAbs of (v, t) bndr_closure * laz
   | VN_Cons of A.key loc * VPtr.t
   | VN_Reco of VPtr.t A.t
   | VN_Scis
@@ -147,7 +147,7 @@ type v_node =
 (** Type of a term node. *)
 type t_node =
   | TN_Valu of VPtr.t
-  | TN_Appl of Ptr.t * Ptr.t
+  | TN_Appl of Ptr.t * Ptr.t * laz
   | TN_MAbs of (s,t) bndr_closure
   | TN_Name of s ex loc * Ptr.t
   | TN_Proj of VPtr.t * A.key loc
@@ -221,7 +221,7 @@ let print_v_node : out_channel -> v_node -> unit = fun ch n ->
   let prnt = Printf.fprintf in
   let pex = Print.ex in
   match n with
-  | VN_LAbs(b,_)   -> prnt ch "VN_LAbs(%a)" (pbcl V) b
+  | VN_LAbs(b,l)   -> prnt ch "VN_LAbs(%a,%b)" (pbcl V) b (l = Lazy)
   | VN_Cons(c,pv)  -> prnt ch "VN_Cons(%s,%a)" c.elt VPtr.print pv
   | VN_Reco(m)     -> let pelt ch (k, p) = prnt ch "%S=%a" k VPtr.print p in
                       prnt ch "VN_Reco(%a)" (Print.print_map pelt ":") m
@@ -241,7 +241,8 @@ let print_t_node : out_channel -> t_node -> unit = fun ch n ->
   let pex = Print.ex in
   match n with
   | TN_Valu(pv)    -> prnt ch "TN_Valu(%a)" VPtr.print pv
-  | TN_Appl(pt,pu) -> prnt ch "TN_Appl(%a,%a)" Ptr.print pt Ptr.print pu
+  | TN_Appl(pt,pu,l) ->
+     prnt ch "TN_Appl(%a,%a,%b)" Ptr.print pt Ptr.print pu (l = Lazy)
   | TN_MAbs(b)     -> prnt ch "TN_MAbs(%a)" (pbcl S) b
   | TN_Name(s,pt)  -> prnt ch "TN_Name(%a,%a)" pex s Ptr.print pt
   | TN_Proj(pv,l)  -> prnt ch "TN_Proj(%a,%s)" VPtr.print pv  l.elt
@@ -471,7 +472,7 @@ let children_v_node : v_node -> (par_key * Ptr.t) list = fun n ->
 let children_t_node : t_node -> (par_key * Ptr.t) list = fun n ->
   match n with
   | TN_Valu(pv)    -> [(KT_Valu, Ptr.V_ptr pv)]
-  | TN_Appl(pt,pu) -> [(KT_Appl `Right, pu); (KT_Appl `Left, pt)]
+  | TN_Appl(pt,pu,_) -> [(KT_Appl `Right, pu); (KT_Appl `Left, pt)]
   | TN_Name(_,pt)  -> [(KT_Name, pt)]
   | TN_Proj(pv,l)  -> [(KT_Proj l.elt, Ptr.V_ptr pv)]
   | TN_Case(pv,cs) -> (KT_Case None, Ptr.V_ptr pv) ::
@@ -626,7 +627,7 @@ let eq_cl po s (f1,vs1,ts1 as _cl1) (f2,vs2,ts2 as _cl2) =
 let eq_v_nodes : pool -> v_node -> v_node -> bool =
   fun po n1 n2 -> n1 == n2 ||
     match (n1, n2) with
-    | (VN_LAbs(b1,t1), VN_LAbs(b2,t2)) -> eq_cl po V b1 b2 && Effect.eq t1 t2
+    | (VN_LAbs(b1,t1), VN_LAbs(b2,t2)) -> eq_cl po V b1 b2 && t1 = t2
     | (VN_Cons(c1,p1), VN_Cons(c2,p2)) -> c1.elt = c2.elt && eq_vptr po p1 p2
     | (VN_Reco(m1)   , VN_Reco(m2)   ) -> A.equal (eq_vptr po) m1 m2
     | (VN_Scis       , VN_Scis       ) -> true
@@ -643,7 +644,8 @@ let eq_t_nodes : pool -> t_node -> t_node -> bool =
   fun po n1 n2 -> n1 == n2 ||
     match (n1, n2) with
     | (TN_Valu(p1)     , TN_Valu(p2)     ) -> eq_vptr po p1 p2
-    | (TN_Appl(p11,p12), TN_Appl(p21,p22)) -> eq_ptr po p11 p21
+    | (TN_Appl(p11,p12,_), TN_Appl(p21,p22,_)) ->
+                                              eq_ptr po p11 p21
                                               && eq_ptr po p12 p22
     | (TN_MAbs(b1)     , TN_MAbs(b2)     ) -> eq_cl po S b1 b2
     | (TN_Name(s1,p1)  , TN_Name(s2,p2)  ) -> eq_expr s1 s2
@@ -832,9 +834,9 @@ let rec add_term :  bool -> bool -> pool -> term
     match t.elt with
     | Valu(v)     -> let (pv, po) = add_valu po v in
                      insert (TN_Valu(pv)) po
-    | Appl(t,u)   -> let (pt, po) = add_term po t in
+    | Appl(t,u,l) -> let (pt, po) = add_term po t in
                      let (pu, po) = add_term po u in
-                     insert (TN_Appl(pt,pu)) po
+                     insert (TN_Appl(pt,pu,l)) po
     | MAbs(b)     -> let (cl, po) = add_bndr_closure po S T b in
                      insert (TN_MAbs(cl)) po
     | Name(s,t)   -> let (pt, po) = add_term po t in
@@ -1072,7 +1074,7 @@ and normalise_t_node : ?old:TPtr.t -> t_node -> pool -> Ptr.t  * pool =
     let (p, po) = match node with
       | TN_Valu(pv)    -> let po = set_ns po in
                           find (Ptr.V_ptr pv) po
-      | TN_Appl(pt,pu) ->
+      | TN_Appl(pt,pu,l) ->
          begin
            log_edp2 "normalise in %a = TN_Appl: %a %a"
                 print_t_node node Ptr.print pt Ptr.print pu;
@@ -1082,8 +1084,9 @@ and normalise_t_node : ?old:TPtr.t -> t_node -> pool -> Ptr.t  * pool =
            | (Ptr.V_ptr pf, Ptr.V_ptr pv) ->
               begin
                 match find_v_node pf po, get_bs pv po with
-                | VN_LAbs(b,_), true        ->
+                | VN_LAbs(b,l'), true        ->
                    begin
+                     assert (l = l');
                      let b = subst_closure b in
                      let t = bndr_subst b (VPtr pv) in
                      let po = set_ns po in
@@ -1099,7 +1102,7 @@ and normalise_t_node : ?old:TPtr.t -> t_node -> pool -> Ptr.t  * pool =
               end
            | (_           , _           ) -> raise Exit
            with Exit ->
-              let (tp, po) = insert (TN_Appl(pt,pu)) po in
+              let (tp, po) = insert (TN_Appl(pt,pu,l)) po in
                (* NOTE: testing tp in po.ns seems incomplete *)
               log_edp2 "normalised in %a = TN_Appl: %a %a => %a"
                    print_t_node node Ptr.print pt Ptr.print pu Ptr.print tp;
@@ -1360,9 +1363,9 @@ and canonical_term : bool -> TPtr.t -> pool -> term * pool
         match t with
         | TN_Valu(pv)    -> let (v, po) = cv pv po in
                             (Pos.none (Valu(v)), po)
-        | TN_Appl(pt,pu) -> let (t, po) = cp pt po in
+        | TN_Appl(pt,pu,l) -> let (t, po) = cp pt po in
                             let (u, po) = cp pu po in
-                            (Pos.none (Appl(t,u)), po)
+                            (Pos.none (Appl(t,u,l)), po)
         | TN_MAbs(b)     -> let (b, po) = canonical_bndr_closure b po in
                             (Pos.none (MAbs(b)), po)
         | TN_Name(s,pt)  -> let (t, po) = cp pt po in
@@ -1601,8 +1604,8 @@ and unif_v_nodes : pool -> VPtr.t -> v_node -> VPtr.t -> v_node -> pool =
        join (Ptr.V_ptr p2) (Ptr.V_ptr p1) po
     | _ ->
     match (n1, n2) with
-    | (VN_LAbs(b1,t1), VN_LAbs(b2,t2)) ->
-       if not (Effect.eq t1 t2) then raise NoUnif;
+    | (VN_LAbs(b1,l1), VN_LAbs(b2,l2)) ->
+       if l1 <> l2 then raise NoUnif;
        unif_cl po V b1 b2
     | (VN_Cons(c1,p1), VN_Cons(c2,p2)) ->
        if c1.elt <> c2.elt then raise NoUnif;
@@ -1672,7 +1675,7 @@ and unif_t_nodes : pool -> TPtr.t -> t_node -> TPtr.t -> t_node -> pool =
     match (n1, n2) with
     | (TN_Valu(p1)     , TN_Valu(p2)     ) ->
        unif_vptr po p1 p2
-    | (TN_Appl(p11,p12), TN_Appl(p21,p22)) ->
+    | (TN_Appl(p11,p12,_), TN_Appl(p21,p22,_)) ->
        let po = unif_ptr po p11 p21 in
        unif_ptr po p12 p22
     | (TN_MAbs(b1)     , TN_MAbs(b2)     ) ->
@@ -2044,10 +2047,10 @@ let get_orig : Ptr.t -> pool -> term =
                           eq_ptr po (Ptr.T_ptr v') p && is_appl nn) po.ts
         in
         match nn with
-        | TN_Appl(u1,u2) ->
+        | TN_Appl(u1,u2,l) ->
            let u1 = fn u1 in
            let u2 = fn u2 in
-           Pos.none (Appl(u1, u2))
+           Pos.none (Appl(u1, u2,l))
         | TN_Proj(u1,l) ->
            unbox (t_proj None (box (fn (Ptr.V_ptr u1))) [(None, l)])
         | _ -> assert false
@@ -2081,8 +2084,9 @@ let get_orig : Ptr.t -> pool -> term =
     t0
 
 let is_let_underscore e = match e.elt with
-  | Appl({elt = Valu({elt = LAbs(_,b,_)})},_) -> binder_constant (snd b)
-  | _                                         -> false
+  | Appl({elt = Valu({elt = LAbs(_,b,NoLz)})},_,NoLz)
+        -> binder_constant (snd b)
+  | _   -> false
 
 (** get all blocked terms in the pool *)
 let get_blocked : pool -> blocked list = fun po ->
@@ -2098,7 +2102,7 @@ let get_blocked : pool -> blocked list = fun po ->
         (*Printf.eprintf "coucou 1 %d\n%!" (List.length !adone);*)
         try
           match tn with
-          | TN_Appl(_,v) when not (test_value v po) ->
+          | TN_Appl(_,v,l) when not (test_value v po) ->
              begin
                (*Printf.eprintf "coucou 2\n%!";*)
                try

@@ -319,7 +319,7 @@ let learn_neg_equivalences
                         let ctx = { ctx with ctx_names } in
                         let u = bndr_subst f t.elt in
                         fn ctx u
-      | Func(t,b,_), Some arg ->
+      | Func(t,b,_,_), Some arg ->
          begin
            match is_singleton b with
            | Some x ->
@@ -557,16 +557,17 @@ let rec subtype =
       | Sub_New(ctx,(a,b)) ->
       match (a.elt, b.elt) with
       (* Arrow types. *)
-      | (Func(t1,a1,b1), Func(t2,a2,b2)) when t_is_val ->
-         (* check that totality agree *)
+      | (Func(t1,a1,b1,l1), Func(t2,a2,b2,l2)) when t_is_val ->
+         (* check that totality and lazy agree *)
          log_sub "effect test";
          if not (Effect.sub t1 t2) then subtype_msg a.pos "Arrow clash";
+         if l2 = Lazy && l1 = NoLz then subtype_msg a.pos "Lazy clash";
          log_sub "effect agree";
          (* build the nobox value witness *)
          begin try
          let w =
            let x = new_var (mk_free V) (Print.get_lambda_name t) in
-           unbox (bind_var x (appl None (box t) (valu None (vari None x))))
+           unbox (bind_var x (appl None l1 (box t) (valu None (vari None x))))
          in
          (* NOTE : if the "let in" below raise Contradiction, this means that
                    a2 is empty, a2 => b2 is then at least all function and no
@@ -586,7 +587,7 @@ let rec subtype =
               (wit, ctx)
          in
          (* the local term for b1 < b2 *)
-         let rwit = Pos.none (Appl(t, wit)) in
+         let rwit = Pos.none (Appl(t, wit, l1)) in
          (* if the first function type is total, we can assume that
             the above witness is a value.
             NOTE: we can not build ctx_f now, because we need to use
@@ -802,8 +803,8 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
          (* for a totality, we add a let to the term and typecheck *)
          (try
             let ctx = decrease_lvl ctx 1 in
-            let f = labs None None (Pos.none "x") (fun _ -> box t) in
-            let t = unbox (appl None (valu None f) (Bindlib.box e)) in
+            let f = labs None NoLz None (Pos.none "x") (fun _ -> box t) in
+            let t = unbox (appl None NoLz (valu None f) (Bindlib.box e)) in
             let (l1,l2) = ctx.auto.level in
             log_aut "totality (%d,%d) [%d]: %a"
                     l1 l2 (List.length bls) Print.ex e;
@@ -823,10 +824,10 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
               A.add c (None, Pos.none "x", (fun _ -> box t))
             in
             let cases = List.fold_right mk_case cs A.empty in
-            let f = labs None None (Pos.none "x") (fun v ->
+            let f = labs None NoLz None (Pos.none "x") (fun v ->
                            case None (vari None v) cases)
             in
-            let t = unbox (appl None (valu None f) (Bindlib.box e)) in
+            let t = unbox (appl None NoLz (valu None f) (Bindlib.box e)) in
             let (l1,l2) = ctx.auto.level in
             log_aut "cases    (%d,%d): %a" l1 l2 Print.ex t;
             type_term ctx t ty
@@ -948,7 +949,7 @@ and has_loop : prop -> bool =
       | Univ(s,f) -> let t = bndr_term f in fn t
       | Exis(s,f) -> let t = bndr_term f in fn t
       | Memb(_,a) -> fn a
-      | Func(t,_,a) -> Effect.(know_present Loop t) || fn a
+      | Func(t,_,a,_) -> Effect.(know_present Loop t) || fn a
       | _         -> false
     in fn c
 
@@ -1197,7 +1198,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
     | HApp(_,_,_) ->
        let (_, _, r) = type_valu ctx (Norm.whnf v) c in r
     (* λ-abstraction. *)
-    | LAbs(ao,f,tot)  ->
+    | LAbs(ao,f,l)  ->
        (* build the function type a => b with totality annotation
           tot as a fresh totality variable *)
        begin
@@ -1209,10 +1210,12 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
          let b = new_uvar ctx P in
          let (wit,ctx_names) = vwit ctx.ctx_names f a b in
          try
+           let tot = Effect.create () in
+           if l = Lazy then ignore (Effect.absent CallCC tot);
            let ctx = { ctx with ctx_names; totality = tot } in
            let twit = Pos.none(Valu wit) in
            let (c, ctx) = learn_neg_equivalences ctx v (Some twit) c in
-           let c' = Pos.none (Func(tot,a,b)) in
+           let c' = Pos.none (Func(tot,a,b,l)) in
            (* check subtyping *)
            let p1 = subtype ctx t c' c in
            (* build the witness for typing *)
@@ -1416,7 +1419,7 @@ and is_typed : type a. a v_or_t -> a ex loc -> bool = fun t e ->
   match (t,e.elt) with
   | _, Coer(_,_,a)     -> true
   | _, VWit(w)         -> true
-  | _, Appl(t,_)       -> is_typed VoT_T t
+  | _, Appl(t,_,_)     -> is_typed VoT_T t
   | _, Valu(v)         -> is_typed VoT_V v
   | _, Proj(v,_)       -> is_typed VoT_V v
   | _, Cons(_,v)       -> is_typed VoT_V v
@@ -1452,7 +1455,7 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
     | Valu(v)     ->
         let (_, _, r) = type_valu ctx v c in r
     (* Application or strong application. *)
-    | Appl(f,u)   ->
+    | Appl(f,u,l) ->
        begin
          try
            let (c, ctx) = learn_neg_equivalences_term ctx t c in
@@ -1466,7 +1469,7 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
                  if is_singleton a <> None then (a0, false)
                  else (Pos.none (Memb(u,a0)), true)
                in
-               let c = Pos.none (Func(tot,a,c)) in
+               let c = Pos.none (Func(tot,a,c,l)) in
                let st = UTimed.Time.save () in
                try
                  let (v,ctx) = learn_value ctx u a in
@@ -1480,7 +1483,7 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
                      UTimed.Time.rollback st;
                   check_f ctx false a0
              else
-               type_term ctx f (Pos.none (Func(tot,a,c)))
+               type_term ctx f (Pos.none (Func(tot,a,c,l)))
            in
            let (p1,p2,strong) =
              (* when u is not typed and f is, typecheck f first *)
