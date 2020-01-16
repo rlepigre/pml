@@ -2080,6 +2080,10 @@ let get_orig : Ptr.t -> pool -> term =
     (*Printf.eprintf "%a ==> %a\n%!" Print.ex t Print.ex t0;*)
     t0
 
+let is_let_underscore e = match e.elt with
+  | Appl({elt = Valu({elt = LAbs(_,b,_)})},_) -> binder_constant (snd b)
+  | _                                         -> false
+
 (** get all blocked terms in the pool *)
 let get_blocked : pool -> blocked list = fun po ->
   (*Printf.eprintf "obtained context:\n%a\n\n" (print_pool "        ") po;*)
@@ -2099,6 +2103,8 @@ let get_blocked : pool -> blocked list = fun po ->
                (*Printf.eprintf "coucou 2\n%!";*)
                try
                  let e = get_orig v po in
+                 (* no need to prove totality of let _ = t; u *)
+                 if is_let_underscore e then raise Not_found;
                  (*Printf.eprintf "coucou 3\n%!";*)
                  let b = BTot e in
                  if List.exists (eq_blocked b) acc then acc else
