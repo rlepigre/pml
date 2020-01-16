@@ -35,8 +35,7 @@ val rec correct : ∀p∈product,∀q∈nat,∀o∈order,
              deduce price (add_order prd qty ord) ≡
                (qty + qty') * prd.price + price rest;
            {--}
-         }
-           else {
+         } else {
              deduce price (add_order prd qty ord) ≡
                qty' * prd'.price + price (add_order prd qty rest);
              showing qty' * prd'.price + (qty * prd.price + price rest) ≡

@@ -137,4 +137,6 @@ let rec eval : e_term -> e_stac -> e_valu = fun t s -> match (t, s) with
   | (TVari(_)          , _          ) -> runtime_error "free term variable"
   | (TValu(_)          , _          ) -> runtime_error "free stack variable"
 
-let eval : e_term -> e_valu = fun t -> eval t SEpsi
+let evalu_chrono = Chrono.create "evalu"
+
+let eval : e_term -> e_valu = fun t -> Chrono.add_time evalu_chrono (eval t) SEpsi
