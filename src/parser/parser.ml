@@ -184,13 +184,10 @@ let%parser llid_wc =
 let%parser elipsis = "⋯" => () ; "..." => ()
 let%parser [@cache] infty   = "∞" => () ; "<inf>" => ()
 let%parser arrow   = "→" => ()
-let%parser eff     = "p" => Effect.Print
-                   ; "c" => Effect.CallCC
-                   ; "l" => Effect.Loop
 let%parser impl    = "⇒" => Effect.bot
-                   ; "→" => Effect.(known [CallCC;Print])
-                   ; "→" "_" "(" (l:: ~* eff) ")" => Effect.(known l)
-                   ; "↝" => Effect.top
+                   ; "→" => Effect.(known [CallCC])
+                   ; "⇏" => Effect.(known [Loop])
+                   ; "↛" => Effect.top
 let%parser scis    = "✂" => ()
 let%parser equiv   = "≡" => () ; "==" => ()
 let%parser nequiv  = "≠" => () ; "!=" => ()
@@ -369,7 +366,8 @@ and [@cache] prop_full =
     (a::expr (Prp P)) (t::impl) (b::prop)
       => in_pos _pos (EFunc(t,a,b,NoLz))
   ; _lazy_ langle (b::prop) rangle
-      => in_pos _pos (EFunc(Effect.bot,in_pos _pos (EProd([],true)), b, Lazy))
+      => (let t = Effect.create ~absent:[CallCC] () in
+          in_pos _pos (EFunc(t,in_pos _pos (EProd([],true)), b, Lazy)))
   (* Proposition (universal quantification) *)
   ; "∀" (x::llid) (xs::~* llid) (s::~? (':' (s::sort) => s)) ',' (a::prop)
       => euniv _pos x xs s a

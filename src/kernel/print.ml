@@ -34,9 +34,11 @@ let print_vars ch e =
 let arrow ch t =
   let open Effect in
   match complete t with
-  | Some [] -> fprintf ch "⇒"
-  | Some l -> if List.mem Loop l
-              then fprintf ch "↝" else fprintf ch "→"
+  | Some l -> (match List.mem Loop l, List.mem CallCC l with
+              | false, false -> fprintf ch "⇒"
+              | true , false -> fprintf ch "→"
+              | false, true  -> fprintf ch "⇏"
+              | true , true  -> fprintf ch "↛")
   | _        -> fprintf ch "?>"
 
 let removeq : ('a -> 'a -> bool) -> 'a list ref -> 'a -> bool = fun eq ls x ->

@@ -30,6 +30,8 @@ syntax match   Keyword "∃"
 syntax match   Keyword "∀"
 syntax match   Keyword "⇒"
 syntax match   Keyword "→"
+syntax match   Keyword "⇏"
+syntax match   Keyword "↛"
 syntax match   Keyword "×"
 syntax match   Keyword "∈"
 syntax match   Keyword "\^"
@@ -101,6 +103,8 @@ command! -nargs=+ ABBackslashEat call s:DefABEat(<f-args>)
 " Usual abbreviations.
 ab -> →
 ab => ⇒
+ab -|> ↛
+ab =|> ⇏
 ab *  ×
 ab +o +ₒ
 

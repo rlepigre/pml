@@ -109,7 +109,7 @@ let empty_ctxt () =
   ; auto      = auto_empty ()
   ; callgraph = Scp.create ()
   (* Loop and CallCC not allowed at toplevel *)
-  ; totality  = Effect.(known[Print]) }
+  ; totality  = Effect.(known[]) }
 
 let new_uvar : type a. ctxt -> a sort -> a ex loc = fun ctx s ->
   let c = ctx.uvarcount in
@@ -595,7 +595,7 @@ let rec subtype =
          let check_right () =
            try
              let (rwit,ctx_f) =
-               if Effect.(know_sub t1 [Print]) then
+               if Effect.(know_sub t1 []) then
                  let (v,ctx) = learn_value ctx rwit top in
                  (Pos.none (Valu v), ctx)
                else (rwit, ctx)
@@ -1490,7 +1490,7 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
              if is_typed VoT_T f && not (is_typed VoT_T u) then
                (* f will be of type ae => c, with ae = u∈a if we know the
                function will be total (otherwise it is illegal) *)
-               let strong = Effect.(know_sub tot [Print]) in
+               let strong = Effect.(know_sub tot []) in
                (* type check f *)
                let p1 = check_f ctx strong a in
                (* check u *)
@@ -1501,7 +1501,7 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
                check with a fresh totality variable. Otherwise, the
                test is_tot bellow might force ctx.totality to Tot.
                tot1 < tot is checked at the end *)
-               let ctx_u = if Effect.(know_sub tot [Print]) then ctx else
+               let ctx_u = if Effect.(know_sub tot []) then ctx else
                              { ctx with totality = Effect.create () } in
                let p2 = type_term ctx_u u a in
                (* If the typing of u was total,
@@ -1638,8 +1638,6 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
         Typ_Goal(str)
     (* Printing. *)
     | Prnt(_)     ->
-       if not Effect.(present Print ctx.totality) then
-         type_error (E(T,t)) c (Illegal_effect Print);
        let a = unbox (strict_prod None A.empty) in
        let p = gen_subtype ctx a c in
        Typ_Prnt(t, a, c, p)

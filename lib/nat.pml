@@ -149,7 +149,7 @@ val rec fact : nat ⇒ nat =
   }
 
 // Print a natural number.
-val rec print_nat : nat →_(p) {} =
+val rec print_nat : nat ⇒ {} =
   fun n {
     case n {
       0    → print "0"
@@ -158,7 +158,7 @@ val rec print_nat : nat →_(p) {} =
   }
 
 // Print a natural number with a newline.
-val println_nat : nat →_(p) {} =
+val println_nat : nat ⇒ {} =
   fun n { print_nat n; print "\n" }
 
 include lib.either

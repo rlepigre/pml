@@ -6,7 +6,7 @@ type pro⟨a,b⟩ = { fst : a; snd : b }
 type col_t⟨f,a⟩ = ∃v, v∈a | f v ≡ true
 type col_f⟨f,a⟩ = ∃v, v∈a | f v ≡ false
 
-type sstream⟨o,a⟩ = ν_o stream, {} →_(c) {hd : a; tl : stream}
+type sstream⟨o,a⟩ = ν_o stream, {} → {hd : a; tl : stream}
 type stream⟨a⟩ = sstream⟨∞,a⟩
 type stream_t⟨o,f,a⟩ = sstream⟨o,col_t⟨f,a⟩⟩
 type stream_f⟨o,f,a⟩ = sstream⟨o,col_f⟨f,a⟩⟩
@@ -18,9 +18,9 @@ type cstream_f⟨o,f,a⟩ = {hd : col_f⟨f,a⟩; tl : stream_f⟨o,f,a⟩}
 def to_term⟨s:σ⟩ = λx.restore s x
 
 val rec aux : ∀o1 o2, ∀a, ∀f∈(a⇒bool),
-                   (cstream_t⟨o1,f,a⟩ →_(c) ∀x,x)
-                ⇒ (cstream_f⟨o2,f,a⟩ →_(c) ∀x,x)
-                ⇒ stream⟨a⟩ →_(c) ∀x,x =
+                   (cstream_t⟨o1,f,a⟩ → ∀x,x)
+                ⇒ (cstream_f⟨o2,f,a⟩ → ∀x,x)
+                ⇒ stream⟨a⟩ → ∀x,x =
   fun f ct cf s {
     let c = s {};
     let hd = c.hd;
@@ -33,7 +33,7 @@ val rec aux : ∀o1 o2, ∀a, ∀f∈(a⇒bool),
   }
 
 val infinite_tape : ∀a, ∀f∈(a ⇒ bool), stream⟨a⟩
-                      →_(c) either⟨stream_t⟨∞,f,a⟩,stream_f⟨∞,f,a⟩⟩ =
+                      → either⟨stream_t⟨∞,f,a⟩,stream_f⟨∞,f,a⟩⟩ =
   fun f s {
     save a {
       InL[fun _ { save ct { restore a InR[fun _ { save cf {
@@ -41,15 +41,15 @@ val infinite_tape : ∀a, ∀f∈(a ⇒ bool), stream⟨a⟩
     }
   }
 
-type bstream⟨o,a⟩ = ν_o stream, {} →_(c) either⟨{hd:a; tl:stream}, {hd:a; tl:stream}⟩
+type bstream⟨o,a⟩ = ν_o stream, {} → either⟨{hd:a; tl:stream}, {hd:a; tl:stream}⟩
 type cbstream⟨o,a⟩ = either⟨{hd:a; tl:bstream⟨o,a⟩}, {hd:a; tl:bstream⟨o,a⟩}⟩
 
-type color⟨a⟩ = a ⇒ stream⟨a⟩ →_(c) either⟨stream⟨a⟩,stream⟨a⟩⟩
+type color⟨a⟩ = a ⇒ stream⟨a⟩ → either⟨stream⟨a⟩,stream⟨a⟩⟩
 
 val rec aux2 : ∀o1 o2, ∀a, ∀f∈color⟨a⟩,
-                 (cstream⟨o1,a⟩ →_(c) ∀x,x)
-                 ⇒ (cstream⟨o2,a⟩ →_(c) ∀x,x)
-                 ⇒ stream⟨a⟩ →_(c) ∀x,x =
+                 (cstream⟨o1,a⟩ → ∀x,x)
+                 ⇒ (cstream⟨o2,a⟩ → ∀x,x)
+                 ⇒ stream⟨a⟩ → ∀x,x =
   fun f ct cf s {
     let c = s {};
     let hd = c.hd;
@@ -65,7 +65,7 @@ val rec aux2 : ∀o1 o2, ∀a, ∀f∈color⟨a⟩,
   }
 
 val infinite_tape2 : ∀a, ∀f∈color⟨a⟩, stream⟨a⟩
-                       →_(c) either⟨stream⟨a⟩,stream⟨a⟩⟩ =
+                       → either⟨stream⟨a⟩,stream⟨a⟩⟩ =
   fun f s {
     let a such that s : stream⟨a⟩;
     save k {
@@ -75,7 +75,7 @@ val infinite_tape2 : ∀a, ∀f∈color⟨a⟩, stream⟨a⟩
   }
 
 val ramsey2 : ∀a, ∀f∈(a ⇒ a ⇒ bool), stream⟨a⟩
-                →_(c) either⟨stream⟨a⟩,stream⟨a⟩⟩ =
+                → either⟨stream⟨a⟩,stream⟨a⟩⟩ =
   fun f s {
     let a such that f : a ⇒ a ⇒ bool;
     let color1 : color⟨a⟩ = fun a1 s {

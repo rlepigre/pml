@@ -41,5 +41,5 @@ val f_o_g : ∀a b c, (a → b) ⇒ (b → c) ⇒ (a → c) =
 //val f_o_g : ∀a b c, (a → b) ⇒ (b ↝ c) ⇒ (a → c) =
 //  fun f g x { g (f x) }
 
-val f_o_g : ∀a b c, (a ↝ b) ⇒ (b ↝ c) ⇒ (a ↝ c) =
+val f_o_g : ∀a b c, (a ⇏ b) ⇒ (b ⇏ c) ⇒ (a ⇏ c) =
   fun f g x { g (f x) }

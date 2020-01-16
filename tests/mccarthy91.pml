@@ -2,7 +2,7 @@ include lib.nat
 include lib.nat_proofs
 
 // Hard version as a non terminating function.
-val rec mccarthy91 : nat ↝ nat =
+val rec mccarthy91 : nat ↛ nat =
   fun n {
     if n > 100 {
       n - 10

@@ -102,7 +102,7 @@ val rec sub : ∀c, ∀a:ι, sterm⟨c,a⟩  ⇒ term⟨c,a⟩ =
     }
   }
 
-val rec whnf_aux : ∀c, ∀a:ι, sterm⟨c,a⟩ →_(l) sterm⟨c,a⟩ =
+val rec whnf_aux : ∀c, ∀a:ι, sterm⟨c,a⟩ ⇏ sterm⟨c,a⟩ =
   fun t {
       let c, a such that t : sterm⟨c,a⟩;
       case t {
@@ -118,5 +118,5 @@ val rec whnf_aux : ∀c, ∀a:ι, sterm⟨c,a⟩ →_(l) sterm⟨c,a⟩ =
       }
   }
 
-val whnf : ∀a:ι, closed⟨a⟩ →_(l) closed⟨a⟩ =
+val whnf : ∀a:ι, closed⟨a⟩ ⇏ closed⟨a⟩ =
   fun t { sub (whnf_aux t) }

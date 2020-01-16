@@ -3,7 +3,7 @@ include lib.list
 include lib.option
 
 type bot = ∀x, x
-type neg⟨a⟩ = a →_(c) bot
+type neg⟨a⟩ = a → bot
 
 val rec exists : ∀a:ο, (a ⇒ bool) ⇒ list⟨a⟩ ⇒ bool =
   fun f l {
@@ -14,7 +14,7 @@ val rec exists : ∀a:ο, (a ⇒ bool) ⇒ list⟨a⟩ ⇒ bool =
   }
 
 val rec find : ∀a:ο, ∀f∈(a ⇒ bool),
-                       ∀l∈list⟨a⟩, neg⟨(exists f l ≡ false)⟩ →_(c) a =
+                       ∀l∈list⟨a⟩, neg⟨(exists f l ≡ false)⟩ → a =
   fun f l exc {
     case l {
       | Nil[_]  → exc {}

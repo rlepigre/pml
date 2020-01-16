@@ -16,19 +16,18 @@ let log_eff = Log.register 'z' (Some "eff") "effect computation"
 let log_eff = Log.(log_eff.p)
 
 type effect =
-  Loop | CallCC | Print
+  Loop | CallCC
 
 module Effect = struct
   type t = effect
-  let all = [ Loop; CallCC; Print ]
+  let all = [ Loop; CallCC ]
   let print ch = function
     | Loop   -> Printf.fprintf ch "Loop"
     | CallCC -> Printf.fprintf ch "CallCC"
-    | Print  -> Printf.fprintf ch "Print"
 end
 
 include Finset.Make(UTimed)(Effect)
 
-let cvg = known [CallCC; Print]
+let cvg = known [CallCC]
 
 let print = Effect.print

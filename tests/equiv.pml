@@ -40,20 +40,20 @@ def id = fun x { x }
 // default field in record (not just as a syntactic sugar).
 // this is a form of axiom of choice!
 // using a↝b means that function can have effect of even not terminate
-val eq_fun_axiom : ∀a b, ∀f g∈a↝b, f≠g ⇒ ∃x∈top, f x ≠ g x = {--}
+val eq_fun_axiom : ∀a b, ∀f g∈a↛b, f≠g ⇒ ∃x∈top, f x ≠ g x = {--}
 
-val comp_assoc : ∀a b c d, ∀f∈c↝d, ∀g∈b↝c, ∀h∈a↝b,
+val comp_assoc : ∀a b c d, ∀f∈c↛d, ∀g∈b↛c, ∀h∈a↛b,
                    comp⟨f,comp⟨g,h⟩⟩ ≡ comp⟨comp⟨f, g⟩, h⟩ =
   fun f g h {
     eq_fun_axiom comp⟨f,comp⟨g,h⟩⟩ comp⟨comp⟨f, g⟩, h⟩ {}
   }
 
-val comp_neut_right : ∀a b, ∀f ∈ a ↝ b, comp⟨f, id⟩ ≡ f =
+val comp_neut_right : ∀a b, ∀f ∈ a ↛ b, comp⟨f, id⟩ ≡ f =
   fun f {
     eq_fun_axiom comp⟨f,id⟩ f {}
   }
 
-val comp_neut_left : ∀a b, ∀f ∈ a ↝ b, comp⟨id, f⟩ ≡ f =
+val comp_neut_left : ∀a b, ∀f ∈ a ↛ b, comp⟨id, f⟩ ≡ f =
   fun f {
     eq_fun_axiom comp⟨id,f⟩ f {}
   }
