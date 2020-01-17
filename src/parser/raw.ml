@@ -1509,6 +1509,13 @@ let from_int _loc n =
 let qed _loc =
   in_pos _loc (EReco([]))
 
+(* "use a" := "a" *)
+let use _loc t = t
+
+let eval _loc t = in_pos _loc (EHint(Eval,t))
+
+let ehint _loc h t = in_pos _loc (EHint(h,t))
+
 (* "show a" := "(qed : a"
    "show a using p" := "p : a" *)
 let show _loc a t =
