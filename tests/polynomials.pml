@@ -197,6 +197,13 @@ type rec tpoly⟨x⟩ =
   ; Exp of tpoly⟨x⟩ × nat
   ]
 
+val add_p : ∀a, tpoly⟨a⟩ ⇒ tpoly⟨a⟩ ⇒ tpoly⟨a⟩ = fun x y { Add[(x,y)] }
+infix (+~) = add_p priority 3 left associative
+val mul_p : ∀a, tpoly⟨a⟩ ⇒ tpoly⟨a⟩ ⇒ tpoly⟨a⟩ = fun x y { Mul[(x,y)] }
+infix (*~) = mul_p priority 2 left associative
+val exp_p : ∀a, tpoly⟨a⟩ ⇒ nat ⇒ tpoly⟨a⟩ = fun x y { Exp[(x,y)] }
+infix (**~) = exp_p priority 1 right associative
+
 val rec var : nat ⇒ monom = fun n {
   case n {
     Zero → 1::[]
@@ -527,7 +534,7 @@ val rec eval_exp : ∀r, ∀s∈semiring⟨r⟩,  ∀p∈list⟨r×monom⟩, ∀
 
 // Main theorem
 val rec eval_cor : ∀r, ∀s∈semiring⟨r⟩, ∀t∈tpoly⟨r⟩, ∀env∈(nat ⇒ r),
-                teval s t env ≡ eval s (tpoly_to_poly s t) env =
+                teval s t env ≡ eval s (try_eval (tpoly_to_poly s t)) env =
   fun s t env {
     case t {
       Var[n]       → eval_var s n env
@@ -587,49 +594,78 @@ val pn : {
   zero = Cst[0];
   one  = Cst[1];
   cst  = fun n { Cst[n] };
-  (+)  = fun a b { Add[(a,b)] };
-  (*)  = fun a b { Mul[(a,b)] };
-  (**) = fun a b { Exp[(a,b)] }
+  (+)  = fun a b { a +~ b };
+  (*)  = fun a b { a *~ b };
+  (**) = fun a b { a **~ b }
   }
 
 val test1 : poly⟨nat⟩ =
     let x = Var[0];
     let y = Var[1];
-    tpoly_to_poly semi_nat Exp[(Add[(x,y)],2)]
+    tpoly_to_poly semi_nat ((x +~ y) **~ 2)
 
 val test2 : poly⟨nat⟩ =
     let x = Var[0];
     let y = Var[1];
-    tpoly_to_poly semi_nat Mul[(Add[(x,y)],Add[(x,y)])]
+    tpoly_to_poly semi_nat ((x +~ y) *~ (x +~ y))
 
 val test3 : test1 ≡ test2 = qed
 
 val test4 : poly⟨nat⟩ =
     let x = Var[0];
     let y = Var[1];
-    tpoly_to_poly semi_nat Add[(Exp[(x,2)],Add[(Mul[(Cst[2],Mul[(x,y)])],Exp[(y,2)])])]
+    tpoly_to_poly semi_nat (x **~ 2 +~ Cst[2] *~ (x *~ y) +~ y **~ 2)
 
 val test5 : test1 ≡ test4 = qed
 
 val exp : nat ⇒ nat ⇒ nat = exp_ring semi_nat
 
-val test_binome : ∀x y∈nat, (x + y) ** 2 ≡ x ** 2 + 2 * x * y + y ** 2 =
+val test_binome2 : ∀x y∈nat, (x + y) ** 2 ≡ x ** 2 + 2 * x * y + y ** 2 =
   fun a b {
     let x = Var[0];
     let y = Var[1];
     let env : nat ⇒ nat = fun v { case v { Zero → a | S[p] → b } };
-    use eval_cor semi_nat Exp[(Add[(x,y)],2)] env;
-    use eval_cor semi_nat Add[(Add[(Exp[(x,2)],Mul[(Mul[(Cst[2],x)],y)])],Exp[(y,2)])] env;
+    use eval_cor semi_nat ((x +~ y) **~ 2) env;
+    use eval_cor semi_nat (x **~ 2 +~ Cst[2] *~ x *~ y +~ y **~ 2) env;
     qed
   }
 
-val test_trinome : ∀x y∈nat, (x + y) ** 3 ≡ x ** 3 + 3 * x ** 2 * y + 3 * x * y ** 2 + y ** 3 =
+val test_binome3 : ∀x y∈nat, (x + y) ** 3 ≡ x ** 3 + 3 * x ** 2 * y
+                     + 3 * x * y ** 2 + y ** 3 =
   fun a b {
     let x = Var[0];
     let y = Var[1];
     let env : nat ⇒ nat = fun v { case v { Zero → a | S[p] → b } };
-    use eval_cor semi_nat Exp[(Add[(x,y)],3)] env;
-    use eval_cor semi_nat Add[(Add[(Add[(Exp[(x,3)],Mul[(Mul[(Cst[3],Exp[(x,2)])],y)])],
-                          Mul[(Mul[(Cst[3],x)],Exp[(y,2)])])],Exp[(y,3)])] env;
+    use eval_cor semi_nat ((x +~ y) **~ 3) env;
+    use eval_cor semi_nat (x **~ 3 +~ Cst[3] *~ x **~ 2 *~ y
+                              +~ Cst[3] *~ x *~ y **~ 2 +~ y **~ 3) env;
+    qed
+  }
+
+
+val test_binome4 : ∀x y∈nat, (x + y) ** 4 ≡ x ** 4 + 4 * x ** 3 * y
+                     + 6 * x ** 2 * y ** 2 + 4 * x * y ** 3 + y ** 4 =
+  fun a b {
+    let x = Var[0];
+    let y = Var[1];
+    let env : nat ⇒ nat = fun v { case v { Zero → a | S[p] → b } };
+    use eval_cor semi_nat ((x +~ y) **~ 4) env;
+    use eval_cor semi_nat (x **~ 4 +~ Cst[4] *~ x **~ 3 *~ y
+                              +~ Cst[6] *~ x **~ 2 *~ y **~ 2
+                              +~ Cst[4] *~ x *~ y **~ 3 +~ y **~ 4) env;
+    qed
+  }
+
+val test_binome5 : ∀x y∈nat, (x + y) ** 5 ≡ x ** 5 + 5 * x ** 4 * y
+                     + 10 * x ** 3 * y ** 2 + 10 * x ** 2 * y ** 3
+                     + 5 * x * y ** 4 + y ** 5 =
+  fun a b {
+    let x = Var[0];
+    let y = Var[1];
+    let env : nat ⇒ nat = fun v { case v { Zero → a | S[p] → b } };
+    use eval_cor semi_nat ((x +~ y) **~ 5) env;
+    use eval_cor semi_nat (x **~ 5 +~ Cst[5] *~ x **~ 4 *~ y
+                     +~ Cst[10] *~ x **~ 3 *~ y **~ 2 +~ Cst[10] *~ x **~ 2 *~ y **~ 3
+                     +~ Cst[5] *~ x *~ y **~ 4 +~ y **~ 5) env;
     qed
   }
