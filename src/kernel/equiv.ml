@@ -876,7 +876,6 @@ let rec add_term :  bool -> bool -> pool -> term
                            let t = Pos.make t.pos
                                      (Valu (to_valu (eval (term_erasure t))))
                            in
-                           Printf.printf "EVAL OK\n%!";
                            add_term po t
                          with
                            Erase.Erasure_error _ | Exit -> add_term po t)

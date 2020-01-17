@@ -7,7 +7,6 @@ val u : unit = {}
 // It is in fact inhabited by any record...
 val u_aux : unit = {l = {}}
 
-
 // We can define a real (one element) « unit » type as follows.
 def real_unit : ο = {}
 
@@ -53,7 +52,7 @@ val eq_total :  ∀ x:ι, x∈real_bool ⇒  ∀ y:ι, y∈real_bool ⇒ ∃ v:�
     }
   }
 
-val arg_bool :  ∀ x:ι, x∈real_bool ⇒ {} =
+val open arg_bool :  ∀ x:ι, x∈real_bool ⇒ {} =
   fun b { case b { T[v] → v | F[v] → v } }
 
 val is_realbool2 : ∀ x:ι, x∈real_bool ⇒ arg_bool x ≡ {} =

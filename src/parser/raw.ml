@@ -1110,7 +1110,7 @@ let unsugar_expr : raw_ex -> raw_sort -> boxed = fun e s ->
 type toplevel =
   | Sort_def of strloc * raw_sort
   | Expr_def of strloc * raw_sort * raw_ex
-  | Valu_def of strloc * raw_ex * raw_ex
+  | Valu_def of strloc * bool option * raw_ex * raw_ex
   | Chck_sub of raw_ex * bool * raw_ex
   | Include  of string
   | Def_list of toplevel list
@@ -1318,10 +1318,11 @@ let expr_def : strloc -> (strloc * raw_sort option) list -> raw_sort option
 
 type rec_t = [ `Non | `Rec ]
 
-let val_def : rec_t -> strloc -> raw_ex -> raw_ex -> toplevel =
-  fun r id a t ->
+let val_def
+    : rec_t -> strloc -> bool option -> raw_ex -> raw_ex -> toplevel =
+  fun r id oc a t ->
     let t = if r = `Non then t else make t.pos (EFixY(id, t)) in
-    Valu_def(id, a, t)
+    Valu_def(id, oc, a, t)
 
 let clos_def : bool -> strloc list -> toplevel = fun b lids ->
   Clos_def(b, lids)

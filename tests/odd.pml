@@ -40,6 +40,7 @@ val rec succ_even : ∀n∈evens, is_odd S[n] ≡ true =
 
 val rec succ_even_unrelevant : ∀n∈evens, succ_even n ≡ {} =
   fun n {
+    open succ_even;
     case n {
       Zero → {}
       S[p] →

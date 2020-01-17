@@ -56,17 +56,50 @@ let add_expr : type a. strloc -> a sort -> a ebox -> unit =
     let local_exprs = SMap.add expr_name.elt ex !env.local_exprs in
     env := {!env with global_exprs; local_exprs}
 
-let add_value : strloc -> term -> prop -> e_valu -> unit =
-  fun value_name value_orig value_type value_eval ->
+let rec is_prop : p ex loc -> bool = fun a ->
+  match (Norm.whnf a).elt with
+  | HDef(_,a)     -> is_prop a.expr_def
+  | DSum _        -> false
+  | Prod(l)       -> l = A.empty
+  | Univ(_,b)     -> let (_,t) = bndr_open b in
+                     is_prop t
+  | Exis(_,b)     -> let (_,t) = bndr_open b in
+                     is_prop t
+  | FixM(so,o,b,l)-> let t = unroll_FixM so o b l in
+                     is_prop t
+  | FixN(so,o,b,l)-> let t = unroll_FixN so o b l in
+                     is_prop t
+  | Memb(_,t)     -> is_prop t
+  | Rest(t,_)     -> is_prop t
+  | Impl(_,t)     -> is_prop t
+  | Func(_,a,b,_) -> is_prop b
+  | Vari(_)       -> false
+  | HApp(_)       -> false
+  | Goal(_)       -> false
+  | ESch(_)       -> assert false
+  | ITag(_)       -> assert false
+  | EWit(_)       -> assert false
+  | UWit(_)       -> assert false
+  | UVar(_)       -> assert false
+  | _             -> .
+
+
+let add_value : strloc -> bool option -> term -> prop -> e_valu -> bool =
+  fun value_name closed value_orig value_type value_eval ->
     let value_hash = Hash.hash_expr (Erase.to_valu value_eval) in
     let value_eras = Erase.to_valu value_eval in
-    let value_clos = Timed.tref false in
+    let closed = match closed with
+      | None   -> is_prop value_type
+      | Some c -> c
+    in
+    let value_clos = Timed.tref closed in
     let nv = { value_name; value_type; value_orig; value_clos
              ; value_eval; value_eras; value_hash}
     in
     let global_values = SMap.add value_name.elt nv !env.global_values in
     let local_values = SMap.add value_name.elt nv !env.local_values in
-    env := {!env with global_values; local_values}
+    env := {!env with global_values; local_values};
+    closed
 
 let add_infix : string -> infix -> unit =
   fun sym infix ->

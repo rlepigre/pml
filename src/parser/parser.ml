@@ -620,6 +620,8 @@ and set_param =
   ; "keep_intermediate"
            (b::bool)         => Ast.Keep(b)
 
+let%parser oc = () => None ; _close_ => Some true; _open_ => Some false
+
 (* Toplevel item. *)
 let%parser rec toplevel =
   (* Definition of a new sort. *)
@@ -635,8 +637,8 @@ let%parser rec toplevel =
       => (fun () -> type_def _pos r id args e)
 
   (* Definition of a value (to be computed). *)
-  ; _val_ (r::v_rec) (id::llid) ':' (a::prop) '=' (t::term)
-      => (fun () -> val_def r id a t)
+  ; _val_ (r::v_rec) (oc::oc) (id::llid) ':' (a::prop) '=' (t::term)
+      => (fun () -> val_def r id oc a t)
 
   (* Check of a subtyping relation. *)
   ; _assert_ (r::neg) (a::prop) "⊂" (b::prop)
@@ -686,16 +688,16 @@ and interpret : bool -> Raw.toplevel -> unit =
       if verbose then
         out "expr %s : %a ≔ %a\n%!" id.elt Print.sort s Print.ex ee;
       add_expr id s e
-  | Valu_def(id,a,t) ->
+  | Valu_def(id,oc,a,t) ->
       let a = unbox (to_prop (unsugar_expr a _sp)) in
       let t = unbox (to_term (unsugar_expr t _st)) in
       let (a, prf) = type_check t a in
       let v = Eval.eval (Erase.term_erasure t) in
-      if verbose then
-        out "val %s : %a\n%!" id.elt Print.ex a;
-      (* out "  = %a\n%!" Print.ex (Erase.to_valu v); *)
       ignore prf;
-      add_value id t a v
+      let close = if add_value id oc t a v then "close" else "open" in
+      if verbose then
+        out "val %s %s : %a\n%!" close id.elt Print.ex a;
+      (* out "  = %a\n%!" Print.ex (Erase.to_valu v); *)
   | Clos_def(b, lids) ->
       let fn lid =
         Printf.printf "closing %b %s\n%!" b lid.elt;
