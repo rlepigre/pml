@@ -66,6 +66,9 @@ let files =
       , Arg.Set Equiv.keep_intermediate
       , " Keep intermediate terms in normalisation in the pool \
           (more complete, yet to prove ? but slower).")
+    ; ( "--no-eval"
+      , Arg.Clear Equiv.use_eval
+      , " ignore try_eval keyword and to not use eval for type-checking.")
     ] @ List.map help ["--help" ; "-help" ; "-h" ]
   in
   let spec = Arg.align spec in

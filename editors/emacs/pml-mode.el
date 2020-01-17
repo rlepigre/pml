@@ -29,11 +29,12 @@
   (list (cons (concat "\\<"
 		      (regexp-opt
                        '("assert" "assume" "because" "bool" "by" "case" "check"
-                        "corec" "deduce" "def" "delim" "else" "eqns" "false"
-                        "fix" "for" "force" "fun" "if" "infix" "include" "know"
-                        "lazy" "let" "of" "print" "qed" "rec" "restore" "save"
-                        "set" "show" "showing" "sort" "such" "suppose" "take"
-                        "that" "true" "type" "use" "using" "val"))
+                         "close" "corec" "deduce" "def" "delim" "else" "eqns"
+                         "false" "fix" "for" "force" "fun" "if" "infix"
+                         "include" "know" "lazy" "let" "of" "open" "print"
+                         "qed" "rec" "restore" "save" "set" "show" "showing"
+                         "sort" "such" "suppose" "take" "that" "true"
+                         "try_eval" "type" "use" "using" "val" "close"))
                       "\\>")
               'font-lock-keyword-face)
         (cons (concat "\\<"
@@ -126,7 +127,7 @@
 
 ;; toplevel symbols
 (defvar pml-top-regex
-  "\\(def\\)\\|\\(include\\)\\|\\(type\\)\\|\\(val\\)\\|\\(assert\\)\\|\\(sort\\)")
+  "\\(close\\)\\|\\(def\\)\\|\\(include\\)\\|\\(open\\)\\|\\(type\\)\\|\\(val\\)\\|\\(assert\\)\\|\\(sort\\)")
 (defun pml-top (&optional pos)
   (save-excursion
     (if pos (goto-char pos))

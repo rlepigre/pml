@@ -114,6 +114,7 @@ let map : type a. ?mapper:mapper -> a ex loc -> a ebox
         | Prnt(s)       -> prnt e.pos s
         | Repl(t,u)     -> repl e.pos (map t) (map u) None
         | Delm(u)       -> delm e.pos (map u)
+        | Hint(h,u)     -> hint e.pos h (map u)
 
         | SWit(_)       -> Bindlib.box e
 

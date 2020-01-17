@@ -94,6 +94,8 @@ let uvar_iter : type a. bool -> bool -> uvar_fun -> a ex loc -> unit =
       | Prnt(_)     -> ()
       | Repl(t,u)   -> uvar_iter u (* Repl(_,u,_) = u *)
       | Delm(t)     -> uvar_iter t
+      | Hint(_,t)   -> uvar_iter t
+
       | Conv        -> ()
       | Succ(o)     -> uvar_iter o
       (* NOTE type annotations ignored. *)

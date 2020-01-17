@@ -96,6 +96,7 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
     | Prnt(_)     -> acc
     | Repl(t,u)   -> owits acc u
     | Delm(u)     -> owits acc u
+    | Hint(_,u)   -> owits acc u
 
     | Coer(_,e,_) -> owits acc e
     | Such(_,_,b) -> owits acc (bseq_open b.binder)
@@ -263,6 +264,7 @@ let bind_params : Equiv.pool -> p ex loc -> sbndr box * slist = fun po e ->
     | Prnt(_)     -> acc
     | Repl(t,u)   -> params acc u
     | Delm(u)     -> params acc u
+    | Hint(_,u)   -> params acc u
 
     | Coer(_,e,_) -> params acc e
     | Such(_,_,b) -> params acc (bseq_open b.binder)

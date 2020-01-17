@@ -75,6 +75,7 @@ and     term_erasure : term -> e_tbox = fun t ->
   | Prnt(s)     -> tprnt s
   | Repl(t,_)   -> term_erasure t
   | Delm(t)     -> term_erasure t
+  | Hint(_,t)   -> term_erasure t
   | Coer(_,t,_) -> term_erasure t
   | Such(_,_,r) -> term_erasure (bseq_open r.binder)
   | PSet(_,_,t) -> term_erasure t

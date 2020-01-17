@@ -63,12 +63,14 @@ let _bool_    = Keyword.create "bool"
 let _by_      = Keyword.create "by"
 let _case_    = Keyword.create "case"
 let _check_   = Keyword.create "check"
+let _close_   = Keyword.create "close"
 let _corec_   = Keyword.create "corec"
 let _deduce_  = Keyword.create "deduce"
 let _delim_   = Keyword.create "delim"
 let _def_     = Keyword.create "def"
 let _else_    = Keyword.create "else"
 let _eqns_    = Keyword.create "eqns"
+let _eval_    = Keyword.create "try_eval"
 let _false_   = Keyword.create "false"
 let _fix_     = Keyword.create "fix"
 let _for_     = Keyword.create "for"
@@ -82,6 +84,7 @@ let _know_    = Keyword.create "know"
 let _lazy_    = Keyword.create "lazy"
 let _let_     = Keyword.create "let"
 let _of_      = Keyword.create "of"
+let _open_    = Keyword.create "open"
 let _print_   = Keyword.create "print"
 let _prove_   = Keyword.create "prove"
 let _qed_     = Keyword.create "qed"
@@ -475,7 +478,9 @@ and [@cache] term_repl =
          equations _pos a_pos a eqns)
   (* Term ("use" tactic) *)
   ; _use_ (t::expr (Trm R))
-      => use _pos t
+    => use _pos t
+  ; _eval_ (t::expr (Trm R))
+      => eval _pos t
   ; lambda (args::~+ arg) '.' (t::expr (Trm I))
       => in_pos _pos (ELAbs((List.hd args, List.tl args),t,NoLz))
 
@@ -508,6 +513,10 @@ and [@cache] term_seq =
   (* Term (let such that) *)
   ; _let_ (vs::s_lst) _st_ (x::llid_wc) ':' (a::prop) ';' (u::expr (Trm S))
       => esuch _pos vs x a u
+  ; _close_ (lids :: ~+ llid) ';' (u::expr (Trm S))
+      => ehint _pos (Close(true,lids)) u
+  ; _open_  (lids :: ~+ llid) ';' (u::expr (Trm S))
+      => ehint _pos (Close(false,lids)) u
 
 and [@cache] term_iprio =
   (t::expr (Trm I)) => (get_infix_prio t,t)
@@ -652,6 +661,12 @@ let%parser rec toplevel =
         Hashtbl.replace Env.infix_tbl s infix;
         fun () -> Infix(s,infix))
 
+  ; _close_ (lids :: ~+ llid)
+    => (fun () -> clos_def true lids)
+
+  ; _open_ (lids :: ~+ llid)
+    => (fun () -> clos_def false lids)
+
 (* Entry point of the parser. *)
 and entry = (l::~* toplevel) => l
 
@@ -681,6 +696,14 @@ and interpret : bool -> Raw.toplevel -> unit =
       (* out "  = %a\n%!" Print.ex (Erase.to_valu v); *)
       ignore prf;
       add_value id t a v
+  | Clos_def(b, lids) ->
+      let fn lid =
+        Printf.printf "closing %b %s\n%!" b lid.elt;
+        try let d = SMap.find lid.elt !env.global_values in
+            ignore (Timed.set (Timed.Time.save ()) d.value_clos b)
+        with Not_found -> unbound_var lid.elt lid.pos
+      in
+      List.iter fn lids
   | Chck_sub(a,n,b) ->
       let a = unbox (to_prop (unsugar_expr a _sp)) in
       let b = unbox (to_prop (unsugar_expr b _sp)) in

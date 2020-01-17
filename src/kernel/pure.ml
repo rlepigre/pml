@@ -70,6 +70,8 @@ let pure : type a. a ex loc -> bool =
     | VDef(d)     -> () (* no type in value def *)
     | Valu(v)     -> iter v
     | Appl(t,u,_) -> iter t; iter u
+    | Hint(_,t)   -> iter t
+
     (* NOTE type annotation ignored. *)
     | MAbs(b)     -> biter S b
     | Name(s,t)   -> iter s; iter t

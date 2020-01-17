@@ -17,6 +17,12 @@ module A = Assoc
     anotated with the Lazy constant. In this case, argument is always unit *)
 type laz = NoLz | Lazy
 
+(** the hint for the proof checkee *)
+type 'a hint =
+          | Eval   (** try to use eval before adding the term in the pool.
+                       if the term is not closed, proceed as usual. *)
+          | Close of bool * 'a list (** close or open a definition locally *)
+
 (** Type of (well-sorted) expressions, which is the core PML abstract syntax
     representation. Everything is unified as a single GADT as  the  language
     provides higher-order types. *)
@@ -98,6 +104,8 @@ type _ ex =
   | Repl : t ex loc * t ex loc                       -> t  ex
   (** Triger totality by type rule *)
   | Delm : t ex loc                                  -> t  ex
+  (** Hint for the proof checker *)
+  | Hint : value hint * t ex loc                     -> t  ex
 
   (* Ordinal constructors. *)
 
@@ -203,6 +211,7 @@ and value =
   ; value_type : p ex loc
   ; value_eval : e_valu
   ; value_eras : v ex loc
+  ; value_clos : bool Timed.tref
   ; value_hash : int }
 
 and fix_schema =
@@ -415,9 +424,14 @@ let idt_valu : (v, t) bndr =
 let appl : popt -> laz -> tbox -> tbox -> tbox =
   fun p l -> box_apply2 (fun t u -> Pos.make p (Appl(t,u,l)))
 
+let hint : popt -> value hint -> tbox -> tbox =
+  fun p h -> box_apply (fun t -> Pos.make p (Hint(h,t)))
+
 let sequ : popt -> tbox -> tbox -> tbox =
   fun p t u ->
-    appl p NoLz (valu None (labs None NoLz None (Pos.none "_") (fun _ -> u))) t
+    appl p NoLz
+      (valu None (labs None NoLz None (Pos.none "_") (fun _ -> u)))
+      t
 
 let mabs : popt -> strloc -> (svar -> tbox) -> tbox =
   fun p x f ->
@@ -710,6 +724,7 @@ let rec sort : type a. a ex loc -> a sort * a ex loc = fun e ->
   | TPtr _          -> (T,e)
   | Repl(_,_)       -> (T,e)
   | Delm _          -> (T,e)
+  | Hint _          -> (T,e)
 
   | SWit _          -> (S,e)
 

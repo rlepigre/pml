@@ -187,6 +187,7 @@ and raw_ex' =
   | EPrnt of string
   | ERepl of raw_ex * raw_ex * raw_ex option
   | EDelm of raw_ex
+  | EHint of strloc hint * raw_ex
   | ECoer of raw_sort * raw_ex * raw_ex
   | ESuch of raw_sort * (strloc * raw_sort) ne_list
                       * (strloc option * raw_ex) * raw_ex
@@ -247,6 +248,7 @@ let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
     | ERepl(t,u,p)  -> Printf.fprintf ch "ERepl(%a,%a,%a)"
                          print t print u aux_opt p
     | EDelm(u)      -> Printf.fprintf ch "EDelm(%a)" print u
+    | EHint(h,u)    -> Printf.fprintf ch "EHint(%a,%a)" Print.lhint h print u
     | ECoer(_,t,a)  -> Printf.fprintf ch "ECoer(%a,%a)" print t print a
     | ESuch(_,v,j,u)-> let x = Option.default (none "_") (fst j) in
                        Printf.fprintf ch "ESuch(%a,%s,%a,%a)"
@@ -596,6 +598,10 @@ let infer_sorts : raw_ex -> raw_sort -> unit = fun e s ->
     | (EDelm(u)     , SUni(r)  ) -> sort_uvar_set r _st;
                                     infer vars u _st;
     | (EDelm(_)     , _        ) -> sort_clash e s
+    | (EHint(_,u)   , ST       ) -> infer vars u _st;
+    | (EHint(_,u)   , SUni(r)  ) -> sort_uvar_set r _st;
+                                    infer vars u _st;
+    | (EHint(_,_)   , _        ) -> sort_clash e s
     | (ECoer(u,t,a) , SV _     )
     | (ECoer(u,t,a) , ST       )
     | (ECoer(u,t,a) , SUni(_)  ) -> infer vars t u; leq u s;
@@ -999,6 +1005,17 @@ let unsugar_expr : raw_ex -> raw_sort -> boxed = fun e s ->
     | (EDelm(u)     , ST       ) ->
         let u = to_term (unsugar env vars u _st) in
         Box(T, delm e.pos u)
+    | (EHint(h,u)     , ST       ) ->
+        let u = to_term (unsugar env vars u _st) in
+        let h = match h with
+          | Eval          -> Eval
+          | Close(b,lids) ->
+             let fn x = try find_value x.elt with Not_found ->
+                          unbound_var x.elt x.pos
+             in
+             Close(b,List.map fn lids)
+        in
+        Box(T, hint e.pos h u)
     (* Type annotations. *)
     | (ECoer(u,v,a) , SV _     ) when leq_sort u s ->
         let v = to_valu (unsugar env vars v s) in
@@ -1099,6 +1116,7 @@ type toplevel =
   | Def_list of toplevel list
   | Glbl_set of set_param
   | Infix    of string * infix
+  | Clos_def of bool * strloc list
 
 let evari _loc x = make _loc (EVari(x, new_sort_uvar None))
 
@@ -1211,6 +1229,7 @@ let filter_args : string -> (strloc * raw_sort) list -> raw_ex ->
                           | Some p -> fn p stack bounded
                         end
       | EDelm(u) -> fn u stack bounded
+      | EHint(_,u) -> fn u stack bounded
       | ECoer(u,t,a) -> fn t stack bounded; fn a stack bounded
       | ESuch(u,(x,vs),j,v) ->
          let l = List.map (fun (x,_) -> x.elt) (x::vs) in
@@ -1300,9 +1319,12 @@ let expr_def : strloc -> (strloc * raw_sort option) list -> raw_sort option
 type rec_t = [ `Non | `Rec ]
 
 let val_def : rec_t -> strloc -> raw_ex -> raw_ex -> toplevel =
-    fun r id a t ->
-  let t = if r = `Non then t else make t.pos (EFixY(id, t)) in
-  Valu_def(id, a, t)
+  fun r id a t ->
+    let t = if r = `Non then t else make t.pos (EFixY(id, t)) in
+    Valu_def(id, a, t)
+
+let clos_def : bool -> strloc list -> toplevel = fun b lids ->
+  Clos_def(b, lids)
 
 let check_sub : raw_ex -> bool -> raw_ex -> toplevel = fun a r b ->
   Chck_sub(a,r,b)
@@ -1517,10 +1539,6 @@ let equations _loc _loc_a a eqns =
        fn t l
   in
   fn None eqns
-
-(* "use a" := "a" *)
-let use _loc t =
-  t
 
 (* "from a; p" := "let _ = p : a in {}" *)
 let showing _loc a q p =

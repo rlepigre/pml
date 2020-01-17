@@ -98,7 +98,7 @@ type ctxt  =
 
 let empty_ctxt () =
   { uvarcount = ref 0
-  ; equations = empty_pool
+  ; equations = empty_pool ()
   ; ctx_names = Bindlib.empty_ctxt
   ; positives = []
   ; fix_ihs   = Buckets.empty (==)
@@ -213,6 +213,9 @@ let learn_nobox : ctxt -> valu -> ctxt = fun ctx v ->
   { ctx with equations = add_nobox v ctx.equations }
 
 let learn_value : ctxt -> term -> prop -> valu * ctxt = fun ctx t a ->
+  match is_immediate_value t with
+  | Some v -> (v, ctx)
+  | None   ->
   let ae =
     match (Norm.whnf a).elt with
     | Memb(u,_) when eq_expr t u -> a
@@ -1429,6 +1432,7 @@ and is_typed : type a. a v_or_t -> a ex loc -> bool = fun t e ->
   | _, FixY _          -> true
   | _, Such(_,_,r)     -> let (a,u) = instantiate (empty_ctxt ()) r.binder in
                           is_typed t u
+  | _, Hint(_,t)       -> is_typed VoT_T t
   | _                  -> false
 
 and warn_unreachable ctx t =
@@ -1507,7 +1511,6 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
                (* If the typing of u was total,
                we can use strong application *)
                let strong = Effect.(absent CallCC ctx_u.totality) in
-               log_typ "sub1 %b" strong;
                if not Effect.(sub ctx_u.totality tot) then
                  subtype_msg f.pos "Arrow clash";
                (* type check f *)
@@ -1668,6 +1671,26 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
        in
        let p = type_term ctx t c in
        Typ_Delm(p)
+    | Hint(h,t)   ->
+       let st = ctx.equations.time in
+       let ctx =
+         match h with
+         | Eval -> ctx
+         | Close(b,vs) ->
+            let time = List.fold_left (fun t v -> Timed.set t  v.value_clos b)
+                         st vs;
+            in
+            let equations =
+              if b then ctx.equations else
+                reinsert_vdef vs ctx.equations
+            in
+            { ctx with equations = { equations with time } }
+       in
+       (try
+          let (_,_,r) = type_term ctx t c in
+          Timed.Time.rollback st;
+          r
+        with e -> Timed.Time.rollback st; raise e)
     (* Constructors that cannot appear in user-defined terms. *)
     | UWit(_)     -> unexpected "∀-witness during typing..."
     | EWit(_)     -> unexpected "∃-witness during typing..."
@@ -1727,6 +1750,7 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
 exception Unif_variables
 
 let type_check : term -> prop -> prop * typ_proof = fun t a ->
+  let st = Timed.Time.save () in
   try
     let ctx = empty_ctxt () in
     let prf = type_term ctx t a in
@@ -1736,12 +1760,14 @@ let type_check : term -> prop -> prop * typ_proof = fun t a ->
        so [uvars a] hould be empty *)
     assert (uvars a = []);
     reset_tbls ();
+    Timed.Time.rollback st;
     (Norm.whnf a, prf)
-  with e -> reset_tbls (); raise e
+  with e -> reset_tbls (); Timed.Time.rollback st; raise e
 
 let type_check t = Chrono.add_time type_chrono (type_check t)
 
 let is_subtype : prop -> prop -> bool = fun a b ->
+  let st = Timed.Time.save () in
   try
     let ctx = empty_ctxt () in
     let _ = gen_subtype ctx a b in
@@ -1750,7 +1776,7 @@ let is_subtype : prop -> prop -> bool = fun a b ->
     List.iter (fun f -> f ()) (List.rev !(ctx.add_calls));
     let res = Scp.scp ctx.callgraph in
     reset_tbls ();
+    Timed.Time.rollback st;
     res
   with _ ->
-    reset_tbls ();
-    false
+    reset_tbls (); Timed.Time.rollback st; false

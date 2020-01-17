@@ -134,6 +134,7 @@ type v_node =
   | VN_LAbs of (v, t) bndr_closure * laz
   | VN_Cons of A.key loc * VPtr.t
   | VN_Reco of VPtr.t A.t
+  | VN_Defi of value   (* closed definition *)
   | VN_Scis
   | VN_VWit of (vwit, string) eps
   | VN_UWit of (v qwit, string) eps
@@ -225,6 +226,7 @@ let print_v_node : out_channel -> v_node -> unit = fun ch n ->
   | VN_Cons(c,pv)  -> prnt ch "VN_Cons(%s,%a)" c.elt VPtr.print pv
   | VN_Reco(m)     -> let pelt ch (k, p) = prnt ch "%S=%a" k VPtr.print p in
                       prnt ch "VN_Reco(%a)" (Print.print_map pelt ":") m
+  | VN_Defi(d)     -> prnt ch "VN_Defi(%s)" d.value_name.elt
   | VN_Scis        -> prnt ch "VN_Scis"
   | VN_VWit(w)     -> prnt ch "VN_VWit(%a)" pex (Pos.none (VWit(w)))
   | VN_UWit(w)     -> prnt ch "VN_UWit(%a)" pex (Pos.none (UWit(w)))
@@ -359,7 +361,7 @@ let print_pool : string -> out_channel -> pool -> unit = fun prefix ch po ->
 
 
 (** Initial, empty pool. *)
-let empty_pool : pool =
+let empty_pool : unit -> pool = fun () ->
   { vs     = []
   ; ts     = []
   ; os     = []
@@ -460,6 +462,7 @@ let children_v_node : v_node -> (par_key * Ptr.t) list = fun n ->
                      snd (children_bndr_closure b kn (0, []))
   | VN_Cons(a,pv) -> [(KV_Cons a.elt, Ptr.V_ptr pv)]
   | VN_Reco(m)    -> A.fold (fun a p s -> ((KV_Reco a, Ptr.V_ptr p)::s)) m []
+  | VN_Defi _
   | VN_VWit _
   | VN_UWit _
   | VN_EWit _
@@ -540,6 +543,7 @@ let immediate_nobox : v_node -> bool = function
   | VN_LAbs _
   | VN_Cons _
   | VN_Reco _
+  | VN_Defi _
   | VN_Scis   -> true (* Check VN_Scis *)
   | VN_VWit _
   | VN_UWit _
@@ -630,6 +634,7 @@ let eq_v_nodes : pool -> v_node -> v_node -> bool =
     | (VN_LAbs(b1,t1), VN_LAbs(b2,t2)) -> eq_cl po V b1 b2 && t1 = t2
     | (VN_Cons(c1,p1), VN_Cons(c2,p2)) -> c1.elt = c2.elt && eq_vptr po p1 p2
     | (VN_Reco(m1)   , VN_Reco(m2)   ) -> A.equal (eq_vptr po) m1 m2
+    | (VN_Defi(v1)   , VN_Defi(v2)   ) -> v1 == v2
     | (VN_Scis       , VN_Scis       ) -> true
     | (VN_VWit(w1)   , VN_VWit(w2)   ) -> w1.valu == w2.valu
     | (VN_UWit(w1)   , VN_UWit(w2)   ) -> w1.valu == w2.valu
@@ -795,6 +800,7 @@ let rec not_uewit : type a. a ex loc -> bool =
 exception NoUnif
 
 let keep_intermediate = ref false
+let use_eval          = ref true
 
 (** Insertion and normalisation of actual terms and values to the pool. *)
 let rec add_term :  bool -> bool -> pool -> term
@@ -860,6 +866,20 @@ let rec add_term :  bool -> bool -> pool -> term
     | Prnt(s)     -> insert (TN_Prnt(s)) po
     | Repl(_,u)   -> add_term po u
     | Delm(u)     -> add_term po u
+    | Hint(h,t)   -> (match h with
+                      | Close _ -> add_term po t
+                      | Eval ->
+                         try
+                           if not !use_eval then raise Exit;
+                           let open Erase in
+                           let open Eval in
+                           let t = Pos.make t.pos
+                                     (Valu (to_valu (eval (term_erasure t))))
+                           in
+                           Printf.printf "EVAL OK\n%!";
+                           add_term po t
+                         with
+                           Erase.Erasure_error _ | Exit -> add_term po t)
     | Coer(_,t,_) -> add_term po t
     | Such(_,_,r) -> add_term po (bseq_open r.binder)
     | PSet(_,_,e) -> add_term po e
@@ -920,12 +940,15 @@ and     add_valu : bool -> pool -> valu -> VPtr.t * pool = fun o po v0 ->
     | Reco(m)     -> let fn l (_, v) (m, po) =
                        let (pv, po) = add_valu po v in
                        (A.add l pv m, po)
-                   in
-                   let (m, po) = A.fold fn m (A.empty, po) in
-                   insert_v_node (VN_Reco(m)) po
+                     in
+                     let (m, po) = A.fold fn m (A.empty, po) in
+                     insert_v_node (VN_Reco(m)) po
     | Scis        -> insert_v_node VN_Scis po
     | VDef(d)     -> begin
-                       try (List.assq d po.values, po)
+                       let cl = Timed.get po.time d.value_clos in
+                       if cl then
+                         insert_v_node (VN_Defi(d)) po
+                       else try (List.assq d po.values, po)
                        with Not_found ->
                          let (pv,po) = add_valu po d.value_eras in
                          let po = { po with values = (d,pv)::po.values } in
@@ -1236,8 +1259,17 @@ and reinsert : Ptr.t -> pool -> pool = fun p po ->
        | VN_UVar({uvar_val = {contents = Set v}}) ->
           let (vp,po) = add_valu false po v in
           join p (Ptr.V_ptr vp) po
+       | VN_Defi(v) when Timed.get po.time v.value_clos ->
+          let (vp,po) = add_valu false po v.value_eras in
+          join p (Ptr.V_ptr vp) po
        | _ -> po
      end
+
+(** reinsert values whose defs have just be opened *)
+and reinsert_vdef : value list -> pool -> pool = fun vs po ->
+  let fn (p, n) = List.exists (fun v -> eq_v_nodes po n (VN_Defi(v))) vs in
+  let ptrs = List.filter fn po.vs in
+  List.fold_left (fun po (p,n) -> reinsert (Ptr.V_ptr p) po) po ptrs
 
 and check_ineq pool =
   (* NOTE: we could consider ineq as parents to avoid scanning the whole ineq
@@ -1426,6 +1458,7 @@ and     canonical_valu : bool -> VPtr.t -> pool -> valu * pool
                             in
                             let (m, po) = A.fold fn m (A.empty, po) in
                             (Pos.none (Reco(m)), po)
+        | VN_Defi(v)     -> (Pos.none (VDef(v)), po)
         | VN_Scis        -> (Pos.none Scis, po)
         | VN_VWit(w)     -> (Pos.none (VWit(w)), po)
         | VN_UWit(w)     -> (Pos.none (UWit(w)), po)
@@ -1895,10 +1928,23 @@ let check_nobox : valu -> pool -> bool * pool = fun v pool ->
   | Ptr.T_ptr(_)  -> (false, pool)
   | Ptr.V_ptr(vp) -> (get_bs vp pool, pool)
 
+let is_immediate_value : term -> valu option = fun t ->
+  let rec fn v = match (Norm.whnf v).elt with
+    | LAbs _    -> true
+    | Cons(_,v) -> fn v
+    | Reco(l)   -> A.for_all (fun _ (_,v) -> fn v) l
+    | Scis      -> true
+    | _         -> false
+  in
+  match (Norm.whnf t).elt with
+  | Valu v -> if fn v then Some v else None
+  | _      -> None
+
 (* Test whether a term is equivalent to a value or not. *)
 let is_value : term -> pool -> bool * bool * pool = fun t pool ->
   log_edp2 "inserting %a not box in context\n%a" Print.ex t
     (print_pool "        ") pool;
+  if is_immediate_value t <> None then (true, true, pool) else
   let (pt, pool) = add_term true true pool t in
   log_edp2 "insertion at %a" Ptr.print pt;
   log_edp2 "obtained context:\n%a" (print_pool "        ") pool;
@@ -2194,8 +2240,8 @@ let unif_bndr
   = fun po s a b ->
     eq_bndr ~oracle:(oracle (ref po)) ~strict:false s a b
 
-let learn pool rel     = Chrono.add_time equiv_chrono (learn pool) rel
-let prove pool rel     = Chrono.add_time equiv_chrono (prove pool) rel
+let learn pool rel    = Chrono.add_time equiv_chrono (learn pool) rel
+let prove pool rel    = Chrono.add_time equiv_chrono (prove pool) rel
 let to_value t eqs    = Chrono.add_time equiv_chrono (to_value t) eqs
 let is_value t eqs    = Chrono.add_time equiv_chrono (is_value t) eqs
 let check_nobox v eqs = Chrono.add_time equiv_chrono (check_nobox v) eqs

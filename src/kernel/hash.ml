@@ -79,8 +79,10 @@ let {hash_expr; hash_bndr; hash_ombinder; hash_vwit
     | Prnt(s1)      -> khash1 `Prnt (hash s1)
     | Repl(_,u)     -> hash_expr u
     | Delm(u)       -> hash_expr u
+    | Hint(_,u)     -> hash_expr u
     | Conv          -> hash `Conv
     | Succ(o)       -> khash1 `Succ (hash_expr o)
+
     (* NOTE type annotations ignored. *)
     | ITag(_,i)     -> hash (`ITag(i))
     | VWit(w)       -> w.refr (); khash1 `VWit !(w.hash)

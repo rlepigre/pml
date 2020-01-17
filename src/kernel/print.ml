@@ -41,6 +41,24 @@ let arrow ch t =
               | true , true  -> fprintf ch "↛")
   | _        -> fprintf ch "?>"
 
+let vhint ch = function
+  | Eval   -> Printf.fprintf ch "eval"
+  | Close(true,ls)  ->
+     Printf.fprintf ch "close %t;"
+       (fun ch -> List.iter (fun v -> Printf.fprintf ch "%s " v.value_name.elt) ls)
+  | Close(false,ls) ->
+     Printf.fprintf ch "open %t;"
+       (fun ch -> List.iter (fun v -> Printf.fprintf ch "%s " v.value_name.elt) ls)
+
+let lhint ch = function
+  | Eval   -> Printf.fprintf ch "eval"
+  | Close(true,ls)  ->
+     Printf.fprintf ch "close %t;"
+       (fun ch -> List.iter (fun v -> Printf.fprintf ch "%s " v.elt) ls)
+  | Close(false,ls) ->
+     Printf.fprintf ch "open %t;"
+       (fun ch -> List.iter (fun v -> Printf.fprintf ch "%s " v.elt) ls)
+
 let removeq : ('a -> 'a -> bool) -> 'a list ref -> 'a -> bool = fun eq ls x ->
   let rec fn acc = function
     | [] -> false
@@ -409,6 +427,7 @@ let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
   | Prnt(s)     -> fprintf ch "print(%S)" s
   | Repl(t,u)   -> fprintf ch "check {%a} for {%a}" ext t ext u
   | Delm(t)     -> fprintf ch "delim {%a}" ext t
+  | Hint(_,t)   -> ex pr ch t
   | Conv        -> output_string ch "∞"
   | Succ(o)     -> fprintf ch "%a+1" exo o
   | Coer(_,e,a) -> fprintf ch "(%a : %a)" ext e exp a

@@ -60,7 +60,8 @@ let add_value : strloc -> term -> prop -> e_valu -> unit =
   fun value_name value_orig value_type value_eval ->
     let value_hash = Hash.hash_expr (Erase.to_valu value_eval) in
     let value_eras = Erase.to_valu value_eval in
-    let nv = { value_name; value_type; value_orig
+    let value_clos = Timed.tref false in
+    let nv = { value_name; value_type; value_orig; value_clos
              ; value_eval; value_eras; value_hash}
     in
     let global_values = SMap.add value_name.elt nv !env.global_values in

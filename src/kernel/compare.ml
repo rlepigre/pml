@@ -334,6 +334,8 @@ let {eq_expr; eq_bndr} =
     | (_             , Repl(_,u2)    ) -> eq_expr e1 u2
     | (Delm(u1)      , _             ) -> eq_expr u1 e2
     | (_             , Delm(u2)      ) -> eq_expr e1 u2
+    | (Hint(_,u1)    , _             ) -> eq_expr u1 e2
+    | (_             , Hint(_,u2)    ) -> eq_expr e1 u2
     | (Coer(_,e1,_)  , _             ) -> eq_expr e1 e2
     | (_             , Coer(_,e2,_)  ) -> eq_expr e1 e2
     | (Such(_,_,r)   , _             ) -> eq_expr (bseq_open r.binder) e2
