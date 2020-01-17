@@ -94,6 +94,7 @@ type ctxt  =
   ; add_calls : (unit -> unit) list ref
   ; auto      : auto_ctxt
   ; callgraph : Scp.t
+  ; pretty    : Print.pretty list
   ; totality  : Effect.t }
 
 let empty_ctxt () =
@@ -108,8 +109,11 @@ let empty_ctxt () =
   ; add_calls = ref []
   ; auto      = auto_empty ()
   ; callgraph = Scp.create ()
+  ; pretty    = []
   (* Loop and CallCC not allowed at toplevel *)
   ; totality  = Effect.(known[]) }
+
+let add_pretty ctx p = { ctx with pretty = p :: ctx.pretty }
 
 let new_uvar : type a. ctxt -> a sort -> a ex loc = fun ctx s ->
   let c = ctx.uvarcount in
@@ -129,7 +133,11 @@ let add_positive : ctxt -> ordi -> ordi -> ctxt = fun ctx o oo ->
   match o.elt with
   | Conv    -> ctx
   | Succ(_) -> ctx
-  | _       -> {ctx with positives = (o,oo) :: ctx.positives}
+  | _       -> if List.exists (fun (o',_) -> eq_expr o o') ctx.positives then
+                 ctx
+               else
+                 let ctx = add_pretty ctx (Posi o) in
+                 {ctx with positives = (o,oo) :: ctx.positives}
 
 (* Instantation of heterogenous binder with uvars. *)
 let rec instantiate : type a b. ctxt -> (a, b) bseq -> b =
@@ -210,27 +218,36 @@ and stk_proof = stac * prop * stk_rule
 and sub_proof = term * prop * prop * sub_rule
 
 let learn_nobox : ctxt -> valu -> ctxt = fun ctx v ->
+  let ctx = add_pretty ctx (Print.Rela (NoBox v)) in
   { ctx with equations = add_nobox v ctx.equations }
 
 let learn_value : ctxt -> term -> prop -> valu * ctxt = fun ctx t a ->
-  match is_immediate_value t with
-  | Some v -> (v, ctx)
-  | None   ->
-  let ae =
-    match (Norm.whnf a).elt with
-    | Memb(u,_) when eq_expr t u -> a
-    | _ -> Pos.none (Memb(t,a))
+  let (v,ctx,nb) =
+    match is_nobox_value t with
+    | Some (v,nb) -> (v, ctx, nb)
+    | None ->
+       let ae =
+         match (Norm.whnf a).elt with
+         | Memb(u,_) when eq_expr t u -> a
+         | _ -> Pos.none (Memb(t,a))
+       in
+       let (vwit, ctx_names) =
+         vwit ctx.ctx_names idt_valu ae Ast.bottom
+       in
+       let ctx = { ctx with ctx_names } in
+       (vwit, ctx, false)
   in
-  let (vwit, ctx_names) = vwit ctx.ctx_names idt_valu ae Ast.bottom in
-  let ctx = { ctx with ctx_names } in
-  let ctx = learn_nobox ctx vwit in
-  let twit = Pos.none (Valu vwit) in
-  let equations = learn ctx.equations (Equiv(t,true,twit)) in
-  (vwit, { ctx with equations })
+  if nb then (v,ctx) else
+    let ctx = learn_nobox ctx v in
+    let twit = Pos.none (Valu v) in
+    let c = Equiv(t,true,twit) in
+    let equations = learn ctx.equations c in
+    let ctx = add_pretty ctx (Print.Rela c) in
+    (v, { ctx with equations })
 
 (* Add to the context some conditions.
    A condition c is added if c false implies wit in a is false.
-   as wit may be assumed not box, if c false implies a = Box,
+   as wit may be assumed not box, if c false implies wit = Box,
    c can be added *)
 let learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
   let adone = ref [] in
@@ -238,9 +255,12 @@ let learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
     let twit = Pos.none (Valu wit) in
     match (Norm.whnf a).elt with
     | HDef(_,e)  -> fn ctx wit e.expr_def
-    | Memb(t,a)  -> let eq = learn ctx.equations (Equiv(twit,true,t)) in
+    | Memb(t,a)  -> let rel = Equiv(twit,true,t) in
+                    let eq = learn ctx.equations rel in
+                    let ctx = add_pretty ctx (Rela rel) in
                     fn {ctx with equations = eq} wit a
     | Rest(a,c)  -> let equations = learn ctx.equations c in
+                    let ctx = add_pretty ctx (Rela c) in
                     fn {ctx with equations} wit a
     | Exis(s, f) -> let (t, ctx_names) = ewit ctx.ctx_names s twit f in
                     let ctx = { ctx with ctx_names } in
@@ -317,6 +337,7 @@ let learn_neg_equivalences
       match (Norm.whnf a).elt, arg with
       | HDef(_,e), _ -> fn ctx e.expr_def
       | Impl(c,a), _ -> let equations = learn ctx.equations c in
+                        let ctx = add_pretty ctx (Rela c) in
                         fn {ctx with equations} a
       | Univ(s,f), _ -> let (t, ctx_names) = uwit ctx.ctx_names s twit f in
                         let ctx = { ctx with ctx_names } in
@@ -326,7 +347,9 @@ let learn_neg_equivalences
          begin
            match is_singleton b with
            | Some x ->
-              let equations = learn ctx.equations (Equiv(arg,true,x)) in
+              let c = Equiv(arg,true,x) in
+              let equations = learn ctx.equations c in
+              let ctx = add_pretty ctx (Rela c) in
               (a, {ctx with equations})
            | None -> (a, ctx)
          end
@@ -1226,6 +1249,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
            let ctx = learn_nobox ctx wit in
            let ctx = learn_equivalences ctx wit a in
            (* call typing *)
+           let ctx = add_pretty ctx (Decl(wit,a)) in
            let p2 = type_term ctx (bndr_subst f wit.elt) b in
            Typ_Func_i(p1,p2)
          with Contradiction ->
@@ -1384,7 +1408,9 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
         end
     (* Goal *)
     | Goal(_,str) ->
-        wrn_msg "goal %S %a" str Pos.print_short_pos_opt v.pos;
+        wrn_msg "goal (value) %S %a" str Pos.print_short_pos_opt v.pos;
+        Print.pretty ctx.pretty;
+        Printf.printf "|- %a\n%!" Print.ex c;
         Typ_Goal(str)
     (* Constructors that cannot appear in user-defined terms. *)
     | UWit(_)     -> unexpected "∀-witness during typing..."
@@ -1637,7 +1663,9 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
        let (_,_,r) = type_term ctx d.expr_def c in r
     (* Goal. *)
     | Goal(_,str) ->
-        wrn_msg "goal %S %a" str Pos.print_short_pos_opt t.pos;
+        wrn_msg "goal (term) %S %a" str Pos.print_short_pos_opt t.pos;
+        Print.pretty ctx.pretty;
+        Printf.printf "|- %a\n%!" Print.ex c;
         Typ_Goal(str)
     (* Printing. *)
     | Prnt(_)     ->
@@ -1726,7 +1754,9 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
         let (_, _, r) = type_stac ctx d.expr_def c in r
     (* Goal *)
     | Goal(_,str) ->
-        wrn_msg "goal %S %a" str Pos.print_short_pos_opt s.pos;
+        wrn_msg "goal (stack) %S %a" str Pos.print_short_pos_opt s.pos;
+        Print.pretty ctx.pretty;
+        Printf.printf "|- %a\n%!" Print.ex c;
         Stk_Goal(str)
     (* Constructors that cannot appear in user-defined stacks. *)
     | Coer(_,_,_) -> .

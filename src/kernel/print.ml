@@ -282,7 +282,7 @@ let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
     | Rest({elt=Memb({elt=Valu r},{elt=Prod m})},Equiv(e1,b,e2))
     | Memb({elt=Valu r},{elt=Rest({elt=Prod m},Equiv(e1,b,e2))}) ->
        if is_unit r && m = A.empty then
-         let s = if b then "≡" else "!=" in
+         let s = if b then "≡" else "≠" in
          Some(e1,s,e2)
        else None
     | _ -> None
@@ -351,7 +351,7 @@ let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
   | FixN(s,o,b,l) -> exp ch (apply_args (Pos.none (FixN(s,o,b,Nil))) l)
   | Memb(t,a)   -> begin
                      match is_eq e with
-                     | Some(e1,s,e2) -> fprintf ch "%a%s%a" exi e1 s exi e2
+                     | Some(e1,s,e2) -> fprintf ch "%a %s %a" exi e1 s exi e2
                      | None ->
                        let (l,r) = if Prp M <= pr then ("(",")") else ("","")
                        in fprintf ch "%s%a ∈ %a%s" l exi t (ex (Prp M)) a r
@@ -541,3 +541,16 @@ let rec get_case_name : type a. A.key -> a ex loc -> string =
     | HDef(_,d) -> get_case_name k (d.expr_def)
     | Valu(v)   -> get_case_name k v
     | _         -> "x"
+
+type pretty =
+  | Decl of v ex loc * p ex loc
+  | Rela of rel
+  | Posi of o ex loc
+
+let pretty ps =
+  let fn = function
+    | Decl(v,p) -> Printf.printf "%a : %a\n" ex v ex p
+    | Rela(r)   -> Printf.printf "%a\n" rel r
+    | Posi (o)  -> Printf.printf "%a > 0\n" ex o
+  in
+  List.iter fn ps

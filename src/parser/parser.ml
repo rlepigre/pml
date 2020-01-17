@@ -699,8 +699,9 @@ and interpret : bool -> Raw.toplevel -> unit =
         out "val %s %s : %a\n%!" close id.elt Print.ex a;
       (* out "  = %a\n%!" Print.ex (Erase.to_valu v); *)
   | Clos_def(b, lids) ->
+      let s = if b then "closing" else "opening" in
       let fn lid =
-        Printf.printf "closing %b %s\n%!" b lid.elt;
+        Printf.printf "%s %s\n%!" s lid.elt;
         try let d = SMap.find lid.elt !env.global_values in
             ignore (Timed.set (Timed.Time.save ()) d.value_clos b)
         with Not_found -> unbound_var lid.elt lid.pos

@@ -1838,7 +1838,7 @@ let add_equiv : equiv -> pool -> pool = fun (t,u) pool ->
     (print_pool "        ") pool;
   pool
 
-let add_vptr_nobox : VPtr.t -> pool -> pool = fun vp po ->
+let add_vptr_nobox : VPtr.t -> pool -> bool * pool = fun vp po ->
   let (vp, po) = find (Ptr.V_ptr vp) po in
   match vp with
   | Ptr.T_ptr(_) -> assert false
@@ -1847,16 +1847,19 @@ let add_vptr_nobox : VPtr.t -> pool -> pool = fun vp po ->
        begin
          let po = set_bs vp po in
          let nps = parents (Ptr.V_ptr vp) po in
-         MapKey.fold (fun k l po ->
-               if is_head k then PtrSet.fold reinsert l po else po) nps po
+         let po = MapKey.fold (fun k l po ->
+           if is_head k then PtrSet.fold reinsert l po else po) nps po
+         in
+         (false, po)
        end
-     else po
+     else (true, po)
 
 let add_nobox : valu -> pool -> pool = fun v po ->
   log_edp2 "add_nobox: inserting %a not box in context\n%a" Print.ex v
     (print_pool "        ") po;
-  let (vp, po) = add_valu true po v in
-  add_vptr_nobox vp po
+  let (vp, po1) = add_valu true po v in
+  let (known,po1) = add_vptr_nobox vp po1 in
+  if known then po else po1
 
 (** [proj_eps v l] denotes a value “w” such that “v.l ≡ w”. *)
 let proj_eps : Bindlib.ctxt -> valu -> string -> valu * Bindlib.ctxt =
@@ -1894,7 +1897,7 @@ let find_proj : pool -> Bindlib.ctxt -> valu -> string
               let po = union (Ptr.V_ptr wp) pt po in
               (wp, w, po, names)
          in
-         let po = if get_bs vp po then add_vptr_nobox wp po else po in
+         let (_, po) = add_vptr_nobox wp po in
          (w, po, names)
     with Contradiction as e -> raise e
        | e -> bug_msg "unexpected exception in find_proj: %s"
@@ -1927,23 +1930,33 @@ let check_nobox : valu -> pool -> bool * pool = fun v pool ->
   | Ptr.T_ptr(_)  -> (false, pool)
   | Ptr.V_ptr(vp) -> (get_bs vp pool, pool)
 
-let is_immediate_value : term -> valu option = fun t ->
+(** [is_nobox t returns Some(v,is_nobox) with v = t it t is a value
+    and is_nobox is true if v is syntactically not box *)
+let is_nobox_value : term -> (valu * bool) option = fun t ->
   let rec fn v = match (Norm.whnf v).elt with
     | LAbs _    -> true
     | Cons(_,v) -> fn v
     | Reco(l)   -> A.for_all (fun _ (_,v) -> fn v) l
     | Scis      -> true
+    | HDef(_,d) -> fn d.expr_def
     | _         -> false
   in
-  match (Norm.whnf t).elt with
-  | Valu v -> if fn v then Some v else None
-  | _      -> None
+  let rec gn t =
+    match (Norm.whnf t).elt with
+    | Valu v -> Some(v,fn v)
+    | Hint(_,t) -> gn t
+    | HDef(_,d) -> gn d.expr_def
+    | _      -> None
+  in
+  gn t
 
 (* Test whether a term is equivalent to a value or not. *)
 let is_value : term -> pool -> bool * bool * pool = fun t pool ->
   log_edp2 "inserting %a not box in context\n%a" Print.ex t
     (print_pool "        ") pool;
-  if is_immediate_value t <> None then (true, true, pool) else
+  match is_nobox_value t with
+  | Some(_,nb) -> (true, nb, pool)
+  | _ ->
   let (pt, pool) = add_term true true pool t in
   log_edp2 "insertion at %a" Ptr.print pt;
   log_edp2 "obtained context:\n%a" (print_pool "        ") pool;
@@ -1959,6 +1972,9 @@ let is_value : term -> pool -> bool * bool * pool = fun t pool ->
 
 (* Test whether a term is equivalent to a value or not. *)
 let to_value : term -> pool -> valu option * pool = fun t pool ->
+  match is_nobox_value t with
+  | Some(v,_) -> (Some v, pool)
+  | _ ->
   let (pt, pool) = add_term true true pool t in
   match pt with
   | Ptr.V_ptr(v) -> Some (Pos.none (VPtr v)), pool
