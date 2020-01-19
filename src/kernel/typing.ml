@@ -113,7 +113,8 @@ let empty_ctxt () =
   (* Loop and CallCC not allowed at toplevel *)
   ; totality  = Effect.(known[]) }
 
-let add_pretty ctx p = { ctx with pretty = p :: ctx.pretty }
+let add_pretty ctx known p =
+  if known then ctx else { ctx with pretty = p :: ctx.pretty }
 
 let new_uvar : type a. ctxt -> a sort -> a ex loc = fun ctx s ->
   let c = ctx.uvarcount in
@@ -136,7 +137,7 @@ let add_positive : ctxt -> ordi -> ordi -> ctxt = fun ctx o oo ->
   | _       -> if List.exists (fun (o',_) -> eq_expr o o') ctx.positives then
                  ctx
                else
-                 let ctx = add_pretty ctx (Posi o) in
+                 let ctx = add_pretty ctx false (Posi o) in
                  {ctx with positives = (o,oo) :: ctx.positives}
 
 (* Instantation of heterogenous binder with uvars. *)
@@ -218,8 +219,14 @@ and stk_proof = stac * prop * stk_rule
 and sub_proof = term * prop * prop * sub_rule
 
 let learn_nobox : ctxt -> valu -> ctxt = fun ctx v ->
-  let ctx = add_pretty ctx (Print.Rela (NoBox v)) in
-  { ctx with equations = add_nobox v ctx.equations }
+  let (known, equations) = add_nobox v ctx.equations in
+  let ctx = add_pretty ctx known (Print.Rela (NoBox v)) in
+  { ctx with equations }
+
+let learn : ctxt -> rel -> ctxt = fun ctx c ->
+  let (known, equations) = learn ctx.equations c in
+  let ctx = add_pretty ctx known (Print.Rela c) in
+  { ctx with equations }
 
 let learn_value : ctxt -> term -> prop -> valu * ctxt = fun ctx t a ->
   let (v,ctx,nb) =
@@ -235,15 +242,13 @@ let learn_value : ctxt -> term -> prop -> valu * ctxt = fun ctx t a ->
          vwit ctx.ctx_names idt_valu ae Ast.bottom
        in
        let ctx = { ctx with ctx_names } in
+       let twit = Pos.none (Valu vwit) in
+       let ctx = learn ctx (Equiv(t,true,twit)) in
        (vwit, ctx, false)
   in
   if nb then (v,ctx) else
     let ctx = learn_nobox ctx v in
-    let twit = Pos.none (Valu v) in
-    let c = Equiv(t,true,twit) in
-    let equations = learn ctx.equations c in
-    let ctx = add_pretty ctx (Print.Rela c) in
-    (v, { ctx with equations })
+    (v, ctx)
 
 (* Add to the context some conditions.
    A condition c is added if c false implies wit in a is false.
@@ -255,13 +260,9 @@ let learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
     let twit = Pos.none (Valu wit) in
     match (Norm.whnf a).elt with
     | HDef(_,e)  -> fn ctx wit e.expr_def
-    | Memb(t,a)  -> let rel = Equiv(twit,true,t) in
-                    let eq = learn ctx.equations rel in
-                    let ctx = add_pretty ctx (Rela rel) in
-                    fn {ctx with equations = eq} wit a
-    | Rest(a,c)  -> let equations = learn ctx.equations c in
-                    let ctx = add_pretty ctx (Rela c) in
-                    fn {ctx with equations} wit a
+    | Memb(t,a)  -> let ctx = learn ctx (Equiv(twit,true,t)) in
+                    fn ctx wit a
+    | Rest(a,c)  -> fn (learn ctx c) wit a
     | Exis(s, f) -> let (t, ctx_names) = ewit ctx.ctx_names s twit f in
                     let ctx = { ctx with ctx_names } in
                     fn ctx wit (bndr_subst f t.elt)
@@ -291,9 +292,9 @@ let learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
        end
     (** Learn positivity of the ordinal *)
     | FixM(s,o,f,l)  ->
-       if List.memq (Obj.magic f) !adone then ctx else
+       if List.memq (Obj.repr f) !adone then ctx else
          begin
-           adone := (Obj.magic f) :: !adone;
+           adone := (Obj.repr f) :: !adone;
            let (bound, ctx) =
              match (Norm.whnf o).elt with
              | Succ(o) -> (o, ctx)
@@ -328,7 +329,7 @@ let rec is_singleton : prop -> term option = fun t ->
    arg could not be a counter example.
 *)
 let learn_neg_equivalences
-    : ctxt -> valu -> term option -> prop -> prop * ctxt =
+    : ctxt -> valu -> valu option -> prop -> prop * ctxt =
   fun ctx wit arg a ->
     let adone = ref [] in
     let twit = Pos.none (Valu wit) in
@@ -336,28 +337,17 @@ let learn_neg_equivalences
       let a = Norm.whnf a in
       match (Norm.whnf a).elt, arg with
       | HDef(_,e), _ -> fn ctx e.expr_def
-      | Impl(c,a), _ -> let equations = learn ctx.equations c in
-                        let ctx = add_pretty ctx (Rela c) in
-                        fn {ctx with equations} a
+      | Impl(c,a), _ -> fn (learn ctx c) a
       | Univ(s,f), _ -> let (t, ctx_names) = uwit ctx.ctx_names s twit f in
                         let ctx = { ctx with ctx_names } in
                         let u = bndr_subst f t.elt in
                         fn ctx u
-      | Func(t,b,_,_), Some arg ->
-         begin
-           match is_singleton b with
-           | Some x ->
-              let c = Equiv(arg,true,x) in
-              let equations = learn ctx.equations c in
-              let ctx = add_pretty ctx (Rela c) in
-              (a, {ctx with equations})
-           | None -> (a, ctx)
-         end
+      | Func(t,b,_,_), Some arg -> (a, learn_equivalences ctx arg b)
       (** Learn positivity of the ordinal *)
       | FixN(s,o,f,l), _ ->
-       if List.memq (Obj.magic f) !adone then (a, ctx) else
+       if List.memq (Obj.repr f) !adone then (a, ctx) else
          begin
-           adone := (Obj.magic f) :: !adone;
+           adone := (Obj.repr f) :: !adone;
            let (bound, ctx) =
              match (Norm.whnf o).elt with
              | Succ(o) -> (o, ctx)
@@ -522,8 +512,8 @@ let rec subtype =
       | (Memb(u,c)  , _          ) ->
          if t_is_val then
            try
-             let equations = learn ctx.equations (Equiv(t,true,u)) in
-             Sub_Memb_l(Some(subtype {ctx with equations} t c b))
+             let ctx = learn ctx (Equiv(t,true,u)) in
+             Sub_Memb_l(Some(subtype ctx t c b))
            with Contradiction -> Sub_Memb_l(None)
          (* NOTE may need a backtrack because a right rule could work *)
          else gen_subtype ctx a b
@@ -531,9 +521,7 @@ let rec subtype =
       | (Rest(c,e)  , _          ) ->
          if t_is_val then
            begin
-             try
-               let equations = learn ctx.equations e in
-               Sub_Rest_l(Some(subtype {ctx with equations} t c b))
+             try  Sub_Rest_l(Some(subtype (learn ctx e) t c b))
              with Contradiction -> Sub_Rest_l(None)
            end
           (* NOTE may need a backtrack because a right rule could work *)
@@ -542,9 +530,7 @@ let rec subtype =
       | (_          , Impl(e,c)  ) ->
          if t_is_val then
            begin
-             try
-               let equations = learn ctx.equations e in
-               Sub_Impl_r(Some(subtype {ctx with equations} t a c))
+             try  Sub_Impl_r(Some(subtype (learn ctx e)t a c))
              with Contradiction -> Sub_Rest_l(None)
            end
           (* NOTE may need a backtrack because a right rule could work *)
@@ -680,11 +666,10 @@ let rec subtype =
             try
               let cwit = vdot wit c in
               let (vwit, ctx) = learn_value ctx cwit a1 in
-              let equations =
+              let ctx =
                 let t1 = Pos.none (Valu(Pos.none (Cons(Pos.none c, vwit)))) in
-                learn ctx.equations (Equiv(t1,true,t))
+                learn ctx (Equiv(t1,true,t))
               in
-              let ctx = { ctx with equations } in
               let a2 =
                 try snd (A.find c cs2) with Not_found ->
                   subtype_msg p ("Sum clash on constructor " ^ c ^ "...")
@@ -724,11 +709,8 @@ let rec subtype =
          begin
            (* we learn the equation that we will prove below *)
            let prf =
-             try
-               let equations = learn ctx.equations e in
-               Some(subtype {ctx with equations} t a c)
-             with
-               Contradiction -> None
+             try  Some(subtype (learn ctx e) t a c)
+             with Contradiction -> None
            in
            prove ctx.equations e;
            Sub_Rest_r(prf)
@@ -738,11 +720,8 @@ let rec subtype =
          begin
            (* we learn the equation that we will prove below *)
            let prf =
-             try
-               let equations = learn ctx.equations e in
-               Some(subtype {ctx with equations} t c b)
-             with
-               Contradiction -> None
+             try  Some(subtype (learn ctx e) t c b)
+             with Contradiction -> None
            in
            prove ctx.equations e;
            Sub_Impl_l(prf)
@@ -1234,22 +1213,22 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
            | Some a -> a
          in
          let b = new_uvar ctx P in
+           (* build the witness for typing *)
          let (wit,ctx_names) = vwit ctx.ctx_names f a b in
          try
            let tot = Effect.create () in
            if l = Lazy then ignore (Effect.absent CallCC tot);
            let ctx = { ctx with ctx_names; totality = tot } in
-           let twit = Pos.none(Valu wit) in
-           let (c, ctx) = learn_neg_equivalences ctx v (Some twit) c in
+           (* learn equivalences both for subtyping below and typing *)
+           let (c, ctx) = learn_neg_equivalences ctx v (Some wit) c in
            let c' = Pos.none (Func(tot,a,b,l)) in
            (* check subtyping *)
            let p1 = subtype ctx t c' c in
-           (* build the witness for typing *)
-           (* Learn the equivalence that are valid in the witness. *)
+           (* learn now than witness exists *)
            let ctx = learn_nobox ctx wit in
-           let ctx = learn_equivalences ctx wit a in
            (* call typing *)
-           let ctx = add_pretty ctx (Decl(wit,a)) in
+           let no_use = (bndr_name f).elt = "_" in
+           let ctx = add_pretty ctx no_use (Decl(wit,a)) in
            let p2 = type_term ctx (bndr_subst f wit.elt) b in
            Typ_Func_i(p1,p2)
          with Contradiction ->
@@ -1597,18 +1576,18 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
           log_typ "Checking case %s." d;
           let (_,a) = A.find d ts in
           let vd = vdot v d in
-          let a = Pos.none (Memb(vd, a)) in
-          let (wit, ctx_names) = vwit ctx.ctx_names f a c in
+          let a0 = Pos.none (Memb(vd, a)) in (* type for witness only *)
+          let (wit, ctx_names) = vwit ctx.ctx_names f a0 c in
           let ctx = { ctx with ctx_names } in
           let t = bndr_subst f wit.elt in
           (try
             let ctx = learn_nobox ctx wit in
-            let equations =
+            let eq =
               let t1 = Pos.none (Valu(Pos.none (Cons(Pos.none d, wit)))) in
               let t2 = Pos.none (Valu(v)) in
-              learn ctx.equations (Equiv(t1,true,t2))
+              Equiv(t1,true,t2)
             in
-            let ctx = { ctx with equations } in
+            let ctx = learn ctx eq in
             let ctx = learn_equivalences ctx wit a in
             (fun () -> type_term ctx t c :: ps)
           with Contradiction ->

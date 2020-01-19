@@ -1796,8 +1796,9 @@ type equiv   = term * term
 type inequiv = term * term
 
 (* Adds an inequivalence to a context, producing a bigger context. The
-   exception [Contradiction] is raised when expected. *)
-let add_inequiv : inequiv -> pool -> pool = fun (t,u) pool ->
+   exception [Contradiction] is raised when expected. It returns a
+  boolean to know if the inequation was already known. *)
+let add_inequiv : inequiv -> pool -> bool * pool = fun (t,u) pool ->
   log_edp2 "add_inequiv: inserting %a ≠ %a in context\n%a" Print.ex t
     Print.ex u (print_pool "        ") pool;
   if eq_expr t u then
@@ -1813,31 +1814,41 @@ let add_inequiv : inequiv -> pool -> pool = fun (t,u) pool ->
     ignore (UTimed.apply (unif_ptr pool pt) pu);
     log_edp2 "add_inequiv: contradiction found";
     bottom ()
-  with NoUnif -> {pool with ineq=(pt,pu)::pool.ineq}
+  with NoUnif ->
+    let fn (pr,ps) = (eq_ptr pool pt pr && eq_ptr pool pu ps)
+                     || (eq_ptr pool pt ps && eq_ptr pool pu pr)
+    in
+    let known = List.exists fn pool.ineq in
+    let pool = if known then pool else {pool with ineq=(pt,pu)::pool.ineq} in
+    (known, pool)
 
 (* Main module interface. *)
 
 (* Adds an equivalence to a context, producing a bigger context. The
-   exception [Contradiction] is raised when expected. *)
-let add_equiv : equiv -> pool -> pool = fun (t,u) pool ->
+   exception [Contradiction] is raised when expected. It returns a
+  boolean to know if the equation was already known. *)
+let add_equiv : equiv -> pool -> bool * pool = fun (t,u) pool ->
   log_edp2 "add_equiv: inserting %a = %a in context\n%a" Print.ex t
     Print.ex u (print_pool "        ") pool;
   if eq_expr t u then
     begin
       log_edp2 "add_equiv: trivial proof";
-      pool
+      (true, pool)
     end
   else
   let (pt, pool) = add_term true true pool t in
   let (pu, pool) = add_term true true pool u in
+  let known = eq_ptr pool pt pu in
   log_edp2 "add_equiv: insertion at %a and %a" Ptr.print pt Ptr.print pu;
   log_edp2 "add_equiv: obtained context (1):\n%a"
     (print_pool "        ") pool;
   let pool = union pt pu pool in
   log_edp2 "add_equiv: obtained context (2):\n%a"
     (print_pool "        ") pool;
-  pool
+  (known, pool)
 
+(** Add the hypothesis that a vptr is nobox, It returns a boolean to know if the
+   fact was already known.  *)
 let add_vptr_nobox : VPtr.t -> pool -> bool * pool = fun vp po ->
   let (vp, po) = find (Ptr.V_ptr vp) po in
   match vp with
@@ -1854,12 +1865,15 @@ let add_vptr_nobox : VPtr.t -> pool -> bool * pool = fun vp po ->
        end
      else (true, po)
 
-let add_nobox : valu -> pool -> pool = fun v po ->
+(** Add the hypothesis that a value is nobox, It returns a boolean to know if the
+   fact was already known.  *)
+let add_nobox : valu -> pool -> bool * pool = fun v po ->
   log_edp2 "add_nobox: inserting %a not box in context\n%a" Print.ex v
     (print_pool "        ") po;
   let (vp, po1) = add_valu true po v in
   let (known,po1) = add_vptr_nobox vp po1 in
-  if known then po else po1
+  let po = if known then po else po1 in
+  (known, po)
 
 (** [proj_eps v l] denotes a value “w” such that “v.l ≡ w”. *)
 let proj_eps : Bindlib.ctxt -> valu -> string -> valu * Bindlib.ctxt =
@@ -1980,7 +1994,9 @@ let to_value : term -> pool -> valu option * pool = fun t pool ->
   | Ptr.V_ptr(v) -> Some (Pos.none (VPtr v)), pool
   | Ptr.T_ptr(_) -> None, pool
 
-let learn : pool -> rel -> pool = fun pool rel ->
+(** learn a relation (equation, inequation or nobox) and returns a boolean
+   telling if the fact was already known *)
+let learn : pool -> rel -> bool * pool = fun pool rel ->
   log_edp1 "learning %a" Print.rel rel;
   try
     let ctx =
@@ -2233,7 +2249,7 @@ let get_blocked : pool -> blocked list = fun po ->
     let st = UTimed.Time.save () in
     let pool = match rel with
       | Equiv(t,b,u) ->
-         (if b then add_inequiv else add_equiv) (t,u) pool
+         snd ((if b then add_inequiv else add_equiv) (t,u) pool)
       | NoBox(v) ->
          let (b, pool) = check_nobox v pool in
          if b then raise Contradiction;
