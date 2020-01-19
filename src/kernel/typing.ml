@@ -250,6 +250,9 @@ let learn_value : ctxt -> term -> prop -> valu * ctxt = fun ctx t a ->
     let ctx = learn_nobox ctx v in
     (v, ctx)
 
+(* Safe version of OBj.repr *)
+type any_bndr = Any : ('a,'b) bndr -> any_bndr [@@unboxed]
+
 (* Add to the context some conditions.
    A condition c is added if c false implies wit in a is false.
    as wit may be assumed not box, if c false implies wit = Box,
@@ -292,9 +295,9 @@ let learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
        end
     (** Learn positivity of the ordinal *)
     | FixM(s,o,f,l)  ->
-       if List.memq (Obj.repr f) !adone then ctx else
+       if List.memq (Any f) !adone then ctx else
          begin
-           adone := (Obj.repr f) :: !adone;
+           adone := (Any f) :: !adone;
            let (bound, ctx) =
              match (Norm.whnf o).elt with
              | Succ(o) -> (o, ctx)
@@ -345,9 +348,9 @@ let learn_neg_equivalences
       | Func(t,b,_,_), Some arg -> (a, learn_equivalences ctx arg b)
       (** Learn positivity of the ordinal *)
       | FixN(s,o,f,l), _ ->
-       if List.memq (Obj.repr f) !adone then (a, ctx) else
+       if List.memq (Any f) !adone then (a, ctx) else
          begin
-           adone := (Obj.repr f) :: !adone;
+           adone := (Any f) :: !adone;
            let (bound, ctx) =
              match (Norm.whnf o).elt with
              | Succ(o) -> (o, ctx)
