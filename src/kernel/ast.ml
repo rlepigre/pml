@@ -619,6 +619,11 @@ let t_proj : popt -> tbox -> (popt * strloc) list -> tbox =
     in
     appl p NoLz (fn ls) t
 
+let x_proj : popt -> t ex loc -> strloc -> t ex loc = fun p t l ->
+  match t.elt with
+  | Valu v -> Pos.make p (Proj(v,l))
+  | _      -> unbox (t_proj p (box t) [p,l])
+
 (** Syntactic sugar to build redexes *)
 let rec redexes : pos option -> (vvar * tbox) list -> tbox -> tbox =
   fun pos l t -> match l with
