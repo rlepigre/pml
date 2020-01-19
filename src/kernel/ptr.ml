@@ -202,4 +202,4 @@ let ptr_union_pars : par_map -> Ptr.t ->  Timed.Time.t -> Timed.Time.t =
     | V_ptr vp -> Timed.set time vp.vlnk (Par ps)
     | T_ptr tp -> Timed.set time tp.tlnk (Par ps)
 
-type Pos.user += NPtr of ptr | UPtr of ptr | BPtr of ptr * ptr | VPtr of v_ptr
+type Pos.user += NPtr of ptr | UPtr of ptr | BPtr of ptr * ptr | EPtr of v_ptr

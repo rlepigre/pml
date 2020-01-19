@@ -810,7 +810,7 @@ let rec add_term :  bool -> bool -> pool -> term
   | NPtr p | BPtr(_,p) when free      -> find p po
   | UPtr p | BPtr(p,_) when not free  -> find p po
   | UPtr p             when free      -> normalise p po
-  | VPtr _ -> assert false
+  | EPtr _ -> assert false
   | _      ->
   let add_term = add_term o free in
   let add_valu = add_valu o in
@@ -915,7 +915,7 @@ let rec add_term :  bool -> bool -> pool -> term
       | (false, Nothing) -> Timed.set po.time t0.usr (UPtr p)
       | (true , UPtr q ) -> Timed.set po.time t0.usr (BPtr(q,p))
       | (false, NPtr q ) -> Timed.set po.time t0.usr (BPtr(p,q))
-      | (_    , VPtr _ ) -> assert false
+      | (_    , EPtr _ ) -> assert false
       | (_    , _      ) -> po.time (* node was recursively added ?*)
 
     in { po with time }
@@ -927,7 +927,7 @@ and     add_valu : bool -> pool -> valu -> VPtr.t * pool = fun o po v0 ->
   (*log_edp2 "add_valu %a" Print.ex v;*)
   let v = Norm.whnf v0 in
   match Timed.get po.time v0.usr with
-  | VPtr p -> (p, po)
+  | EPtr p -> (p, po)
   | BPtr _ | NPtr _ | UPtr _  -> assert false
   | _      ->
   let (p,po) =
@@ -982,7 +982,7 @@ and     add_valu : bool -> pool -> valu -> VPtr.t * pool = fun o po v0 ->
       { po with os = (Ptr.V_ptr p, Pos.none (Valu v0))::po.os }
     else po
   in
-  let po = {po with time = Timed.set po.time v0.usr (VPtr p)} in
+  let po = {po with time = Timed.set po.time v0.usr (EPtr p)} in
   (p, po)
 
 (** case of closure for binder *)
@@ -1879,7 +1879,11 @@ let add_nobox : valu -> pool -> bool * pool = fun v po ->
 let proj_eps : Bindlib.ctxt -> valu -> string -> valu * Bindlib.ctxt =
   fun names v l ->
     let w =
-      let x = new_var (mk_free V) "x" in
+      let name = if l = "" then "x"
+                 else if l.[0] >= '0' && l.[0] <= '9' then "x"^l
+                 else l
+      in
+      let x = new_var (mk_free V) name in
       let term_x = valu None (vari None x) in
       let v_dot_l = proj None (box v) (Pos.none l) in
       let w = rest None unit_prod (equiv term_x true v_dot_l) in
