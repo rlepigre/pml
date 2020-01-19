@@ -163,7 +163,7 @@ let%parser [@layout Blank.none] infix = (i::infix) => i
 
 (* Located identifiers. *)
 let%parser llid = (id::lid)                => in_pos _pos id
-  ; '(' ((_1,(_2,id,_3,_4,_5))::infix) ')' => id
+  ; '(' ((__,(__,id,__,__,__))::infix) ')' => id
 let%parser luid = (id::uid)    => in_pos _pos id
                 ; _true_       => in_pos _pos "true"
                 ; _false_      => in_pos _pos "false"
@@ -180,8 +180,8 @@ let%parser float = (s::FLOAT) => s
 
 (* Lowercase identifier or wildcard (located). *)
 let%parser llid_wc =
-    (id::lid) => in_pos _pos id
-  ; '_'       => in_pos _pos "_"
+    (id::llid) => id
+  ; '_'        => in_pos _pos "_"
 
 (* Some useful tokens. *)
 let%parser elipsis = "⋯" => () ; "..." => ()
