@@ -621,7 +621,7 @@ let eq_cl po s (f1,vs1,ts1 as _cl1) (f2,vs2,ts2 as _cl2) =
     Array.for_all2 (eq_ptr  po) ts1 ts2
   else
     ((*assert (not (eq_funptr s f1 f2) ||
-               (Printf.eprintf "%a (%d)\n%a (%d)\n%!"
+               (Printf.printf "%a (%d)\n%a (%d)\n%!"
                                (pbcl s) _cl1 (hash_funptr s f1)
                                (pbcl s) _cl2 (hash_funptr s f2);
                 false);*)
@@ -1879,10 +1879,7 @@ let add_nobox : valu -> pool -> bool * pool = fun v po ->
 let proj_eps : Bindlib.ctxt -> valu -> string -> valu * Bindlib.ctxt =
   fun names v l ->
     let w =
-      let name = if l = "" then "x"
-                 else if l.[0] >= '0' && l.[0] <= '9' then "x"^l
-                 else l
-      in
+      let name = proj_name l in
       let x = new_var (mk_free V) name in
       let term_x = valu None (vari None x) in
       let v_dot_l = proj None (box v) (Pos.none l) in

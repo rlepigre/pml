@@ -250,7 +250,7 @@ let learn_value : ctxt -> term -> prop -> valu * ctxt = fun ctx t a ->
     let ctx = learn_nobox ctx v in
     (v, ctx)
 
-(* Safe version of OBj.repr *)
+(* Safe version of Obj.repr *)
 type any_bndr = Any : ('a,'b) bndr -> any_bndr [@@unboxed]
 
 (* Add to the context some conditions.

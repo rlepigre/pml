@@ -632,6 +632,11 @@ let rec redexes : pos option -> (vvar * tbox) list -> tbox -> tbox =
      redexes pos l (appl pos NoLz (valu None (lvabs None NoLz None v t)) t0)
 
 (** Syntactic sugar for strict product type. *)
+let proj_name l =
+  if l = "" then "x"
+  else if l.[0] >= '0' && l.[0] <= '9' then "x"^l
+  else l
+
 let strict_prod : popt -> (popt * pbox) A.t -> pbox =
   fun p m ->
     let fn env = reco None (A.mapi (fun l _ -> (None, List.assoc l env)) m) in
@@ -639,7 +644,7 @@ let strict_prod : popt -> (popt * pbox) A.t -> pbox =
       match ls with
       | []    -> memb None (valu None (fn env)) (prod p m)
       | l::ls -> let fn (x:vvar) = build ((l, vari None x) :: env) ls in
-                 exis None (Pos.none l) V fn
+                 exis None (Pos.none (proj_name l)) V fn
     in
     build [] (List.map fst (A.bindings m))
 
