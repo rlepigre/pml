@@ -843,7 +843,7 @@ let rec add_term :  bool -> bool -> pool -> term
     | Appl(t,u,l) -> let (pt, po) = add_term po t in
                      let (pu, po) = add_term po u in
                      insert (TN_Appl(pt,pu,l)) po
-    | MAbs(b)     -> let (cl, po) = add_bndr_closure po S T b in
+    | MAbs(b)     -> let (cl, po) = add_bndr_closure po S T o b in
                      insert (TN_MAbs(cl)) po
     | Name(s,t)   -> let (pt, po) = add_term po t in
                      insert (TN_Name(s,pt)) po
@@ -851,11 +851,11 @@ let rec add_term :  bool -> bool -> pool -> term
                      insert (TN_Proj(pv,l)) po
     | Case(v,m)   -> let (pv, po) = add_valu po v in
                      let (m,  po) =
-                       let fn _ (_,x) po = add_bndr_closure po V T x in
+                       let fn _ (_,x) po = add_bndr_closure po V T o x in
                        A.fold_map fn m po
                      in
                      insert (TN_Case(pv,m)) po
-    | FixY(b)     -> let (cl, po) = add_bndr_closure po T V b in
+    | FixY(b)     -> let (cl, po) = add_bndr_closure po T V o b in
                      let ptr = Timed.tref Prep in
                      let (pt, po) = insert_t_node free (TN_FixY(cl,ptr)) po in
                      let pt = Ptr.T_ptr pt in
@@ -932,7 +932,7 @@ and     add_valu : bool -> pool -> valu -> VPtr.t * pool = fun o po v0 ->
   | _      ->
   let (p,po) =
     match v.elt with
-    | LAbs(_,b,t) -> let (b, po) = add_bndr_closure po V T b in
+    | LAbs(_,b,t) -> let (b, po) = add_bndr_closure po V T o b in
                      insert_v_node (VN_LAbs(b,t)) po
     | Cons(c,v)   -> let (pv, po) = add_valu po v in
                      insert_v_node (VN_Cons(c,pv)) po
@@ -987,14 +987,14 @@ and     add_valu : bool -> pool -> valu -> VPtr.t * pool = fun o po v0 ->
 
 (** case of closure for binder *)
 and add_bndr_closure : type a b. pool -> a sort -> b sort ->
-                       (a, b) bndr -> (a, b) bndr_closure * pool =
-  fun po sa sr b ->
+                       bool -> (a, b) bndr -> (a, b) bndr_closure * pool =
+  fun po sa sr o b ->
     let (funptr, vs, ts as cl) = Closures.make_bndr_closure sa b in
     let po = ref po in
-    let vs = Array.map (fun v -> let (vptr,p) = add_valu false !po v in
+    let vs = Array.map (fun v -> let (vptr,p) = add_valu o !po v in
                                  po := p; vptr) vs
     in
-    let ts = Array.map (fun t -> let (tptr,p) = add_term false false !po t in
+    let ts = Array.map (fun t -> let (tptr,p) = add_term o false !po t in
                                  po := p; tptr) ts
     in
     let po = !po in
