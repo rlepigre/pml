@@ -2046,9 +2046,7 @@ let cmp_orig (p,x) (q,y) = match (x.elt, y.elt) with
 let term_vwit : term -> pool -> term = fun t po ->
   (*Printf.eprintf "term_vwit: %a\n%!" Print.ex t;*)
   let (pt, po) = add_term true true po t in
-  let fn (p,t) =
-    eq_ptr po p pt
-  in
+  let fn (p,t) = eq_ptr po p pt in
   let l = List.find_all fn po.os in
   if l = [] then raise Not_found;
   snd (List.hd (List.sort cmp_orig l))
