@@ -546,11 +546,13 @@ type pretty =
   | Decl of v ex loc * p ex loc
   | Rela of rel
   | Posi of o ex loc
+  | CPrj of v ex loc * string * v ex loc
 
 let pretty ps =
   let fn = function
-    | Decl(v,p) -> Printf.printf "%a : %a\n" ex v ex p
-    | Rela(r)   -> Printf.printf "%a\n" rel r
-    | Posi (o)  -> Printf.printf "%a > 0\n" ex o
+    | Decl(v,p)    -> Printf.printf "%a : %a\n" ex v ex p
+    | Rela(r)      -> Printf.printf "%a\n" rel r
+    | Posi (o)     -> Printf.printf "%a > 0\n" ex o
+    | CPrj (v,l,w) -> Printf.printf "%a.%s = %a\n" ex v l ex w
   in
   List.iter fn ps

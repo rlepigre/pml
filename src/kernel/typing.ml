@@ -274,6 +274,7 @@ let learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
            let (v,pool,ctx_names) =
              find_proj ctx.equations ctx.ctx_names wit lbl
            in
+           let ctx = add_pretty ctx false (CPrj(wit,lbl,v)) in
            let ctx = { ctx with equations = pool; ctx_names } in
            fn ctx v b) fs ctx
     | DSum(fs)   ->
