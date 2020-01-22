@@ -509,7 +509,7 @@ and [@cache] term_seq =
       => assume _pos a q p
   (* Term (auto lvl) *)
   ; _set_ (l::set_param) ';' (t::expr (Trm S))
-      => in_pos _pos (EPSet(new_sort_uvar None,l,t))
+      => in_pos _pos (EHint(LSet(l),t))
   (* Term (let such that) *)
   ; _let_ (vs::s_lst) _st_ (x::llid_wc) ':' (a::prop) ';' (u::expr (Trm S))
       => esuch _pos vs x a u

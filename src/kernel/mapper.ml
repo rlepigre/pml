@@ -96,7 +96,6 @@ let map : type a. ?mapper:mapper -> a ex loc -> a ebox
                                   FMore(s, Pos.none x, f)
                                               in
                                               such e.pos t d sv (aux r.binder)
-        | PSet(l,s,t)   -> pset e.pos l s (map t)
 
         | Valu(v)       -> valu e.pos (map v)
         | Appl(t,u,l)   -> appl e.pos l (map t) (map u)

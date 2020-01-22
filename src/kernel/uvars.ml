@@ -101,7 +101,6 @@ let uvar_iter : type a. bool -> bool -> uvar_fun -> a ex loc -> unit =
       (* NOTE type annotations ignored. *)
       | Coer(_,e,_) -> uvar_iter e
       | Such(_,_,r) -> uvar_iter (bseq_open r.binder)
-      | PSet(_,_,e) -> uvar_iter e
       | Goal(_)     -> ()
       | VPtr(_)     -> ()
       | TPtr(_)     -> ()

@@ -191,7 +191,6 @@ and raw_ex' =
   | ECoer of raw_sort * raw_ex * raw_ex
   | ESuch of raw_sort * (strloc * raw_sort) ne_list
                       * (strloc option * raw_ex) * raw_ex
-  | EPSet of raw_sort * set_param * raw_ex
   | EInfx of raw_ex * float (* for parsing *)
   | EConv
   | ESucc of raw_ex * int
@@ -255,8 +254,6 @@ let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
                          (print_list aux_sort ", ") (ne_list_to_list v)
                          x.elt print (snd j) print u
     | EInfx(t,p)    -> Printf.fprintf ch "EInfx(%a,%f)" print t p
-    | EPSet(_,l,u)  -> Printf.fprintf ch "EPSet(%a,%a)"
-                         Print.print_set_param l print u
     | EConv         -> Printf.fprintf ch "EConv"
     | ESucc(o,n)    -> Printf.fprintf ch "ESucc(%a,%d)" print o n
     | EGoal(str)    -> Printf.fprintf ch "EGoal(%s)" str
@@ -633,10 +630,6 @@ let infer_sorts : raw_ex -> raw_sort -> unit = fun e s ->
           leq u s
         end
     | (ESuch(_)     ,  _       ) -> sort_clash e s
-    | (EPSet(u,_,a) , SV _     )
-    | (EPSet(u,_,a) , ST       )
-    | (EPSet(u,_,a) , SUni(_)  ) -> infer vars a u; leq u s;
-    | (EPSet(b,d,_) , _        ) -> sort_clash e s
     (* Ordinals. *)
     | (EConv        , SO       ) -> ()
     | (ESucc(o,_)   , SO       ) -> infer vars o s
@@ -1009,6 +1002,7 @@ let unsugar_expr : raw_ex -> raw_sort -> boxed = fun e s ->
         let u = to_term (unsugar env vars u _st) in
         let h = match h with
           | Eval          -> Eval
+          | LSet(l)       -> LSet(l)
           | Close(b,lids) ->
              let fn x = try find_value x.elt with Not_found ->
                           unbound_var x.elt x.pos
@@ -1083,12 +1077,6 @@ let unsugar_expr : raw_ex -> raw_sort -> boxed = fun e s ->
           | _    -> assert false (* should not happen *)
         end
     (* Ordinals. *)
-    | (EPSet(u,l,a) , SV _     ) when leq_sort u s
-                                 -> let v = to_valu (unsugar env vars a s) in
-                                    Box(V, pset e.pos l VoT_V v)
-    | (EPSet(u,l,a) , ST       ) when leq_sort u s
-                                 -> let t = to_term (unsugar env vars a s) in
-                                    Box(T, pset e.pos l VoT_T t)
     | (EConv        , SO       ) -> Box(O, conv e.pos)
     | (ESucc(o,n)   , SO       ) ->
         assert (n >= 0);
@@ -1235,7 +1223,6 @@ let filter_args : string -> (strloc * raw_sort) list -> raw_ex ->
       | ESuch(u,(x,vs),j,v) ->
          let l = List.map (fun (x,_) -> x.elt) (x::vs) in
          if not (List.mem id l) then fn v stack (l @ bounded)
-      | EPSet(u,_,a) -> fn a stack bounded
       | EConv -> ()
       | ESucc(o,_) -> fn o stack bounded
     in

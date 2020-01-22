@@ -100,7 +100,6 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
 
     | Coer(_,e,_) -> owits acc e
     | Such(_,_,b) -> owits acc (bseq_open b.binder)
-    | PSet(_,_,e) -> owits acc e
 
     | SWit(_)     -> acc
 
@@ -268,7 +267,6 @@ let bind_params : Equiv.pool -> p ex loc -> sbndr box * slist = fun po e ->
 
     | Coer(_,e,_) -> params acc e
     | Such(_,_,b) -> params acc (bseq_open b.binder)
-    | PSet(_,_,e) -> params acc e
 
     | SWit(_)     -> acc
 

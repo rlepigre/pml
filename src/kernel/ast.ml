@@ -22,9 +22,15 @@ type 'a hint =
           | Eval   (** try to use eval before adding the term in the pool.
                        if the term is not closed, proceed as usual. *)
           | Close of bool * 'a list (** close or open a definition locally *)
+          | LSet of set_param (** local setting of a parameter *)
           | Auto of bool (** hint to turn on/off the use of auto.  used by
                             auto_prove only to have the recursive call
                             whre we want, see Typing.auto_prove code *)
+
+and set_param =
+  | Alvl of int * int
+  | Logs of string
+  | Keep of bool
 
 (** Type of (well-sorted) expressions, which is the core PML abstract syntax
     representation. Everything is unified as a single GADT as  the  language
@@ -133,8 +139,6 @@ type _ ex =
   (** Type coercion on a value or a term. *)
   | Such : 'a v_or_t * 'b desc * ('a,'b) such_t      -> 'a ex
   (** Extraction of witness by pattern-matching. *)
-  | PSet : set_param * 'a v_or_t * 'a ex loc         -> 'a ex
-  (** Set auto lvl *)
 
   (* Special constructors. *)
 
@@ -263,11 +267,6 @@ and 'a uvar_val =
   (** When a unification variable is not set, we can register a list of
       functions to call on its instantiation. Currently, this is used to
       rehash epsilons using the unification variables. *)
-
-and set_param =
-  | Alvl of int * int
-  | Logs of string
-  | Keep of bool
 
 (** {6 Types and functions related to binders and variables.} *)
 
@@ -499,9 +498,9 @@ let such : type a b. popt -> a v_or_t -> b desc -> such_var box
     let fn sv b = Pos.make p (Such(t,d,{opt_var = sv; binder = b})) in
     box_apply2 fn sv (aux f)
 
-let pset : type a. popt -> set_param -> a v_or_t -> a ebox -> a ebox =
-  fun p sp sv t ->
-    let fn t = Pos.make p (PSet(sp,sv,t)) in
+let pset : popt -> set_param -> tbox -> tbox =
+  fun p sp t ->
+    let fn t = Pos.make p (Hint(LSet(sp),t)) in
     box_apply fn t
 
 let sv_none : such_var box =
@@ -720,7 +719,6 @@ let rec sort : type a. a ex loc -> a sort * a ex loc = fun e ->
   | VDef _          -> (V,e)
   | Coer(VoT_V,_,_) -> (V,e)
   | Such(VoT_V,_,_) -> (V,e)
-  | PSet(_,VoT_V,_) -> (V,e)
   | VPtr _          -> (V,e)
 
   | Valu _          -> (T,e)
@@ -733,7 +731,6 @@ let rec sort : type a. a ex loc -> a sort * a ex loc = fun e ->
   | Prnt _          -> (T,e)
   | Coer(VoT_T,_,_) -> (T,e)
   | Such(VoT_T,_,_) -> (T,e)
-  | PSet(_,VoT_T,_) -> (T,e)
   | TPtr _          -> (T,e)
   | Repl(_,_)       -> (T,e)
   | Delm _          -> (T,e)

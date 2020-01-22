@@ -1350,16 +1350,6 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
               warn_unreachable ctx t;
               Typ_Cont
        end
-         (* Set auto lvl *)
-    | PSet(l,_,v) ->
-       begin
-          let (ctx, restore) = do_set_param ctx l in
-          try
-            let p = type_valu ctx v c in
-            restore ();
-            Typ_TSuch(p)
-          with e -> restore (); raise e
-        end
     (* Witness. *)
     | VWit(w)     ->
         let (_,a,_) = !(w.valu) in
@@ -1632,16 +1622,6 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
         in
         let p = type_term ctx t c in
         Typ_TSuch(p)
-    (* Set auto lvl *)
-    | PSet(l,_,t) ->
-        begin
-          let (ctx, restore) = do_set_param ctx l in
-          try
-            let (_,_,r) = type_term ctx t c in
-            restore ();
-            r
-          with e -> restore (); raise e
-        end
     (* Definition. *)
     | HDef(_,d)   ->
        let (_,_,r) = type_term ctx d.expr_def c in r
@@ -1684,26 +1664,29 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
        let p = type_term ctx t c in
        Typ_Delm(p)
     | Hint(h,t)   ->
-       let st = ctx.equations.time in
-       let ctx =
+       let ctx, restore =
          match h with
-         | Eval -> ctx
-         | Auto b -> { ctx with auto = { ctx.auto with auto = b }}
+         | Eval ->
+            (ctx, fun () -> ())
+         | Auto b ->
+            ({ ctx with auto = { ctx.auto with auto = b }}, fun () -> ())
+         | LSet(l) ->
+            do_set_param ctx l
          | Close(b,vs) ->
+            let st = ctx.equations.time in
             let time = List.fold_left (fun t v -> Timed.set t  v.value_clos b)
                          st vs;
             in
             let equations =
-              if b then ctx.equations else
-                reinsert_vdef vs ctx.equations
+              if b then ctx.equations else reinsert_vdef vs ctx.equations
             in
-            { ctx with equations = { equations with time } }
+            ({ ctx with equations = { equations with time } },
+             fun () -> Timed.Time.rollback st);
        in
        (try
           let (_,_,r) = type_term ctx t c in
-          Timed.Time.rollback st;
-          r
-        with e -> Timed.Time.rollback st; raise e)
+          restore (); r
+        with e -> restore (); raise e)
     (* Constructors that cannot appear in user-defined terms. *)
     | UWit(_)     -> unexpected "∀-witness during typing..."
     | EWit(_)     -> unexpected "∃-witness during typing..."
@@ -1747,7 +1730,6 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
     (* Constructors that cannot appear in user-defined stacks. *)
     | Coer(_,_,_) -> .
     | Such(_,_,_) -> .
-    | PSet(_,_,_) -> .
     | UWit(_)     -> unexpected "∀-witness during typing..."
     | EWit(_)     -> unexpected "∃-witness during typing..."
     | ESch(_)     -> unexpected "schema-witness during typing..."

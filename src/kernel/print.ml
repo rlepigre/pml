@@ -41,6 +41,11 @@ let arrow ch t =
               | true , true  -> fprintf ch "↛")
   | _        -> fprintf ch "?>"
 
+let print_set_param ch = function
+  | Alvl(b,d)   -> fprintf ch "auto %d %d" b d
+  | Logs(s)     -> fprintf ch "log %s" s
+  | Keep(b)     -> fprintf ch "keep_intermediate %b" b
+
 let vhint ch = function
   | Eval   -> Printf.fprintf ch "eval"
   | Close(true,ls)  ->
@@ -50,6 +55,7 @@ let vhint ch = function
      Printf.fprintf ch "open %t;"
        (fun ch -> List.iter (fun v -> Printf.fprintf ch "%s " v.value_name.elt) ls)
   | Auto b -> Printf.fprintf ch "auto %b" b
+  | LSet l -> fprintf ch "%a" print_set_param l
 
 let lhint ch = function
   | Eval   -> Printf.fprintf ch "eval"
@@ -60,6 +66,7 @@ let lhint ch = function
      Printf.fprintf ch "open %t;"
        (fun ch -> List.iter (fun v -> Printf.fprintf ch "%s " v.elt) ls)
   | Auto b -> Printf.fprintf ch "auto %b" b
+  | LSet l -> fprintf ch "%a" print_set_param l
 
 let removeq : ('a -> 'a -> bool) -> 'a list ref -> 'a -> bool = fun eq ls x ->
   let rec fn acc = function
@@ -452,7 +459,6 @@ let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
             fprintf ch "%s:%a, " (name_of x) sort s;
             aux seq
       in aux r.binder
-  | PSet(l,s,e) -> fprintf ch "%a; %a" print_set_param l ext e
   | ITag(_,i)   -> fprintf ch "#%i" i
   | VWit(w)     -> fprintf ch "%s%a" w.name print_vars e
   | SWit(w)     -> fprintf ch "%s%a" w.name print_vars e
@@ -467,10 +473,6 @@ let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
   | VPtr(p)     -> fprintf ch "VPtr(%a)" VPtr.print p
   | TPtr(p)     -> fprintf ch "TPtr(%a)"  Ptr.print p
 
-and print_set_param ch = function
-  | Alvl(b,d)   -> fprintf ch "auto %d %d" b d
-  | Logs(s)     -> fprintf ch "log %s" s
-  | Keep(b)     -> fprintf ch "keep_intermediate %b" b
 and rel ch cnd =
   let eq b = if b then "=" else "≠" in
     match cnd with

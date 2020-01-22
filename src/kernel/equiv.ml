@@ -869,8 +869,9 @@ let rec add_term :  bool -> bool -> pool -> term
     | Repl(_,u)   -> add_term po u
     | Delm(u)     -> add_term po u
     | Hint(h,t)   -> (match h with
-                      | Close _ -> add_term po t
-                      | Auto  _ -> add_term po t
+                      | Close _
+                      | Auto  _
+                      | LSet  _ -> add_term po t
                       | Eval    ->
                          try
                            if not !use_eval then raise Exit;
@@ -884,7 +885,6 @@ let rec add_term :  bool -> bool -> pool -> term
                            Erase.Erasure_error _ | Exit -> add_term po t)
     | Coer(_,t,_) -> add_term po t
     | Such(_,_,r) -> add_term po (bseq_open r.binder)
-    | PSet(_,_,e) -> add_term po e
     | UWit(w)     -> insert (TN_UWit(w)) po
     | EWit(w)     -> insert (TN_EWit(w)) po
     | ESch(T,i,w) -> insert (TN_ESch(i,w)) po
@@ -958,7 +958,6 @@ and     add_valu : bool -> pool -> valu -> VPtr.t * pool = fun o po v0 ->
                      end
     | Coer(_,v,_) -> add_valu po v
     | Such(_,_,r) -> add_valu po (bseq_open r.binder)
-    | PSet(_,_,e) -> add_valu po e
     | VWit(w)     -> insert_v_node (VN_VWit(w)) po
     | UWit(w)     -> insert_v_node (VN_UWit(w)) po
     | EWit(w)     -> insert_v_node (VN_EWit(w)) po
