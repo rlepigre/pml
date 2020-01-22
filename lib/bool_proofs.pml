@@ -21,17 +21,13 @@ val eq_comm : ∀x y∈bool, eq x y ≡ eq y x =
 // The commutation of equivalence is equivalent.
 val eq_comm2 : ∀x y∈bool, eq (eq x y) (eq y x) =
   fun b1 b2 {
-    if b1 { if b2 { {} } else { {} } } else { if b2 { {} } else { {} } }
+    set auto 1 0; qed
   }
 
 // Equivalence is associative.
 val eq_asso : ∀x y z∈bool, eq (eq x y) z ≡ eq x (eq y z) =
   fun b1 b2 b3 {
-    if b1 {
-      if b2 { if b3 { {} } else { {} } } else { if b3 { {} } else { {} } }
-    } else {
-      if b2 { if b3 { {} } else { {} } } else { if b3 { {} } else { {} } }
-    }
+    set auto 2 0; qed // the case on z only appears after the case on x or y
   }
 
 // Commutativity of equivalence using lemmas.

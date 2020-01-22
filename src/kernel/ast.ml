@@ -22,6 +22,9 @@ type 'a hint =
           | Eval   (** try to use eval before adding the term in the pool.
                        if the term is not closed, proceed as usual. *)
           | Close of bool * 'a list (** close or open a definition locally *)
+          | Auto of bool (** hint to turn on/off the use of auto.  used by
+                            auto_prove only to have the recursive call
+                            whre we want, see Typing.auto_prove code *)
 
 (** Type of (well-sorted) expressions, which is the core PML abstract syntax
     representation. Everything is unified as a single GADT as  the  language

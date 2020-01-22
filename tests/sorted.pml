@@ -11,6 +11,6 @@ val tl : ∀a, list⟨a⟩ ⇒ list⟨a⟩ =
   }
 
 val tl_sorted : ∀a, ∀o∈rel⟨a⟩, ∀l∈slist⟨a,o⟩, sorted o (tl l) =
-  fun o l { set auto 3 3; qed }
-
-
+  fun o l {
+    set auto 3 1; qed
+  }

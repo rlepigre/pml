@@ -62,19 +62,25 @@ let log_typ = Log.register 't' (Some "typ") "typing informations"
 let log_typ = Log.(log_typ.p)
 
 type auto_ctxt =
-  { level : int * int
+  { tlvl  : int
+  ; clvl  : int
   ; doing : bool
-  ; tsted : blocked list }
+  ; old   : blocked list
+  ; todo  : (int * blocked) list
+  ; auto  : bool }
 
 (* constant for loop detection in sub typing *)
 let sub_max = ref 10
 
-let default_auto_lvl = ref (0, 3)
+let default_auto_lvl = ref (0, 1)
 
 let auto_empty () =
-  { level = !default_auto_lvl
+  { tlvl  = snd !default_auto_lvl
+  ; clvl  = fst !default_auto_lvl
   ; doing = false
-  ; tsted = [] }
+  ; old   = []
+  ; todo  = []
+  ; auto  = true }
 
 type sub_adone =
   SA : 'a sort * ('a, 'a) bndr * 'b sort * ('b,'b) bndr -> sub_adone
@@ -706,7 +712,7 @@ let rec subtype =
           else gen_subtype ctx a b
       (* Membership on the right. *)
       | (_          , Memb(u,b)  ) when t_is_val ->
-          prove ctx.equations (Equiv(t,true,u));
+          prove ctx.equations ctx.auto.old (Equiv(t,true,u));
           Sub_Memb_r(subtype ctx t a b)
       (* Restriction on the right. *)
       | (_          , Rest(c,e)  ) ->
@@ -716,7 +722,7 @@ let rec subtype =
              try  Some(subtype (learn ctx e) t a c)
              with Contradiction -> None
            in
-           prove ctx.equations e;
+           prove ctx.equations ctx.auto.old e;
            Sub_Rest_r(prf)
           end
       (* Implication on the left. *)
@@ -727,7 +733,7 @@ let rec subtype =
              try  Some(subtype (learn ctx e) t c b)
              with Contradiction -> None
            in
-           prove ctx.equations e;
+           prove ctx.equations ctx.auto.old e;
            Sub_Impl_l(prf)
           end
       (* Mu right and Nu Left, infinite case. *)
@@ -767,6 +773,7 @@ let rec subtype =
 
 and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
   fun ctx exn t ty ->
+    log_aut "entering auto_prove (%a : %a)" Print.ex t Print.ex ty;
     (* Save utime to backtrack even on unification *)
     let st = UTimed.Time.save () in
     (* Tell we are in auto *)
@@ -776,77 +783,73 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
       match exn with Failed_to_prove(_,bls) -> bls
                    | _ -> assert false
     in
-    (* Do not try what was already tried *)
-    let is_new b = not (List.exists (eq_blocked b) ctx.auto.tsted) in
-    let bls = List.filter is_new bls in
-    (* Sort the terms : totality first *)
+    let old  = bls @ ctx.auto.old in
+    let ctx = { ctx with auto = { ctx.auto with old }} in
+    let bls = List.map (function
+                  | BTot _ as b -> (ctx.auto.tlvl - 1, b)
+                  | BCas _ as b -> (ctx.auto.clvl - 1, b)) bls
+    in
+    let bls = List.filter (fun (l, _) -> l >= 0) bls in
+    let todo = bls @ ctx.auto.todo in
     let cmp b1 b2 = match (b1,b2) with
-      | BTot _, BCas _ -> -1
-      | BCas _, BTot _ ->  1
-      | _     , _      ->  0
+      | (_,BTot _), (_,BCas _) -> -1
+      | (_,BCas _), (_,BTot _) ->  1
+      | (n,BTot _), (m,BTot _) -> compare n m
+      | (n,BCas _), (m,BCas _) -> compare n m
     in
-    let bls = List.stable_sort cmp bls in
-    (* Helper that decrease the level *)
-    let decrease_lvl : ctxt -> int -> ctxt = fun ctx n ->
-      let (l1,l2) = ctx.auto.level in
-      let level =
-        if n = 1 then
-          if l2 <= 0 then raise Exit else (l1, l2 - 1)
-        else
-          if l1 <= 0 then raise Exit else (l1 - 1, l2)
-      in
-      { ctx with auto = { ctx.auto with level } }
-
-    in
-    (* Add the case being tested to avoid repetition *)
-    let add_blocked : ctxt -> blocked -> ctxt = fun ctx b ->
-      { ctx with auto = { ctx.auto with tsted = b :: ctx.auto.tsted } }
-    in
+    let todo = List.stable_sort cmp todo in
     (* main recursive function trying all elements *)
-    let rec fn ctx bls =
+    let rec fn nb ctx todo =
       UTimed.Time.rollback st;
-      match bls with
+      match todo with
       | [] -> type_error (E(T,t)) ty exn
-      | BTot e as b :: bls ->
-         let ctx = add_blocked ctx b in
+      | (tlvl, BTot (_,e)) :: todo ->
          (* for a totality, we add a let to the term and typecheck *)
+         let ctx = { ctx with auto = { ctx.auto with todo } } in
          (try
-            let ctx = decrease_lvl ctx 1 in
-            let f = labs None NoLz None (Pos.none "x") (fun _ -> box t) in
-            let t = unbox (appl None NoLz (valu None f) (Bindlib.box e)) in
-            let (l1,l2) = ctx.auto.level in
+            let ctx = { ctx with auto = { ctx.auto with tlvl } } in
+            (** we use the auto hint to disallow auto for the added totality *)
+            let f = labs None NoLz None (Pos.none "x")
+                      (fun _ -> hint None (Auto true) (box t))
+            in
+            let t = unbox (hint None (Auto false)
+                             (appl None NoLz (valu None f) (box e))) in
             log_aut "totality (%d,%d) [%d]: %a"
-                    l1 l2 (List.length bls) Print.ex e;
+                    ctx.auto.clvl ctx.auto.tlvl (List.length todo) Print.ex e;
             type_term ctx t ty
           with
-          | Sys.Break as e     -> raise e
-          | Out_of_memory as e -> raise e
-          | Exit
-          | Failed_to_prove _
-          | Type_error _           -> fn ctx bls)
-      | BCas(e,cs) as b :: bls ->
+          | Failed_to_prove _ as e -> type_error (E(T,t)) ty e
+          | Sys.Break as e         -> raise e
+          | Out_of_memory as e     -> raise e
+          | Type_error _           -> fn (nb+1) ctx todo)
+      | (clvl, BCas(_,e,cs)) :: todo ->
          (* for a blocked case analysis, we add a case! *)
-         let ctx = add_blocked ctx b in
+         let ctx = { ctx with auto = { ctx.auto with todo } } in
          (try
-            let ctx = decrease_lvl ctx (List.length cs) in
+            let ctx = { ctx with auto = { ctx.auto with clvl } } in
+            (** we use the auto hint to disallow auto for the added case *)
             let mk_case c =
-              A.add c (None, Pos.none "x", (fun _ -> box t))
+              A.add c (None, Pos.none "x",
+                       (fun _ -> hint None (Auto true) (box t)))
             in
             let cases = List.fold_right mk_case cs A.empty in
-            let f = labs None NoLz None (Pos.none "x") (fun v ->
-                           case None (vari None v) cases)
+            let t = match e.elt with
+              Valu e -> case None (box e) cases
+              | _ ->
+                 let f = labs None NoLz None (Pos.none "x") (fun v ->
+                             case None (vari None v) cases)
+                 in
+                 appl None NoLz (valu None f) (box e)
             in
-            let t = unbox (appl None NoLz (valu None f) (Bindlib.box e)) in
-            let (l1,l2) = ctx.auto.level in
-            log_aut "cases    (%d,%d): %a" l1 l2 Print.ex t;
+            let t = unbox (hint None (Auto false) t) in
+            log_aut "cases    (%d,%d): %a" ctx.auto.clvl ctx.auto.tlvl Print.ex t;
             type_term ctx t ty
           with
-          | Sys.Break as e     -> raise e
-          | Out_of_memory as e -> raise e
-          | Exit
-          | Failed_to_prove _
-          | Type_error _       -> fn ctx bls)
-    in fn ctx bls
+          | Failed_to_prove _ as e -> type_error (E(T,t)) ty e
+          | Sys.Break as e         -> raise e
+          | Out_of_memory as e     -> raise e
+          | Type_error _           -> fn (nb+1) ctx todo)
+    in fn 0 ctx todo
 
 and gen_subtype : ctxt -> prop -> prop -> sub_rule =
   fun ctx a b ->
@@ -1199,7 +1202,6 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
   let t = Pos.make v.pos (Valu(v)) in
   log_typ "proving the value judgment:\n  %a\n  ⊢ %a\n  : %a"
     print_pos ctx.positives Print.ex v Print.ex c;
-  let st = UTimed.Time.save () in
   try
   let r =
     match v.elt with
@@ -1407,21 +1409,20 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
     | FixN(_)     -> invalid_arg "nu in terms forbidden"
   in (Pos.make v.pos (Valu(v)), c, r)
   with
-  | Failed_to_prove _ as e -> UTimed.Time.rollback st;
-                              auto_prove ctx e (Pos.none (Valu v)) c
+  | Failed_to_prove _ as e -> raise e
   | Out_of_memory as e     -> raise e
   | Sys.Break as e         -> raise e
   | e                      -> type_error (E(V,v)) c e
 
 and do_set_param ctx = function
-  | Alvl(b,d) ->
-     let ctx = { ctx with auto = { ctx.auto with level = (b,d) } } in
+  | Alvl(clvl,tlvl) ->
+     let ctx = { ctx with auto = { ctx.auto with clvl; tlvl } } in
      (ctx, fun () -> ())
-  | Logs(s)   ->
+  | Logs(s)         ->
      let save = Log.get_enabled () in
      Log.set_enabled s;
      (ctx, fun () -> Log.set_enabled save)
-  | Keep(b)   ->
+  | Keep(b)         ->
      let save = !Equiv.keep_intermediate in
      Equiv.keep_intermediate := b;
      (ctx, fun () -> Equiv.keep_intermediate := save)
@@ -1687,6 +1688,7 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
        let ctx =
          match h with
          | Eval -> ctx
+         | Auto b -> { ctx with auto = { ctx.auto with auto = b }}
          | Close(b,vs) ->
             let time = List.fold_left (fun t v -> Timed.set t  v.value_clos b)
                          st vs;
@@ -1714,11 +1716,12 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
     | FixN(_)     -> invalid_arg "nu in values forbidden"
   in (t, c, r)
   with
-  | Contradiction          -> assert false
-  | Failed_to_prove _ as e -> UTimed.Time.rollback st; auto_prove ctx e t c
-  | Sys.Break as e         -> raise e
-  | Out_of_memory as e     -> raise e
-  | e                      -> type_error (E(T,t)) c e
+  | Contradiction      -> assert false
+  | Failed_to_prove _ as e when ctx.auto.auto
+                       -> UTimed.Time.rollback st; auto_prove ctx e t c
+  | Sys.Break as e     -> raise e
+  | Out_of_memory as e -> raise e
+  | e                  -> type_error (E(T,t)) c e
 
 and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
   log_typ "proving the stack judgment:\n  %a\n  stk ⊢ %a\n  : %a"

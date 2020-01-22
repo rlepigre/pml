@@ -25,6 +25,8 @@ let log_edp1 = Log.register 'e' (Some "equ") "equivalence decision procedure"
 let log_edp2 = Log.register 'f' (Some "equ") "details of equivalence decision"
 let log_edp1  = Log.(log_edp1.p)
 let log_edp2 = Log.(log_edp2.p)
+let log_aut = Log.register 'a' (Some "aut") "automatic proving informations"
+let log_aut = Log.(log_aut.p)
 
 (** Exception raise when the pool contains a contradiction. *)
 exception Contradiction
@@ -868,7 +870,8 @@ let rec add_term :  bool -> bool -> pool -> term
     | Delm(u)     -> add_term po u
     | Hint(h,t)   -> (match h with
                       | Close _ -> add_term po t
-                      | Eval ->
+                      | Auto  _ -> add_term po t
+                      | Eval    ->
                          try
                            if not !use_eval then raise Exit;
                            let open Erase in
@@ -2015,15 +2018,21 @@ let learn : pool -> rel -> bool * pool = fun pool rel ->
 (** type of blocked evaluations sent back to typing for automatic
     case analysis and totality in auto_prove *)
 type blocked =
-  | BTot of term
-  | BCas of term * A.key list
+  | BTot of Ptr.t * term
+  | BCas of Ptr.t * term * A.key list
 
 let eq_blocked : blocked -> blocked -> bool =
   fun b1 b2 ->
     match (b1, b2) with
-    | (BTot e1   , BTot e2   ) -> eq_expr e1 e2
-    | (BCas(e1,_), BCas(e2,_)) -> eq_expr e1 e2
-    | (_         , _         ) -> false
+    | (BTot(pt,e)  , BTot(pu,f)  ) -> Ptr.compare pt pu = 0 || eq_expr e f
+    | (BCas(pt,e,_), BCas(pu,f,_)) -> Ptr.compare pt pu = 0 || eq_expr e f
+    | (_           , _           ) -> false
+
+let eq_ptr_blocked : Ptr.t -> blocked -> bool =
+  fun pt b2 ->
+    match b2 with
+    | BTot(pu,_)   -> Ptr.compare pt pu = 0
+    | BCas(pu,_,_) -> Ptr.compare pt pu = 0
 
 (** the exception when failing to prove carry the blocked evaluations *)
 exception Failed_to_prove of rel * blocked list
@@ -2075,14 +2084,10 @@ let test_value : Ptr.t -> pool -> bool = fun p po ->
     | Ptr.V_ptr(v) -> fst (is_nobox p po)
     | Ptr.T_ptr(_) -> false
 
-let log_aut = Log.register 'a' (Some "aut") "automatic proving informations"
-let log_aut = Log.(log_aut.p)
-
 (** Try to get the list of cases from the type in a VWit to limit
     the cases in auto *)
 let get_cases : Ptr.v_ptr -> pool -> A.key list option = fun pv po ->
   let is_vwit = function VN_VWit _ -> true | _ -> false in
-  log_aut "get cases %a" Ptr.print (Ptr.V_ptr pv);
   let l = List.find_all (fun (v',nn) ->
               eq_ptr po (Ptr.V_ptr v') (Ptr.V_ptr pv)
               && is_vwit nn) po.vs in
@@ -2090,7 +2095,6 @@ let get_cases : Ptr.v_ptr -> pool -> A.key list option = fun pv po ->
     | []                   -> None
     | (_, VN_VWit(e)) :: l ->
        let (_,a,_) = !(e.valu) in
-       log_aut "get cases foud vwit : %a" Print.ex a;
        let rec fn a =
          match (Norm.whnf a).elt with
          | HDef(_,d) -> fn d.expr_def
@@ -2115,7 +2119,6 @@ let get_orig : Ptr.t -> pool -> term =
       try
         let l = List.find_all (fun (v',e) -> eq_ptr po p v') po.os in
         if l = [] then raise Not_found;
-        (*Printf.eprintf "coucou 2b\n%!";*)
         snd (List.hd (List.sort cmp_orig l))
       with Not_found ->
         let is_appl = function TN_Appl _ | TN_Proj _ -> true | _ -> false in
@@ -2165,32 +2168,31 @@ let is_let_underscore e = match e.elt with
   | _   -> false
 
 (** get all blocked terms in the pool *)
-let get_blocked : pool -> blocked list = fun po ->
+let get_blocked : pool -> blocked list -> blocked list = fun po old ->
   (*Printf.eprintf "obtained context:\n%a\n\n" (print_pool "        ") po;*)
   (*Printf.eprintf "coucou 0 %d\n%!" (List.length !adone);*)
   let bl =
     List.fold_left (fun (acc:blocked list) (tp,tn) ->
+      let u = Ptr.T_ptr tp in
+      if List.exists (eq_ptr_blocked u) old then acc else
       (*Printf.eprintf "testing %a %a %b %b\n%!" TPtr.print tp print_t_node tn
                      (get_ns tp po) (get_fs tp po);*)
-      let u = Ptr.T_ptr tp in
       if not (get_ns tp po) && fst (is_free u po) then
       begin
-        (*Printf.eprintf "coucou 1 %d\n%!" (List.length !adone);*)
         try
           match tn with
           | TN_Appl(_,v,l) when not (test_value v po) ->
              begin
-               (*Printf.eprintf "coucou 2\n%!";*)
                try
                  let e = get_orig v po in
                  (* no need to prove totality of let _ = t; u *)
                  if is_let_underscore e then raise Not_found;
-                 (*Printf.eprintf "coucou 3\n%!";*)
-                 let b = BTot e in
-                 if List.exists (eq_blocked b) acc then acc else
+                 let b = BTot(u,e) in
+                 if List.exists (eq_blocked b) acc
+                    || List.exists (eq_blocked b) old then acc
+                 else
                    begin
-                     (*Printf.eprintf "coucou 4\n%!";*)
-                     log_edp1 "blocked arg %a" Print.ex e;
+                     log_aut "blocked arg %a" Print.ex e;
                      b :: acc
                    end
                with Not_found -> acc
@@ -2202,10 +2204,12 @@ let get_blocked : pool -> blocked list = fun po ->
                | None   -> cases
              in
              let e = get_orig (Ptr.V_ptr v) po in
-             let b = BCas (e, cases) in
-             if List.exists (eq_blocked b) acc then acc else
+             let b = BCas (u, e, cases) in
+             if List.exists (eq_blocked b) acc
+                || List.exists (eq_blocked b) old then acc
+             else
                begin
-                 log_edp1 "blocked case %a %t" Print.ex e
+                 log_aut "blocked case %a %t" Print.ex e
                      (fun ch -> List.iter (Printf.fprintf ch "%s ") cases);
                  b :: acc
                end
@@ -2216,19 +2220,19 @@ let get_blocked : pool -> blocked list = fun po ->
   in
   let bl =
     List.fold_left (fun acc (vp, vn) ->
-        if not (fst (is_nobox (Ptr.V_ptr vp) po)) then
+        let u = Ptr.V_ptr vp in
+        if not (fst (is_nobox u po)) then
           match vn with
           | VN_VWit(e) ->
              let (_,a,_) = !(e.valu) in
              let rec fn acc a =
                match  a.elt with
                | Memb(t,a) ->
-                  let b = BTot t in
+                  let b = BTot(u,t) in
                   let acc =
                     if List.exists (eq_blocked b) acc then acc else
                       begin
-                        (*Printf.eprintf "coucou %a\n%!" Print.ex t;*)
-                        log_edp1 "blocked arg vwit %a" Print.ex t;
+                        log_aut "blocked arg vwit %a" Print.ex t;
                         b :: acc
                       end
                   in
@@ -2242,7 +2246,7 @@ let get_blocked : pool -> blocked list = fun po ->
   in
   bl
 
- let prove : pool -> rel -> unit = fun pool rel ->
+ let prove : pool -> blocked list -> rel -> unit = fun pool old rel ->
   log_edp1 "proving  %a" Print.rel rel;
   try
     let st = UTimed.Time.save () in
@@ -2255,7 +2259,7 @@ let get_blocked : pool -> blocked list = fun po ->
          pool
     in
     UTimed.Time.rollback st;
-    let bls = get_blocked pool in
+    let bls = get_blocked pool old in
     log_edp1 "failed to prove %a" Print.rel rel;
     equiv_error rel bls
   with Contradiction -> log_edp1 "proved   %a" Print.rel rel

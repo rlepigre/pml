@@ -1014,6 +1014,7 @@ let unsugar_expr : raw_ex -> raw_sort -> boxed = fun e s ->
                           unbound_var x.elt x.pos
              in
              Close(b,List.map fn lids)
+          | _ -> assert false
         in
         Box(T, hint e.pos h u)
     (* Type annotations. *)

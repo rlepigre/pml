@@ -709,7 +709,8 @@ Let us write a more detailed proof:
      take f l1 l2;
      case l1 {
        [] → qed
-       h::l →  show map f l1 @ map f l2
+       h::l →  set auto 0 2;
+               show map f l1 @ map f l2
                  ≡ (f h :: map f l) @ map f l2
                  ≡ f h :: (map f l @ map f l2)
                  ≡ f h :: (map f (l @ l2)) by map_app f l l2

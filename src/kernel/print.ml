@@ -49,6 +49,7 @@ let vhint ch = function
   | Close(false,ls) ->
      Printf.fprintf ch "open %t;"
        (fun ch -> List.iter (fun v -> Printf.fprintf ch "%s " v.value_name.elt) ls)
+  | Auto b -> Printf.fprintf ch "auto %b" b
 
 let lhint ch = function
   | Eval   -> Printf.fprintf ch "eval"
@@ -58,6 +59,7 @@ let lhint ch = function
   | Close(false,ls) ->
      Printf.fprintf ch "open %t;"
        (fun ch -> List.iter (fun v -> Printf.fprintf ch "%s " v.elt) ls)
+  | Auto b -> Printf.fprintf ch "auto %b" b
 
 let removeq : ('a -> 'a -> bool) -> 'a list ref -> 'a -> bool = fun eq ls x ->
   let rec fn acc = function

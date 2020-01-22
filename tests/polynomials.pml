@@ -248,7 +248,8 @@ val rec eval_monom_var : ∀r, ∀s∈semiring⟨r⟩, ∀n∈nat, ∀env∈(nat
              deduce eval_monom s (var n) env i ≡ env i;
              use add_n_zero i;
              qed
-      S[p] → deduce var n ≡ Zero :: var p;
+      S[p] → set auto 0 2;
+             deduce var n ≡ Zero :: var p;
              deduce eval_monom s (var n) env i ≡
                s.mul (eval_monom s (var p) env S[i]) s.one;
              show eval_monom s (var p) env S[i] ≡ env (add S[i] p)
