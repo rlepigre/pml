@@ -794,8 +794,8 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
     let cmp b1 b2 = match (b1,b2) with
       | (_,BTot _), (_,BCas _) -> -1
       | (_,BCas _), (_,BTot _) ->  1
-      | (n,BTot _), (m,BTot _) -> compare n m
-      | (n,BCas _), (m,BCas _) -> compare n m
+      | (n,BTot _), (m,BTot _) -> compare m n
+      | (n,BCas _), (m,BCas _) -> compare m n
     in
     let todo = List.stable_sort cmp todo in
     (* main recursive function trying all elements *)
