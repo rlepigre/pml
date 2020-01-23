@@ -48,7 +48,7 @@ val rec insert_sorted : ∀a:ο, ∀o∈order⟨a⟩, ∀x∈a, ∀l∈slist⟨a
       | []     → qed
       | hd::tl →
          if cmp x hd {
-           use tail_sorted o hd tl; qed
+           qed
          } else {
            show cmp hd x using o.tot x hd;
            case tl {

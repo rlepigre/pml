@@ -68,7 +68,7 @@ val equiv_push :
     deduce fifo_pair.push x f ≡ ((x::s1), s2);
     deduce translate⟨((x::s1), s2)⟩ ≡ app (x::s1) (rev s2);
     deduce translate⟨f⟩ ≡ app s1 (rev s2);
-    use rev s2;
+    let _ = rev s2;
     {}
   }
 
@@ -82,27 +82,27 @@ val rec lemma1 : ∀a, ∀x∈a, ∀s1∈list⟨a⟩, ∀s2∈list⟨a⟩,
   fun x s1 s2 {
     let a such that s2 : list⟨a⟩;
     let s2':list⟨a⟩ = Cons[{hd=x; tl=s2}];
-    use rev s2';
-    use rev s1;
-    use app s1 (rev s2');
-    use rev (app s1 (rev s2')); // why necessary ?
+    let _ = rev s2';
+    let _ = rev s1;
+    let _ = app s1 (rev s2');
+    let _ = rev (app s1 (rev s2')); // why necessary ?
     deduce take_last (app s1 (rev s2')) ≡
       case rev (app s1 (rev s2')) { [] → None | e :: s → Some[(e,rev s)] };
     show rev (app s1 (rev s2')) ≡ rev_app (rev s2') (rev s1)
       using app_rev_rev1 (rev s2') s1 [];
-    use app s2' (rev s1);
+    let _ = app s2' (rev s1);
     show rev (app s1 (rev s2')) ≡ app s2' (rev s1)
       using app_rev_rev2 s2' [] (rev s1);
     deduce rev (app s1 (rev s2')) ≡ x::(app s2 (rev s1));
-    use app s2 (rev s1);
+    let _ = app s2 (rev s1);
     deduce take_last (app s1 (rev s2')) ≡
       Some[(x,rev (app s2 (rev s1)))] ;
     show rev (app s2 (rev s1)) ≡ rev_app (rev s1) (rev s2)
       using app_rev_rev1 (rev s1) s2 [];
-    use rev s2;
+    let _ = rev s2;
     show rev (app s2 (rev s1)) ≡ rev_app [] (app s1 (rev s2))
       using app_rev_rev2 s1 [] (rev s2);
-    use app s1 (rev s2);
+    let _ = app s1 (rev s2);
     deduce rev (app s2 (rev s1)) ≡ app s1 (rev s2);
     {}
   }
@@ -129,7 +129,7 @@ val rec equiv_pop :
         case s1 {
           []      → {}
           x1::s1' →
-            use rev s1;
+            let _ = rev s1;
             deduce fifo_pair.pop f ≡ fifo_pair.pop ([], rev s1);
             deduce translate⟨f⟩ ≡ app s1 [];
             deduce translate⟨([], rev s1)⟩ ≡ app [] (rev (rev s1));

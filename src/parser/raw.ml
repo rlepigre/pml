@@ -1002,13 +1002,14 @@ let unsugar_expr : raw_ex -> raw_sort -> boxed = fun e s ->
         let u = to_term (unsugar env vars u _st) in
         let h = match h with
           | Eval          -> Eval
+          | Sugar         -> Sugar
           | LSet(l)       -> LSet(l)
           | Close(b,lids) ->
              let fn x = try find_value x.elt with Not_found ->
                           unbound_var x.elt x.pos
              in
              Close(b,List.map fn lids)
-          | _ -> assert false
+          | Auto _        -> assert false
         in
         Box(T, hint e.pos h u)
     (* Type annotations. *)
@@ -1498,12 +1499,12 @@ let from_int _loc n =
 let qed _loc =
   in_pos _loc (EReco([]))
 
-(* "use a" := "a" *)
-let use _loc t = t
-
 let eval _loc t = in_pos _loc (EHint(Eval,t))
 
 let ehint _loc h t = in_pos _loc (EHint(h,t))
+
+(* "use a" := "a" *)
+let use _loc t = ehint _loc Sugar t
 
 (* "show a" := "(qed : a"
    "show a using p" := "p : a" *)
@@ -1512,7 +1513,7 @@ let show _loc a t =
     | None   -> (_sv, qed _loc)
     | Some t -> (new_sort_uvar None, t)
   in
-  in_pos _loc (ECoer(s, t, a))
+  ehint _loc Sugar (in_pos _loc (ECoer(s, t, a)))
 
 (* "show a == b using t_1
            == c"
@@ -1534,7 +1535,7 @@ let equations _loc _loc_a a eqns =
        in
        fn t l
   in
-  fn None eqns
+  ehint _loc Sugar (fn None eqns)
 
 (* "from a; p" := "let _ = p : a in {}" *)
 let showing _loc a q p =
@@ -1542,6 +1543,7 @@ let showing _loc a q p =
     | None   -> qed _loc
     | Some q -> q
   in
+  let p = ehint _loc Sugar p in
   let_binding _loc `Non (`LetArgVar(none "",Some a)) p q
 
 (* "suppose p t" := "fun _:p { t }" *)
@@ -1556,6 +1558,7 @@ let assume _loc t q p =
     | None   -> qed _loc
     | Some q -> q
   in
-  in_pos _loc (ECase(t, ref `T,
-    [ ((none "false", None), q)
-    ; ((none "true" , None), p)]))
+  ehint _loc Sugar
+    (in_pos _loc (ECase(t, ref `T,
+                        [ ((none "false", None), q)
+                        ; ((none "true" , None), p)])))

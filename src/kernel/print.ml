@@ -46,27 +46,18 @@ let print_set_param ch = function
   | Logs(s)     -> fprintf ch "log %s" s
   | Keep(b)     -> fprintf ch "keep_intermediate %b" b
 
-let vhint ch = function
-  | Eval   -> Printf.fprintf ch "eval"
-  | Close(true,ls)  ->
-     Printf.fprintf ch "close %t;"
-       (fun ch -> List.iter (fun v -> Printf.fprintf ch "%s " v.value_name.elt) ls)
-  | Close(false,ls) ->
-     Printf.fprintf ch "open %t;"
-       (fun ch -> List.iter (fun v -> Printf.fprintf ch "%s " v.value_name.elt) ls)
-  | Auto b -> Printf.fprintf ch "auto %b" b
-  | LSet l -> fprintf ch "%a" print_set_param l
+let hint fn ch = function
+  | Eval            -> Printf.fprintf ch "eval"
+  | Sugar           -> Printf.fprintf ch "sugar"
+  | Close(true,ls)  -> Printf.fprintf ch "close %t;"
+                         (fun ch -> List.iter fn ls)
+  | Close(false,ls) -> Printf.fprintf ch "open %t;"
+                         (fun ch -> List.iter fn ls)
+  | Auto b          -> Printf.fprintf ch "auto %b" b
+  | LSet l          -> fprintf ch "%a" print_set_param l
 
-let lhint ch = function
-  | Eval   -> Printf.fprintf ch "eval"
-  | Close(true,ls)  ->
-     Printf.fprintf ch "close %t;"
-       (fun ch -> List.iter (fun v -> Printf.fprintf ch "%s " v.elt) ls)
-  | Close(false,ls) ->
-     Printf.fprintf ch "open %t;"
-       (fun ch -> List.iter (fun v -> Printf.fprintf ch "%s " v.elt) ls)
-  | Auto b -> Printf.fprintf ch "auto %b" b
-  | LSet l -> fprintf ch "%a" print_set_param l
+let vhint ch = hint (fun v -> Printf.fprintf ch "%s " v.value_name.elt) ch
+let lhint ch = hint (fun v -> Printf.fprintf ch "%s " v.elt) ch
 
 let removeq : ('a -> 'a -> bool) -> 'a list ref -> 'a -> bool = fun eq ls x ->
   let rec fn acc = function

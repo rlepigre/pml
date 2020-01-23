@@ -871,7 +871,8 @@ let rec add_term :  bool -> bool -> pool -> term
     | Hint(h,t)   -> (match h with
                       | Close _
                       | Auto  _
-                      | LSet  _ -> add_term po t
+                      | LSet  _
+                      | Sugar   -> add_term po t
                       | Eval    ->
                          try
                            if not !use_eval then raise Exit;

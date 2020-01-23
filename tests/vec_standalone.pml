@@ -31,9 +31,9 @@ val rec app : ∀a:ο, ∀n1 n2:ι, vec⟨a,n1⟩ ⇒ vec⟨a,n2⟩ ⇒ vec⟨a,
     case l1 {
       Nil    → l2
       Cns[c] →
-        use total length c.tl;
+        let _ = total length c.tl;
         let r = app c.tl l2;
-        use total length r;
+        let _ = total length r;
         vcns c.hd r
     }
   }
@@ -41,6 +41,6 @@ val rec app : ∀a:ο, ∀n1 n2:ι, vec⟨a,n1⟩ ⇒ vec⟨a,n2⟩ ⇒ vec⟨a,
 val app3 : ∀a:ο, ∀n1 n2 n3:ι, vec⟨a,n1⟩ ⇒ vec⟨a,n2⟩ ⇒ vec⟨a,n3⟩
            ⇒ vec⟨a,add n1 (add n2 n3)⟩ =
     fun l1 l2 l3 {
-       use total (add (length l2)) (length l3);
+       let _ = total (add (length l2)) (length l3);
        app l1 (app l2 l3)
     }

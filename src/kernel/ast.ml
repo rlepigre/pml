@@ -21,6 +21,8 @@ type laz = NoLz | Lazy
 type 'a hint =
           | Eval   (** try to use eval before adding the term in the pool.
                        if the term is not closed, proceed as usual. *)
+          | Sugar (** indicate terms of the form "use t" or "show t"
+                      where the term can be replaced by unit *)
           | Close of bool * 'a list (** close or open a definition locally *)
           | LSet of set_param (** local setting of a parameter *)
           | Auto of bool (** hint to turn on/off the use of auto.  used by

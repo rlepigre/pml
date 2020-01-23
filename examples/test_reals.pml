@@ -16,7 +16,7 @@ close man0 man1 man3
 val third : real = { exp = 0; man = man3 }
 close third
 
-val size : nat = 3
+val size : nat = 10
 
 val ones : bds⟨2⟩ = repeat (p1 : bint⟨p2⟩)
 val test : {} = print_man size (divideBy 2 ones); print " = 1000000000\n"

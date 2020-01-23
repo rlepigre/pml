@@ -117,7 +117,6 @@ val rec mul_comm : ∀n m∈nat, mul n m ≡ mul m n =
       Succ[k] → t_deduce⟨mul Succ[k] m ≡ add m (mul k m)⟩;
                 t_show⟨mul k m ≡ mul m k, mul_comm k m⟩;
                 t_show⟨mul m Succ[k] ≡ add (mul m k) m, mul_succ m k⟩;
-                use mul k m;
                 t_show⟨add (mul k m) m ≡ add m (mul k m)
                       , add_comm (mul k m) m⟩
     }
@@ -131,7 +130,6 @@ val rec mul_comm : ∀n m∈nat, mul n m ≡ mul m n =
       Succ[k] → deduce mul Succ[k] m ≡ add m (mul k m);
                 show mul k m ≡ mul m k using mul_comm k m;
                 show mul m Succ[k] ≡ add (mul m k) m using mul_succ m k;
-                use mul k m;
                 show add (mul k m) m ≡ add m (mul k m)
                   using add_comm (mul k m) m
     }

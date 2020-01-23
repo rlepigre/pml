@@ -52,8 +52,13 @@ and     term_erasure : term -> e_tbox = fun t ->
   | Valu(v)     -> tvalu (valu_erasure v)
   | Appl(t,u,l) -> begin
                      match l with
-                     | NoLz -> tappl (term_erasure t) (term_erasure u)
                      | Lazy -> tfrce (term_erasure t)
+                     | NoLz ->
+                        match t.elt, u.elt with
+                        | Valu{elt= LAbs(_,b,_)}, Hint(Sugar,_)
+                             when binder_constant (snd b) ->
+                           term_erasure (bndr_subst b (unbox unit_reco).elt)
+                        | _ ->  tappl (term_erasure t) (term_erasure u)
                    end
   | FixY(b)     -> let f x =
                      let x = copy_var x (mk_free T) (name_of x) in
@@ -74,7 +79,10 @@ and     term_erasure : term -> e_tbox = fun t ->
   | Prnt(s)     -> tprnt s
   | Repl(t,_)   -> term_erasure t
   | Delm(t)     -> term_erasure t
-  | Hint(_,t)   -> term_erasure t
+  | Hint(h,t)   -> begin
+                     match h with Sugar -> tvalu (vreco A.empty)
+                                | _ -> term_erasure t
+                   end
   | Coer(_,t,_) -> term_erasure t
   | Such(_,_,r) -> term_erasure (bseq_open r.binder)
   | TPtr(_)     -> erasure_error "a pool pointer cannot be erased (term)"

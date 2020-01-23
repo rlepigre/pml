@@ -41,7 +41,7 @@ val mccarthy91_total : ∀n∈nat, ∃v:ι, v∈nat | mccarthy91 n ≡ v =
     } else { // n > 101
       if gt n u100 { // n > 101 && n > 100
         deduce mccarthy91 n ≡ minus n u10;
-        use minus n u10;
+        let _ = minus n u10;
         minus n u10
       } else { // n > 101 && n ≤ 100
         deduce leq n u101 ≡ false;

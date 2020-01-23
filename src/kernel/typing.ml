@@ -1668,6 +1668,10 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
          match h with
          | Eval ->
             (ctx, fun () -> ())
+         | Sugar ->
+            let ctx = { ctx with totality = Effect.bot } in
+            let post () = ignore (subtype ctx t c (unbox unit_prod)) in
+            (ctx, post)
          | Auto b ->
             ({ ctx with auto = { ctx.auto with auto = b }}, fun () -> ())
          | LSet(l) ->
