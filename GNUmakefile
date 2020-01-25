@@ -52,17 +52,17 @@ time: bin
 	@find . -name \*.pmi -exec rm {} \;
 	@/usr/bin/time -f "Finished in %E at %P with %MKb of RAM" make -s tests
 
-.PHONY: clean_lib
-clean_lib:
+.PHONY: clean_pmi
+clean_pmi:
 	@find . -name \*.pmi -exec rm {} \;
 
 .PHONY: clean_mem
-clean_mem: clean_lib
+clean_mem: clean_pmi
 	@find . -name \*.mem -exec rm {} \;
 
 # Cleaning targets.
 .PHONY: clean
-clean: clean_lib
+clean: clean_pmi
 	@dune clean
 	@rm -f $(TEXPML)
 
