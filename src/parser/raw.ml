@@ -506,16 +506,15 @@ let infer_sorts : raw_ex -> raw_sort -> unit = fun e s ->
         in
         List.iter fn l
     | (EReco(l)     , SUni(r)  ) ->
-        let all_val = ref true in
-        let fn (_,v,r) =
+        let fn s (_,v,r) =
           let tm = Time.save () in
-          try infer vars v _sv; r := `V
+          try infer vars v _sv; r := `V; s
           with Sort_clash(_,_) ->
             Time.rollback tm;
-            infer vars v _st; r := `T; all_val << false (* >> *)
+            infer vars v _st; r := `T; _st
         in
-        List.iter fn l;
-        sort_uvar_set r (if !all_val then _sv else _st)
+        let s = List.fold_left fn _sv l in
+        sort_uvar_set r s
     | (EReco(_)     , _        ) -> sort_clash e s
     | (EScis        , SV _     )
     | (EScis        , ST       ) -> ()
