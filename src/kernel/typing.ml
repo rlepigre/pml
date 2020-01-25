@@ -840,6 +840,10 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
     (* Save utime to backtrack even on unification *)
     let st = UTimed.Time.save () in
     (* Tell we are in auto *)
+    let first_auto = not ctx.auto.doing in
+    let reraise e =
+      raise (if first_auto then type_error (E(T,t)) ty e else e)
+    in
     let ctx = { ctx with auto = { ctx.auto with doing = true } } in
     (* Get the blocked case/eval from the exception *)
     let bls =
@@ -877,7 +881,7 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
     let rec fn nb ctx todo =
       UTimed.Time.rollback st;
       match todo with
-      | [] -> type_error (E(T,t)) ty exn
+      | [] -> reraise exn
       | (tlvl, BTot (_,e)) :: todo ->
          (* for a totality, we add a let to the term and typecheck *)
          let ctx = { ctx with auto = { ctx.auto with todo } } in
@@ -895,7 +899,7 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
             if nb > 0 then memo_insert ctx.memo (Skip nb);
             r
           with
-          | Failed_to_prove _ as e -> type_error (E(T,t)) ty e
+          | Failed_to_prove _ as e -> reraise e
           | Sys.Break as e         -> raise e
           | Out_of_memory as e     -> raise e
           | Type_error _           -> fn (nb+1) ctx todo)
@@ -924,7 +928,7 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
             if nb > 0 then memo_insert ctx.memo (Skip nb);
             r
           with
-          | Failed_to_prove _ as e -> type_error (E(T,t)) ty e
+          | Failed_to_prove _ as e -> reraise e
           | Sys.Break as e         -> raise e
           | Out_of_memory as e     -> raise e
           | Type_error _           -> fn (nb+1) ctx todo)
