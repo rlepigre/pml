@@ -34,10 +34,12 @@ let in_pos : pos -> 'a -> 'a loc =
 let none : 'a -> 'a loc =
   fun elt -> { elt ; pos = None; usr = Timed.tref Nothing }
 
+(** merging of two positions, create the smallest position pair containing both
+   *)
 let merge : pos -> pos -> pos = fun ((infos,p1), (_,p2)) ((_,q1),(_,q2)) ->
   ((infos, min p1 q1), (infos, max p2 q2))
 
-
+(** same as above for [popt] *)
 let union : popt -> popt -> popt = fun p1 p2 ->
   match (p1, p2) with
   | (None   , None   ) -> None
