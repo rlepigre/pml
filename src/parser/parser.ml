@@ -672,8 +672,8 @@ let%parser rec toplevel =
 (* Entry point of the parser. *)
 and entry = (l::~* toplevel) => l
 
-and interpret : bool -> Raw.toplevel -> unit =
-  fun nodep top ->
+and interpret : bool -> memo2 -> Raw.toplevel -> memo2 =
+  fun nodep memo top ->
   let verbose = !verbose && nodep in
   let open Env in
   match top with
@@ -681,22 +681,25 @@ and interpret : bool -> Raw.toplevel -> unit =
       let Ast.Sort s = unsugar_sort s in
       if verbose then
         out "sort %s ≔ %a\n%!" id.elt Print.sort s;
-      add_sort id.elt s
+      add_sort id.elt s;
+      memo
   | Expr_def(id,s,e) ->
       let Box(s,e) = unsugar_expr e s in
       let ee = Bindlib.unbox e in
       if verbose then
         out "expr %s : %a ≔ %a\n%!" id.elt Print.sort s Print.ex ee;
-      add_expr id s e
+      add_expr id s e;
+      memo
   | Valu_def(id,oc,a,t) ->
       let a = unbox (to_prop (unsugar_expr a _sp)) in
       let t = unbox (to_term (unsugar_expr t _st)) in
-      let (a, prf) = type_check t a in
+      let (a, prf, memo) = type_check id.elt t a memo in
       let v = Eval.eval (Erase.term_erasure t) in
       ignore prf;
       let close = if add_value id oc t a v then "close" else "open" in
       if verbose then
         out "val %s %s : %a\n%!" close id.elt Print.ex a;
+      memo
       (* out "  = %a\n%!" Print.ex (Erase.to_valu v); *)
   | Clos_def(b, lids) ->
       let s = if b then "closing" else "opening" in
@@ -706,7 +709,8 @@ and interpret : bool -> Raw.toplevel -> unit =
             ignore (Timed.set (Timed.Time.save ()) d.value_clos b)
         with Not_found -> unbound_var lid.elt lid.pos
       in
-      List.iter fn lids
+      List.iter fn lids;
+      memo
   | Chck_sub(a,n,b) ->
       let a = unbox (to_prop (unsugar_expr a _sp)) in
       let b = unbox (to_prop (unsugar_expr b _sp)) in
@@ -716,12 +720,14 @@ and interpret : bool -> Raw.toplevel -> unit =
           let (l,r) = if n then ("","") else ("¬(",")") in
           out "showed %s%a ⊂ %a%s\n%!" l Print.ex a Print.ex b r;
         end;
+      memo
   | Include(fn) ->
       if verbose then
         out "include %S\n%!" fn;
-      Log.without (handle_file false) fn
+      Log.without (handle_file false) fn;
+      memo
   | Def_list(tops) ->
-      List.iter (interpret nodep) tops
+     List.fold_left (interpret nodep) memo tops
   | Glbl_set(l)    ->
       begin
         let open Ast in
@@ -730,8 +736,10 @@ and interpret : bool -> Raw.toplevel -> unit =
         | Logs s    -> Log.set_enabled s
         | Keep s    -> Equiv.keep_intermediate := true
       end;
+      memo
   | Infix(sym,infix) ->
-     add_infix sym infix
+     add_infix sym infix;
+     memo
 
 and load_infix : string -> unit = fun fn ->
   (try  Env.load_infix fn
@@ -739,6 +747,22 @@ and load_infix : string -> unit = fun fn ->
      compile_file false fn;
      try Env.load_infix fn
      with Env.Compile -> failwith "source changed during compilation")
+
+and get_memo : string -> memo = fun fn ->
+  let fn = Filename.remove_extension fn ^ ".mem" in
+  try
+    let ch = open_in fn in
+    let memo = input_value ch in
+    close_in ch;
+    memo
+  with
+    _ -> []
+
+and save_memo : string -> memo -> unit = fun fn memo ->
+  let fn = Filename.remove_extension fn ^ ".mem" in
+  let ch = open_out fn in
+  output_value ch memo;
+  close_out ch
 
 and compile_file : bool -> string -> unit = fun nodep fn ->
   if !verbose then out "[%s]\n%!" fn;
@@ -748,7 +772,9 @@ and compile_file : bool -> string -> unit = fun nodep fn ->
   (* avoid timing of grammar compilation *)
   let _ = Grammar.compile entry in
   let ast = Chrono.add_time parsing_chrono parse_file fn in
-  List.iter (interpret nodep) ast;
+  let memo = get_memo fn in
+  let (_,memo) = List.fold_left (interpret nodep) (memo, []) ast in
+  save_memo fn (List.rev memo);
   Env.save_file fn;
   Env.env := save
 

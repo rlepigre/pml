@@ -52,13 +52,21 @@ time: bin
 	@find . -name \*.pmi -exec rm {} \;
 	@/usr/bin/time -f "Finished in %E at %P with %MKb of RAM" make -s tests
 
-# Cleaning targets.
-clean:
+.PHONY: clean_lib
+clean_lib:
 	@find . -name \*.pmi -exec rm {} \;
+
+.PHONY: clean_mem
+clean_mem: clean_lib
+	@find . -name \*.mem -exec rm {} \;
+
+# Cleaning targets.
+.PHONY: clean
+clean: clean_lib
 	@dune clean
 	@rm -f $(TEXPML)
 
-distclean: clean
+distclean: clean clean_mem
 	@rm -rf book/_minted* book/pml_book.pygmented
 	@find . -type f -name "*~" -exec rm {} \;
 	@find . -type f -name \#\* -exec rm {} \;

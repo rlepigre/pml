@@ -85,6 +85,64 @@ let auto_empty () =
 type sub_adone =
   SA : 'a sort * ('a, 'a) bndr * 'b sort * ('b,'b) bndr -> sub_adone
 
+type lr = L | R
+type path = Rc of string | Ap of lr | Ca of string | Cm
+type memo_info = Weak | Skip of int | NoInfo
+type memo_tbl = { info  : memo_info ref
+                ; below : memo_node ref }
+and memo_node = MNil
+              | MApp of memo_tbl * memo_tbl
+              | MCas of memo_tbl * (string * memo_tbl) list
+              | MRec of (string * memo_tbl) list
+
+type memo_tmp = (memo_tbl * path list)
+
+let empty_memo_tbl () = { info  = ref NoInfo
+                        ; below = ref MNil }
+
+let memo_move : memo_tmp -> path -> memo_tmp = fun (tbl,ps) p ->
+  match !(tbl.below), p, ps with
+  | MNil       , _   , _    -> (tbl, p::ps)
+  | _          , _   , _::_ -> (tbl, p::ps)
+  | MApp(t1,t2), Ap L, []   -> (t1, [])
+  | MApp(t1,t2), Ap R, []   -> (t2, [])
+  | MCas(m,ms) , Cm  , []   -> (m, [])
+  | MCas(m,ms) , Ca n, []   -> (try (List.assoc n ms, [])
+                                with Not_found -> (tbl, [p]))
+  | MRec(ms)   , Rc n, []   -> (try (List.assoc n ms, [])
+                                with Not_found -> (tbl, [p]))
+  | _          , _   , _    -> assert false
+
+let memo_create : memo_tbl -> path -> memo_tbl = fun tbl p ->
+  let (tbl, ps) = memo_move (tbl,[]) p in
+  if ps = [] then tbl else
+    begin
+      let nm = empty_memo_tbl in
+      let open UTimed in
+      (match !(tbl.below), p with
+      | MNil      , Ap _ -> tbl.below := MApp(nm (), nm ())
+      | MNil      , Cm   -> tbl.below := MCas(nm (), [])
+      | MNil      , Ca n -> tbl.below := MCas(nm (), [n, nm ()])
+      | MCas(m,ms), Ca n -> tbl.below := MCas(m, (n, nm ())::ms)
+      | MNil      , Rc n -> tbl.below := MRec([n, nm ()])
+      | MRec(ms)  , Rc n -> tbl.below := MRec((n, nm ())::ms)
+      | _         , _    -> assert false);
+      let (tbl, ps) = memo_move (tbl,[]) p in
+      assert (ps = []);
+      tbl
+    end
+
+let memo_find   : memo_tmp -> memo_info = fun (tbl, ps) ->
+  if ps = [] then !(tbl.info) else NoInfo
+
+let memo_insert : memo_tmp -> memo_info -> unit = fun (tbl, ps) info ->
+  let tbl = List.fold_left memo_create tbl (List.rev ps) in
+  let open UTimed in
+  tbl.info := info
+
+type memo     = (string * memo_tbl) list
+type memo2    = memo * memo (*old memo/new memo*)
+
 (* Context. *)
 type ctxt  =
   { uvarcount : int ref
@@ -99,11 +157,12 @@ type ctxt  =
   ; top_ih    : Scp.index * ordi array
   ; add_calls : (unit -> unit) list ref
   ; auto      : auto_ctxt
+  ; memo      : memo_tmp
   ; callgraph : Scp.t
   ; pretty    : Print.pretty list
   ; totality  : Effect.t }
 
-let empty_ctxt () =
+let empty_ctxt ?(memo=empty_memo_tbl ()) () =
   { uvarcount = ref 0
   ; equations = empty_pool ()
   ; ctx_names = Bindlib.empty_ctxt
@@ -116,11 +175,15 @@ let empty_ctxt () =
   ; auto      = auto_empty ()
   ; callgraph = Scp.create ()
   ; pretty    = []
+  ; memo      = (memo, [])
   (* Loop and CallCC not allowed at toplevel *)
   ; totality  = Effect.(known[]) }
 
 let add_pretty ctx known p =
   if known then ctx else { ctx with pretty = p :: ctx.pretty }
+
+let add_path x ctx =
+  { ctx with memo = memo_move ctx.memo x }
 
 let new_uvar : type a. ctxt -> a sort -> a ex loc = fun ctx s ->
   let c = ctx.uvarcount in
@@ -798,6 +861,18 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
       | (n,BCas _), (m,BCas _) -> compare m n
     in
     let todo = List.stable_sort cmp todo in
+    let skip = match memo_find ctx.memo with
+      | Skip n -> n
+      | _      -> 0
+    in
+    let todo =
+      let rec fn n l = match (n,l) with
+        | (0, l) -> l
+        | (n, []) -> assert false
+        | (n, _::l) -> fn (n-1) l
+      in
+      fn skip todo
+    in
     (* main recursive function trying all elements *)
     let rec fn nb ctx todo =
       UTimed.Time.rollback st;
@@ -816,7 +891,9 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
                              (appl None NoLz (valu None f) (box e))) in
             log_aut "totality (%d,%d) [%d]: %a"
                     ctx.auto.clvl ctx.auto.tlvl (List.length todo) Print.ex e;
-            type_term ctx t ty
+            let r = type_term ctx t ty in
+            if nb > 0 then memo_insert ctx.memo (Skip nb);
+            r
           with
           | Failed_to_prove _ as e -> type_error (E(T,t)) ty e
           | Sys.Break as e         -> raise e
@@ -843,13 +920,15 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
             in
             let t = unbox (hint None (Auto false) t) in
             log_aut "cases    (%d,%d): %a" ctx.auto.clvl ctx.auto.tlvl Print.ex t;
-            type_term ctx t ty
+            let r = type_term ctx t ty in
+            if nb > 0 then memo_insert ctx.memo (Skip nb);
+            r
           with
           | Failed_to_prove _ as e -> type_error (E(T,t)) ty e
           | Sys.Break as e         -> raise e
           | Out_of_memory as e     -> raise e
           | Type_error _           -> fn (nb+1) ctx todo)
-    in fn 0 ctx todo
+    in fn skip ctx todo
 
 and gen_subtype : ctxt -> prop -> prop -> sub_rule =
   fun ctx a b ->
@@ -1276,6 +1355,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
           fn c
         in
         let fn l t m =
+          let ctx = add_path (Rc l) ctx in
           let a = new_uvar ctx P in
           let a = if has_mem l then
                     Pos.none (Memb(Pos.none (Valu (snd t)), a))
@@ -1467,8 +1547,11 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
            let a = new_uvar ctx P in
            let tot = ctx.totality in
            let rec check_f ctx strong a0 =
+             let memo = ctx.memo in
+             let old_decision = memo_find memo <> Weak in
+             let ctx = add_path (Ap L) ctx in
              (* common code to check f *)
-             if strong then (* strong application *)
+             if strong && old_decision then (* strong application *)
                let (a, strong) = (* do not add singleton if it is one *)
                  if is_singleton a <> None then (a0, false)
                  else (Pos.none (Memb(u,a0)), true)
@@ -1485,9 +1568,11 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
                   | Out_of_memory as e -> raise e
                   | _ when strong && is_typed VoT_T f ->
                      UTimed.Time.rollback st;
-                  check_f ctx false a0
+                     check_f ctx false a0
              else
-               type_term ctx f (Pos.none (Func(tot,a,c,l)))
+               let r = type_term ctx f (Pos.none (Func(tot,a,c,l))) in
+               memo_insert memo Weak;
+               r
            in
            let (p1,p2,strong) =
              (* when u is not typed and f is, typecheck f first *)
@@ -1498,6 +1583,7 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
                (* type check f *)
                let p1 = check_f ctx strong a in
                (* check u *)
+               let ctx = add_path (Ap R) ctx in
                let p2 = type_term ctx u a in
                (p1,p2,strong)
              else
@@ -1507,6 +1593,7 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
                tot1 < tot is checked at the end *)
                let ctx_u = if Effect.(know_sub tot []) then ctx else
                              { ctx with totality = Effect.create () } in
+               let ctx_u = add_path (Ap R) ctx_u in
                let p2 = type_term ctx_u u a in
                (* If the typing of u was total,
                we can use strong application *)
@@ -1538,14 +1625,14 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
        Typ_FixY(p)
     (* μ-abstraction. *)
     | MAbs(b)     ->
-        let (eps, ctx_names) = swit ctx.ctx_names b c in
-        let ctx = { ctx with ctx_names } in
-        let t = bndr_subst b eps.elt in
-        let p = type_term ctx t c in
-        Typ_Mu(p)
+       let (eps, ctx_names) = swit ctx.ctx_names b c in
+       let ctx = { ctx with ctx_names } in
+       let t = bndr_subst b eps.elt in
+       let p = type_term ctx t c in
+       Typ_Mu(p)
     (* Named term. *)
     | Name(pi,u)  ->
-        if not Effect.(present CallCC ctx.totality) then
+       if not Effect.(present CallCC ctx.totality) then
           type_error (E(T,t)) c (Illegal_effect CallCC);
         let a = new_uvar ctx P in
         (* type stack before seems better, generate subtyping
@@ -1559,23 +1646,25 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
        Typ_Prod_e(type_valu ctx v c)
     (* Case analysis. *)
     | Case(v,m)   ->
-        let a = new_uvar ctx P in
-        let p = type_valu ctx v a in (* infer a type to learn equivalences *)
-        let fn d (p,_) m =
-          let a = new_uvar ctx P in
-          A.add d (p,a) m
-        in
-        let ts = A.fold fn m A.empty in
-        let _p1 = subtype ctx (Pos.none (Valu v)) a (Pos.none (DSum(ts))) in
-        let check d (p,f) ps =
-          log_typ "Checking case %s." d;
-          let (_,a) = A.find d ts in
-          let vd = vdot v d in
-          let a0 = Pos.none (Memb(vd, a)) in (* type for witness only *)
-          let (wit, ctx_names) = vwit ctx.ctx_names f a0 c in
-          let ctx = { ctx with ctx_names } in
-          let t = bndr_subst f wit.elt in
-          (try
+       let a = new_uvar ctx P in
+       let ctx_v = add_path Cm ctx in
+       let p = type_valu ctx_v v a in (* infer a type to learn equivalences *)
+       let fn d (p,_) m =
+         let a = new_uvar ctx P in
+         A.add d (p,a) m
+       in
+       let ts = A.fold fn m A.empty in
+       let _p1 = subtype ctx (Pos.none (Valu v)) a (Pos.none (DSum(ts))) in
+       let check d (p,f) ps =
+         log_typ "Checking case %s." d;
+         let (_,a) = A.find d ts in
+         let vd = vdot v d in
+         let a0 = Pos.none (Memb(vd, a)) in (* type for witness only *)
+         let (wit, ctx_names) = vwit ctx.ctx_names f a0 c in
+         let ctx = { ctx with ctx_names } in
+         let ctx = add_path (Ca d) ctx in
+         let t = bndr_subst f wit.elt in
+         (try
             let ctx = learn_nobox ctx wit in
             let eq =
               let t1 = Pos.none (Valu(Pos.none (Cons(Pos.none d, wit)))) in
@@ -1588,9 +1677,9 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
           with Contradiction ->
             warn_unreachable ctx t;
             (fun () -> (t,c,Typ_Scis)::ps)) ()
-        in
-        let ps = A.fold check m [] in
-        Typ_DSum_e(p,List.rev ps)
+       in
+       let ps = A.fold check m [] in
+       Typ_DSum_e(p,List.rev ps)
     (* Coercion. *)
     | Coer(_,t,a)   ->
        begin
@@ -1751,10 +1840,22 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
 
 exception Unif_variables
 
-let type_check : term -> prop -> prop * typ_proof = fun t a ->
+exception NoMemo
+
+let get_memo name memo =
+  let rec fn acc = function
+      [] -> raise NoMemo
+    | (name',tbl as c)::memo ->
+       if name = name' then (tbl, List.rev_append acc memo)
+       else fn (c::acc) memo
+  in
+  fn [] memo
+
+let type_check : memo_tbl option -> term -> prop -> prop * typ_proof * memo_tbl =
+  fun memo t a ->
   let st = Timed.Time.save () in
   try
-    let ctx = empty_ctxt () in
+    let ctx = empty_ctxt ?memo () in
     let prf = type_term ctx t a in
     List.iter (fun f -> f ()) (List.rev !(ctx.add_calls));
     if not (Scp.scp ctx.callgraph) then loops t;
@@ -1763,8 +1864,22 @@ let type_check : term -> prop -> prop * typ_proof = fun t a ->
     assert (uvars a = []);
     reset_tbls ();
     Timed.Time.rollback st;
-    (Norm.whnf a, prf)
+    (Norm.whnf a, prf, fst ctx.memo)
   with e -> reset_tbls (); Timed.Time.rollback st; raise e
+
+let type_check : string -> term -> prop -> memo2 -> prop * typ_proof * memo2 =
+  fun name t a (o,n) ->
+    try
+      let (memo,o) = get_memo name o in
+      let (p, prf, memo) = type_check (Some memo) t a in
+      let n = (name,memo) :: n in
+      (p, prf, (o,n))
+    with
+    | Out_of_memory | Sys.Break as e -> raise e
+    | e ->
+       let (p, prf, memo) = type_check None t a in
+       let n = (name,memo) :: n in
+       (p, prf, (o,n))
 
 let type_check t = Chrono.add_time type_chrono (type_check t)
 
