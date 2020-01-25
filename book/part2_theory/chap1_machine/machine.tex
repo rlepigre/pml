@@ -4,7 +4,7 @@ language. In this chapter, we give the syntax and the operational semantics
 of the language as a pure, untyped, calculus. It will be expressed using a
 \emph{Krivine Abstract Machine}, which will allow us to account for control
 operators, as well as observational equivalence of programs.\footnote{This
-notion of program equivalence will play an very important role as it will be
+notion of program equivalence will play a very important role as it will be
 partially reflected in the type system of the language through ``equivalence
 types''.}
 
@@ -174,7 +174,7 @@ they are fairly usual, these definitions introduce our notations.
   \begin{align*}
     \hspace{4.5cm}%hack
     t\,u ∗ π          &\quad\;≻\quad  u ∗ [t\;\,{-}]π   \tag{Push}\\
-    v ∗ [t\;\,{-}]π   &\quad\;≻\quad  \,t ∗ [{-}\;v]π  
+    v ∗ [t\;\,{-}]π   &\quad\;≻\quad  \,t ∗ [{-}\;v]π
                          \tag{if $v ∉ \mathcal{V}_{ι} ∪ \{\square\}$, Swap}\\
     λx.t ∗ [{-}\;v]π  &\quad\;≻\quad  t[x := v] ∗ π     \tag{Pop} \\
     μα.t ∗ π          &\quad\;≻\quad  t[α := π] ∗ π     \tag{Save}\\
@@ -232,7 +232,7 @@ record projection, case analysis and recursion respectively.
 A rule is then provided for reducing processes of the form $R(v,t) ∗ π$ to
 $t ∗ π$ when the value $v$ is a record. Note that if $v$ is not a record then
 no reduction rule apply on processes of the form $R(v,t) ∗ π$. These facts
-will be used in to show that records, $λ$-abstractions and other forms of
+will be used to show that records, $λ$-abstractions and other forms of
 values have a different computational behaviour in our abstract machine.
 The last four rules are used to handle the special value $□$, which consumes
 the surrounding part of its computational environment. This will be discussed
@@ -506,7 +506,7 @@ as a union and an intersection over the previously defined relations.
   \noindent$\hspace{1.5cm} (\not\equiv) = \cup_{i∈\mathbb{N}} (\not\equiv_{↠_i})
     = \{(t,u), (u,t) \st ∃i∈\mathbb{N}, ∃π∈Π, ∃ρ∈\mathcal{S},
     tρ∗π {⇓}_i ∧ uρ∗π {⇑}_i\}$
-  
+
   \vspace{2mm}
   \noindent$\hspace{1.5cm} (↠) = (≻) ∪ \{(δ(v,w,t)∗π, t∗π) \st v \not\equiv w\} $
 \end{definition}
@@ -581,15 +581,22 @@ values in a term yields equivalent terms.
   or symmetrically, $v_1 = □$ and $v_2 = x ∈ \mathcal{V}_{ι}$. To tell these
   values apart we can show $v_1 \not\equiv_0 v_2$ using the substitution
   $ρ = [x := \{\}]$ and the stack $π = [{-}\;\,\{\}]ε$. Indeed, we have
-  ${□ρ ∗ π} = {□ ∗ [{-}\;\,\{\}]ε} ↠_0 {□ ∗ ε}  {⇓}_0$ and ${xρ ∗ π} =
-  {\{\} ∗ [{-}\;\,\{\}]ε} {⇑}_0$.
+  ${□ρ ∗ π} = {□ ∗ [{-}\;\,\{\}]ε} ↠_0 {□ ∗ ε}  {⇑}_0$ and ${xρ ∗ π} =
+  {\{\} ∗ [{-}\;\,\{\}]ε} {⇓}_0$.
   %
-  The only remaining case is the one where $v_1 = x ∈ \mathcal{V}_{ι}$ and
+  We now consider the case where $v_1 = x ∈ \mathcal{V}_{ι}$ and
   $v_2 = y ∈ \mathcal{V}_{ι}$, with $x ≠ y$. To tell these values apart we
   show $v_1 \not\equiv_0 v_2$ using the substitution $ρ = [x := \{\}][y := □]$
   and (again) the stack $π = [{-}\;\,\{\}]ε$. Indeed, ${v_1ρ ∗ π} =
-  {\{\} ∗ [{-}\;\,\{\}]ε} {⇑}_0$ and
-  ${v_2ρ ∗ π} = {□ ∗ [{-}\;\,\{\}]ε} {⇓}_0$.
+  {\{\} ∗ [{-}\;\,\{\}]ε} {⇓}_0$ and
+  ${v_2ρ ∗ π} = {□ ∗ [{-}\;\,\{\}]ε} {⇑}_0$.
+
+  Remain four cases, $v_1 = x  ∈ \mathcal{V}_{ι}$ or $v_1 = □$ and $v_2$ is
+  neither a $λ$-variable nor box and the two symmetric cases. When $v_1 =  □$,
+  we can take $ρ$ the identity substitution and $π = [{-}\;\,\{\}]ε$ as we have
+  ${v_1ρ ∗ π} = {□ ∗ [{-}\;\,\{\}]ε} {⇑}_0$ and
+    ${v_2ρ ∗ π} = {v_2 ∗ [{-}\;\,\{\}]ε} {⇓}_0$. When $v_1 = x$, we take
+    $ρ = [x := □]$ and the same stack to reach the same conclusion.
 \end{proof}
 
 A result analogous to Theorem~\ref{thm:extval} also holds for substituting
@@ -619,7 +626,7 @@ following lemma.
   stuck by Lemma~\ref{lem:redstable}, and that would contradict
   ${q[a := t]} {⇓}_k$.
   %
-  Let us now suppose that $p = {δ(v,w,u) ∗ π}$ for some $v$, $w ∈ Λ_ι$,
+  Let us now suppose that $q = {δ(v,w,u) ∗ π}$ for some $v$, $w ∈ Λ_ι$,
   $t ∈ Λ$, and $π ∈ Π$. Since ${δ(vρ,wρ,uρ) ∗ π} {⇓}_k$, there must be $j < k$
   (and thus $k ≠ 0$) such that ${vρ} \not\equiv_j {wρ}$, otherwise we would
   obtain a contradiction.
@@ -750,8 +757,8 @@ following lemma.
   u_2ρ]} = {v[a := u_2ρ]∗ε}$, and hence ${t_n[a := u_2ρ] ∗ π_n[a := u_2ρ]}
   {⇓}_{k_0}$.
   %
-  We now assume ${t_{i+1}[a := u_2ρ] ∗ π_{i+1}[a := u_2ρ]} {⇓}_{k_0}$ for
-  $0 ≤ i < n$, and show ${t_i[a := u_1ρ] ∗ π_i[a := u_2ρ]} {⇓}_{k_0}$.
+  We assume ${t_{i+1}[a := u_2ρ] ∗ π_{i+1}[a := u_2ρ]} {⇓}_{k_0}$ for
+  some $0 ≤ i < n$, and show ${t_i[a := u_1ρ] ∗ π_i[a := u_2ρ]} {⇓}_{k_0}$.
   By construction, $t_i ∗ π_i$ can be of two shapes, since only $t_n ∗ π_n$
   can be of the form $v ∗ ε$.
   \begin{itemize}
@@ -957,7 +964,7 @@ relation $(≡_{≻})$ coincides with $(≡_{↠_0})$ since $(↠_0) = (≻)$.}
 
 % Record projection
 \begin{theorem}[equivalence for record projection]
-  For all $I ⊆_{\text{fin}} \mathbb{N}$, $k ∈ I$ and $(v_i)_{i∈I} ∈ Λ_{ι}^I$ 
+  For all $I ⊆_{\text{fin}} \mathbb{N}$, $k ∈ I$ and $(v_i)_{i∈I} ∈ Λ_{ι}^I$
   we have $\{(l_i = v_i)_{i∈I}\}.l_k ≡ v_k$.
 \end{theorem}
 \begin{proof}
