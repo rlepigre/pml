@@ -1,7 +1,4 @@
 
-exception Bad_time
-
-
 module type Time = sig
   type t
   val rollback : t -> unit
@@ -18,31 +15,52 @@ module Make(T:Time) = struct
 
   module Time =
     struct
-      type r = { mutable next : u ; undo : unit -> unit }
+      (** time is a list containing the undo to go back to the time before
+          and the next time in the future. List are from past to future, hence
+          if the a past time is not accessible, it is collocted by the GC.
 
-       and u = Current | Past of r
+          Undone is not a valid time, it can appear only in the next field *)
+      type u = Undone : u    (** already undone change up to that time (excluded)
+                                 or before*)
+             | Futur : { mutable next : u ; r : 'a ref; old : 'a } -> u
 
-      type t = r * T.t
 
-      let current : r ref =
-        ref { next = Current ; undo = (fun () -> ()) }
+      (** time of this module and the inherited module together, for nested times *)
+      type t = u * T.t
 
+      (** reference holding the current time *)
+      let current : u ref =
+        ref (Futur{ next = Undone; r = ref (); old = () })
+
+      (** save the time, both local and inherited *)
       let save : unit -> t = fun () -> (!current, T.save ())
 
+      (** rollback to the given time *)
       let rollback : t -> unit = fun (t,ut) ->
+        (** undo all time in the futur of t, and make t the current time. *)
         let rec fn = function
-          | Current -> ()
-          | Past  t -> fn t.next; t.undo (); t.next <- Current
-        in T.rollback ut; fn t.next; t.next <- Current; current := t;
+          | Undone -> ()
+          | Futur ({ next; r; old } as t) ->
+                       t.next <- Undone;
+                       fn next; (* tail rec call would be incorrect if the
+                                   same ref was updated twice *)
+                       r:= old
+        in
+        T.rollback ut;
+        current := t;
+        match t with
+        | Undone -> assert false
+        | Futur ({ next; _ } as t) -> t.next <- Undone; fn next
     end
-
-  let (<<) : 'a ref -> 'a -> unit = (:=)
 
   let (:=) : 'a ref -> 'a -> unit = fun r v ->
     let open Time in
-    let v0 = !r in
-    let t = { next = Current; undo = (fun () -> r := v0) } in
-    !current.next <- Past t; current := t; r := v
+    let old = !r in
+    let t = Futur { next = Undone; r; old } in
+    (match !current with
+    | Undone -> assert false
+    | Futur u -> u.next <- t);
+    current := t; r := v
 
   let incr : int ref -> unit = fun r -> r := !r + 1
   let decr : int ref -> unit = fun r -> r := !r - 1
@@ -86,7 +104,6 @@ module type Timed = sig
     val save : unit -> t
     val rollback : t -> unit
   end
-  val ( << ) : 'a ref -> 'a -> unit
   val ( := ) : 'a ref -> 'a -> unit
   val incr : int ref -> unit
   val decr : int ref -> unit
