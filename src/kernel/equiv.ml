@@ -314,22 +314,19 @@ let print_parents ch pars =
       PtrSet.iter (Printf.fprintf ch "%a " Ptr.print) s) pars
 
 (** Find operation (with path contraction). *)
-let find : Ptr.t -> pool -> Ptr.t * pool = fun p po ->
+let find : Ptr.t -> pool -> Ptr.t = fun p po ->
   let rec follow p time =
     try
       let q = ptr_get p time in
-      let (r, time) = follow q time in
-      let time = if q != r then ptr_set p r time else time in
-      (r, time)
-    with Not_found -> (p, time)
+      follow q time
+    with Not_found -> p
   in
-  let (repr, time) = follow p po.time in
-  (repr, {po with time})
+  follow p po.time
 
-let find_valu : VPtr.t -> pool -> VPtr.t * pool = fun p po ->
-  let (p, po) = find (Ptr.V_ptr p) po in
+let find_valu : VPtr.t -> pool -> VPtr.t = fun p po ->
+  let p = find (Ptr.V_ptr p) po in
   match p with
-  | Ptr.V_ptr p -> (p, po)
+  | Ptr.V_ptr p -> p
   | Ptr.T_ptr _ -> assert false
 
 (** Printing a pool (useful for debugging. *)
@@ -338,7 +335,7 @@ let print_pool : string -> out_channel -> pool -> unit = fun prefix ch po ->
   Printf.fprintf ch "%s#### Nodes ####\n" prefix;
   let fn (k, n) =
     let b = if Timed.get po.time k.Ptr.bs then "*" else "" in
-    let pars = let (p, po) = find (Ptr.V_ptr k) po in ptr_par p po.time in
+    let pars = let p = find (Ptr.V_ptr k) po in ptr_par p po.time in
     Printf.fprintf ch "%s  %a%s\t→ %a [%a]\t\n" prefix VPtr.print k b
       print_v_node n print_parents pars
   in
@@ -347,7 +344,7 @@ let print_pool : string -> out_channel -> pool -> unit = fun prefix ch po ->
   let fn (k, n) =
     let f = if Timed.get po.time k.Ptr.fs then "+" else "" in
     let g = if Timed.get po.time k.Ptr.ns then "n" else "" in
-    let pars = let (p, po) = find (Ptr.T_ptr k) po in ptr_par p po.time in
+    let pars = let p = find (Ptr.T_ptr k) po in ptr_par p po.time in
     Printf.fprintf ch "%s  %a%s%s\t→ %a [%a]\t\n" prefix TPtr.print k f g
       print_t_node n print_parents pars
   in
@@ -517,28 +514,28 @@ let pure_v_node = function
 (** Test if a term is "free", that is occures not only unser binder
     and therefore should be normalised. This is important for closure,
     if we normalise all closed subterm under binders, PML loops *)
-let is_free : Ptr.t -> pool -> bool * pool =
+let is_free : Ptr.t -> pool -> bool =
   fun p po ->
-    let (p, po) = find p po in
+    let p = find p po in
     match p with
-    | Ptr.V_ptr _ -> (true, po)
-    | Ptr.T_ptr t -> (get_fs t po, po)
+    | Ptr.V_ptr _ -> true
+    | Ptr.T_ptr t -> get_fs t po
 
 (** Test if a nobox *)
-let is_nobox : Ptr.t -> pool -> bool * pool =
+let is_nobox : Ptr.t -> pool -> bool =
   fun p po ->
-    let (p, po) = find p po in
+    let p = find p po in
     match p with
-    | Ptr.V_ptr t -> (get_bs t po, po)
-    | Ptr.T_ptr _ -> (false, po)
+    | Ptr.V_ptr t -> get_bs t po
+    | Ptr.T_ptr _ -> false
 
 (** Test if normal *)
-let is_normal : Ptr.t -> pool -> bool * pool =
+let is_normal : Ptr.t -> pool -> bool =
   fun p po ->
-    let (p, po) = find p po in
+    let p = find p po in
     match p with
-    | Ptr.V_ptr _  -> (true, po)
-    | Ptr.T_ptr tp -> (get_ns tp po, po)
+    | Ptr.V_ptr _  -> true
+    | Ptr.T_ptr tp -> get_ns tp po
 
 (** Test for v_node that are always nobox *)
 let immediate_nobox : v_node -> bool = function
@@ -560,7 +557,7 @@ let immediate_nobox : v_node -> bool = function
 let add_parent_nodes : Ptr.t -> (par_key * Ptr.t) list-> pool -> pool =
   fun np ps po ->
   let fn po (k, p) =
-    let (p, po) = find p po in
+    let p = find p po in
     let time = ptr_add_par k np p po.time in
     { po with time }
   in
@@ -574,12 +571,12 @@ let add_parent_t_nodes : TPtr.t -> (par_key * Ptr.t) list -> pool -> pool =
 
 (** Obtain the parents of a pointed node. *)
 let parents : Ptr.t -> pool -> par_map = fun p po ->
-  let (p, po) = find p po in
+  let p = find p po in
   ptr_par p po.time
 
 (** union of parents (used when joining nodes) *)
 let add_parents : Ptr.t -> par_map -> pool -> pool = fun p nps po ->
-  let (p, po) = find p po in
+  let p = find p po in
   let time = ptr_union_pars nps p po.time in
   { po with time }
 
@@ -587,20 +584,20 @@ let add_parents : Ptr.t -> par_map -> pool -> pool = fun p nps po ->
 
 (* NOTE: loose path shortening, not really a problem ? *)
 let eq_vptr : pool -> VPtr.t -> VPtr.t -> bool = fun po p1 p2 ->
-  let (p1, po) = find (Ptr.V_ptr p1) po in
-  let (p2, po) = find (Ptr.V_ptr p2) po in
-  Ptr.compare p1 p2 = 0
+  let p1 = find_valu p1 po in
+  let p2 = find_valu p2 po in
+  VPtr.compare p1 p2 = 0
 
 (* NOTE: loose path shortening, not really a problem ? *)
 let eq_tptr : pool -> TPtr.t -> TPtr.t -> bool = fun po p1 p2 ->
-  let (p1, po) = find (Ptr.T_ptr p1) po in
-  let (p2, po) = find (Ptr.T_ptr p2) po in
+  let p1 = find (Ptr.T_ptr p1) po in
+  let p2 = find (Ptr.T_ptr p2) po in
   Ptr.compare p1 p2 = 0
 
 (* NOTE: loose path shortening, not really a problem ? *)
 let eq_ptr : pool -> Ptr.t -> Ptr.t -> bool = fun po p1 p2 ->
-  let (p1, po) = find p1 po in
-  let (p2, po) = find p2 po in
+  let p1 = find p1 po in
+  let p2 = find p2 po in
   eq_ptr p1 p2
 
 let eq_ho_appl : type a. pool -> a ho_appl -> a ho_appl -> bool =
@@ -751,7 +748,7 @@ let insert_t_node : bool -> t_node -> pool -> TPtr.t * pool =
            then it may become free if the equal added node is free *)
        let po =
          if fs then begin
-             let (p', po) = find (Ptr.T_ptr p) po in
+             let p' = find (Ptr.T_ptr p) po in
              match p' with
              | Ptr.T_ptr p' -> set_fs p' po
              | _ -> po
@@ -809,8 +806,8 @@ let rec add_term :  bool -> bool -> pool -> term
                     -> Ptr.t * pool = fun o free po t0 ->
   let t = Norm.whnf t0 in
   match Timed.get po.time t0.usr with
-  | NPtr p | BPtr(_,p) when free      -> find p po
-  | UPtr p | BPtr(p,_) when not free  -> find p po
+  | NPtr p | BPtr(_,p) when free      -> (find p po, po)
+  | UPtr p | BPtr(p,_) when not free  -> (find p po, po)
   | UPtr p             when free      -> normalise p po
   | EPtr _ -> assert false
   | _      ->
@@ -823,7 +820,7 @@ let rec add_term :  bool -> bool -> pool -> term
           begin
             let (p, po) = insert_t_node true node po in
             let (q, po) = normalise_t_node ~old:p node po in
-            find q po
+            (find q po, po)
           end
         else
           normalise_t_node node po
@@ -834,7 +831,7 @@ let rec add_term :  bool -> bool -> pool -> term
     else
       begin
         let (p, po) = insert_t_node false node po in
-        find (Ptr.T_ptr p) po
+        (find (Ptr.T_ptr p) po, po)
       end
   in
   (*log_edp2 "add_term %b %a" free Print.ex t0;*)
@@ -864,7 +861,7 @@ let rec add_term :  bool -> bool -> pool -> term
                      let po =
                        { po with time = Timed.set po.time ptr (Init pt) }
                      in
-                     if free then normalise pt po else find pt po
+                     if free then normalise pt po else (find pt po, po)
     | Prnt(s)     -> insert (TN_Prnt(s)) po
     | Repl(_,u)   -> add_term po u
     | Delm(u)     -> add_term po u
@@ -898,11 +895,11 @@ let rec add_term :  bool -> bool -> pool -> term
                        let po = { po with e_defs = (d,pt)::po.e_defs } in
                        (pt, po)
                      in
-                     if free then normalise pt po else find pt po
+                     if free then normalise pt po else (find pt po, po)
     | UVar(_,v)   -> insert (TN_UVar(v)) po
     | Goal(_)     -> insert (TN_Goal(t)) po
     | Vari(s,x)   -> insert (TN_Vari(x)) po
-    | TPtr(pt)    -> if free then normalise pt po else find pt po
+    | TPtr(pt)    -> if free then normalise pt po else (find pt po, po)
     | ITag(_,n)   -> invalid_arg "itag in terms forbidden"
     | FixM(_)     -> invalid_arg "mu in terms forbidden"
     | FixN(_)     -> invalid_arg "nu in terms forbidden"
@@ -1064,11 +1061,11 @@ and normalise : Ptr.t -> pool -> Ptr.t * pool =
     | Ptr.V_ptr _ -> (p0, po)
     | Ptr.T_ptr p ->
        if get_ns p po then
-         find p0 po
+         (find p0 po, po)
        else
          begin
            let (tp, po) = normalise_t_node ~old:p (find_t_node p po) po in
-           find tp po
+           (find tp po, po)
          end
 
 (** Normalisation function for nodes *)
@@ -1077,8 +1074,8 @@ and normalise_t_node : ?old:TPtr.t -> t_node -> pool -> Ptr.t  * pool =
     let insert node po =
       match old with
       | None   -> let (p, po) = insert_t_node true node po in
-                  find (Ptr.T_ptr p) po
-      | Some p -> let (p, po) = find (Ptr.T_ptr p) po in
+                  (find (Ptr.T_ptr p) po, po)
+      | Some p -> let p = find (Ptr.T_ptr p) po in
                   let po =
                     match p with
                     | Ptr.V_ptr _ -> po
@@ -1098,7 +1095,7 @@ and normalise_t_node : ?old:TPtr.t -> t_node -> pool -> Ptr.t  * pool =
     in
     let (p, po) = match node with
       | TN_Valu(pv)    -> let po = set_ns po in
-                          find (Ptr.V_ptr pv) po
+                          (find (Ptr.V_ptr pv) po, po)
       | TN_Appl(pt,pu,l) ->
          begin
            log_edp2 "normalise in %a = TN_Appl: %a %a"
@@ -1137,14 +1134,14 @@ and normalise_t_node : ?old:TPtr.t -> t_node -> pool -> Ptr.t  * pool =
       | TN_Name(s,pt)  -> insert node po (* FIXME #7 can do better. *)
       | TN_Proj(pv0,l) ->
          begin
-           let (pv, po) = find_valu pv0 po in
+           let pv = find_valu pv0 po in
            log_edp2 "normalisation in %a = TN_Proj %a"
                 print_t_node node VPtr.print pv0;
            match find_v_node pv po with
            | VN_Reco(m) ->
               begin
                 try
-                  let (tp, po) = find (Ptr.V_ptr (A.find l.elt m)) po in
+                  let tp = find (Ptr.V_ptr (A.find l.elt m)) po in
                   let po = set_ns po in
                   let po = union tp po in
                   log_edp2 "normalised in %a = TN_Proj %a => %a"
@@ -1156,7 +1153,7 @@ and normalise_t_node : ?old:TPtr.t -> t_node -> pool -> Ptr.t  * pool =
          end
       | TN_Case(pv0,m) ->
          begin
-           let (pv, po) = find_valu pv0 po in
+           let pv = find_valu pv0 po in
            log_edp2 "normalisation in %a = TN_Case %a"
                 print_t_node node VPtr.print pv0;
            try
@@ -1209,7 +1206,7 @@ and normalise_t_node : ?old:TPtr.t -> t_node -> pool -> Ptr.t  * pool =
       | TN_Vari(_)    -> let po = set_ns po in
                          insert node po
     in
-    find p po
+    (find p po, po)
 
 (** test if to pointers just became equal and call union if it is the case *)
 and check_eq : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
@@ -1241,7 +1238,7 @@ and check_parents_eq pp1 pp2 po =
 
 (** reinsert a node that could be normalised *)
 and reinsert : Ptr.t -> pool -> pool = fun p po ->
-  let (is_free, po) = is_free p po in
+  let is_free = is_free p po in
   match p with
   | Ptr.T_ptr tp ->
      if is_free then snd (normalise p po)
@@ -1277,8 +1274,8 @@ and check_ineq pool =
   (* NOTE: we could consider ineq as parents to avoid scanning the whole ineq
      list *)
   let fn (ineq,po) (pt, pu) =
-    let (pt,po) = find pt po in
-    let (pu,po) = find pu po in
+    let pt = find pt po in
+    let pu = find pu po in
     try
       ignore (UTimed.apply (unif_ptr po pt) pu);
       log_edp2 "add_inequiv: contradiction found";
@@ -1297,10 +1294,10 @@ and join : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
   let nps = parents p1 po in
   let pp2 = parents p2 po in
   let po = add_parents p2 nps po in
-  let (fs2, po) = is_free p2 po in
-  let (fs1, po) = is_free p1 po in
-  let (bs2, po) = is_nobox p2 po in
-  let (bs1, po) = is_nobox p1 po in
+  let fs2 = is_free p2 po in
+  let fs1 = is_free p1 po in
+  let bs2 = is_nobox p2 po in
+  let bs1 = is_nobox p1 po in
   let po = { po with time = ptr_set p1 p2 po.time
                    ; eq_map = (p1,p2) :: po.eq_map }
   in
@@ -1332,8 +1329,8 @@ and age_join : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
 (** high level union doing all necessary check/cases *)
 and union : ?no_rec:bool -> Ptr.t -> Ptr.t -> pool -> pool =
   fun ?(no_rec=false) p1 p2 po ->
-  let (p1, po) = find p1 po in
-  let (p2, po) = find p2 po in
+  let p1 = find p1 po in
+  let p2 = find p2 po in
   if eq_ptr po p1 p2 then po else
     match (p1, p2) with
     | (Ptr.T_ptr _  , Ptr.V_ptr _  ) -> join p1 p2 po
@@ -1386,7 +1383,7 @@ and union : ?no_rec:bool -> Ptr.t -> Ptr.t -> pool -> pool =
     under closure, otherwise if loops, for instance on "exp n" *)
 and canonical_term : bool -> TPtr.t -> pool -> term * pool
   = fun clos p po ->
-  let (p, po) = if clos then (Ptr.T_ptr p,po) else find (Ptr.T_ptr p) po in
+  let p = if clos then Ptr.T_ptr p else find (Ptr.T_ptr p) po in
   let cv = canonical_valu clos in
   let cp = canonical      clos in
   match p with
@@ -1441,49 +1438,43 @@ and canonical_term : bool -> TPtr.t -> pool -> term * pool
     under closure, otherwise if loops, for instance on "exp n" *)
 and     canonical_valu : bool -> VPtr.t -> pool -> valu * pool
 = fun clos p po ->
-  let (p, po) = if clos then (Ptr.V_ptr p, po) else find (Ptr.V_ptr p) po in
+  let p = if clos then p else find_valu p po in
   let cv = canonical_valu clos in
-  match p with
-  | Ptr.T_ptr(p) -> assert false (* Should never happen. *)
-  | Ptr.V_ptr(p) ->
-      begin
-        let v = find_v_node p po in
-        (*log_edp2 "canonical_term %a = %a" VPtr.print p print_v_node v;*)
-        match v with
-        | VN_LAbs(b,t)   -> let (b, po) = canonical_bndr_closure b po in
-                            (Pos.none (LAbs(None, b, t)), po)
-        | VN_Cons(c,pv)  -> let (v, po) = cv pv po in
-                            (Pos.none (Cons(c,v)), po)
-        | VN_Reco(m)     -> let fn l pv (m, po) =
-                              let (v, po) = cv pv po in
-                              (A.add l (None,v) m, po)
-                            in
-                            let (m, po) = A.fold fn m (A.empty, po) in
-                            (Pos.none (Reco(m)), po)
-        | VN_Defi(v)     -> (Pos.none (VDef(v)), po)
-        | VN_Scis        -> (Pos.none Scis, po)
-        | VN_VWit(w)     -> (Pos.none (VWit(w)), po)
-        | VN_UWit(w)     -> (Pos.none (UWit(w)), po)
-        | VN_EWit(w)     -> (Pos.none (EWit(w)), po)
-        | VN_ESch(i,w)   -> (Pos.none (ESch(V,i,w)), po)
-        | VN_HApp(e)     -> let HO(s,f,a) = e in
-                            let (f, po) = canonical_closure f po in
-                            let (a, po) = canonical_closure a po in
-                            (Pos.none (HApp(s,f,a)), po)
-        | VN_UVar(v)     -> begin
-                              match !(v.uvar_val) with
-                              | Unset _ -> (Pos.none (UVar(V,v)), po)
-                              | Set w   ->
-                                 let (vp, po) = add_valu false po w in
-                                 let po = join (Ptr.V_ptr p)
-                                                (Ptr.V_ptr vp) po
-                                 in
-                                 cv vp po
-                            end
-        | VN_Vari(x)     -> (Pos.none (Vari(V,x)), po)
-        | VN_Goal(v)     -> (v, po)
-
-      end
+  let v = find_v_node p po in
+  (*log_edp2 "canonical_term %a = %a" VPtr.print p print_v_node v;*)
+  match v with
+  | VN_LAbs(b,t)   -> let (b, po) = canonical_bndr_closure b po in
+                      (Pos.none (LAbs(None, b, t)), po)
+  | VN_Cons(c,pv)  -> let (v, po) = cv pv po in
+                      (Pos.none (Cons(c,v)), po)
+  | VN_Reco(m)     -> let fn l pv (m, po) =
+                        let (v, po) = cv pv po in
+                        (A.add l (None,v) m, po)
+                      in
+                      let (m, po) = A.fold fn m (A.empty, po) in
+                      (Pos.none (Reco(m)), po)
+  | VN_Defi(v)     -> (Pos.none (VDef(v)), po)
+  | VN_Scis        -> (Pos.none Scis, po)
+  | VN_VWit(w)     -> (Pos.none (VWit(w)), po)
+  | VN_UWit(w)     -> (Pos.none (UWit(w)), po)
+  | VN_EWit(w)     -> (Pos.none (EWit(w)), po)
+  | VN_ESch(i,w)   -> (Pos.none (ESch(V,i,w)), po)
+  | VN_HApp(e)     -> let HO(s,f,a) = e in
+                      let (f, po) = canonical_closure f po in
+                      let (a, po) = canonical_closure a po in
+                      (Pos.none (HApp(s,f,a)), po)
+  | VN_UVar(v)     -> begin
+                        match !(v.uvar_val) with
+                        | Unset _ -> (Pos.none (UVar(V,v)), po)
+                        | Set w   ->
+                           let (vp, po) = add_valu false po w in
+                           let po = join (Ptr.V_ptr p)
+                                      (Ptr.V_ptr vp) po
+                           in
+                           cv vp po
+                      end
+  | VN_Vari(x)     -> (Pos.none (Vari(V,x)), po)
+  | VN_Goal(v)     -> (v, po)
 
 and canonical_closure: type a. a closure -> pool -> a ex loc * pool =
   fun (clsptr,vs,ts) po ->
@@ -1538,8 +1529,8 @@ and unif_tptr : pool -> TPtr.t -> TPtr.t -> pool = fun po p1 p2 ->
   unif_ptr po (Ptr.T_ptr p1) (Ptr.T_ptr p2)
 
 and unif_ptr : pool -> Ptr.t -> Ptr.t -> pool = fun po p1 p2 ->
-  let (p1, po) = find p1 po in
-  let (p2, po) = find p2 po in
+  let p1 = find p1 po in
+  let p2 = find p2 po in
   log_edp2 "unif_ptr %a %a" Ptr.print p1 Ptr.print p2;
   if eq_ptr po p1 p2 then po else
   (* NOTE: could do [po = union p1 p2 po] but one should detect creation
@@ -1853,20 +1844,17 @@ let add_equiv : equiv -> pool -> bool * pool = fun (t,u) pool ->
 (** Add the hypothesis that a vptr is nobox, It returns a boolean to know if the
    fact was already known.  *)
 let add_vptr_nobox : VPtr.t -> pool -> bool * pool = fun vp po ->
-  let (vp, po) = find (Ptr.V_ptr vp) po in
-  match vp with
-  | Ptr.T_ptr(_) -> assert false
-  | Ptr.V_ptr(vp) ->
-     if not (get_bs vp po) then
-       begin
-         let po = set_bs vp po in
-         let nps = parents (Ptr.V_ptr vp) po in
-         let po = MapKey.fold (fun k l po ->
-           if is_head k then PtrSet.fold reinsert l po else po) nps po
-         in
-         (false, po)
-       end
-     else (true, po)
+  let vp = find_valu vp po in
+  if not (get_bs vp po) then
+    begin
+      let po = set_bs vp po in
+      let nps = parents (Ptr.V_ptr vp) po in
+      let po = MapKey.fold (fun k l po ->
+                   if is_head k then PtrSet.fold reinsert l po else po) nps po
+      in
+      (false, po)
+    end
+  else (true, po)
 
 (** Add the hypothesis that a value is nobox, It returns a boolean to know if the
    fact was already known.  *)
@@ -1897,26 +1885,23 @@ let find_proj : pool -> Bindlib.ctxt -> valu -> string
   fun po names v l ->
     try
       let (vp, po) = add_valu true po v in
-      let (vp, po) = find (Ptr.V_ptr vp) po in
-      match vp with
-      | Ptr.T_ptr(_) -> assert false (* Should never happen. *)
-      | Ptr.V_ptr(vp) ->
-         let n = find_v_node vp po in
-         let (wp, w, po, names) =
-           match n with
-           | VN_Reco(m) ->
-              let pt = A.find l m in
-              (pt, Pos.none (VPtr pt), po, names)
-           | _ ->
-              let (w,names) = proj_eps names v l in
-              let (wp,po) = add_valu true po w in
-              let t = Pos.none (Proj(v,Pos.none l)) in
-              let (pt,po) = add_term true false po t in
-              let po = union (Ptr.V_ptr wp) pt po in
-              (wp, w, po, names)
-         in
-         let (_, po) = add_vptr_nobox wp po in
-         (w, po, names)
+      let vp = find_valu vp po in
+      let n = find_v_node vp po in
+      let (wp, w, po, names) =
+        match n with
+        | VN_Reco(m) ->
+           let pt = A.find l m in
+           (pt, Pos.none (VPtr pt), po, names)
+        | _ ->
+           let (w,names) = proj_eps names v l in
+           let (wp,po) = add_valu true po w in
+           let t = Pos.none (Proj(v,Pos.none l)) in
+           let (pt,po) = add_term true false po t in
+           let po = union (Ptr.V_ptr wp) pt po in
+           (wp, w, po, names)
+      in
+      let (_, po) = add_vptr_nobox wp po in
+      (w, po, names)
     with Contradiction as e -> raise e
        | e -> bug_msg "unexpected exception in find_proj: %s"
                       (Printexc.to_string e);
@@ -1927,15 +1912,12 @@ let find_proj : pool -> Bindlib.ctxt -> valu -> string
 let find_sum : pool -> valu -> (string * valu * pool) option = fun po v ->
   try
     let (vp, po) = add_valu false po v in
-    let (vp, po) = find (Ptr.V_ptr vp) po in
-    match vp with
-      | Ptr.T_ptr(_) -> raise Not_found
-      | Ptr.V_ptr(vp) ->
-         let n = find_v_node vp po in
-         match n with
-         | VN_Cons(c,pt) ->
-            Some (c.elt, Pos.none (VPtr pt), po)
-         | _ -> raise Not_found
+    let vp = find_valu vp po in
+    let n = find_v_node vp po in
+    match n with
+    | VN_Cons(c,pt) ->
+       Some (c.elt, Pos.none (VPtr pt), po)
+    | _ -> raise Not_found
   with Not_found -> None
 
 (* Adds no box to the bool *)
@@ -1943,10 +1925,8 @@ let check_nobox : valu -> pool -> bool * pool = fun v pool ->
   log_edp2 "inserting %a not box in context\n%a" Print.ex v
     (print_pool "        ") pool;
   let (vp, pool) = add_valu true pool v in
-  let (vp, pool) = find (Ptr.V_ptr vp) pool in
-  match vp with
-  | Ptr.T_ptr(_)  -> (false, pool)
-  | Ptr.V_ptr(vp) -> (get_bs vp pool, pool)
+  let vp = find_valu vp pool in
+  (get_bs vp pool, pool)
 
 (** [is_nobox t returns Some(v,is_nobox) with v = t it t is a value
     and is_nobox is true if v is syntactically not box *)
@@ -1978,7 +1958,7 @@ let is_value : term -> pool -> bool * bool * pool = fun t pool ->
   let (pt, pool) = add_term true true pool t in
   log_edp2 "insertion at %a" Ptr.print pt;
   log_edp2 "obtained context:\n%a" (print_pool "        ") pool;
-  let (no_box, po) = is_nobox pt pool in
+  let no_box = is_nobox pt pool in
   let is_val = match pt with
     | Ptr.V_ptr(v) -> true
     | Ptr.T_ptr(_) -> false
@@ -2079,9 +2059,9 @@ let valu_vwit : valu -> pool -> valu = fun t po ->
 
 (** test is a node is a nobox value *)
 let test_value : Ptr.t -> pool -> bool = fun p po ->
-  let (p, po) = find p po in
+  let p = find p po in
   match p with
-    | Ptr.V_ptr(v) -> fst (is_nobox p po)
+    | Ptr.V_ptr(v) -> is_nobox p po
     | Ptr.T_ptr(_) -> false
 
 (** Try to get the list of cases from the type in a VWit to limit
@@ -2177,7 +2157,7 @@ let get_blocked : pool -> blocked list -> blocked list = fun po old ->
       if List.exists (eq_ptr_blocked u) old then acc else
       (*Printf.eprintf "testing %a %a %b %b\n%!" TPtr.print tp print_t_node tn
                      (get_ns tp po) (get_fs tp po);*)
-      if not (get_ns tp po) && fst (is_free u po) then
+      if not (get_ns tp po) && is_free u po then
       begin
         try
           match tn with
@@ -2221,7 +2201,7 @@ let get_blocked : pool -> blocked list -> blocked list = fun po old ->
   let bl =
     List.fold_left (fun acc (vp, vn) ->
         let u = Ptr.V_ptr vp in
-        if not (fst (is_nobox u po)) then
+        if not (is_nobox u po) then
           match vn with
           | VN_VWit(e) ->
              let (_,a,_) = !(e.valu) in
