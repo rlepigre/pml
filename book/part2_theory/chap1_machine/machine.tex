@@ -581,21 +581,21 @@ values in a term yields equivalent terms.
   or symmetrically, $v_1 = □$ and $v_2 = x ∈ \mathcal{V}_{ι}$. To tell these
   values apart we can show $v_1 \not\equiv_0 v_2$ using the substitution
   $ρ = [x := \{\}]$ and the stack $π = [{-}\;\,\{\}]ε$. Indeed, we have
-  ${□ρ ∗ π} = {□ ∗ [{-}\;\,\{\}]ε} ↠_0 {□ ∗ ε}  {⇑}_0$ and ${xρ ∗ π} =
-  {\{\} ∗ [{-}\;\,\{\}]ε} {⇓}_0$.
+  ${□ρ ∗ π} = {□ ∗ [{-}\;\,\{\}]ε} ↠_0 {□ ∗ ε}  {⇓}_0$ and ${xρ ∗ π} =
+  {\{\} ∗ [{-}\;\,\{\}]ε} {⇑}_0$.
   %
   We now consider the case where $v_1 = x ∈ \mathcal{V}_{ι}$ and
   $v_2 = y ∈ \mathcal{V}_{ι}$, with $x ≠ y$. To tell these values apart we
   show $v_1 \not\equiv_0 v_2$ using the substitution $ρ = [x := \{\}][y := □]$
   and (again) the stack $π = [{-}\;\,\{\}]ε$. Indeed, ${v_1ρ ∗ π} =
-  {\{\} ∗ [{-}\;\,\{\}]ε} {⇓}_0$ and
-  ${v_2ρ ∗ π} = {□ ∗ [{-}\;\,\{\}]ε} {⇑}_0$.
+  {\{\} ∗ [{-}\;\,\{\}]ε} {⇑}_0$ and
+  ${v_2ρ ∗ π} = {□ ∗ [{-}\;\,\{\}]ε} {⇓}_0$.
 
   Remain four cases, $v_1 = x  ∈ \mathcal{V}_{ι}$ or $v_1 = □$ and $v_2$ is
   neither a $λ$-variable nor box and the two symmetric cases. When $v_1 =  □$,
   we can take $ρ$ the identity substitution and $π = [{-}\;\,\{\}]ε$ as we have
-  ${v_1ρ ∗ π} = {□ ∗ [{-}\;\,\{\}]ε} {⇑}_0$ and
-    ${v_2ρ ∗ π} = {v_2 ∗ [{-}\;\,\{\}]ε} {⇓}_0$. When $v_1 = x$, we take
+  ${v_1ρ ∗ π} = {□ ∗ [{-}\;\,\{\}]ε} {⇓}_0$ and
+    ${v_2ρ ∗ π} = {v_2 ∗ [{-}\;\,\{\}]ε} {⇑}_0$. When $v_1 = x$, we take
     $ρ = [x := □]$ and the same stack to reach the same conclusion.
 \end{proof}
 
@@ -957,7 +957,7 @@ relation $(≡_{≻})$ coincides with $(≡_{↠_0})$ since $(↠_0) = (≻)$.}
 \end{theorem}
 \begin{proof}
   We have ${(λx.t)\;v ∗ π} ≻ {v ∗ [(λx.t)\;\,{-}]π} ≻ {λx.t ∗ [{-}\;\,v]π} ≻
-  t[x := v]$ for all $π ∈ Π$, so we can conclude using Lemma~\ref{lem:eqred}.
+  t[x := v] ∗ π$ for all $π ∈ Π$, so we can conclude using Lemma~\ref{lem:eqred}.
   Note that it is required that $v ≠ □$, since otherwise the second reduction
   step could not be taken.
 \end{proof}
@@ -1091,7 +1091,10 @@ relation $(≡_{≻})$ coincides with $(≡_{↠_0})$ since $(↠_0) = (≻)$.}
   FV_σ(u)$ we have $t\;(μα.u) ≡ μβ.t\;u[α := [t\;\,{-}]β]$.
 \end{theorem}
 \begin{proof}
-  ... % TODO
+  We have ${t\;(μα.u) ∗ π} ≻ {μα.u ∗ [t \;\,{-}]π} ≻ {u[α := [t \;\,{-}]\pi] ∗
+  [t \;\,{-}]\pi}$ and ${μβ.t\;u[α := [t\;\,{-}]β] ∗ π} ≻  {t\;u[α :=
+  [t\;\,{-}]\pi] ∗ π} ≻ {u[α := [t\;\,{-}]\pi]∗ [t\;\,{-}] π}$. Hence, we can
+  conclude by lemma~\ref{lem:eqred}.
 \end{proof}
 
 % Extraction of μ-abstractions on the left.
@@ -1101,7 +1104,12 @@ relation $(≡_{≻})$ coincides with $(≡_{↠_0})$ since $(↠_0) = (≻)$.}
   the equivalence $(μα.t)\;v ≡ μβ.t[α := [{-}\;\,v]β]\;v$ is satisfied.
 \end{theorem}
 \begin{proof}
-  ... % TODO
+  We have ${(μα.t)\;v ∗ π} ≻ {v ∗ [(μα.t) \;\,{-}]\pi} ≻ {μα.t∗[{-}\;\,v]\pi}
+  ≻ {t[α:= [{-}\;\,v]\pi]∗[{-}\;\,v]\pi}$ and
+  ${μβ.t[α := [{-}\;\,v]β]\;v∗ π}  ≻ {t[α := [{-}\;\,v]π]\;v∗ π}
+  ≻ {v ∗ [t[α := [{-}\;\,v]π]\;,{-}] π} ≻
+  {t[α := [{-}\;\,v]π]∗[{-}\;\,v]\pi}$. Hence, we can
+  conclude by lemma~\ref{lem:eqred}.
 \end{proof}
 
 % Erasing an argument.
@@ -1110,7 +1118,9 @@ relation $(≡_{≻})$ coincides with $(≡_{↠_0})$ since $(↠_0) = (≻)$.}
   we have $([π]t)\;v ≡ [π]t$.
 \end{theorem}
 \begin{proof}
-  ... % TODO
+  We have ${([π_0]t)\;v ∗ π} ≻ {v ∗ [[π_0]t\;,{-}] π} ≻ {[π_0]t ∗ [{-}\;\,v]\pi}
+  ≻ {t ∗ π_0}$ and ${[π_0]t ∗  π} ≻ {t ∗ π_0}$. Hence, we can
+  conclude by lemma~\ref{lem:eqred}.
 \end{proof}
 
 % Erasing a function.
@@ -1118,7 +1128,9 @@ relation $(≡_{≻})$ coincides with $(≡_{↠_0})$ since $(↠_0) = (≻)$.}
   For all $t, u ∈ Λ$ and $π ∈ Π$ we have $t\;([π]u) ≡ [π]u$.
 \end{theorem}
 \begin{proof}
-  ... % TODO
+  We have ${t\;([π_0]u)∗ π} ≻ {([π_0]u)∗ [t\;,{-}]π} ≻ {u ∗  π_0}$ and
+  ${[π_0]u∗ π} ≻ {u ∗  π_0}$. Hence, we can
+  conclude by lemma~\ref{lem:eqred}.
 \end{proof}
 
 % Erasing a stack.
@@ -1129,6 +1141,8 @@ relation $(≡_{≻})$ coincides with $(≡_{↠_0})$ since $(↠_0) = (≻)$.}
   Since we have ${[π₁][π₂]t ∗ π} ≻ {[π₂]t ∗ π₁} ≻ {t ∗ π₂}$ and ${[π₂]t ∗ π} ≻
   {t ∗ π₂}$ for all $π ∈ Π$, we can conclude using Lemma~\ref{lem:eqred}.
 \end{proof}
+
+TODO inequivalence
 
 \section{Canonical values}
 
