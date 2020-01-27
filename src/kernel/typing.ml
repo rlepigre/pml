@@ -385,6 +385,14 @@ let learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
     | _          -> ctx
   in fn ctx wit a
 
+let learn_equivalences_term : ctxt -> term -> prop -> ctxt = fun ctx t a ->
+  match to_value t ctx.equations with
+  | (Some(v), equations) ->
+     let ctx = { ctx with equations } in
+     learn_equivalences ctx v a
+  | (_      , equations) ->
+     { ctx with equations }
+
 let rec is_singleton : prop -> term option = fun t ->
   match (Norm.whnf t).elt with
   | Memb(x,_) -> Some x
@@ -775,6 +783,7 @@ let rec subtype =
           else gen_subtype ctx a b
       (* Membership on the right. *)
       | (_          , Memb(u,b)  ) when t_is_val ->
+          let ctx = learn_equivalences_term ctx t a in
           prove ctx.equations ctx.auto.old (Equiv(t,true,u));
           Sub_Memb_r(subtype ctx t a b)
       (* Restriction on the right. *)
@@ -785,6 +794,7 @@ let rec subtype =
              try  Some(subtype (learn ctx e) t a c)
              with Contradiction -> None
            in
+           let ctx = learn_equivalences_term ctx t a in
            prove ctx.equations ctx.auto.old e;
            Sub_Rest_r(prf)
           end
