@@ -176,8 +176,8 @@ let {eq_expr; eq_bndr} =
     (** second we try the oracle *)
     try
       match (Ast.sort e1, Ast.sort e2) with
-      | (V, e1), (V,e2) -> oracle.eq_val e1 e2
-      | (T, e1), (T,e2) -> oracle.eq_trm e1 e2
+      | (V, e1), (V,e2) -> oracle.eq_val e1 e2 || raise DontKnow
+      | (T, e1), (T,e2) -> oracle.eq_trm e1 e2 || raise DontKnow
       | _ -> raise DontKnow
     with DontKnow ->
     (** third we recurse *)
