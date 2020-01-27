@@ -36,8 +36,8 @@ let arrow ch t =
   match complete t with
   | Some l -> (match List.mem Loop l, List.mem CallCC l with
               | false, false -> fprintf ch "⇒"
-              | true , false -> fprintf ch "→"
-              | false, true  -> fprintf ch "⇏"
+              | true , false -> fprintf ch "⇏"
+              | false, true  -> fprintf ch "→"
               | true , true  -> fprintf ch "↛")
   | _        -> fprintf ch "?>"
 
