@@ -25,16 +25,16 @@ module type FinSet = sig
   initial constraints *)
   val create : ?absent:set -> ?present:set -> unit -> t
 
-  (** returns Some l is the set is fully known *)
+  (** returns Some l if the set is fully known *)
   val complete : t -> elt list option
 
-  (** returns true is the elt is in the set of the constraint to add it if
+  (** returns true is the elt is in the set or the constraint to add it is
   consistent with the current constraints. No constraints are added if the
   function returns false *)
   val present : elt -> t -> bool
 
-  (** returns true is the elt is not in the set of the constraint to remove
-  it if consistent with the current constraints. No constraints are added if
+  (** returns true is the elt is not in the set or the constraint to remove
+  it is consistent with the current constraints. No constraints are added if
   the function returns false *)
   val absent : elt -> t -> bool
 
