@@ -87,8 +87,6 @@ let iter : type a. iterator -> a ex loc -> unit
         | Reco(m)       -> A.iter (fun _ (_,v) -> iter v) m
         | Scis          -> ()
         | VDef(_)       -> () (* Assumed closed *)
-        | CPsi          -> ()
-        | Clck(v)       -> iter v
 
         | Coer(t,e,a)   -> iter e
         | Such(t,d,r)   -> iter (bseq_open r.binder)
