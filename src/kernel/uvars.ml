@@ -23,7 +23,7 @@ exception Occurs
 (** The iterator on unif variables appearing in an expression *)
 let uvar_iter : type a. bool -> bool -> uvar_fun -> a ex loc -> unit =
   fun ignore_epsilon ignore_fixpoint f e ->
-    let rec iterator : type a. recall -> a ex loc -> unit = fun {default} e ->
+    let iterator : type a. recall -> a ex loc -> unit = fun {default} e ->
       let e = Norm.whnf e in
       match e.elt with
       | UVar(s,u)   -> f.f s u

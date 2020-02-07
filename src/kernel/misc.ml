@@ -29,100 +29,70 @@ let fake_bind :  type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
   let v = new_mvar (mk_free O) [||] in
   (unbox (bind_mvar v e), [||])
 
+let no_bound_var : type a. a ex loc -> bool = fun e ->
+  let open Iter in
+  let iterator : type a. recall -> a ex loc -> unit = fun {default} e ->
+    let e = Norm.whnf e in
+    match e.elt with
+    | Vari _   -> raise Exit
+    | ITag _   -> raise Exit
+    | _        -> default e
+  in
+  let iterator = { iterator; doclosed = false
+                 ; dofixpnt = true
+                 ; doepsiln = false }
+  in
+  try iter iterator e; true with Exit -> false
+
+let occur_in : type a b. b ex loc -> a ex loc -> bool = fun f e ->
+  let open Iter in
+  let (fs,f) = sort f in
+  let iterator : type a. recall -> a ex loc -> unit = fun {default} e ->
+    Printf.printf "testing %a\n%!" Print.ex e;
+    let (es, e) = sort e in
+    match eq_sort fs es with
+    | Eq -> if eq_expr e f then raise Exit else default e
+    | NEq -> default e
+  in
+  let iterator = { iterator; doclosed = true
+                 ; dofixpnt = true
+                 ; doepsiln = false }
+  in
+  try iter iterator e; false with Exit -> true
+
 let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
   (* Compute the list of all the surface ordinal witnesses. *)
-  let rec owits : type a. ordi list -> a ex loc -> ordi list = fun acc e ->
-    let from_cond acc c =
-      match c with
-      | Equiv(t,_,u) -> owits (owits acc t) u
-      | NoBox(v)     -> owits acc v
-    in
-    let rec from_args : type a b. ordi list -> (a,b) fix_args -> ordi list =
-      fun acc l ->
-        match l with
-        | Nil       -> acc
-        | Cns(a, l) -> from_args (owits acc a) l
-    in
+  let open Iter in
+  let owits = ref ([] : o ex loc list) in
+  let add e = if not (is_in e !owits) then owits := e :: !owits in
+  let iterator : type a. recall -> a ex loc -> unit = fun {default} e ->
     match (Norm.whnf e).elt with
-    | HDef(_,_)   -> acc
-    | HApp(_,f,a) -> owits (owits acc f) a
-    | HFun(s,_,f) -> owits acc (bndr_term f)
     | UWit(w)     ->
         begin
           let (s,_,_) = !(w.valu) in
           match s with
-          | O -> if is_in e acc then acc else e :: acc
-          | _ -> acc
+          | O -> add e
+          | _ -> ()
         end
     | EWit(w)     ->
         begin
           let (s,_,_) = !(w.valu) in
           match s with
-          | O -> if is_in e acc then acc else e :: acc
-          | _ -> acc
+          | O -> add e
+          | _ -> ()
         end
-    | UVar(_,_)   -> acc
-    | Goal(_,_)   -> acc
-
-    | Func(_,a,b,l)
-                  -> owits (owits acc a) b
-    | Prod(m)     -> A.fold (fun _ (_,a) acc -> owits acc a) m acc
-    | DSum(m)     -> A.fold (fun _ (_,a) acc -> owits acc a) m acc
-    | Univ(s,f)   -> owits acc (bndr_term f)
-    | Exis(s,f)   -> owits acc (bndr_term f)
-    | FixM(s,o,f,l)
-                  -> from_args (owits (owits acc o) (bndr_term f)) l
-    | FixN(s,o,f,l)
-                  -> from_args (owits (owits acc o) (bndr_term f)) l
-    | Memb(t,a)   -> owits (owits acc t) a
-    | Rest(a,c)   -> owits (from_cond acc c) a
-    | Impl(c,a)   -> owits (from_cond acc c) a
-
-    | VWit(_)     -> acc
-    | LAbs(_,f,_) -> owits acc (bndr_term f)
-    | Cons(_,v)   -> owits acc v
-    | Reco(m)     -> A.fold (fun _ (_,v) acc -> owits acc v) m acc
-    | Scis        -> acc
-    | VDef(_)     -> acc
-
-    | Valu(v)     -> owits acc v
-    | Appl(t,u,l) -> owits (owits acc t) u
-    | FixY(f)     -> owits acc (bndr_term f)
-    | MAbs(f)     -> owits acc (bndr_term f)
-    | Name(s,t)   -> owits (owits acc s) t
-    | Proj(v,_)   -> owits acc v
-    | Case(v,m)   -> let fn _ (_,f) acc = owits acc (bndr_term f) in
-                     A.fold fn m (owits acc v)
-    | Prnt(_)     -> acc
-    | Repl(t,u)   -> owits acc u
-    | Delm(u)     -> owits acc u
-    | Hint(_,u)   -> owits acc u
-    | Clck(v)     -> owits acc v
-
-    | Coer(_,e,_) -> owits acc e
-    | Such(_,_,b) -> owits acc (bseq_open b.binder)
-
-    | SWit(_)     -> acc
-
-    | Conv        -> acc
-    | Succ(o)     -> owits acc o
-    | OWMu(_)     -> if is_in e acc then acc else e :: acc
-    | OWNu(_)     -> if is_in e acc then acc else e :: acc
-    | OSch(_)     -> if is_in e acc then acc else e :: acc
-    | ESch(s,_,w) -> begin
-                       match s with
-                       | O -> if is_in e acc then acc else e :: acc
-                       | _ -> acc
-                     end
-
-    | Vari _      -> acc
-    | VPtr _      -> acc
-    | TPtr _      -> acc
-    | CPsi        -> acc
-    | ITag _      -> assert false
+    | OWMu(_)     -> add e
+    | OWNu(_)     -> add e
+    | OSch(_)     -> add e
+    | _           -> default e
   in
+  let iterator = { iterator; doclosed = true
+                 ; dofixpnt = true
+                 ; doepsiln = false }
+  in
+  iter iterator e;
   (* The ordinals to be bound. *)
-  let owits = owits [] e in
+  let owits = !owits in
   let os = Array.of_list owits in
   let arity = Array.length os in
   (* Name for the corresponding variables. *)
@@ -131,6 +101,7 @@ let bind_ordinals : type a. a ex loc -> (o, a) mbndr * ordi array = fun e ->
   let xs = new_mvar (mk_free O) xs in
   (* Binding function. *)
   let bind_all : type a. a ex loc -> a ebox =
+    let open Mapper in
     let mapper : type a. recall -> a ex loc -> a ebox = fun { default } e ->
       let var_of_ordi_wit : type a.a sort -> a ex loc -> a ebox = fun s o ->
         match s with
@@ -165,13 +136,16 @@ type slist =
   | Cns : 'a sort * 'a ex loc * slist -> slist
 
 let in_slist : type a. a ex loc -> slist -> bool = fun e l ->
-  let (s, e) = sort e in
   let rec fn = function
     | Nil          -> false
-    | Cns(s1,e1,l) ->
-       match eq_sort s s1 with
-       | Eq.Eq  -> eq_expr e e1 || fn l
-       | Eq.NEq -> fn l
+    | Cns(s1,e1,l) -> occur_in e1 e || fn l
+  in
+  fn l
+
+let filter_slist : type a. a ex loc -> slist -> slist = fun e l ->
+  let rec fn = function
+    | Nil          -> Nil
+    | Cns(s1,e1,l) -> if occur_in e e1 then l else Cns(s1,e1, fn l)
   in
   fn l
 
@@ -204,92 +178,39 @@ let rec mk_sassoc : slist -> sassoc = function
 
 let bind_params : Equiv.pool -> p ex loc -> sbndr box * slist = fun po e ->
   (* Compute the list of all the surface ordinal witnesses. *)
-
-  let rec params : type a. slist -> a ex loc -> slist = fun acc e ->
-    let from_cond acc c =
-      match c with
-      | Equiv(t,_,u) -> params (params acc t) u
-      | NoBox(v)     -> params acc v
-    in
-    let rec from_args : type a b. slist -> (a,b) fix_args -> slist =
-      fun acc l ->
-        match l with
-        | Nil       -> acc
-        | Cns(a, l) -> let acc =
-                         if in_slist a acc then acc else
-                           let (s,a) = sort a in
-                           Cns(s,a,acc)
-                       in
-                       from_args (params acc a) l
-    in
-    match (Norm.whnf e).elt with
-    | HDef(_,_)   -> acc
-    | HApp(_,f,a) -> params (params acc f) a
-    | HFun(s,_,f) -> let (_,t) = bndr_open f in params acc t
-    | UWit(w)     -> acc
-    | EWit(w)     -> acc
-    | UVar(_,_)   -> acc
-    | Goal(_,_)   -> acc
-
-    | Func(_,a,b,l)
-                  -> params (params acc a) b
-    | Prod(m)     -> A.fold (fun _ (_,a) acc -> params acc a) m acc
-    | DSum(m)     -> A.fold (fun _ (_,a) acc -> params acc a) m acc
-    | Univ(s,f)   -> let (_,t) = bndr_open f in params acc t
-    | Exis(s,f)   -> let (_,t) = bndr_open f in params acc t
-    | FixM(s,o,f,l)
-                  -> let (_,t) = bndr_open f in
-                     from_args (params (params acc o) t) l
-    | FixN(s,o,f,l)
-                  -> let (_,t) = bndr_open f in
-                     from_args (params (params acc o) t) l
-    | Memb(t,a)   -> params (params acc t) a
-    | Rest(a,c)   -> params (from_cond acc c) a
-    | Impl(c,a)   -> params (from_cond acc c) a
-
-    | VWit(_)     -> acc
-    | LAbs(_,f,_) -> let (_,t) = bndr_open f in params acc t
-    | Cons(_,v)   -> params acc v
-    | Reco(m)     -> A.fold (fun _ (_,v) acc -> params acc v) m acc
-    | Scis        -> acc
-    | VDef(_)     -> acc
-    | CPsi        -> acc
-
-    | Valu(v)     -> params acc v
-    | Appl(t,u,_) -> params (params acc t) u
-    | FixY(f)     -> let (_,t) = bndr_open f in params acc t
-    | MAbs(f)     -> let (_,t) = bndr_open f in params acc t
-    | Name(s,t)   -> params (params acc s) t
-    | Proj(v,_)   -> params acc v
-    | Case(v,m)   -> let fn _ (_,f) acc = params acc (bndr_term f) in
-                     A.fold fn m (params acc v)
-    | Prnt(_)     -> acc
-    | Repl(t,u)   -> params acc u
-    | Delm(u)     -> params acc u
-    | Hint(_,u)   -> params acc u
-    | Clck(v)     -> params acc v
-
-    | Coer(_,e,_) -> params acc e
-    | Such(_,_,b) -> params acc (bseq_open b.binder)
-
-    | SWit(_)     -> acc
-
-    | Conv        -> acc
-    | Succ(o)     -> params acc o
-    | OWMu(_)     -> acc
-    | OWNu(_)     -> acc
-    | OSch(_)     -> acc
-    | ESch(_)     -> acc
-
-    | Vari _      -> acc
-    | VPtr _      -> acc
-    | TPtr _      -> acc
-    | ITag _      -> assert false
+  let params = ref (Nil:slist) in
+  let rec from_args : type a b. (a,b) fix_args -> unit = fun l ->
+    match l with
+    | Nil       -> ()
+    | Cns(a, l) -> if no_bound_var a && not (in_slist a !params)
+                   then
+                     begin
+                       let (s,a) = sort a in
+                       match eq_sort s O with
+                       | Eq  -> ()
+                       | NEq -> params := Cns(s,a,filter_slist a !params)
+                     end;
+                   from_args  l
   in
+  let open Iter in
+  let iterator : type a. recall -> a ex loc -> unit = fun { default } e ->
+    match (Norm.whnf e).elt with
+    | FixM(s,o,f,l) -> let (_,t) = bndr_open f in
+                       from_args l; default o; default t
+    | FixN(s,o,f,l) -> let (_,t) = bndr_open f in
+                       from_args l; default o; default t
+    | _             -> default e
+  in
+  let iterator = { iterator; doclosed = true
+                 ; dofixpnt = true
+                 ; doepsiln = false }
+  in
+  iter iterator e;
   (* The ordinals to be bound. *)
-  let params = params Nil e in
+  let params = !params in
   let assoc = mk_sassoc params in
   (* Binding function. *)
+  let open Mapper in
   let bind_all : type a. a ex loc -> a ebox =
     let mapper : type a. recall -> a ex loc -> a ebox = fun { default } e ->
       try
