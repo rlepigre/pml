@@ -48,7 +48,6 @@ let occur_in : type a b. b ex loc -> a ex loc -> bool = fun f e ->
   let open Iter in
   let (fs,f) = sort f in
   let iterator : type a. recall -> a ex loc -> unit = fun {default} e ->
-    Printf.printf "testing %a\n%!" Print.ex e;
     let (es, e) = sort e in
     match eq_sort fs es with
     | Eq -> if eq_expr e f then raise Exit else default e
