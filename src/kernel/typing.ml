@@ -616,34 +616,42 @@ let rec subtype =
            end
           (* NOTE may need a backtrack because a right rule could work *)
           else gen_subtype ctx a b
-      | (FixM(s,o,f,l), _          ) when t_is_val ->
-          mu_nu_heuristique true s o l f b;
-          let ctx, o' =
-            let o = Norm.whnf o in
-            match o.elt with
-              Succ o' -> (ctx, o')
-            | _ ->
-               let f o = unroll_FixM s (Pos.none o) f l in
-               let f = raw_binder "o" true 0 (mk_free O) f in
-               let (o', ctx_names) = owmu ctx.ctx_names o t (None,f) in
+      | (FixM(s,o,f,l), _          ) ->
+          if t_is_val then (* avoid creating a witness with a unif var *)
+            begin
+              mu_nu_heuristique true s o l f b;
+              let ctx, o' =
+                let o = Norm.whnf o in
+                match o.elt with
+                  Succ o' -> (ctx, o')
+                | _ ->
+                   let f o = unroll_FixM s (Pos.none o) f l in
+                   let f = raw_binder "o" true 0 (mk_free O) f in
+                   let (o', ctx_names) = owmu ctx.ctx_names o t (None,f) in
+                   let ctx = { ctx with ctx_names } in
+                   (add_positive ctx o o', o')
+              in
+              Sub_FixM_l(false, subtype ctx t (unroll_FixM s o' f l) b)
+            end
+          else gen_subtype ctx a b
+      | (_          , FixN(s,o,f,l)) ->
+         if t_is_val then (* avoid creating a witness with a unif var *)
+           begin
+             mu_nu_heuristique false s o l f a;
+             let ctx, o' =
+               let o = Norm.whnf o in
+               match o.elt with
+                 Succ o' -> (ctx, o')
+               | _ ->
+                  let f o = unroll_FixN s (Pos.none o) f l in
+                  let f = raw_binder "o" true 0 (mk_free O) f in
+               let (o', ctx_names) = ownu ctx.ctx_names o t (None, f) in
                let ctx = { ctx with ctx_names } in
                (add_positive ctx o o', o')
-          in
-          Sub_FixM_l(false, subtype ctx t (unroll_FixM s o' f l) b)
-      | (_          , FixN(s,o,f,l)) when t_is_val ->
-          mu_nu_heuristique false s o l f a;
-          let ctx, o' =
-            let o = Norm.whnf o in
-            match o.elt with
-              Succ o' -> (ctx, o')
-            | _ ->
-               let f o = unroll_FixN s (Pos.none o) f l in
-               let f = raw_binder "o" true 0 (mk_free O) f in
-               let (o', ctx_names) = ownu ctx.ctx_names o t (None, f) in
-              let ctx = { ctx with ctx_names } in
-              (add_positive ctx o o', o')
-          in
-          Sub_FixN_r(false, subtype ctx t a (unroll_FixN s o' f l))
+             in
+             Sub_FixN_r(false, subtype ctx t a (unroll_FixN s o' f l))
+            end
+          else gen_subtype ctx a b
       | _ ->
       match Chrono.add_time check_sub_chrono (check_sub ctx a) b with
       | Sub_Applies prf    -> prf
