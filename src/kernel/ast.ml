@@ -91,6 +91,7 @@ type _ ex =
   (** Definition of a value. *)
   | VPtr : v_ptr                                     -> v  ex
   (** Pointer in the pool. *)
+  | CPsi                                             : (v -> v) ex
 
   (* Term constructors. *)
 
@@ -117,7 +118,9 @@ type _ ex =
   | Delm : t ex loc                                  -> t  ex
   (** Hint for the proof checker *)
   | Hint : value hint * t ex loc                     -> t  ex
-
+  (** Clock *)
+  | Clck : v ex loc                                  -> t ex
+  (** second member of the enumaration by the clock *)
   (* Ordinal constructors. *)
 
   | Conv :                                              o  ex
@@ -305,6 +308,7 @@ and  e_term =
   | TProj of e_valu * string
   | TCase of e_valu * (e_valu, e_term) Bindlib.binder A.t
   | TPrnt of string
+  | TClck of e_valu
 and  e_stac =
   | SVari of e_stac Bindlib.var
   | SEpsi
@@ -430,6 +434,12 @@ let appl : popt -> laz -> tbox -> tbox -> tbox =
 
 let hint : popt -> value hint -> tbox -> tbox =
   fun p h -> box_apply (fun t -> Pos.make p (Hint(h,t)))
+
+let clck : popt -> vbox -> tbox =
+  fun p -> box_apply (fun v -> Pos.make p (Clck v))
+
+let cpsi : popt -> (v -> v) ex loc box =
+  fun p -> box (Pos.make p CPsi)
 
 let sequ : popt -> tbox -> tbox -> tbox =
   fun p t u ->
@@ -659,6 +669,26 @@ let eq_true : popt -> tbox -> pbox =
     let cond = equiv t true (valu None true_) in
     rest _loc (strict_prod None A.empty) cond
 
+(** {5 Useful types} *)
+
+let nat : pbox =
+  fixm None P (conv None) (Pos.none "nat") (fun r ->
+      let m = A.add "Zero" (None, strict_prod None A.empty)
+                (A.add "S" (None, vari None r) A.empty)
+      in
+      dsum None m) (box Nil)
+
+let pair a b : pbox =
+  let m = A.add "1" (None, a) (A.add "2" (None, b) A.empty) in
+  strict_prod None m
+
+let ac_right a v =
+  unbox (exis None (Pos.none "n") V (fun n ->
+             let n = vari None n in
+             let psi_n = valu None (happ None V (cpsi None) n) in
+             rest None (memb None (valu None n) nat)
+               (equiv psi_n true (valu None (box v)))))
+
 (** {5 useful functions} *)
 
 let rec is_scis : type a. a ex loc -> bool =
@@ -722,6 +752,7 @@ let rec sort : type a. a ex loc -> a sort * a ex loc = fun e ->
   | Coer(VoT_V,_,_) -> (V,e)
   | Such(VoT_V,_,_) -> (V,e)
   | VPtr _          -> (V,e)
+  | CPsi            -> (F(V,V),e)
 
   | Valu _          -> (T,e)
   | Appl _          -> (T,e)
@@ -737,6 +768,7 @@ let rec sort : type a. a ex loc -> a sort * a ex loc = fun e ->
   | Repl(_,_)       -> (T,e)
   | Delm _          -> (T,e)
   | Hint _          -> (T,e)
+  | Clck _          -> (T,e)
 
   | SWit _          -> (S,e)
 

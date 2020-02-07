@@ -20,6 +20,7 @@ type par_key =
   | KT_Case of (A.key * int) option (* None for the main value *)
   | KT_FixY of int
   | KT_HApp of int
+  | KT_Clck
 
 let is_head = function
   | KT_Appl _

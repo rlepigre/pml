@@ -194,6 +194,8 @@ and raw_ex' =
   | EInfx of raw_ex * float (* for parsing *)
   | EConv
   | ESucc of raw_ex * int
+  | EClck of raw_ex
+  | ECPsi
 
   | EGoal of string
 
@@ -248,6 +250,8 @@ let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
                          print t print u aux_opt p
     | EDelm(u)      -> Printf.fprintf ch "EDelm(%a)" print u
     | EHint(h,u)    -> Printf.fprintf ch "EHint(%a,%a)" Print.lhint h print u
+    | EClck(v)      -> Printf.fprintf ch "EClck(%a)" print v
+    | ECPsi         -> Printf.fprintf ch "ECPsi"
     | ECoer(_,t,a)  -> Printf.fprintf ch "ECoer(%a,%a)" print t print a
     | ESuch(_,v,j,u)-> let x = Option.default (none "_") (fst j) in
                        Printf.fprintf ch "ESuch(%a,%s,%a,%a)"
@@ -520,6 +524,10 @@ let infer_sorts : raw_ex -> raw_sort -> unit = fun e s ->
     | (EScis        , ST       ) -> ()
     | (EScis        , SUni(r)  ) -> sort_uvar_set r _sv; infer vars e s
     | (EScis        , _        ) -> sort_clash e s
+    | (EClck(v)     , ST       ) -> infer vars v _sv
+    | (EClck(v)     , SUni(r)  ) -> sort_uvar_set r _st; infer vars e s
+    | (EClck(v)     , _        ) -> sort_clash e s
+    | (ECPsi        , _        ) -> leq (none (SFun(_sv,_sv))) s
     | (EGoal(str)   , SV _     )
     | (EGoal(str)   , ST       )
     | (EGoal(str)   , SS       ) -> ()
@@ -915,6 +923,11 @@ let unsugar_expr : raw_ex -> raw_sort -> boxed = fun e s ->
           | _        -> assert false
         end
     (* Terms. *)
+    | (EClck(v)     , ST       ) ->
+         let v = to_valu (unsugar env vars v _sv) in
+         Box(T, clck e.pos v)
+    | (ECPsi        , SFun(_,_)) ->
+         Box(F(V,V), cpsi e.pos)
     | (EAppl(t,u,l) , ST       ) ->
         let t = to_term (unsugar env vars t _st) in
         let u = to_term (unsugar env vars u _st) in
@@ -1225,6 +1238,8 @@ let filter_args : string -> (strloc * raw_sort) list -> raw_ex ->
            in
            List.iter fn l
          end
+      | EClck(v)   -> fn v stack bounded
+      | ECPsi      -> ()
       | EFixY(a,v) ->
          if a.elt<>id then fn v stack (a.elt :: bounded)
       | EPrnt(_) -> ()

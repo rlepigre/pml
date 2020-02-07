@@ -253,6 +253,7 @@ type typ_rule =
   | Typ_Repl   of typ_proof
   | Typ_Delm   of typ_proof
   | Typ_Cont
+  | Typ_Clck   of sub_proof * typ_proof
 
 and  stk_rule =
   | Stk_Push   of sub_rule * typ_proof * stk_proof
@@ -1766,6 +1767,11 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
        in
        let p = type_term ctx t c in
        Typ_Delm(p)
+    | Clck(v) ->
+       let a = new_uvar ctx P in
+       let p = subtype ctx t (ac_right a v) c in
+       let q = type_valu ctx v a in
+       Typ_Clck(p,q)
     | Hint(h,t)   ->
        let ctx, restore =
          match h with

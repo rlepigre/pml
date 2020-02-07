@@ -80,6 +80,9 @@ let tcase : e_vbox -> (string * (e_vvar -> e_tbox)) A.t -> e_tbox =
 let tprnt : string -> e_tbox =
   fun s -> box (TPrnt(s))
 
+let tclck : e_vbox -> e_tbox =
+  fun v -> box_apply (fun v -> TClck v) v
+
 (* Smart constructors for stacks. *)
 let sepsi : e_sbox =
   box SEpsi
@@ -97,11 +100,25 @@ exception Runtime_error of string
 let runtime_error : type a. string -> a =
   fun msg -> raise (Runtime_error msg)
 
+
+let read_clock =
+  let clock = ref 0 in
+  let rec fn = function
+    | 0 -> VCons("Zero", VReco(A.empty))
+    | n -> assert(n>0); VCons("S", fn (n-1))
+  in
+  (fun () ->
+    let r = fn !clock in
+    incr clock;
+    r)
+
 let rec eval : e_term -> e_stac -> e_valu = fun t s -> match (t, s) with
   | (TValu(v)          , SEpsi      ) -> v
   | (TValu(v)          , SFram(t,pi)) -> eval t (SPush(v,pi))
   | (TValu(VVdef(d))   , pi         ) -> eval (TValu(d.value_eval)) pi
   | (TValu(VLAbs(b))   , SPush(v,pi)) -> eval (subst b v) pi
+  | (TClck(v)          , pi         ) -> eval t (SPush(VReco(A.add "1" (read_clock ())
+                                                            (A.add "2" v A.empty)), pi))
   | (TValu(VLazy(e))   , SPush(_,pi)  ) ->
      let v =
        match !e with

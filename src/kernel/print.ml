@@ -450,6 +450,8 @@ let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
             fprintf ch "%s:%a, " (name_of x) sort s;
             aux seq
       in aux r.binder
+  | CPsi        -> fprintf ch "ψ"
+  | Clck(v)     -> fprintf ch "χ(%a)" exp v
   | ITag(_,i)   -> fprintf ch "#%i" i
   | VWit(w)     -> fprintf ch "%s%a" w.name print_vars e
   | SWit(w)     -> fprintf ch "%s%a" w.name print_vars e

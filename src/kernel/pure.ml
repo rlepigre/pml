@@ -71,6 +71,8 @@ let pure : type a. a ex loc -> bool =
     | Valu(v)     -> iter v
     | Appl(t,u,_) -> iter t; iter u
     | Hint(_,t)   -> iter t
+    | CPsi        -> ()
+    | Clck(v)     -> iter v
 
     (* NOTE type annotation ignored. *)
     | MAbs(b)     -> biter S b

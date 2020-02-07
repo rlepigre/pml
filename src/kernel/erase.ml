@@ -83,6 +83,7 @@ and     term_erasure : term -> e_tbox = fun t ->
                      match h with Sugar -> tvalu (vreco A.empty)
                                 | _ -> term_erasure t
                    end
+  | Clck(v)     -> tclck (valu_erasure v)
   | Coer(_,t,_) -> term_erasure t
   | Such(_,_,r) -> term_erasure (bseq_open r.binder)
   | TPtr(_)     -> erasure_error "a pool pointer cannot be erased (term)"
@@ -168,6 +169,7 @@ and to_term : e_term -> tbox = fun t ->
                     in (None, Pos.none (binder_name b), f)
                   in case None (to_valu v) (A.map f m)
   | TPrnt(s)   -> prnt None s
+  | TClck(v)   -> clck None (to_valu v)
 
 and to_stac : e_stac -> tbox -> tbox = fun s t ->
   let rec fn s t =

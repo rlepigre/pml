@@ -79,6 +79,9 @@ let {hash_expr; hash_bndr; hash_ombinder; hash_vwit
     | Repl(_,u)     -> hash_expr u
     | Delm(u)       -> hash_expr u
     | Hint(_,u)     -> hash_expr u
+    | CPsi          -> hash `CPsi
+    | Clck(v)       -> khash1 `Clck (hash_expr v)
+
     | Conv          -> hash `Conv
     | Succ(o)       -> khash1 `Succ (hash_expr o)
 

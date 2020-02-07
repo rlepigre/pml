@@ -66,6 +66,8 @@ let map : type a. ?mapper:mapper -> a ex loc -> a ebox
         | Reco(m)       -> reco e.pos (A.map (fun (p,v) -> (p, map v)) m)
         | Scis          -> Bindlib.box e
         | VDef(_)       -> Bindlib.box e
+        | CPsi          -> Bindlib.box e
+        | Clck(v)       -> clck e.pos (map v)
 
         | Coer(t,e,a)   -> coer e.pos t (map e) (map a)
         | Such(t,d,r)   -> let sv =

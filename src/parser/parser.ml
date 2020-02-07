@@ -306,6 +306,8 @@ and [@cache] ho_fun =
 and [@cache] ho_app =
     (e::expr HO) (args::ho_args)
       => in_pos _pos (EHOAp(e, new_sort_uvar None, args))
+  ; "ψ"
+    => in_pos _pos ECPsi
 
 and [@cache] expr_var =
     (id::llid) (s:: ~? ('^' (e::expr (Ord E)) => e))
@@ -423,6 +425,9 @@ and [@cache] term_atom  =
   (* Term (scisors) *)
   ; scis
       => in_pos _pos EScis
+  ; "χ"
+    => in_pos _pos (ELAbs (((in_pos _pos "x",None), []),
+                           in_pos _pos (EClck(in_pos _pos (EVari(none "x",_sv)))), NoLz))
   (* Term (mu abstraction) *)
   ; _save_ (arg::llid) '{' (t::term) '}'
       => in_pos _pos (EMAbs(arg,t))

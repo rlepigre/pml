@@ -164,6 +164,7 @@ type t_node =
   | TN_UVar of t uvar
   | TN_Vari of t var
   | TN_Goal of t ex loc
+  | TN_Clck of VPtr.t
 
  and tn_fixy_state =
    | Prep
@@ -265,6 +266,7 @@ let print_t_node : out_channel -> t_node -> unit = fun ch n ->
   | TN_UVar(v)     -> prnt ch "TN_UVar(%a)" pex (Pos.none (UVar(T,v)))
   | TN_Vari(x)     -> prnt ch "TN_Vari(%s)" (name_of x)
   | TN_Goal(t)     -> prnt ch "TN_Goal(%a)" pex t
+  | TN_Clck(pv)    -> prnt ch "TN_Clck(%a)" VPtr.print pv
 
 (** Type of a pool. *)
 type pool =
@@ -490,13 +492,14 @@ let children_t_node : t_node -> (par_key * Ptr.t) list = fun n ->
                       let kn n = KT_HApp n in
                       snd (children_closure b kn
                           (children_closure c kn (0,[])))
+  | TN_Clck(pv)    -> [(KT_Clck, Ptr.V_ptr pv)]
   | TN_UWit _
   | TN_EWit _
   | TN_ESch _
   | TN_Prnt _
   | TN_Goal _
   | TN_UVar _  (* TODO #4 check *)
-  | TN_Vari _      -> []
+  | TN_Vari _ -> []
 
 (** purity test (having only total arrows). Only epsilon
     contains type in the pool *)
@@ -899,6 +902,8 @@ let rec add_term :  bool -> bool -> pool -> term
     | UVar(_,v)   -> insert (TN_UVar(v)) po
     | Goal(_)     -> insert (TN_Goal(t)) po
     | Vari(s,x)   -> insert (TN_Vari(x)) po
+    | Clck(v)     -> let (pv, po) = add_valu po v in
+                     insert (TN_Clck(pv)) po
     | TPtr(pt)    -> if free then normalise pt po else (find pt po, po)
     | ITag(_,n)   -> invalid_arg "itag in terms forbidden"
     | FixM(_)     -> invalid_arg "mu in terms forbidden"
@@ -1203,8 +1208,9 @@ and normalise_t_node : ?old:TPtr.t -> t_node -> pool -> Ptr.t  * pool =
       | TN_ESch(_)
       | TN_HApp(_)
       | TN_Goal(_)
-      | TN_Vari(_)    -> let po = set_ns po in
-                         insert node po
+      | TN_Vari(_)
+      | TN_Clck(_) -> let po = set_ns po in
+                      insert node po
     in
     (find p po, po)
 
@@ -1429,6 +1435,8 @@ and canonical_term : bool -> TPtr.t -> pool -> term * pool
                             end
         | TN_Vari(x)     -> (Pos.none (Vari(T,x)), po)
         | TN_Goal(t)     -> (t, po)
+        | TN_Clck(pv)    -> let (v,po) = cv pv po in
+                            (Pos.none (Clck v), po)
       end
   | Ptr.V_ptr(p) ->
       let (v, po) = cv p po in
