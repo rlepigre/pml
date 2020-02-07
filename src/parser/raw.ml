@@ -1157,9 +1157,7 @@ let filter_args : string -> (strloc * raw_sort) list -> raw_ex ->
          gn 0 stack args
       | EVari(_) -> ()
       | EHOAp(e,sx,es) ->
-         Printf.printf "coucou 1 \n%!";
          List.iter (fun e -> fn e [] bounded) es;
-         Printf.printf "coucou 2 \n%!";
          fn e (es @ stack) bounded
       | EInfx _ -> ()
       | EHOFn(x,k,f) -> if x.elt <> id then fn f stack (x.elt::bounded)
