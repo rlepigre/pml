@@ -494,6 +494,13 @@ and [@cache] term_seq =
   (* Term (let binding) *)
   ; _let_ (r::v_rec) (arg::let_arg) '=' (t::expr (Trm R)) ';' (u::expr (Trm S))
       => let_binding _pos r arg t u
+  (* Local definition *)
+  ; _def_ (id::llid) (args::s_args) (s::~?(':' (s::sort) => s)) '=' (e::any)
+          ';' (u::expr (Trm S))
+      => local_expr_def _pos id args s e u
+  (* local definition of a proposition (special case of expression). *)
+  ; _type_ (r::t_rec) (id::llid) (args::s_args) '=' (e::prop) ';' (u::expr (Trm S))
+      => local_type_def _pos r id args e u
   (* Term (sequencing). *)
   ; (t::expr (Trm R)) ';' (u::expr (Trm S))
       => in_pos _pos (ESequ(t,u))

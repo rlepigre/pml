@@ -1112,14 +1112,31 @@ let evari _loc x = make _loc (EVari(x, new_sort_uvar None))
 let sort_def : strloc -> raw_sort -> toplevel = fun id s ->
   Sort_def(id,s)
 
-let expr_def : strloc -> (strloc * raw_sort) list -> raw_sort option
-               -> raw_ex -> toplevel = fun id args s e ->
+type expr_def = strloc * raw_sort * raw_ex
+
+let gen_expr_def : strloc -> (strloc * raw_sort) list -> raw_sort option
+               -> raw_ex -> expr_def = fun id args s e ->
   let s = sort_from_opt s in
   let f (id,s) e = none (EHOFn(id,s,e)) in
   let e = List.fold_right f args e in
   let f (_ ,a) s = none (SFun(a,s)) in
   let s = List.fold_right f args s in
+  (id,s,e)
+
+let expr_def : strloc -> (strloc * raw_sort) list -> raw_sort option
+               -> raw_ex -> toplevel = fun id args s e ->
+  let (id,s,e) = gen_expr_def id args s e in
   Expr_def(id,s,e)
+
+let ho_redex pos id s f e =
+  let sl = none (SFun(s,new_sort_uvar None)) in
+  in_pos pos (EHOAp(none (EHOFn(id,s,f)),sl,[e]))
+
+let local_expr_def : pos -> strloc -> (strloc * raw_sort option) list -> raw_sort option
+               -> raw_ex -> raw_ex -> raw_ex = fun pos id args s e f ->
+  let args = List.map (fun (x,k) -> (x, sort_from_opt k)) args in
+  let (id,s,e) = gen_expr_def id args s e in
+  ho_redex pos id s f e
 
 let filter_args : string -> (strloc * raw_sort) list -> raw_ex ->
                   (strloc * raw_sort) list =
@@ -1233,9 +1250,9 @@ let filter_args : string -> (strloc * raw_sort) list -> raw_ex ->
     let args = List.filter (fun (i,a) -> changed.(i)) args in
     List.map snd args
 
-let type_def : pos -> [`Non | `Rec | `CoRec] -> strloc
+let gen_type_def : pos -> [`Non | `Rec | `CoRec] -> strloc
                -> (strloc * raw_sort option) list
-               -> raw_ex -> toplevel = fun _loc r id args e ->
+               -> raw_ex -> expr_def * expr_def option  = fun _loc r id args e ->
   let args = List.map (fun (x,k) -> (x, sort_from_opt k)) args in
   let rec binds : (strloc * raw_sort) list -> raw_ex -> raw_ex =
     fun args s ->
@@ -1282,8 +1299,8 @@ let type_def : pos -> [`Non | `Rec | `CoRec] -> strloc
         EFixN(new_sort_uvar None, none EConv, id, binds args e)
       in applies args (in_pos _loc e)
   in
-  let d1 = expr_def id args (Some (none SP)) e1 in
-  if r = `Non then d1 else
+  let d1 = gen_expr_def id args (Some (none SP)) e1 in
+  if r = `Non then (d1, None) else
     begin
       let id2 = make id.pos (id.elt ^ "#") in
       let s = evari None (none "s#") in
@@ -1297,9 +1314,25 @@ let type_def : pos -> [`Non | `Rec | `CoRec] -> strloc
                     applies args (in_pos _loc e)
       in
       let args = (none "s#", none SO) :: args in
-      let d2 = expr_def id2 args (Some (none SP)) e2 in
-      Def_list [d1;d2]
+      let d2 = gen_expr_def id2 args (Some (none SP)) e2 in
+      (d1, Some d2)
     end
+
+let type_def  : pos -> [`Non | `Rec | `CoRec] -> strloc
+               -> (strloc * raw_sort option) list
+               -> raw_ex -> toplevel = fun _loc r id args e ->
+  let ((id1,s1,e1),d2) = gen_type_def _loc r id args e in
+  let d1 = Expr_def(id1,s1,e1) in
+  match d2 with None    -> d1
+              | Some(id2,s2,e2) -> Def_list[d1;Expr_def(id2,s2,e2)]
+
+let local_type_def  : pos -> [`Non | `Rec | `CoRec] -> strloc
+               -> (strloc * raw_sort option) list
+               -> raw_ex -> raw_ex -> raw_ex = fun _loc r id args e f ->
+  let ((id1,s1,e1),d2) = gen_type_def _loc r id args e in
+  let f = ho_redex _loc id1 s1 f e1 in
+  match d2 with None    -> f
+              | Some(id2,s2,e2) -> ho_redex _loc id2 s2 f e2
 
 let expr_def : strloc -> (strloc * raw_sort option) list -> raw_sort option
                -> raw_ex -> toplevel = fun id args s e ->
