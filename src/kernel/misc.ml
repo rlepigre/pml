@@ -359,7 +359,7 @@ let bind_spos_ordinals
   in
   let rec bind_all : type p. occ -> p ex loc -> p ebox = fun o e ->
     let mapper : type p. recall -> p ex loc -> p ebox =
-      fun { recall; recals; default } e ->
+      fun { recall; default } e ->
       (* NOTE: could compute variance of arguments ?, usefull for rose tree *)
       let rec fn : type a b. (a,b) fix_args -> (a,b) fbox = fun l ->
         match l with

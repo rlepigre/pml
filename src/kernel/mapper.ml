@@ -5,7 +5,6 @@ open Sorts
 
 (* a mapper may raise the exception Default *)
 type recall = { recall : 'a. 'a ex loc -> 'a ebox
-              ; recals : 'a 'b. ('a, 'b) fix_args -> ('a, 'b) fbox
               ; default : 'a. 'a ex loc -> 'a ebox}
 type mapper = { mapper : 'a. recall -> 'a ex loc -> 'a ebox }
 
@@ -128,7 +127,7 @@ let map : type a. ?mapper:mapper -> a ex loc -> a ebox
         | VPtr _        -> Bindlib.box e
         | TPtr _        -> Bindlib.box e
         in
-        mapper.mapper { recall = map; recals = map_args; default } e
+        mapper.mapper { recall = map; default } e
       in map e
 
 let lift : type a. a ex loc -> a ebox = fun e -> map e
