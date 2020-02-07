@@ -784,7 +784,6 @@ let rec subtype =
           else gen_subtype ctx a b
       (* Membership on the right. *)
       | (_          , Memb(u,b)  ) when t_is_val ->
-          let ctx = learn_equivalences_term ctx t a in
           prove ctx.equations ctx.auto.old (Equiv(t,true,u));
           Sub_Memb_r(subtype ctx t a b)
       (* Restriction on the right. *)
