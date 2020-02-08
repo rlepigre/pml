@@ -7,7 +7,7 @@ type t1 = [ A ]
 type t2 = [ A ; B ]
 
 assert t1 ⊂ t2
-set log "s"
+
 //assert ml⟨t1⟩ ⊂ ml⟨t2⟩ //still fails: generalisation is needed,
                          //but with only one parameter.
 
