@@ -804,6 +804,26 @@ exception NoUnif
 let keep_intermediate = ref false
 let use_eval          = ref true
 
+module VPtrSet = Set.Make(VPtr)
+
+let test_cyclic po pv =
+  let adone = ref VPtrSet.empty in
+  let rec fn above pv =
+    let pv = find_valu pv po in
+    if VPtrSet.mem pv above then raise Contradiction;
+    if VPtrSet.mem pv !adone then () else
+      begin
+        let above = VPtrSet.add pv above in
+        adone := VPtrSet.add pv !adone;
+        let n = find_v_node pv po in
+        match n with
+        | VN_Cons(s,pv) -> fn above pv
+        | VN_Reco(m)    -> A.iter (fun _ -> fn above) m
+        | _             -> ()
+      end
+  in
+  fn VPtrSet.empty pv
+
 (** Insertion and normalisation of actual terms and values to the pool. *)
 let rec add_term :  bool -> bool -> pool -> term
                     -> Ptr.t * pool = fun o free po t0 ->
@@ -941,13 +961,17 @@ and     add_valu : bool -> pool -> valu -> VPtr.t * pool = fun o po v0 ->
     | LAbs(_,b,t) -> let (b, po) = add_bndr_closure po V T o b in
                      insert_v_node (VN_LAbs(b,t)) po
     | Cons(c,v)   -> let (pv, po) = add_valu po v in
-                     insert_v_node (VN_Cons(c,pv)) po
+                     let (pv, po as r) = insert_v_node (VN_Cons(c,pv)) po in
+                     test_cyclic po pv;
+                     r
     | Reco(m)     -> let fn l (_, v) (m, po) =
                        let (pv, po) = add_valu po v in
                        (A.add l pv m, po)
                      in
                      let (m, po) = A.fold fn m (A.empty, po) in
-                     insert_v_node (VN_Reco(m)) po
+                     let (pv, po as r) = insert_v_node (VN_Reco(m)) po in
+                     test_cyclic po pv;
+                     r
     | Scis        -> insert_v_node VN_Scis po
     | VDef(d)     -> begin
                        let cl = Timed.get po.time d.value_clos in
@@ -1264,7 +1288,7 @@ and reinsert : Ptr.t -> pool -> pool = fun p po ->
        | VN_UVar({uvar_val = {contents = Set v}}) ->
           let (vp,po) = add_valu false po v in
           join p (Ptr.V_ptr vp) po
-       | VN_Defi(v) when Timed.get po.time v.value_clos ->
+       | VN_Defi(v) when not (Timed.get po.time v.value_clos) ->
           let (vp,po) = add_valu false po v.value_eras in
           join p (Ptr.V_ptr vp) po
        | _ -> po
@@ -1307,6 +1331,11 @@ and join : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
   let po = { po with time = ptr_set p1 p2 po.time
                    ; eq_map = (p1,p2) :: po.eq_map }
   in
+  begin
+    match p1, p2 with
+    | (Ptr.V_ptr pv1, Ptr.V_ptr pv2) -> test_cyclic po pv2
+    | (_            , _            ) -> ()
+  end;
   let po = if fs1 && not fs2 then begin
                match p2 with
                | Ptr.T_ptr p2 -> set_fs p2 po
