@@ -86,7 +86,7 @@ let collect_exis : type s a.s sort -> a ex loc -> s var list * a ex loc =
 
 type _ sugar =
   | NoSugar : 'a sugar
-  | StrictReco : (pos option * prop) Assoc.t -> p sugar
+  | StrictReco : (pos * prop) Assoc.t -> p sugar
   | Tuple      : valu list -> v sugar
   | TupleType  : prop list -> p sugar
   | DepSum     : t var list * prop * prop -> p sugar

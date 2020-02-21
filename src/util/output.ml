@@ -15,33 +15,26 @@ let format_from_string str =
   Scanf.format_from_string str ""
 
 (* Color modifiers. *)
-let red fmt = "\027[31m" ^^ fmt ^^ "\027[0m"
-let gre fmt = "\027[32m" ^^ fmt ^^ "\027[0m"
-let yel fmt = "\027[33m" ^^ fmt ^^ "\027[0m"
-let blu fmt = "\027[34m" ^^ fmt ^^ "\027[0m"
-let mag fmt = "\027[35m" ^^ fmt ^^ "\027[0m"
-let cya fmt = "\027[36m" ^^ fmt ^^ "\027[0m"
+let red fmt = "\027[31m" ^ fmt ^ "\027[0m"
+let gre fmt = "\027[32m" ^ fmt ^ "\027[0m"
+let yel fmt = "\027[33m" ^ fmt ^ "\027[0m"
+let blu fmt = "\027[34m" ^ fmt ^ "\027[0m"
+let mag fmt = "\027[35m" ^ fmt ^ "\027[0m"
+let cya fmt = "\027[36m" ^ fmt ^ "\027[0m"
+
+let msg color str fmt =
+  let fmt = "[%s] " ^^ fmt ^^ "\n%!" in
+  let str = if isatty stderr then color str else str in
+  Printf.eprintf fmt str
 
 (* Printing function for a warning message. *)
-let wrn_msg : 'a formatter =
-  fun fmt ->
-    let fmt = "[WRN] " ^^ fmt in
-    let fmt = if isatty stderr then yel fmt else fmt in
-    Printf.eprintf (fmt ^^ "\n%!")
+let wrn_msg : type a. a formatter = fun fmt -> msg yel "WRN" fmt
 
 (* Printing function for an error message. *)
-let err_msg : 'a formatter =
-  fun fmt ->
-    let fmt = "[ERR] " ^^ fmt in
-    let fmt = if isatty stderr then red fmt else fmt in
-    Printf.eprintf (fmt ^^ "\n%!")
+let err_msg : type a. a formatter = fun fmt -> msg red "ERR" fmt
 
 (* Printing function for a bug signaling message. *)
-let bug_msg : 'a formatter =
-  fun fmt ->
-    let fmt = "[BUG] " ^^ fmt in
-    let fmt = if isatty stderr then mag fmt else fmt in
-    Printf.eprintf (fmt ^^ "\n%!")
+let bug_msg : type a. a formatter = fun fmt -> msg mag "BUG" fmt
 
 module Log =
   struct
@@ -68,9 +61,7 @@ module Log =
       fun ?(tag="log") fmt ->
         if String.length tag <> 3 then
           wrn_msg "the tag is too long (Output.Log.log)";
-        let tag = format_from_string (Printf.sprintf "[%s] " tag) in
-        let tag = if isatty !log_channel then cya tag else tag in
-        Printf.fprintf !log_channel (tag ^^ fmt ^^ "\n%!")
+        msg cya tag fmt
 
     let valid   : CSet.t ref               = ref CSet.empty
     let enabled : CSet.t ref               = ref CSet.empty
@@ -124,13 +115,12 @@ module Log =
         if String.length tag <> 3 then
           wrn_msg "the tag is too long (Output.Log.register)";
         let p fmt =
-          let tag = format_from_string (Printf.sprintf "[%s] " tag) in
           let tag = if isatty !log_channel then cya tag else tag in
-          let fmt = tag ^^ fmt ^^ "\n%!" in
+          let fmt = "[%s] " ^^ fmt ^^ "\n%!" in
           if CSet.mem key !enabled then
-            Printf.fprintf !log_channel fmt
+            Printf.fprintf !log_channel fmt tag
           else
-            Printf.ifprintf !log_channel fmt
+            Printf.ifprintf !log_channel fmt tag
         in
         { p }
 
@@ -174,4 +164,3 @@ let print_list : 'a printer -> string -> 'a list printer =
 (* Printing function for arrays. *)
 let print_array : 'a printer -> string -> 'a array printer =
   fun pelem sep ch a -> print_list pelem sep ch (Array.to_list a)
-

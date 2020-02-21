@@ -24,14 +24,14 @@ let rec whnf : type a. a ex loc -> a ex loc = fun exp ->
         match (ne.elt, nf.elt) with
         | (HFun(_,_,b), f) -> whnf (bndr_subst b f)
         | (HDef(_,d)  , _) ->
-           let de = Pos.make exp.pos (HApp(s, d.expr_def, nf)) in
+           let de = Pos.in_pos exp.pos (HApp(s, d.expr_def, nf)) in
            let nde = whnf de in (* preserves physical eq if possible *)
            if nde == de && ne == e && nf == f then exp else nde
-        | (FixM(s,o,b,l), _) -> Pos.make exp.pos (FixM(s,o,b,Cns(nf,l)))
-        | (FixN(s,o,b,l), _) -> Pos.make exp.pos (FixN(s,o,b,Cns(nf,l)))
+        | (FixM(s,o,b,l), _) -> Pos.in_pos exp.pos (FixM(s,o,b,Cns(nf,l)))
+        | (FixN(s,o,b,l), _) -> Pos.in_pos exp.pos (FixN(s,o,b,Cns(nf,l)))
         | (_          , _) -> (* preserves physical eq if possible *)
            if ne == e && nf == f then exp
-           else Pos.make exp.pos (HApp(s, e, f))
+           else Pos.in_pos exp.pos (HApp(s, e, f))
       end
   (* Unfolding of a unification variable. *)
   | UVar(_, {uvar_val = {contents = Set exp}})  -> whnf exp

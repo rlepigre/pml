@@ -37,7 +37,7 @@ module Log :
         the file already exists, it is overwritten. *)
     val with_file : string -> unit
 
-    (** After calling [with_out_channel och], the logs are  printed  to  the 
+    (** After calling [with_out_channel och], the logs are  printed  to  the
         [och] output channel. Note that it is the user's  responsibility  to
         close the channel when all the log messages have been written. *)
     val with_out_channel : out_channel -> unit
@@ -50,8 +50,8 @@ module Log :
 
     (** Type of a formatter wrapped in a record. This type is useful  to  work
         around value restriction... *)
-    type r_formatter = { p : 'a. 'a formatter } 
-    
+    type r_formatter = { p : 'a. 'a formatter }
+
     (** [register key tag descr] registers a new logging function associated
         to a character [key], an optional three character [tag] and a descr-
         iption message [descr]. Logs written using the returned function are
@@ -99,3 +99,7 @@ val print_list : 'a printer -> string -> 'a list printer
 (** [print_array] is the same as [print_list], but for the [array] type. *)
 val print_array : 'a printer -> string -> 'a array printer
 
+val yel : string -> string
+val red : string -> string
+val mag : string -> string
+val cya : string -> string

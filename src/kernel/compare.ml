@@ -39,23 +39,26 @@ let full_eq = ref false
 (* oracle provide code for testing equality on valu and terms and can
    raise DontKnow *)
 exception DontKnow
-type oracle = { eq_val :v ex loc -> v ex loc -> bool;
-                eq_trm :t ex loc -> t ex loc -> bool }
+type oracle = { eq_val  : v ex loc -> v ex loc -> bool
+              ; eq_trm  : t ex loc -> t ex loc -> bool
+              ; leq_ord : o ex loc -> o ex loc -> bool}
 
 (* the default oracle *)
 let default_oracle = {
     eq_val = (fun _ _ -> raise DontKnow);
-    eq_trm = (fun _ _ -> raise DontKnow)
+    eq_trm = (fun _ _ -> raise DontKnow);
+    leq_ord = (fun _ _ -> raise DontKnow);
   }
 
-(* for texhnial reason due to OCaml typing, equalities
+(* for technical reason due to OCaml typing, equalities
    are in a record *)
 type eq =
   { eq_expr     : 'a. ?oracle:oracle -> ?strict:bool ->
                     'a ex loc -> 'a ex loc -> bool
   ; eq_bndr     : 'a 'b. ?oracle:oracle -> ?strict:bool -> 'a sort ->
                     ('a,'b) bndr ->
-                    ('a,'b) bndr -> bool }
+                    ('a,'b) bndr -> bool
+  }
 
 (* test if the head of higher ordre application is a unification
    variable. This are called flexible terms when doing higher-order
@@ -75,10 +78,15 @@ type 'a args =
 
 (* Comparison function with unification variable instantiation,
    and optionnaly using the pool oracle. *)
-let {eq_expr; eq_bndr} =
+let {eq_expr; eq_bndr } =
 
   let rec eq_expr : type a. oracle -> bool -> a ex loc -> a ex loc -> bool =
     fun oracle strict e1 e2 ->
+
+    let ieq_expr e1 e2 =
+      eq_expr { oracle with leq_ord = (fun _ _ -> raise DontKnow) }
+        strict e1 e2
+    in
     let eq_expr  e1 e2 = eq_expr oracle strict e1 e2 in
     let eq_bndr  b1 b2 = eq_bndr oracle strict b1 b2 in
     let eq_fix_schema sch1 sch2 =
@@ -144,7 +152,7 @@ let {eq_expr; eq_bndr} =
               match sa with
               | F(_,s) ->
                  let t = blam s args in
-                 box_apply (fun x -> Pos.none (HFun(sb,s,(None,x))))
+                 box_apply (fun x -> Pos.none (HFun(sb,s,(no_pos,x))))
                            (bind_var w t)
               | _ -> .
        in
@@ -228,7 +236,7 @@ let {eq_expr; eq_bndr} =
     | (HApp(s1,f1,a1), HApp(s2,f2,a2)) ->
         begin
           match eq_sort s1 s2 with
-          | Eq  -> eq_expr f1 f2 && eq_expr a1 a2
+          | Eq  -> eq_expr f1 f2 && ieq_expr a1 a2
           | NEq -> false
         end
         (** deal with flexible case ... NOTE: the case with
@@ -254,7 +262,7 @@ let {eq_expr; eq_bndr} =
     | (_             , HDef(_,d)     ) -> eq_expr e1 d.expr_def
     | (Func(t1,a1,b1,l1), Func(t2,a2,b2,l2)) ->
        (if strict then Effect.know_eq else Effect.eq) t1 t2
-       && eq_expr a1 a2 && eq_expr b1 b2 && l1 = l2
+       && eq_expr a1 a2 && eq_expr b2 b1 && l1 = l2
     | (DSum(m1)      , DSum(m2)      ) ->
         A.equal (fun (_,a1) (_,a2) -> eq_expr a1 a2) m1 m2
     | (Prod(m1)      , Prod(m2)      ) ->
@@ -273,25 +281,27 @@ let {eq_expr; eq_bndr} =
         end
     | (FixM(s1,o1,b1,l1), FixM(s2,o2,b2,l2)) ->
        begin
+         (try oracle.leq_ord o1 o2 with DontKnow -> eq_expr o1 o2) &&
          match eq_sort s1 s2 with
-         | Eq  -> eq_expr o1 o2 && eq_bndr s1 b1 b2 && eq_args l1 l2 = Eq
+         | Eq  -> eq_bndr s1 b1 b2 && eq_args l1 l2 = Eq
          | NEq -> false
        end
     | (FixN(s1,o1,b1,l1), FixN(s2,o2,b2,l2)) ->
        begin
+         (try oracle.leq_ord o2 o1 with DontKnow -> eq_expr o1 o2) &&
          match eq_sort s1 s2 with
-         | Eq  -> eq_expr o1 o2 && eq_bndr s1 b1 b2 && eq_args l1 l2 = Eq
+         | Eq  -> eq_bndr s1 b1 b2 && eq_args l1 l2 = Eq
          | NEq -> false
        end
-    | (Memb(t1,a1)   , Memb(t2,a2)   ) -> eq_expr t1 t2 && eq_expr a1 a2
+    | (Memb(t1,a1)   , Memb(t2,a2)   ) -> ieq_expr t1 t2 && eq_expr a1 a2
     | (Rest(a1,c1)   , Rest(a2,c2)   ) ->
         eq_expr a1 a2 &&
           begin
             match (c1, c2) with
             | (Equiv(t1,b1,u1), Equiv(t2,b2,u2)) ->
-                b1 = b2 && eq_expr t1 t2 && eq_expr u1 u2
+                b1 = b2 && ieq_expr t1 t2 && ieq_expr u1 u2
             | (NoBox(v1)      , NoBox(v2)      ) ->
-               eq_expr v1 v2
+               ieq_expr v1 v2
             | (_              , _              ) ->
                 false
           end
@@ -300,9 +310,9 @@ let {eq_expr; eq_bndr} =
           begin
             match (c1, c2) with
             | (Equiv(t1,b1,u1), Equiv(t2,b2,u2)) ->
-                b1 = b2 && eq_expr t1 t2 && eq_expr u1 u2
+                b1 = b2 && ieq_expr t1 t2 && ieq_expr u1 u2
             | (NoBox(v1)      , NoBox(v2)      ) ->
-               eq_expr v1 v2
+               ieq_expr v1 v2
             | (_              , _              ) ->
                 false
           end
