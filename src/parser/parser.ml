@@ -800,62 +800,34 @@ and handle_file : bool -> string -> unit = fun nodep fn ->
         end
   with
   | Pos.Parse_error(b,p,msg)             ->
-     begin
-        let p = Input.spos b p in
-        err_msg "No parse %a." (print_spos ()) p;
-        exit 1
-      end
+     let p = Pos.mk_pos (Input.byte_pos b p)
+               (Input.byte_pos b p) (Input.infos b)
+     in
+     err_msg "%a" print_err_pos p;
+     err_msg "No parse.";
+     exit 1
   | Unbound_sort(s, p) ->
-     begin
-       if has_pos p then
-         err_msg "Unbound sort %s (%a)." s print_err_pos p
-       else
-         err_msg "Unbound sort %s." s;
-       exit 1
-      end
+     if has_pos p then err_msg "%a" print_err_pos p;
+     err_msg "Unbound sort %s." s;
+     exit 1
   | Sort_clash(t,s)         ->
-      begin
-        let _ =
-          if has_pos t.pos then
-            err_msg "Sort %a expected %a."
-                        pretty_print_raw_sort s print_err_pos t.pos
-          else
-            err_msg "Sort %a expected for %a."
-              pretty_print_raw_sort s print_raw_expr t
-        in
-        exit 1
-      end
+     if has_pos t.pos then err_msg "%a" print_err_pos t.pos;
+     err_msg "Sort %a expected for %a."
+       pretty_print_raw_sort s print_raw_expr t;
+     exit 1
   | Too_many_args(e)        ->
-      begin
-        let _ =
-          if has_pos e.pos then
-            err_msg "Expr %a has too many arguments (%a)."
-                        print_raw_expr e print_err_pos e.pos
-          else
-            err_msg "Expr %a has too many arguments."
-              print_raw_expr e
-        in
-        exit 1
-      end
+     if has_pos e.pos then
+       err_msg "%a" print_err_pos e.pos;
+     err_msg "Expr %a has too many arguments." print_raw_expr e;
+     exit 1
   | Unbound_variable(x)   ->
-      begin
-        let _ =
-          if has_pos x.pos then
-            err_msg "Unbound variable %s %a." x.elt
-              print_err_pos x.pos
-          else err_msg "Unbound variable %s." x.elt
-        in
-        exit 1
-      end
+     if has_pos x.pos then err_msg "%a" print_err_pos x.pos;
+     err_msg "Unbound variable %s." x.elt;
+     exit 1
   | Already_matched(c)      ->
-      begin
-        if has_pos c.pos then
-          err_msg "%s (%a) has already been matched." c.elt
-            print_err_pos c.pos
-        else
-          err_msg "%s has already been matched." c.elt;
-      end;
-      exit 1
+     if has_pos c.pos then err_msg "%a" print_err_pos c.pos;
+     err_msg "Variant %s has already been matched." c.elt;
+     exit 1
 
 (** Main parsing function taking as input a file name. *)
 and parse_file : string -> toplevel list = fun fn ->
