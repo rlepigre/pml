@@ -104,38 +104,19 @@ let files =
 let _ =
   let rec print_exn = function
   | Type_error(E(_,t),c,exc) ->
-      begin
-        match t.pos with
-        | None   -> err_msg "Type error:\n%a : %a"
-                      Print.ex t Print.ex c
-        | Some p -> err_msg "Type error %a:\n%a : %a"
-                      Pos.print_short_pos p Print.ex t Print.ex c;
-                    Quote.quote_file stderr p
-     end; print_exn exc
-  | Typing.Subtype_error(t,a,b,e) ->
-      begin
-        match t.pos with
-        | None   -> err_msg "Subtype error:\n%a ∈ %a ⊂ %a"
-                      Print.ex t Print.ex a Print.ex b
-        | Some p -> err_msg "SubType error %a:\n  %a ∈ %a ⊂ %a"
-                      Pos.print_short_pos p Print.ex t Print.ex a Print.ex b;
-                    Quote.quote_file stderr p
-      end; print_exn e
+     if has_pos t.pos then err_msg "%a" print_err_pos t.pos;
+     err_msg "Type error: %a expected." Print.ex c;
+     print_exn exc
+  | Typing.Subtype_error(t,a,b,exc) ->
+     if has_pos t.pos then err_msg "%a" print_err_pos t.pos;
+     err_msg "Subtype error: %a ⊂ %a" Print.ex a Print.ex b;
+     print_exn exc
   | Typing.Loops(t) ->
-      begin
-        match t.pos with
-        | None   -> err_msg "Cannot prove termination of\n  %a" Print.ex t
-        | Some p -> err_msg "Cannot prove termination.";
-                    Quote.quote_file stderr p
-      end
+     if has_pos t.pos then err_msg "%a" print_err_pos t.pos;
+     err_msg "Cannot prove termination."
   | Typing.Subtype_msg(p,msg) ->
-      begin
-        match p with
-        | None   -> err_msg "Subtype error:\n%s." msg
-        | Some p -> err_msg "Subtype error %a:\n%s."
-                      Pos.print_short_pos p msg;
-                    Quote.quote_file stderr p
-      end
+     if has_pos p then err_msg "%a" print_err_pos p;
+     err_msg "Subtype error: %s." msg
   | Typing.Cannot_unify(a,b) ->
       err_msg "Unable to unify %a and %a." Print.ex a Print.ex b
   | Typing.Reachable            ->
@@ -145,36 +126,20 @@ let _ =
       err_msg "  %a" Print.rel rel
   | Check_failed(a,n,b) ->
       let (l,r) = if n then ("","") else ("¬(",")") in
+      if has_pos a.pos then err_msg "%a" print_err_pos a.pos;
+      if has_pos b.pos then err_msg "%a" print_err_pos b.pos;
       err_msg "Failed to prove a subtyping relation.";
-      begin
-        let pp = Pos.print_short_pos in
-        match (a.pos, b.pos) with
-        | (Some pa, Some pb) -> err_msg "  %s(%a) ⊂ (%a)%s" l pp pa pp pb r
-        | (_      , _      ) -> ()
-      end;
-      err_msg "  %s%a ⊂ %a%s" l Print.ex a Print.ex b r
+      err_msg "  %s%a ⊂ %a%s" l Print.ex a Print.ex b r;
   | No_typing_IH(id)             ->
-      begin
-        err_msg "No typing induction hypothesis applies for %S." id.elt;
-        match id.pos with
-        | None   -> ()
-        | Some p -> Quote.quote_file stderr p
-      end
+     if has_pos id.pos then err_msg "%a" print_err_pos id.pos;
+     err_msg "No typing induction hypothesis for %S." id.elt;
   | No_subtyping_IH(id1, id2)    ->
-      begin
-        err_msg "No typing induction hypothesis applies for %S < %S."
-                id1.elt id2.elt;
-        (match id1.pos with
-        | None   -> ()
-        | Some p -> Quote.quote_file stderr p);
-        (match id2.pos with
-        | None   -> ()
-        | Some p -> Quote.quote_file stderr p)
-      end
+     if has_pos id1.pos then err_msg "at %a" print_err_pos id1.pos;
+     if has_pos id2.pos then err_msg "and at %a" print_err_pos id2.pos;
+     err_msg "No subtyping induction hypothesis applies for %S < %S."
+       id1.elt id2.elt;
   | Illegal_effect(e)         ->
-      begin
-        err_msg "Effect %a is not legal here." Effect.print e;
-      end
+     err_msg "Effect %a is not legal here." Effect.print e;
   | e ->
       err_msg "Unexpected exception [%s]." (Printexc.to_string e);
       err_msg "%t" Printexc.print_backtrace;

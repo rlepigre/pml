@@ -129,56 +129,56 @@ let stac_erasure : stac -> e_stac =
 (** Evaluation in an abstract machine. *)
 let rec to_valu : e_valu -> vbox = fun v ->
   match v with
-  | VVari(x)   -> vari None (copy_var x (mk_free V) (name_of x))
+  | VVari(x)   -> vari no_pos (copy_var x (mk_free V) (name_of x))
   | VLAbs(b)   -> let f x =
                     let x = copy_var x mk_vvari (name_of x) in
                     to_term (subst b (mk_vvari x))
-                  in labs None NoLz None (Pos.none (binder_name b)) f
+                  in labs no_pos NoLz None (Pos.none (binder_name b)) f
   | VLazy(e)   -> begin
                     match !e with
-                    | Frz t -> labs None Lazy None
+                    | Frz t -> labs no_pos Lazy None
                                  (Pos.none "_") (fun _ -> to_term t)
                     | Val v -> to_valu v
                   end
-  | VCons(c,v) -> cons None (Pos.none c) (to_valu v)
-  | VReco(m)   -> reco None (A.map (fun v -> (None, to_valu v)) m)
+  | VCons(c,v) -> cons no_pos (Pos.none c) (to_valu v)
+  | VReco(m)   -> reco no_pos (A.map (fun v -> (no_pos, to_valu v)) m)
   | VVdef(d)   -> box (Pos.none (VDef d))
-  | VScis      -> scis None
+  | VScis      -> scis no_pos
 
 and to_term : e_term -> tbox = fun t ->
   match t with
-  | TVari(a)   -> vari None (copy_var a (mk_free T) (name_of a))
-  | TValu(v)   -> valu None (to_valu v)
-  | TAppl(t,u) -> appl None NoLz (to_term t) (to_term u)
-  | TFrce(t)   -> appl None Lazy (to_term t) (to_term (TValu (VReco A.empty)))
+  | TVari(a)   -> vari no_pos (copy_var a (mk_free T) (name_of a))
+  | TValu(v)   -> valu no_pos (to_valu v)
+  | TAppl(t,u) -> appl no_pos NoLz (to_term t) (to_term u)
+  | TFrce(t)   -> appl no_pos Lazy (to_term t) (to_term (TValu (VReco A.empty)))
   | TFixY(b)   -> let f x =
                     let x = copy_var x mk_tvari (name_of x) in
                     to_valu (subst b (mk_tvari x))
                   in
-                  fixy None (Pos.none (binder_name b)) f
+                  fixy no_pos (Pos.none (binder_name b)) f
   | TMAbs(b)   -> let f x =
                     let x = copy_var x mk_svari (name_of x) in
                     to_term (subst b (mk_svari x))
-                  in mabs None (Pos.none (binder_name b)) f
+                  in mabs no_pos (Pos.none (binder_name b)) f
   | TName(s,t) -> to_stac s (to_term t)
-  | TProj(v,l) -> proj None (to_valu v) (Pos.none l)
+  | TProj(v,l) -> proj no_pos (to_valu v) (Pos.none l)
   | TCase(v,m) -> let f b =
                     let f x =
                       let x = copy_var x mk_vvari (name_of x) in
                       to_term (subst b (mk_vvari x))
-                    in (None, Pos.none (binder_name b), f)
-                  in case None (to_valu v) (A.map f m)
-  | TPrnt(s)   -> prnt None s
-  | TClck(v)   -> clck None (to_valu v)
+                    in (no_pos, Pos.none (binder_name b), f)
+                  in case no_pos (to_valu v) (A.map f m)
+  | TPrnt(s)   -> prnt no_pos s
+  | TClck(v)   -> clck no_pos (to_valu v)
 
 and to_stac : e_stac -> tbox -> tbox = fun s t ->
   let rec fn s t =
     match s with
-    | SVari(a)   -> name None (vari None
+    | SVari(a)   -> name no_pos (vari no_pos
                        (copy_var a (mk_free S) (name_of a))) t
     | SEpsi      -> t
-    | SPush(v,s) -> fn s (appl None NoLz t (valu None (to_valu v)))
-    | SFram(u,s) -> fn s (appl None NoLz (to_term u) t)
+    | SPush(v,s) -> fn s (appl no_pos NoLz t (valu no_pos (to_valu v)))
+    | SFram(u,s) -> fn s (appl no_pos NoLz (to_term u) t)
   in fn s t
 
 let to_valu : e_valu -> valu =

@@ -314,7 +314,7 @@ and [@cache] expr_var =
       => begin
            match s with
            | None   -> evari (Some _pos) id
-           | Some s -> let id = make id.pos (id.elt ^ "#") in
+           | Some s -> let id = in_pos id.pos (id.elt ^ "#") in
                        let x = evari (Some id_pos) id in
                        in_pos _pos (EHOAp(x, new_sort_uvar None, [s]))
          end
@@ -719,7 +719,7 @@ and interpret : bool -> memo2 -> Raw.toplevel -> memo2 =
         Printf.printf "%s %s\n%!" s lid.elt;
         try let d = SMap.find lid.elt !env.global_values in
             ignore (Timed.set (Timed.Time.save ()) d.value_clos b)
-        with Not_found -> unbound_var lid.elt lid.pos
+        with Not_found -> unbound_var lid
       in
       List.iter fn lids;
       memo
@@ -805,67 +805,34 @@ and handle_file : bool -> string -> unit = fun nodep fn ->
         end
   with
   | Pos.Parse_error(b,p,msg)             ->
-     begin
-        let p = Input.spos b p in
-        err_msg "No parse %a." print_short_pos (p,p);
-        Quote.quote_file stderr (p,p);
-        exit 1
-      end
-  | Unbound_sort(s, None  ) ->
-      begin
-        err_msg "Unbound sort %s." s;
-        exit 1
-      end
-  | Unbound_sort(s, Some p) ->
-      begin
-        err_msg "Unbound sort %s (%a)." s print_short_pos p;
-        Quote.quote_file stderr p;
-        exit 1
-      end
+     let p = Pos.mk_pos (Input.byte_pos b p)
+               (Input.byte_pos b p) (Input.infos b)
+     in
+     err_msg "%a" print_err_pos p;
+     err_msg "No parse.";
+     exit 1
+  | Unbound_sort(s, p) ->
+     if has_pos p then err_msg "%a" print_err_pos p;
+     err_msg "Unbound sort %s." s;
+     exit 1
   | Sort_clash(t,s)         ->
-      begin
-        let _ =
-          match t.pos with
-          | None   -> err_msg "Sort %a expected for %a."
-                        pretty_print_raw_sort s print_raw_expr t
-          | Some p -> err_msg "Sort %a expected %a."
-                        pretty_print_raw_sort s print_short_pos p;
-                      Quote.quote_file stderr p
-        in
-        exit 1
-      end
+     if has_pos t.pos then err_msg "%a" print_err_pos t.pos;
+     err_msg "Sort %a expected for %a."
+       pretty_print_raw_sort s print_raw_expr t;
+     exit 1
   | Too_many_args(e)        ->
-      begin
-        let _ =
-          match e.pos with
-          | None   -> err_msg "Expr %a has too many arguments."
-                        print_raw_expr e
-          | Some p -> err_msg "Expr %a has too many arguments."
-                        print_raw_expr e;
-                      Quote.quote_file stderr p
-        in
-        exit 1
-      end
-  | Unbound_variable(x,p)   ->
-      begin
-        let _ =
-          match p with
-          | None   -> err_msg "Unbound variable %s." x;
-          | Some p -> err_msg "Unbound variable %s %a." x
-                        print_short_pos p;
-                      Quote.quote_file stderr p
-        in
-        exit 1
-      end
+     if has_pos e.pos then
+       err_msg "%a" print_err_pos e.pos;
+     err_msg "Expr %a has too many arguments." print_raw_expr e;
+     exit 1
+  | Unbound_variable(x)   ->
+     if has_pos x.pos then err_msg "%a" print_err_pos x.pos;
+     err_msg "Unbound variable %s." x.elt;
+     exit 1
   | Already_matched(c)      ->
-      begin
-        match c.pos with
-        | None   -> err_msg "%s has already been matched." c.elt;
-        | Some p -> err_msg "%s (%a) has already been matched." c.elt
-                      print_short_pos p;
-                    Quote.quote_file stderr p
-      end;
-      exit 1
+     if has_pos c.pos then err_msg "%a" print_err_pos c.pos;
+     err_msg "Variant %s has already been matched." c.elt;
+     exit 1
 
 (** Main parsing function taking as input a file name. *)
 and parse_file : string -> toplevel list = fun fn ->

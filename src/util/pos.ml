@@ -4,9 +4,7 @@
 
 open Pacomb
 
-(** Convenient short name for an optional position. *)
-type pos = Pos.t * Pos.t
-type popt = pos option
+include Pos
 
 type user = ..
 type user += Nothing : user
@@ -15,57 +13,39 @@ type user += Nothing : user
     tree) with a source code position. *)
 type 'a loc =
   { elt : 'a   (** The element that is being localised.        *)
-  ; pos : popt (** Position of the element in the source code. *)
+  ; pos : pos (** Position of the element in the source code. *)
   ; usr : user Timed.tref }
 
 (** Localised string type (widely used). *)
 type strloc = string loc
 
-(** [make pos elt] associates the position [pos] to [elt]. *)
-let make : popt -> 'a -> 'a loc =
-  fun pos elt -> { elt ; pos; usr = Timed.tref Nothing }
-
 (** [in_pos pos elt] associates the position [pos] to [elt]. *)
 let in_pos : pos -> 'a -> 'a loc =
-  fun p elt -> { elt ; pos = Some p; usr = Timed.tref Nothing }
+  fun p elt -> { elt ; pos = p; usr = Timed.tref Nothing }
+
+let make : pos option -> 'a -> 'a loc =
+  fun pos elt ->
+  let pos = match pos with
+    | None   -> Pos.phantom_pos
+    | Some p -> p
+  in
+  { elt ; pos; usr = Timed.tref Nothing }
 
 (** [none elt] wraps [elt] in a localisation structure with no specified
     source position. *)
 let none : 'a -> 'a loc =
-  fun elt -> { elt ; pos = None; usr = Timed.tref Nothing }
-
-(** merging of two positions, create the smallest position pair containing both
-   *)
-let merge : pos -> pos -> pos = fun ((infos,p1), (_,p2)) ((_,q1),(_,q2)) ->
-  ((infos, min p1 q1), (infos, max p2 q2))
-
-(** same as above for [popt] *)
-let union : popt -> popt -> popt = fun p1 p2 ->
-  match (p1, p2) with
-  | (None   , None   ) -> None
-  | (Some _ , None   ) -> p1
-  | (None   , Some _ ) -> p2
-  | (Some p1, Some p2) -> Some (merge p1 p2)
+  fun elt -> { elt ; pos = Pos.phantom_pos; usr = Timed.tref Nothing }
 
 (** [print_pos oc pos] prints the position [pos] to the channel [oc]. *)
-let print_pos : out_channel -> pos -> unit =
-  Pos.print_spos2 ()
+let print_pos : string ->  out_channel -> pos -> unit = fun prefix ch p ->
+  if has_pos p then
+    begin
+      Printf.fprintf ch "%a"
+        (Pos.print_pos ~style:Short ~quote:{default_quote with prefix} ()) p
+    end
+open Output
 
-(** [print_pos oc pos] prints the position [pos] to the channel [oc]. *)
-let print_pos_opt : out_channel -> popt -> unit =
-  fun ch p ->
-    match p with
-    | None   -> output_string ch "at an unknown location"
-    | Some p -> print_pos ch p
-
-(** [print_short_pos oc pos] prints the position [pos] to the channel [oc]
-    using a shorter format that [print_pos oc pos]. *)
-let print_short_pos : out_channel -> pos -> unit =
-  Pos.print_spos2 ~style:Short ()
-
-(** [print_pos oc pos] prints the position [pos] to the channel [oc]. *)
-let print_short_pos_opt : out_channel -> popt -> unit =
-  fun ch p ->
-    match p with
-    | None   -> output_string ch "at an unknown location"
-    | Some p -> print_short_pos ch p
+let print_wrn_pos     = print_pos ("[" ^ yel "WRN" ^ "] ")
+let print_err_pos     = print_pos ("[" ^ red "ERR" ^ "] ")
+let print_bug_pos     = print_pos ("[" ^ mag "BUG" ^ "] ")
+let print_tag_pos tag = print_pos ("[" ^ cya "TAG" ^ "] ")

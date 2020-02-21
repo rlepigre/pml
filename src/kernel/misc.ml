@@ -178,21 +178,23 @@ let rec mk_sassoc : slist -> sassoc = function
 let bind_params : Equiv.pool -> p ex loc -> sbndr box * slist = fun po e ->
   (* Compute the list of all the surface ordinal witnesses. *)
   let params = ref (Nil:slist) in
-  let rec from_args : type a b. (a,b) fix_args -> unit = fun l ->
-    match l with
-    | Nil       -> ()
-    | Cns(a, l) -> if no_bound_var a && not (in_slist a !params)
-                   then
-                     begin
-                       let (s,a) = sort a in
-                       match eq_sort s O with
-                       | Eq  -> ()
-                       | NEq -> params := Cns(s,a,filter_slist a !params)
-                     end;
-                   from_args  l
-  in
   let open Iter in
-  let iterator : type a. recall -> a ex loc -> unit = fun { default } e ->
+  let iterator : type a. recall -> a ex loc -> unit = fun { default; recall } e ->
+    let rec from_args : type a b. (a,b) fix_args -> unit = fun l ->
+      match l with
+      | Nil       -> ()
+      | Cns(a, l) -> if no_bound_var a && not (in_slist a !params)
+                     then
+                       begin
+                         let (s,a) = sort a in
+                         match eq_sort s O with
+                         | Eq  -> ()
+                         | NEq ->
+                            params := Cns(s,a,filter_slist a !params)
+                       end;
+                     recall a;
+                     from_args  l
+    in
     match (Norm.whnf e).elt with
     | FixM(s,o,f,l) -> let (_,t) = bndr_open f in
                        from_args l; default o; default t
@@ -241,8 +243,8 @@ let bind_params : Equiv.pool -> p ex loc -> sbndr box * slist = fun po e ->
 
 let bind2_ordinals : Equiv.pool -> p ex loc -> p ex loc
     -> (o ex, sbndr) mbinder * ordi array = fun po e1 e2 ->
-  let m = A.singleton "1" (None, e1) in
-  let m = A.add "2" (None, e2) m in
+  let m = A.singleton "1" (no_pos, e1) in
+  let m = A.add "2" (no_pos, e2) m in
   let e = Pos.none (Prod m) in
   let (b, os) = bind_ordinals e in
   (* Name for the corresponding variables. *)
@@ -271,7 +273,7 @@ let bind_spos_ordinals
   let rec search_ord o =
     let o = Norm.whnf o in
     match o.elt with
-    | Succ o -> succ None (search_ord o)
+    | Succ o -> succ no_pos (search_ord o)
     | _ ->
     try
       let (_,v) = List.find (fun (o',_) -> eq_expr o o') !assoc in
@@ -291,7 +293,7 @@ let bind_spos_ordinals
         | Cns(a,l) -> cns (bind_all Any a) (fn l)
       in
       match (Norm.whnf e).elt with
-      | HApp(s,f,e) -> happ None s (recall f) (bind_all Any e)
+      | HApp(s,f,e) -> happ no_pos s (recall f) (bind_all Any e)
       | HDef(_,e)   -> recall e.expr_def
       | Func(t,a,b,l) -> func e.pos t l (bind_all (neg o) a) (recall b)
       | FixM(s, { elt = Conv},f,l) when o = Neg ->

@@ -898,7 +898,7 @@ let rec add_term :  bool -> bool -> pool -> term
                            if not !use_eval then raise Exit;
                            let open Erase in
                            let open Eval in
-                           let t = Pos.make t.pos
+                           let t = Pos.in_pos t.pos
                                      (Valu (to_valu (eval (term_erasure t))))
                            in
                            add_term po t
@@ -1441,7 +1441,7 @@ and canonical_term : bool -> TPtr.t -> pool -> term * pool
         | TN_Case(pv,m)  -> let (v, po) = cv pv po in
                             let (m, po) = A.fold_map (fun _ b po ->
                               let (p, po) = canonical_bndr_closure b po in
-                              ((None, p), po)) m po
+                              ((no_pos, p), po)) m po
                             in
                             (Pos.none (Case(v, m)), po)
         | TN_FixY(b,_)   -> let (b, po) = canonical_bndr_closure b po in
@@ -1486,7 +1486,7 @@ and     canonical_valu : bool -> VPtr.t -> pool -> valu * pool
                       (Pos.none (Cons(c,v)), po)
   | VN_Reco(m)     -> let fn l pv (m, po) =
                         let (v, po) = cv pv po in
-                        (A.add l (None,v) m, po)
+                        (A.add l (no_pos,v) m, po)
                       in
                       let (m, po) = A.fold fn m (A.empty, po) in
                       (Pos.none (Reco(m)), po)
@@ -1812,6 +1812,7 @@ and eq_trm : pool ref -> term -> term -> bool = fun pool t1 t2 ->
     end
 
 and oracle pool = {
+    default_oracle with
     eq_val = (fun v1 v2 ->
       Chrono.add_time equiv_chrono (eq_val pool v1) v2);
     eq_trm = (fun v1 v2 ->
@@ -1909,13 +1910,13 @@ let proj_eps : Bindlib.ctxt -> valu -> string -> valu * Bindlib.ctxt =
     let w =
       let name = proj_name l in
       let x = new_var (mk_free V) name in
-      let term_x = valu None (vari None x) in
-      let v_dot_l = proj None (box v) (Pos.none l) in
-      let w = rest None unit_prod (equiv term_x true v_dot_l) in
+      let term_x = valu no_pos (vari no_pos x) in
+      let v_dot_l = proj no_pos (box v) (Pos.none l) in
+      let w = rest no_pos unit_prod (equiv term_x true v_dot_l) in
       unbox (bind_var x w)
     in
     let t = Pos.none (Valu(Pos.none (Reco A.empty))) in
-    ewit names V t (None, w)
+    ewit names V t (no_pos, w)
 
 let find_proj : pool -> Bindlib.ctxt -> valu -> string
                 -> valu * pool * Bindlib.ctxt =
@@ -2148,7 +2149,7 @@ let get_orig : Ptr.t -> pool -> term =
            let u2 = fn u2 in
            Pos.none (Appl(u1, u2,l))
         | TN_Proj(u1,l) ->
-           x_proj None (fn (Ptr.V_ptr u1)) l
+           x_proj no_pos (fn (Ptr.V_ptr u1)) l
         | _ -> assert false
     in
     let t = fn p in
@@ -2290,6 +2291,11 @@ let unif_bndr
     : type a b. pool -> a sort -> (a, b) bndr -> (a, b) bndr -> bool
   = fun po s a b ->
     eq_bndr ~oracle:(oracle (ref po)) ~strict:false s a b
+
+let leq_expr : pool -> (ordi * ordi) list -> p ex loc -> p ex loc -> bool =
+  fun po pos a b ->
+    eq_expr ~oracle:{(oracle (ref po)) with leq_ord = Ordinal.leq_ordi pos} ~strict:false a b
+
 
 let learn pool rel    = Chrono.add_time equiv_chrono (learn pool) rel
 let prove pool rel    = Chrono.add_time equiv_chrono (prove pool) rel

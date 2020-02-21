@@ -19,11 +19,11 @@ let type_error : sorted -> prop -> exn -> 'a =
   fun t p e ->
     match e with
     | Type_error(E(_,t),_,_)
-         when t.pos <> None -> raise e
+         when has_pos t.pos -> raise e
     | _                     -> raise (Type_error(t, p, e))
 
-exception Subtype_msg of pos option * string
-let subtype_msg : pos option -> string -> 'a =
+exception Subtype_msg of pos * string
+let subtype_msg : pos -> string -> 'a =
   fun pos msg -> raise (Subtype_msg(pos, msg))
 
 exception Subtype_error of term * prop * prop * exn
@@ -377,7 +377,7 @@ let learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
                     so we can build an eps < o *)
                 let f o = unroll_FixM s (Pos.none o) f l in
                 let f = raw_binder "o" true 0 (mk_free O) f in
-                let (o', ctx_names) = owmu ctx.ctx_names o twit (None, f) in
+                let (o', ctx_names) = owmu ctx.ctx_names o twit (no_pos, f) in
                 (o', { ctx with ctx_names })
            in
            let ctx = add_positive ctx o bound in
@@ -438,7 +438,7 @@ let learn_neg_equivalences
                     so we can build an eps < o *)
                 let f o = unroll_FixN s (Pos.none o) f l in
                 let f = raw_binder "o" true 0 (mk_free O) f in
-                let (o', ctx_names) = ownu ctx.ctx_names o twit (None, f) in
+                let (o', ctx_names) = ownu ctx.ctx_names o twit (no_pos, f) in
                 (o', { ctx with ctx_names })
            in
            let ctx = add_positive ctx o bound in
@@ -560,7 +560,7 @@ let rec subtype =
     in
     try let r =
       (* Same types.  *)
-      if unif_expr ctx.equations a b then
+      if leq_expr ctx.equations ctx.positives a b then
         begin
           log_sub "reflexivity applies";
           Sub_Equal
@@ -628,7 +628,7 @@ let rec subtype =
                 | _ ->
                    let f o = unroll_FixM s (Pos.none o) f l in
                    let f = raw_binder "o" true 0 (mk_free O) f in
-                   let (o', ctx_names) = owmu ctx.ctx_names o t (None,f) in
+                   let (o', ctx_names) = owmu ctx.ctx_names o t (no_pos,f) in
                    let ctx = { ctx with ctx_names } in
                    (add_positive ctx o o', o')
               in
@@ -646,7 +646,7 @@ let rec subtype =
                | _ ->
                   let f o = unroll_FixN s (Pos.none o) f l in
                   let f = raw_binder "o" true 0 (mk_free O) f in
-               let (o', ctx_names) = ownu ctx.ctx_names o t (None, f) in
+               let (o', ctx_names) = ownu ctx.ctx_names o t (no_pos, f) in
                let ctx = { ctx with ctx_names } in
                (add_positive ctx o o', o')
              in
@@ -669,7 +669,7 @@ let rec subtype =
          begin try
          let w =
            let x = new_var (mk_free V) (Print.get_lambda_name t) in
-           unbox (bind_var x (appl None l1 (box t) (valu None (vari None x))))
+           unbox (bind_var x (appl no_pos l1 (box t) (valu no_pos (vari no_pos x))))
          in
          (* NOTE : if the "let in" below raise Contradiction, this means that
                    a2 is empty, a2 => b2 is then at least all function and no
@@ -680,7 +680,7 @@ let rec subtype =
               let (_,ctx) = learn_value ctx wit a2 in
               (wit, ctx)
            | _ ->
-              let (vwit, ctx_names) = vwit ctx.ctx_names (None, w) a2 b2 in
+              let (vwit, ctx_names) = vwit ctx.ctx_names (no_pos, w) a2 b2 in
               let ctx = { ctx with ctx_names } in
               let ctx = learn_nobox ctx vwit in
               let wit = Pos.none (Valu(vwit)) in
@@ -732,7 +732,7 @@ let rec subtype =
               try snd (A.find l fs1) with Not_found ->
               subtype_msg p ("Product clash on label " ^ l ^ "...")
             in
-            let t = unbox (t_proj None (box t) [None, Pos.none l]) in
+            let t = unbox (t_proj no_pos (box t) [no_pos, Pos.none l]) in
             let p = subtype ctx t a1 a2 in
             p::ps
           in
@@ -790,6 +790,24 @@ let rec subtype =
             let u = new_uvar ctx s in
             Sub_Exis_r(subtype ctx t a (bndr_subst f u.elt))
           else gen_subtype ctx a b
+      (* Mu right and Nu Left, infinite case. *)
+      | (_          , FixM(s,o,f,l)) when is_conv o ->
+          Sub_FixM_r(true, subtype ctx t a (unroll_FixM s o f l))
+      | (FixN(s,o,f,l), _          ) when is_conv o ->
+          Sub_FixN_l(true, subtype ctx t (unroll_FixN s o f l) b)
+      (* Mu right and Nu left rules, general case. *)
+      | (_          , FixM(s,o,f,l)) ->
+         let u = opred ctx o in
+         let prf = subtype ctx t a (unroll_FixM s u f l) in
+         if not (Ordinal.less_ordi ctx.positives u o) then
+           subtype_msg b.pos "ordinal not suitable (μr rule)";
+         Sub_FixM_r(false, prf)
+      | (FixN(s,o,f,l), _          ) ->
+         let u = opred ctx o in
+         let prf = subtype ctx t (unroll_FixN s u f l) b in
+         if not (Ordinal.less_ordi ctx.positives u o) then
+           subtype_msg b.pos "ordinal not suitable (νl rule)";
+         Sub_FixN_l(false, prf)
       (* Membership on the right. *)
       | (_          , Memb(u,b)  ) when t_is_val ->
           prove ctx.equations ctx.auto.old (Equiv(t,true,u));
@@ -817,31 +835,13 @@ let rec subtype =
            prove ctx.equations ctx.auto.old e;
            Sub_Impl_l(prf)
           end
-      (* Mu right and Nu Left, infinite case. *)
-      | (_          , FixM(s,o,f,l)) when is_conv o ->
-          Sub_FixM_r(true, subtype ctx t a (unroll_FixM s o f l))
-      | (FixN(s,o,f,l), _          ) when is_conv o ->
-          Sub_FixN_l(true, subtype ctx t (unroll_FixN s o f l) b)
-      (* Mu right and Nu left rules, general case. *)
-      | (_          , FixM(s,o,f,l)) ->
-         let u = opred ctx o in
-         let prf = subtype ctx t a (unroll_FixM s u f l) in
-         if not (Ordinal.less_ordi ctx.positives u o) then
-           subtype_msg b.pos "ordinal not suitable (μr rule)";
-         Sub_FixM_r(false, prf)
-      | (FixN(s,o,f,l), _          ) ->
-         let u = opred ctx o in
-         let prf = subtype ctx t (unroll_FixN s u f l) b in
-         if not (Ordinal.less_ordi ctx.positives u o) then
-           subtype_msg b.pos "ordinal not suitable (νl rule)";
-         Sub_FixN_l(false, prf)
       (* Fallback to general witness. *)
       | (_          , _          ) when not t_is_val ->
          log_sub "general subtyping";
          gen_subtype ctx a b
       (* No rule apply. *)
       | _                          ->
-         subtype_msg None "No rule applies")
+         subtype_msg no_pos "No rule applies")
     in
     (t, a, b, r)
     with
@@ -906,11 +906,11 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
          (try
             let ctx = { ctx with auto = { ctx.auto with tlvl } } in
             (** we use the auto hint to disallow auto for the added totality *)
-            let f = labs None NoLz None (Pos.none "x")
-                      (fun _ -> hint None (Auto true) (box t))
+            let f = labs no_pos NoLz None (Pos.none "x")
+                      (fun _ -> hint no_pos (Auto true) (box t))
             in
-            let t = unbox (hint None (Auto false)
-                             (appl None NoLz (valu None f) (box e))) in
+            let t = unbox (hint no_pos (Auto false)
+                             (appl no_pos NoLz (valu no_pos f) (box e))) in
             log_aut "totality (%d,%d) [%d]: %a"
                     ctx.auto.clvl ctx.auto.tlvl (List.length todo) Print.ex e;
             let r = type_term ctx t ty in
@@ -928,19 +928,19 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
             let ctx = { ctx with auto = { ctx.auto with clvl } } in
             (** we use the auto hint to disallow auto for the added case *)
             let mk_case c =
-              A.add c (None, Pos.none "x",
-                       (fun _ -> hint None (Auto true) (box t)))
+              A.add c (no_pos, Pos.none "x",
+                       (fun _ -> hint no_pos (Auto true) (box t)))
             in
             let cases = List.fold_right mk_case cs A.empty in
             let t = match e.elt with
-              Valu e -> case None (box e) cases
+              Valu e -> case no_pos (box e) cases
               | _ ->
-                 let f = labs None NoLz None (Pos.none "x") (fun v ->
-                             case None (vari None v) cases)
+                 let f = labs no_pos NoLz None (Pos.none "x") (fun v ->
+                             case no_pos (vari no_pos v) cases)
                  in
-                 appl None NoLz (valu None f) (box e)
+                 appl no_pos NoLz (valu no_pos f) (box e)
             in
-            let t = unbox (hint None (Auto false) t) in
+            let t = unbox (hint no_pos (Auto false) t) in
             log_aut "cases    (%d,%d): %a" ctx.auto.clvl ctx.auto.tlvl Print.ex t;
             let r = type_term ctx t ty in
             if nb > 0 then memo_insert ctx.memo (Skip nb);
@@ -1003,8 +1003,8 @@ and check_sub : ctxt -> prop -> prop -> check_sub = fun ctx a b ->
             let (a0, b0) = spe.sspe_judge in
             (* Check if schema applies. *)
             if not (UTimed.pure_test
-                      (fun () -> unif_expr ctx.equations a a0
-                                 && unif_expr ctx.equations b b0)
+                      (fun () -> leq_expr ctx.equations ctx.positives b0 b &&
+                                 leq_expr ctx.equations ctx.positives a a0)
                       ())
             then raise Exit;
             (* Check positivity of ordinals. *)
@@ -1300,7 +1300,7 @@ and build_matrix : Scp.t -> (ordi * ordi) list ->
   { w ; h ; tab }
 
 and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
-  let t = Pos.make v.pos (Valu(v)) in
+  let t = in_pos v.pos (Valu(v)) in
   log_typ "proving the value judgment:\n  %a\n  ⊢ %a\n  : %a"
     print_pos ctx.positives Print.ex v Print.ex c;
   try
@@ -1347,7 +1347,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
        begin
          try
            let a = new_uvar ctx P in
-           let c' = Pos.none (DSum(A.singleton d.elt (None, a))) in
+           let c' = Pos.none (DSum(A.singleton d.elt (no_pos, a))) in
            let (c, ctx) = learn_neg_equivalences ctx v None c in
            let p1 = subtype ctx t c' c in
            let p2 = type_valu ctx w a in
@@ -1383,13 +1383,13 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
                     Pos.none (Memb(Pos.none (Valu (snd t)), a))
                   else a
           in
-          A.add l (None, box a) m
+          A.add l (no_pos, box a) m
         in
         let pm = A.fold fn m A.empty in
         begin
           try
             let (c, ctx) = learn_neg_equivalences ctx v None c in
-            let c' = unbox (strict_prod None pm) in
+            let c' = unbox (strict_prod no_pos pm) in
             let p1 = subtype ctx t c' c in
             let p2s =
               let fn l (p, v) ps =
@@ -1417,7 +1417,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
     | Coer(_,v,a) ->
        begin
          try
-           let t = Pos.make v.pos (Valu(v)) in
+           let t = Pos.in_pos v.pos (Valu(v)) in
            let (c, ctx) = learn_neg_equivalences ctx v None c in
            let p1 = subtype ctx t a c in
            let p2 = type_valu ctx v a in
@@ -1485,7 +1485,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
         end
     (* Goal *)
     | Goal(_,str) ->
-        wrn_msg "goal (value) %S %a" str Pos.print_short_pos_opt v.pos;
+        wrn_msg "goal (value) %S %a" str print_wrn_pos v.pos;
         Print.pretty ctx.pretty;
         Printf.printf "|- %a\n%!" Print.ex c;
         Typ_Goal(str)
@@ -1499,7 +1499,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
     | ITag(_)     -> unexpected "ITag during typing..."
     | FixM(_)     -> invalid_arg "mu in terms forbidden"
     | FixN(_)     -> invalid_arg "nu in terms forbidden"
-  in (Pos.make v.pos (Valu(v)), c, r)
+  in (Pos.in_pos v.pos (Valu(v)), c, r)
   with
   | Failed_to_prove _ as e -> raise e
   | Out_of_memory as e     -> raise e
@@ -1540,10 +1540,11 @@ and is_typed : type a. a v_or_t -> a ex loc -> bool = fun t e ->
 and warn_unreachable ctx t =
   if not (is_scis t) && not ctx.auto.doing then
     begin
-      match t.pos with
-      | None   -> Output.wrn_msg "unreachable code..."
-      | Some p -> Output.wrn_msg "unreachable code %a"
-                                 Pos.print_short_pos p
+      if has_pos t.pos then
+        Output.wrn_msg "unreachable code %a" Pos.print_wrn_pos t.pos
+      else
+        Output.wrn_msg "unreachable code..."
+
     end;
 
 and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
@@ -1664,7 +1665,7 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
         Typ_Name(p2,p1)
     (* Projection. *)
     | Proj(v,l)   ->
-       let c = Pos.none (Prod(A.singleton l.elt (None, c))) in
+       let c = Pos.none (Prod(A.singleton l.elt (no_pos, c))) in
        Typ_Prod_e(type_valu ctx v c)
     (* Case analysis. *)
     | Case(v,m)   ->
@@ -1738,13 +1739,13 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
        let (_,_,r) = type_term ctx d.expr_def c in r
     (* Goal. *)
     | Goal(_,str) ->
-        wrn_msg "goal (term) %S %a" str Pos.print_short_pos_opt t.pos;
+        wrn_msg "goal (term) %S %a" str print_wrn_pos t.pos;
         Print.pretty ctx.pretty;
         Printf.printf "|- %a\n%!" Print.ex c;
         Typ_Goal(str)
     (* Printing. *)
     | Prnt(_)     ->
-       let a = unbox (strict_prod None A.empty) in
+       let a = unbox (strict_prod no_pos A.empty) in
        let p = gen_subtype ctx a c in
        Typ_Prnt(t, a, c, p)
     (* Replacement. *)
@@ -1843,7 +1844,7 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
         let (_, _, r) = type_stac ctx d.expr_def c in r
     (* Goal *)
     | Goal(_,str) ->
-        wrn_msg "goal (stack) %S %a" str Pos.print_short_pos_opt s.pos;
+        wrn_msg "goal (stack) %S %a" str print_wrn_pos s.pos;
         Print.pretty ctx.pretty;
         Printf.printf "|- %a\n%!" Print.ex c;
         Stk_Goal(str)
