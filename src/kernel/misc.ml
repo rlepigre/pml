@@ -49,6 +49,7 @@ let occur_in : type a b. b ex loc -> a ex loc -> bool = fun f e ->
   let (fs,f) = sort f in
   let iterator : type a. recall -> a ex loc -> unit = fun {default} e ->
     let (es, e) = sort e in
+    let open Eq in
     match eq_sort fs es with
     | Eq -> if eq_expr e f then raise Exit else default e
     | NEq -> default e
@@ -187,6 +188,7 @@ let bind_params : Equiv.pool -> p ex loc -> sbndr box * slist = fun po e ->
                      then
                        begin
                          let (s,a) = sort a in
+                         let open Eq in
                          match eq_sort s O with
                          | Eq  -> ()
                          | NEq ->
