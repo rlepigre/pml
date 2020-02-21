@@ -1804,6 +1804,7 @@ and eq_trm : pool ref -> term -> term -> bool = fun pool t1 t2 ->
     end
 
 and oracle pool = {
+    default_oracle with
     eq_val = (fun v1 v2 ->
       Chrono.add_time equiv_chrono (eq_val pool v1) v2);
     eq_trm = (fun v1 v2 ->
@@ -2282,6 +2283,11 @@ let unif_bndr
     : type a b. pool -> a sort -> (a, b) bndr -> (a, b) bndr -> bool
   = fun po s a b ->
     eq_bndr ~oracle:(oracle (ref po)) ~strict:false s a b
+
+let leq_expr : pool -> (ordi * ordi) list -> p ex loc -> p ex loc -> bool =
+  fun po pos a b ->
+    eq_expr ~oracle:{(oracle (ref po)) with leq_ord = Ordinal.leq_ordi pos} ~strict:false a b
+
 
 let learn pool rel    = Chrono.add_time equiv_chrono (learn pool) rel
 let prove pool rel    = Chrono.add_time equiv_chrono (prove pool) rel

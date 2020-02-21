@@ -559,7 +559,7 @@ let rec subtype =
     in
     try let r =
       (* Same types.  *)
-      if unif_expr ctx.equations a b then
+      if leq_expr ctx.equations ctx.positives a b then
         begin
           log_sub "reflexivity applies";
           Sub_Equal
@@ -840,7 +840,7 @@ let rec subtype =
          gen_subtype ctx a b
       (* No rule apply. *)
       | _                          ->
-         subtype_msg None "No rule applies")
+         subtype_msg no_pos "No rule applies")
     in
     (t, a, b, r)
     with
