@@ -789,6 +789,24 @@ let rec subtype =
             let u = new_uvar ctx s in
             Sub_Exis_r(subtype ctx t a (bndr_subst f u.elt))
           else gen_subtype ctx a b
+      (* Mu right and Nu Left, infinite case. *)
+      | (_          , FixM(s,o,f,l)) when is_conv o ->
+          Sub_FixM_r(true, subtype ctx t a (unroll_FixM s o f l))
+      | (FixN(s,o,f,l), _          ) when is_conv o ->
+          Sub_FixN_l(true, subtype ctx t (unroll_FixN s o f l) b)
+      (* Mu right and Nu left rules, general case. *)
+      | (_          , FixM(s,o,f,l)) ->
+         let u = opred ctx o in
+         let prf = subtype ctx t a (unroll_FixM s u f l) in
+         if not (Ordinal.less_ordi ctx.positives u o) then
+           subtype_msg b.pos "ordinal not suitable (μr rule)";
+         Sub_FixM_r(false, prf)
+      | (FixN(s,o,f,l), _          ) ->
+         let u = opred ctx o in
+         let prf = subtype ctx t (unroll_FixN s u f l) b in
+         if not (Ordinal.less_ordi ctx.positives u o) then
+           subtype_msg b.pos "ordinal not suitable (νl rule)";
+         Sub_FixN_l(false, prf)
       (* Membership on the right. *)
       | (_          , Memb(u,b)  ) when t_is_val ->
           prove ctx.equations ctx.auto.old (Equiv(t,true,u));
@@ -816,24 +834,6 @@ let rec subtype =
            prove ctx.equations ctx.auto.old e;
            Sub_Impl_l(prf)
           end
-      (* Mu right and Nu Left, infinite case. *)
-      | (_          , FixM(s,o,f,l)) when is_conv o ->
-          Sub_FixM_r(true, subtype ctx t a (unroll_FixM s o f l))
-      | (FixN(s,o,f,l), _          ) when is_conv o ->
-          Sub_FixN_l(true, subtype ctx t (unroll_FixN s o f l) b)
-      (* Mu right and Nu left rules, general case. *)
-      | (_          , FixM(s,o,f,l)) ->
-         let u = opred ctx o in
-         let prf = subtype ctx t a (unroll_FixM s u f l) in
-         if not (Ordinal.less_ordi ctx.positives u o) then
-           subtype_msg b.pos "ordinal not suitable (μr rule)";
-         Sub_FixM_r(false, prf)
-      | (FixN(s,o,f,l), _          ) ->
-         let u = opred ctx o in
-         let prf = subtype ctx t (unroll_FixN s u f l) b in
-         if not (Ordinal.less_ordi ctx.positives u o) then
-           subtype_msg b.pos "ordinal not suitable (νl rule)";
-         Sub_FixN_l(false, prf)
       (* Fallback to general witness. *)
       | (_          , _          ) when not t_is_val ->
          log_sub "general subtyping";

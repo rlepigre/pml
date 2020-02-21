@@ -36,13 +36,13 @@ assert list⟨nat⟩  ⊂ natlist
 type corec any_expl⟨a⟩ = { head:a; explode:any_expl⟨any_expl⟨a⟩⟩ }
 type nat_expl = { head:nat; explode:any_expl⟨any_expl⟨nat⟩⟩ }
 
-set log "s"
 assert any_expl⟨nat⟩ ⊂ nat_expl
 assert nat_expl ⊂ any_expl⟨nat⟩
-assert any_expl⟨any_expl⟨nat⟩⟩ ⊂ any_expl⟨nat_expl⟩
-                                                                                                                                                                                            //assert any_expl⟨nat_expl⟩ ⊂ any_expl⟨any_expl⟨nat⟩⟩
-                                                                                                                                                                                            //assert { head : nat ; explode : any_expl⟨nat_expl⟩ } ⊂ { head : nat ; explode : any_expl⟨any_expl⟨nat⟩⟩ ; ⋯ }
-                                                                                                                                                                                            //assert { head : nat ; explode : any_expl⟨any_expl⟨nat_expl⟩⟩ } ⊂ { head : nat ; explode : any_expl⟨any_expl⟨any_expl⟨nat⟩⟩⟩; ⋯ }
+
+//assert any_expl⟨any_expl⟨nat⟩⟩ ⊂ any_expl⟨nat_expl⟩
+//assert any_expl⟨nat_expl⟩ ⊂ any_expl⟨any_expl⟨nat⟩⟩
+//assert { head : nat ; explode : any_expl⟨nat_expl⟩ } ⊂ { head : nat ; explode : any_expl⟨any_expl⟨nat⟩⟩ ; ⋯ }
+//assert { head : nat ; explode : any_expl⟨any_expl⟨nat_expl⟩⟩ } ⊂ { head : nat ; explode : any_expl⟨any_expl⟨any_expl⟨nat⟩⟩⟩; ⋯ }
 
 type corec nat_expl2⟨s⟩ = μ_s nat_expl, { head:nat; explode:any_expl^s⟨nat_expl⟩ }
 
