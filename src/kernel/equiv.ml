@@ -141,7 +141,7 @@ type v_node =
   | VN_VWit of (vwit, string) eps
   | VN_UWit of (v qwit, string) eps
   | VN_EWit of (v qwit, string) eps
-  | VN_ESch of int * (schema, string array) eps
+  | VN_ESch of int * seps
   | VN_HApp of v ho_appl
   | VN_UVar of v uvar
   | VN_Vari of v var
@@ -159,7 +159,7 @@ type t_node =
   | TN_Prnt of string
   | TN_UWit of (t qwit, string) eps
   | TN_EWit of (t qwit, string) eps
-  | TN_ESch of int * (schema, string array) eps
+  | TN_ESch of int * seps
   | TN_HApp of t ho_appl
   | TN_UVar of t uvar
   | TN_Vari of t var
