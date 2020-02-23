@@ -128,11 +128,9 @@ type _ ex =
   (** Ordinal mu witness. *)
   | OWNu : (owit, string) eps                        -> o  ex
   (** Ordinal nu witness. *)
-  | OSch : int * o ex loc option * (schema, string array) eps
-                                                     -> o  ex
+  | OSch : int * o ex loc option * seps              -> o  ex
   (** Ordinal schema witness. *)
-  | ESch : 'a sort * int * (schema, string array) eps
-                                                     -> 'a  ex
+  | ESch : 'a sort * int * seps                      -> 'a  ex
   (** Expr schema witness. *)
 
   (* Type annotations. *)
@@ -183,6 +181,7 @@ and ('a,'b) eps =
       value should be updated on unification variables are instanciation. *)
   }
 
+and seps = (schema, string array * string array) eps
 and vwit = (v, t) bndr * p ex loc * p ex loc
 and 'a qwit = 'a sort * t ex loc * ('a, p) bndr
 and owit = o ex loc * t ex loc * (o, p) bndr

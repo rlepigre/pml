@@ -327,7 +327,23 @@ let swit : ctxt -> (s,t) bndr -> prop -> stac * ctxt =
     let (eps, ctx) = swit ctx f a in
     (Pos.none (SWit eps), ctx)
 
-let cwit : ctxt -> schema -> (schema, string array) eps * ctxt =
+let esch_names names w =
+  match w with
+  | FixSch s ->
+     let os, names = new_mvar_in names (mk_free O) (mbinder_names (snd s.fsch_judge)) in
+     (names, ((Array.map name_of os), [||]))
+  | SubSch s ->
+     let os, p, names = unmbind_in names s.ssch_judge in
+     let ss1 = Array.map name_of os in
+     let rec fn names l p = match p with
+       | Cst _    -> (names, Array.of_list (List.rev l))
+       | Bnd(s,f) -> let (v,b,names) = unbind_in names f in
+                     fn names (name_of v :: l) b
+     in
+     let names, ss2 = fn names [] p in
+     (names, (ss1, ss2))
+
+let cwit : ctxt -> schema -> seps * ctxt =
   fun ctx valu ->
     try (CWitHash.find cwit_hash valu, ctx)
     with Not_found ->
@@ -350,14 +366,10 @@ let cwit : ctxt -> schema -> (schema, string array) eps * ctxt =
               CWitHash.add cwit_hash valu w
           end
       in
-      let names = match valu with
-        | FixSch s -> mbinder_names (snd s.fsch_judge)
-        | SubSch s -> mbinder_names s.ssch_judge
-      in
-      let v, ctx = new_mvar_in ctx (mk_free V) names in
+      let (ctx, t2) = esch_names ctx valu in
       let pure = Lazy.from_fun (fun () -> Pure.(pure_schema valu)) in
       let rec w = { vars = ref []
-                  ; name = names
+                  ; name = t2
                   ; hash = ref 0
                   ; refr = (fun () -> refr w)
                   ; valu = ref valu
@@ -366,8 +378,8 @@ let cwit : ctxt -> schema -> (schema, string array) eps * ctxt =
       refr ~force:true w;
       (w, ctx)
 
-let osch : int -> ordi option -> (schema, string array) eps -> ordi =
+let osch : int -> ordi option -> seps -> ordi =
   fun i o eps -> Pos.none (OSch(i, o, eps))
 
-let esch : type a. a sort -> int -> (schema, string array) eps -> a ex loc =
+let esch : type a. a sort -> int -> seps -> a ex loc =
   fun s i eps -> Pos.none (ESch(s, i, eps))

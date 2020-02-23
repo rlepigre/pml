@@ -457,8 +457,8 @@ let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
   | EWit(w)     -> fprintf ch "%s%a" w.name print_vars e
   | OWMu(w)     -> fprintf ch "%s%a" w.name print_vars e
   | OWNu(w)     -> fprintf ch "%s%a" w.name print_vars e
-  | OSch(i,_,w) -> fprintf ch "%s%a" w.name.(i) print_vars e
-  | ESch(s,i,w) -> fprintf ch "%a??" print_vars e
+  | OSch(i,_,w) -> fprintf ch "%s%a" (fst w.name).(i) print_vars e
+  | ESch(s,i,w) -> fprintf ch "%s%a" (snd w.name).(i) print_vars e
   | UVar(_,u)   -> fprintf ch "?%i" u.uvar_key
   | Goal(_,s)   -> fprintf ch "{- %s -}" s
   | VPtr(p)     -> fprintf ch "VPtr(%a)" VPtr.print p

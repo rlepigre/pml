@@ -39,6 +39,7 @@ type nat_expl = { head:nat; explode:any_expl⟨any_expl⟨nat⟩⟩ }
 assert any_expl⟨nat⟩ ⊂ nat_expl
 assert nat_expl ⊂ any_expl⟨nat⟩
 
+//set log "s"
 //assert any_expl⟨any_expl⟨nat⟩⟩ ⊂ any_expl⟨nat_expl⟩
 //assert any_expl⟨nat_expl⟩ ⊂ any_expl⟨any_expl⟨nat⟩⟩
 //assert { head : nat ; explode : any_expl⟨nat_expl⟩ } ⊂ { head : nat ; explode : any_expl⟨any_expl⟨nat⟩⟩ ; ⋯ }
