@@ -86,8 +86,8 @@ type sub_adone =
   SA : 'a sort * ('a, 'a) bndr * 'b sort * ('b,'b) bndr -> sub_adone
 
 type lr = L | R
-type path = Rc of string | Ap of lr | Ca of string | Cm
-type memo_info = Weak | Skip of int | NoInfo
+type path = Rc of string | Ap of lr | Ca of string | Cm | Df of string
+type memo_info = Weak | Skip of int | NoInfo | OpDefi
 type memo_tbl = { info  : memo_info ref
                 ; below : memo_node ref }
 and memo_node = MNil
@@ -1464,6 +1464,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
         begin
           let st = UTimed.Time.save () in
           try
+            if memo_find ctx.memo = OpDefi then raise Exit;
             let p = subtype ctx t d.value_type c in
             Typ_VDef(d,p)
           with
@@ -1477,7 +1478,11 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
                  | Valu v when not (Timed.get ctx.equations.time d.value_clos) ->
                     begin
                       UTimed.Time.rollback st;
-                      try let (_,_,r) = type_valu ctx v c in r
+                      try
+                        let ctx2 = add_path (Df d.value_name.elt) ctx in
+                        let (_,_,r) = type_valu ctx2 v c in
+                        memo_insert ctx.memo OpDefi;
+                        r
                       with _ -> raise e
                     end
                  | _ -> raise e
