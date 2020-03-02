@@ -1392,7 +1392,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
             let p1 = subtype ctx t c' c in
             let p2s =
               let fn l (p, v) ps =
-                log_typ "Checking case %s." l;
+                log_typ "Checking field %s." l;
                 let (_,a) = A.find l pm in
                 let p = type_valu ctx v (unbox a) in
               p::ps
