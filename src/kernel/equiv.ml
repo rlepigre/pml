@@ -279,9 +279,6 @@ type pool =
   ; v_defs   : (v expr * v_ptr) list
   ; e_defs   : (t expr * Ptr.t) list
   ; in_uni   : (Ptr.t * Ptr.t) list(* to avoid loop un unif_ptr, see note *)
-  (* purity should be lazy, otherwise we infer total arrows
-     for arrow which are not total *)
-  ; pure     : bool Lazy.t
   }
 
 (**
@@ -372,7 +369,6 @@ let empty_pool : unit -> pool = fun () ->
   ; v_defs = []
   ; e_defs = []
   ; in_uni = []
-  ; pure   = Lazy.from_val true
   }
 
 (** Node search. *)
@@ -497,19 +493,6 @@ let children_t_node : t_node -> (par_key * Ptr.t) list = fun n ->
   | TN_Goal _
   | TN_UVar _  (* TODO #4 check *)
   | TN_Vari _      -> []
-
-(** purity test (having only total arrows). Only epsilon
-    contains type in the pool *)
-let pure_t_node = function
-  | TN_UWit(eps) -> Pure.pure (Pos.none (UWit eps))
-  | TN_EWit(eps) -> Pure.pure (Pos.none (EWit eps))
-  | _            -> true
-
-let pure_v_node = function
-  | VN_VWit(eps) -> Pure.pure (Pos.none (VWit eps))
-  | VN_UWit(eps) -> Pure.pure (Pos.none (UWit eps))
-  | VN_EWit(eps) -> Pure.pure (Pos.none (EWit eps))
-  | _            -> true
 
 (** Test if a term is "free", that is occures not only unser binder
     and therefore should be normalised. This is important for closure,
@@ -673,10 +656,6 @@ let eq_t_nodes : pool -> t_node -> t_node -> bool =
 exception FoundV of VPtr.t * pool
 let insert_v_node : v_node -> pool -> VPtr.t * pool = fun nn po ->
   let children = children_v_node nn in
-  let po =
-    { po with
-      pure = Lazy.from_fun (fun () -> pure_v_node nn && Lazy.force po.pure) }
-  in
   try
     (** search if the node already exists, using parents if possible *)
     match children with
@@ -717,10 +696,6 @@ exception FoundT of TPtr.t * pool
 let insert_t_node : bool -> t_node -> pool -> TPtr.t * pool =
   fun fs nn po ->
     let children = children_t_node nn in
-    let po =
-      let fn () = pure_t_node nn && Lazy.force po.pure in
-      { po with pure = Lazy.from_fun fn }
-    in
     try
       (** search if the node already exists, using parents if possible *)
       match children with
