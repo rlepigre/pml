@@ -1753,9 +1753,7 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
         let p1 = type_term ctx u c in
         Typ_Repl(p1)
     | Delm(t)     ->
-       let pure = Pure.(pure t && pure c
-                        && Lazy.force ctx.equations.pure)
-       in
+       let pure = Pure.pure c in
        let ctx =
          if pure then
            begin
