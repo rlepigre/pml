@@ -1760,15 +1760,11 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
              Effect.log_eff "pure";
              let tot1 = Effect.create () in
              assert (Effect.sub ~except:[CallCC] tot1 ctx.totality);
+             if not (Effect.absent CallCC ctx.totality) then
+               failwith "Useless delim";
              { ctx with totality = tot1 }
            end
-         else
-           begin
-             Effect.log_eff "not pure";
-             (* If not pure, we must prove totality.
-               NOTE: this could also trigger an error message ? *)
-             ctx
-           end
+         else failwith "Delim requires pure type"
        in
        let p = type_term ctx t c in
        Typ_Delm(p)
