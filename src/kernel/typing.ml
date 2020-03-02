@@ -86,8 +86,8 @@ type sub_adone =
   SA : 'a sort * ('a, 'a) bndr * 'b sort * ('b,'b) bndr -> sub_adone
 
 type lr = L | R
-type path = Rc of string | Ap of lr | Ca of string | Cm
-type memo_info = Weak | Skip of int | NoInfo
+type path = Rc of string | Ap of lr | Ca of string | Cm | Df of string
+type memo_info = Weak | Skip of int | NoInfo | OpDefi
 type memo_tbl = { info  : memo_info ref
                 ; below : memo_node ref }
 and memo_node = MNil
@@ -613,7 +613,7 @@ let rec subtype =
          if t_is_val then
            begin
              try  Sub_Impl_r(Some(subtype (learn ctx e)t a c))
-             with Contradiction -> Sub_Rest_l(None)
+             with Contradiction -> Sub_Impl_r(None)
            end
           (* NOTE may need a backtrack because a right rule could work *)
           else gen_subtype ctx a b
@@ -1465,6 +1465,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
         begin
           let st = UTimed.Time.save () in
           try
+            if memo_find ctx.memo = OpDefi then raise Exit;
             let p = subtype ctx t d.value_type c in
             Typ_VDef(d,p)
           with
@@ -1475,10 +1476,14 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
           | Sys.Break as e -> raise e
           | e -> match d.value_orig.elt with
                  | Valu { elt = LAbs _ } -> raise e
-                 | Valu v ->
+                 | Valu v when not (Timed.get ctx.equations.time d.value_clos) ->
                     begin
                       UTimed.Time.rollback st;
-                      try let (_,_,r) = type_valu ctx v c in r
+                      try
+                        let ctx2 = add_path (Df d.value_name.elt) ctx in
+                        let (_,_,r) = type_valu ctx2 v c in
+                        memo_insert ctx.memo OpDefi;
+                        r
                       with _ -> raise e
                     end
                  | _ -> raise e
@@ -1754,24 +1759,18 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
         let p1 = type_term ctx u c in
         Typ_Repl(p1)
     | Delm(t)     ->
-       let pure = Pure.(pure t && pure c
-                        && Lazy.force ctx.equations.pure)
-       in
+       let pure = Pure.pure c in
        let ctx =
          if pure then
            begin
              Effect.log_eff "pure";
              let tot1 = Effect.create () in
              assert (Effect.sub ~except:[CallCC] tot1 ctx.totality);
+             if not (Effect.absent CallCC ctx.totality) then
+               failwith "Useless delim";
              { ctx with totality = tot1 }
            end
-         else
-           begin
-             Effect.log_eff "not pure";
-             (* If not pure, we must prove totality.
-               NOTE: this could also trigger an error message ? *)
-             ctx
-           end
+         else failwith "Delim requires pure type"
        in
        let p = type_term ctx t c in
        Typ_Delm(p)

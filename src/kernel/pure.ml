@@ -22,12 +22,6 @@ let pure : type a. a ex loc -> bool =
         true)
   in
   let rec iter : type a. a ex loc -> unit = fun e ->
-    (** iteration on conditions *)
-    let iter_cond c =
-      match c with
-      | Equiv(t,_,u) -> iter t; iter u
-      | NoBox(v)     -> iter v;
-    in
     (** iterator for epsilon: purity is keps as a lazy bool,
         but we must set the lazy constraint on variable that appears
         in the epsilons *)
@@ -59,9 +53,9 @@ let pure : type a. a ex loc -> bool =
                   -> iter o; biter s b; fiter l
     | FixN(s,o,b,l)
                   -> iter o; biter s b; fiter l
-    | Memb(t,a)   -> iter t; iter a
-    | Rest(a,c)   -> iter a; iter_cond c
-    | Impl(c,a)   -> iter_cond c; iter a
+    | Memb(t,a)   -> iter a
+    | Rest(a,c)   -> iter a
+    | Impl(c,a)   -> iter a
     (* NOTE type annotation ignored. *)
     | LAbs(_,b,_) -> biter V b
     | Cons(_,v)   -> iter v
@@ -93,18 +87,13 @@ let pure : type a. a ex loc -> bool =
     | Goal(_)     -> ()
     | VPtr(_)     -> ()
     | TPtr(_)     -> ()
-    | VWit(w)     -> if todo e then liter w
+    | VWit(w)     -> ()
     | SWit(w)     -> raise Exit
     | UWit(w)     -> if todo e then liter w
     | EWit(w)     -> if todo e then liter w
-    | OWMu(w)     -> if todo e then liter w
-    | OWNu(w)     -> if todo e then liter w
-    | OSch(i,o,w) -> begin
-                       match o with
-                       | None -> ()
-                       | Some o -> iter o
-                     end;
-                     if todo e then liter w
+    | OWMu(w)     -> ()
+    | OWNu(w)     -> ()
+    | OSch(i,o,w) -> ()
     | ESch(s,i,w) -> if todo e then liter w
     | UVar(s,u)   -> UTimed.(u.uvar_pur := true)
   in

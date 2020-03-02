@@ -155,6 +155,7 @@ type t_node =
   | TN_Name of s ex loc * Ptr.t
   | TN_Proj of VPtr.t * A.key loc
   | TN_Case of VPtr.t * (v,t) bndr_closure A.t
+  | TN_Delm of Ptr.t
   | TN_FixY of (t,v) bndr_closure * tn_fixy_state Timed.tref
   | TN_Prnt of string
   | TN_UWit of (t qwit, string) eps
@@ -256,6 +257,7 @@ let print_t_node : out_channel -> t_node -> unit = fun ch n ->
                       in
                       let pmap = Print.print_map pelt "|" in
                       prnt ch "TN_Case(%a|%a)" VPtr.print pv pmap m
+  | TN_Delm(pt)    -> prnt ch "TN_Delm(%a)" Ptr.print pt
   | TN_FixY(b,_)   -> prnt ch "TN_FixY(%a)" (pbcl T) b
   | TN_Prnt(s)     -> prnt ch "TN_Prnt(%S)" s
   | TN_UWit(w)     -> prnt ch "TN_UWit(%a)" pex (Pos.none (UWit(w)))
@@ -281,9 +283,6 @@ type pool =
   ; v_defs   : (v expr * v_ptr) list
   ; e_defs   : (t expr * Ptr.t) list
   ; in_uni   : (Ptr.t * Ptr.t) list(* to avoid loop un unif_ptr, see note *)
-  (* purity should be lazy, otherwise we infer total arrows
-     for arrow which are not total *)
-  ; pure     : bool Lazy.t
   }
 
 (**
@@ -374,7 +373,6 @@ let empty_pool : unit -> pool = fun () ->
   ; v_defs = []
   ; e_defs = []
   ; in_uni = []
-  ; pure   = Lazy.from_val true
   }
 
 (** Node search. *)
@@ -483,7 +481,8 @@ let children_t_node : t_node -> (par_key * Ptr.t) list = fun n ->
                         A.fold (fun a b acc ->
                             let kn n = KT_Case (Some (a, n)) in
                             snd (children_bndr_closure b kn (0,acc)))
-                               cs []
+                          cs []
+  | TN_Delm(pt)    -> [(KT_Delm, pt)]
   | TN_FixY(b,_)   -> let kn n = KT_FixY n in
                       snd (children_bndr_closure b kn (0, []))
   | TN_MAbs b      -> let kn n = KT_MAbs n in
@@ -500,19 +499,6 @@ let children_t_node : t_node -> (par_key * Ptr.t) list = fun n ->
   | TN_Goal _
   | TN_UVar _  (* TODO #4 check *)
   | TN_Vari _ -> []
-
-(** purity test (having only total arrows). Only epsilon
-    contains type in the pool *)
-let pure_t_node = function
-  | TN_UWit(eps) -> Pure.pure (Pos.none (UWit eps))
-  | TN_EWit(eps) -> Pure.pure (Pos.none (EWit eps))
-  | _            -> true
-
-let pure_v_node = function
-  | VN_VWit(eps) -> Pure.pure (Pos.none (VWit eps))
-  | VN_UWit(eps) -> Pure.pure (Pos.none (UWit eps))
-  | VN_EWit(eps) -> Pure.pure (Pos.none (EWit eps))
-  | _            -> true
 
 (** Test if a term is "free", that is occures not only unser binder
     and therefore should be normalised. This is important for closure,
@@ -657,6 +643,7 @@ let eq_t_nodes : pool -> t_node -> t_node -> bool =
     | (TN_MAbs(b1)     , TN_MAbs(b2)     ) -> eq_cl po S b1 b2
     | (TN_Name(s1,p1)  , TN_Name(s2,p2)  ) -> eq_expr s1 s2
                                               && eq_ptr po p1 p2
+    | (TN_Delm(p1)     , TN_Delm(p2)     ) -> eq_ptr po p1 p2
     | (TN_Proj(p1,l1)  , TN_Proj(p2,l2)  ) -> eq_vptr po p1 p2
                                               && l1.elt = l2.elt
     | (TN_Case(p1,m1)  , TN_Case(p2,m2)  ) -> eq_vptr po p1 p2
@@ -676,10 +663,6 @@ let eq_t_nodes : pool -> t_node -> t_node -> bool =
 exception FoundV of VPtr.t * pool
 let insert_v_node : v_node -> pool -> VPtr.t * pool = fun nn po ->
   let children = children_v_node nn in
-  let po =
-    { po with
-      pure = Lazy.from_fun (fun () -> pure_v_node nn && Lazy.force po.pure) }
-  in
   try
     (** search if the node already exists, using parents if possible *)
     match children with
@@ -708,7 +691,7 @@ let insert_v_node : v_node -> pool -> VPtr.t * pool = fun nn po ->
      let ptr = { vadr = po.next
                ; vlnk = Timed.tref (Par MapKey.empty)
                ; bs   = Timed.tref (immediate_nobox nn)
-               ; vval = DP(V_Node, nn) } in
+               ; vval = DP(V_Node, nn); vas = [] } in
      let vs = (ptr,nn) :: po.vs in
      let next = po.next + 1 in
      let po = { po with vs ; next } in
@@ -720,10 +703,6 @@ exception FoundT of TPtr.t * pool
 let insert_t_node : bool -> t_node -> pool -> TPtr.t * pool =
   fun fs nn po ->
     let children = children_t_node nn in
-    let po =
-      let fn () = pure_t_node nn && Lazy.force po.pure in
-      { po with pure = Lazy.from_fun fn }
-    in
     try
       (** search if the node already exists, using parents if possible *)
       match children with
@@ -765,7 +744,8 @@ let insert_t_node : bool -> t_node -> pool -> TPtr.t * pool =
                  ; tlnk = Timed.tref (Par MapKey.empty)
                  ; ns   = Timed.tref false
                  ; fs   = Timed.tref fs
-                 ; tval = DP(T_Node, nn) } in
+                 ; tval = DP(T_Node, nn)
+                 ; tas  = [] } in
        let ts = (ptr, nn) :: po.ts in
        let time, eq_map =
          match nn with
@@ -887,7 +867,8 @@ let rec add_term :  bool -> bool -> pool -> term
                      if free then normalise pt po else (find pt po, po)
     | Prnt(s)     -> insert (TN_Prnt(s)) po
     | Repl(_,u)   -> add_term po u
-    | Delm(u)     -> add_term po u
+    | Delm(u)     -> let (pt, po) = add_term po u in
+                     insert (TN_Delm(pt)) po
     | Hint(h,t)   -> (match h with
                       | Close _
                       | Auto  _
@@ -1128,10 +1109,13 @@ and normalise_t_node : ?old:TPtr.t -> t_node -> pool -> Ptr.t  * pool =
       | TN_Appl(pt,pu,l) ->
          begin
            log_edp2 "normalise in %a = TN_Appl: %a %a"
-                print_t_node node Ptr.print pt Ptr.print pu;
+             print_t_node node Ptr.print pt Ptr.print pu;
            let (pt, po) = normalise pt po in
            let (pu, po) = normalise pu po in
-           try match (pt, pu) with
+           let (save, nb) = get_loop pt pu in
+           set_loop pt pu (nb+1);
+           try if nb > 10 then raise Exit;
+               match (pt, pu) with
            | (Ptr.V_ptr pf, Ptr.V_ptr pv) ->
               begin
                 match find_v_node pf po, get_bs pv po with
@@ -1143,6 +1127,7 @@ and normalise_t_node : ?old:TPtr.t -> t_node -> pool -> Ptr.t  * pool =
                      let po = set_ns po in
                      let (tp, po) = add_term false true po t in
                      let po = union tp po in
+                     restore_loop pt save;
                      log_edp2 "normalised in %a = TN_Appl Lambda %a %a => %a"
                           print_t_node node Ptr.print pt Ptr.print pu
                           Ptr.print tp;
@@ -1153,14 +1138,24 @@ and normalise_t_node : ?old:TPtr.t -> t_node -> pool -> Ptr.t  * pool =
               end
            | (_           , _           ) -> raise Exit
            with Exit ->
-              let (tp, po) = insert (TN_Appl(pt,pu,l)) po in
-               (* NOTE: testing tp in po.ns seems incomplete *)
-              log_edp2 "normalised in %a = TN_Appl: %a %a => %a"
-                   print_t_node node Ptr.print pt Ptr.print pu Ptr.print tp;
-              (tp, po)
+             restore_loop pt save;
+             let (tp, po) = insert (TN_Appl(pt,pu,l)) po in
+             (* NOTE: testing tp in po.ns seems incomplete *)
+             log_edp2 "normalised in %a = TN_Appl Appl: %a %a => %a"
+               print_t_node node Ptr.print pt Ptr.print pu Ptr.print tp;
+             (tp, po)
          end
       | TN_MAbs(b)     -> insert node po (* FIXME #7 can do better. *)
       | TN_Name(s,pt)  -> insert node po (* FIXME #7 can do better. *)
+      | TN_Delm(tp)    ->
+         begin
+           let tp = find tp po in
+           if is_nobox tp po then
+             let po = union tp po in
+             (tp, po)
+           else
+             insert node po
+         end
       | TN_Proj(pv0,l) ->
          begin
            let pv = find_valu pv0 po in
@@ -1344,6 +1339,7 @@ and join : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
            else po
   in
   let po = if bs1 && not bs2 then begin
+               let po = mk_eq_delim p2 po in
                match p2 with
                | Ptr.V_ptr p2 -> set_bs p2 po
                | Ptr.T_ptr _  -> assert false
@@ -1355,6 +1351,14 @@ and join : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
                if is_head k then PtrSet.fold reinsert l po else po) nps po in
   let po = check_ineq po in
   po
+
+and mk_eq_delim p po =
+  List.fold_left (fun po (pt,nn) ->
+      match nn with
+      | TN_Delm pu when eq_ptr po (Ptr.T_ptr pt) p ->
+         union (T_ptr pt) pu po
+      | _ -> po
+    ) po po.ts
 
 (* when the join can be arbitrary, better to point to
    the oldest pointer (likely to given less occur-check failure*)
@@ -1436,6 +1440,8 @@ and canonical_term : bool -> TPtr.t -> pool -> term * pool
                             (Pos.none (MAbs(b)), po)
         | TN_Name(s,pt)  -> let (t, po) = cp pt po in
                             (Pos.none (Name(s,t)), po)
+        | TN_Delm(pt)    -> let (t, po) = cp pt po in
+                            (Pos.none (Delm(t)), po)
         | TN_Proj(pv,l)  -> let (v, po) = cv pv po in
                             (Pos.none (Proj(v,l)), po)
         | TN_Case(pv,m)  -> let (v, po) = cv pv po in
@@ -1746,6 +1752,8 @@ and unif_t_nodes : pool -> TPtr.t -> t_node -> TPtr.t -> t_node -> pool =
     | (TN_Name(s1,p1)  , TN_Name(s2,p2)  ) ->
        let po = unif_expr po s1 s2 in
        unif_ptr po p1 p2
+    | (TN_Delm(p1)     , TN_Delm(p2)     ) ->
+       unif_ptr po p1 p2
     | (TN_Proj(p1,l1)  , TN_Proj(p2,l2)  ) ->
        if l1.elt <> l2.elt then raise NoUnif;
        unif_vptr po p1 p2
@@ -1886,6 +1894,7 @@ let add_vptr_nobox : VPtr.t -> pool -> bool * pool = fun vp po ->
   if not (get_bs vp po) then
     begin
       let po = set_bs vp po in
+      let po = mk_eq_delim (V_ptr vp) po in
       let nps = parents (Ptr.V_ptr vp) po in
       let po = MapKey.fold (fun k l po ->
                    if is_head k then PtrSet.fold reinsert l po else po) nps po
