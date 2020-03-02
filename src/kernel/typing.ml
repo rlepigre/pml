@@ -1474,7 +1474,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
           | Sys.Break as e -> raise e
           | e -> match d.value_orig.elt with
                  | Valu { elt = LAbs _ } -> raise e
-                 | Valu v ->
+                 | Valu v when not (Timed.get ctx.equations.time d.value_clos) ->
                     begin
                       UTimed.Time.rollback st;
                       try let (_,_,r) = type_valu ctx v c in r
