@@ -42,18 +42,22 @@ type _ ty = ..
 
 type dp = DP : 'a ty * 'a -> dp | Dum
 
+type las = (int * int) list
+
 (** Here are the main type definitions *)
 module rec Ptr : sig
   (** record for values *)
   type v_ptr = { vadr : int            (** uid *)
                ; vlnk : lnk Timed.tref (** link in the union find structure *)
                ; vval : dp             (** the v_node (see equiv.ml) *)
-               ; bs : bool Timed.tref }(** true if we know it is not box *)
+               ; bs : bool Timed.tref  (** true if we know it is not box *)
+               ; mutable vas : las     (** loop detection in Equiv.normalise *) }
   and  t_ptr = { tadr : int            (** uid *)
                ; tlnk : lnk Timed.tref (** link in the union find structure *)
                ; tval : dp             (** the t_node (see equiv.ml) *)
                ; ns : bool Timed.tref  (** was normalised *)
-               ; fs : bool Timed.tref  (** free : occur not under binders *) }
+               ; fs : bool Timed.tref  (** free : occur not under binders *)
+               ; mutable tas : las     (** loop detection in Equiv.normalise *) }
   (** ptr: a v_ptr or a t_ptr *)
   and  ptr   = V_ptr of v_ptr | T_ptr of t_ptr
   (** link for the union find, for roots, we store the parent map *)
@@ -66,9 +70,10 @@ module rec Ptr : sig
   val print : out_channel -> ptr -> unit
 end = struct
   type v_ptr = { vadr : int; vlnk : lnk Timed.tref; vval : dp
-               ; bs : bool Timed.tref }
+               ; bs : bool Timed.tref; mutable vas: las  }
   and  t_ptr = { tadr : int; tlnk : lnk Timed.tref; tval : dp
-               ; ns : bool Timed.tref; fs : bool Timed.tref }
+               ; ns : bool Timed.tref; fs : bool Timed.tref
+               ; mutable tas : las }
   and  ptr   = V_ptr of v_ptr | T_ptr of t_ptr
   and lnk = Lnk of ptr | Par of par_map
   and par_map = PtrSet.t MapKey.t
@@ -204,3 +209,25 @@ let ptr_union_pars : par_map -> Ptr.t ->  Timed.Time.t -> Timed.Time.t =
     | T_ptr tp -> Timed.set time tp.tlnk (Par ps)
 
 type Pos.user += NPtr of ptr | UPtr of ptr | BPtr of ptr * ptr | EPtr of v_ptr
+
+let ptr_adr = function
+  | Ptr.V_ptr p -> p.vadr
+  | Ptr.T_ptr p -> p.tadr
+
+let save_loop p =
+  match p with
+  | Ptr.V_ptr p -> p.vas
+  | Ptr.T_ptr p -> p.tas
+
+let restore_loop p save =
+ match p with
+  | Ptr.V_ptr p -> p.vas <- save
+  | Ptr.T_ptr p -> p.tas <- save
+
+let get_loop p q =
+  let s = save_loop p in (s, try List.assoc (ptr_adr q) (save_loop p)
+                             with Not_found -> 0)
+
+let set_loop p q n = match p with
+  | Ptr.V_ptr p -> p.vas <- (ptr_adr q, n) :: p.vas
+  | Ptr.T_ptr p -> p.tas <- (ptr_adr q, n) :: p.tas

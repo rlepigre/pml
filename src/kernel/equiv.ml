@@ -688,7 +688,7 @@ let insert_v_node : v_node -> pool -> VPtr.t * pool = fun nn po ->
      let ptr = { vadr = po.next
                ; vlnk = Timed.tref (Par MapKey.empty)
                ; bs   = Timed.tref (immediate_nobox nn)
-               ; vval = DP(V_Node, nn) } in
+               ; vval = DP(V_Node, nn); vas = [] } in
      let vs = (ptr,nn) :: po.vs in
      let next = po.next + 1 in
      let po = { po with vs ; next } in
@@ -741,7 +741,8 @@ let insert_t_node : bool -> t_node -> pool -> TPtr.t * pool =
                  ; tlnk = Timed.tref (Par MapKey.empty)
                  ; ns   = Timed.tref false
                  ; fs   = Timed.tref fs
-                 ; tval = DP(T_Node, nn) } in
+                 ; tval = DP(T_Node, nn)
+                 ; tas  = [] } in
        let ts = (ptr, nn) :: po.ts in
        let time, eq_map =
          match nn with
@@ -1103,10 +1104,13 @@ and normalise_t_node : ?old:TPtr.t -> t_node -> pool -> Ptr.t  * pool =
       | TN_Appl(pt,pu,l) ->
          begin
            log_edp2 "normalise in %a = TN_Appl: %a %a"
-                print_t_node node Ptr.print pt Ptr.print pu;
+             print_t_node node Ptr.print pt Ptr.print pu;
            let (pt, po) = normalise pt po in
            let (pu, po) = normalise pu po in
-           try match (pt, pu) with
+           let (save, nb) = get_loop pt pu in
+           set_loop pt pu (nb+1);
+           try if nb > 10 then raise Exit;
+               match (pt, pu) with
            | (Ptr.V_ptr pf, Ptr.V_ptr pv) ->
               begin
                 match find_v_node pf po, get_bs pv po with
@@ -1118,6 +1122,7 @@ and normalise_t_node : ?old:TPtr.t -> t_node -> pool -> Ptr.t  * pool =
                      let po = set_ns po in
                      let (tp, po) = add_term false true po t in
                      let po = union tp po in
+                     restore_loop pt save;
                      log_edp2 "normalised in %a = TN_Appl Lambda %a %a => %a"
                           print_t_node node Ptr.print pt Ptr.print pu
                           Ptr.print tp;
@@ -1128,11 +1133,12 @@ and normalise_t_node : ?old:TPtr.t -> t_node -> pool -> Ptr.t  * pool =
               end
            | (_           , _           ) -> raise Exit
            with Exit ->
-              let (tp, po) = insert (TN_Appl(pt,pu,l)) po in
-               (* NOTE: testing tp in po.ns seems incomplete *)
-              log_edp2 "normalised in %a = TN_Appl: %a %a => %a"
-                   print_t_node node Ptr.print pt Ptr.print pu Ptr.print tp;
-              (tp, po)
+             restore_loop pt save;
+             let (tp, po) = insert (TN_Appl(pt,pu,l)) po in
+             (* NOTE: testing tp in po.ns seems incomplete *)
+             log_edp2 "normalised in %a = TN_Appl Appl: %a %a => %a"
+               print_t_node node Ptr.print pt Ptr.print pu Ptr.print tp;
+             (tp, po)
          end
       | TN_MAbs(b)     -> insert node po (* FIXME #7 can do better. *)
       | TN_Name(s,pt)  -> insert node po (* FIXME #7 can do better. *)
