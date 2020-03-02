@@ -155,6 +155,7 @@ type t_node =
   | TN_Name of s ex loc * Ptr.t
   | TN_Proj of VPtr.t * A.key loc
   | TN_Case of VPtr.t * (v,t) bndr_closure A.t
+  | TN_Delm of Ptr.t
   | TN_FixY of (t,v) bndr_closure * tn_fixy_state Timed.tref
   | TN_Prnt of string
   | TN_UWit of (t qwit, string) eps
@@ -255,6 +256,7 @@ let print_t_node : out_channel -> t_node -> unit = fun ch n ->
                       in
                       let pmap = Print.print_map pelt "|" in
                       prnt ch "TN_Case(%a|%a)" VPtr.print pv pmap m
+  | TN_Delm(pt)    -> prnt ch "TN_Delm(%a)" Ptr.print pt
   | TN_FixY(b,_)   -> prnt ch "TN_FixY(%a)" (pbcl T) b
   | TN_Prnt(s)     -> prnt ch "TN_Prnt(%S)" s
   | TN_UWit(w)     -> prnt ch "TN_UWit(%a)" pex (Pos.none (UWit(w)))
@@ -477,7 +479,8 @@ let children_t_node : t_node -> (par_key * Ptr.t) list = fun n ->
                         A.fold (fun a b acc ->
                             let kn n = KT_Case (Some (a, n)) in
                             snd (children_bndr_closure b kn (0,acc)))
-                               cs []
+                          cs []
+  | TN_Delm(pt)    -> [(KT_Delm, pt)]
   | TN_FixY(b,_)   -> let kn n = KT_FixY n in
                       snd (children_bndr_closure b kn (0, []))
   | TN_MAbs b      -> let kn n = KT_MAbs n in
@@ -637,6 +640,7 @@ let eq_t_nodes : pool -> t_node -> t_node -> bool =
     | (TN_MAbs(b1)     , TN_MAbs(b2)     ) -> eq_cl po S b1 b2
     | (TN_Name(s1,p1)  , TN_Name(s2,p2)  ) -> eq_expr s1 s2
                                               && eq_ptr po p1 p2
+    | (TN_Delm(p1)     , TN_Delm(p2)     ) -> eq_ptr po p1 p2
     | (TN_Proj(p1,l1)  , TN_Proj(p2,l2)  ) -> eq_vptr po p1 p2
                                               && l1.elt = l2.elt
     | (TN_Case(p1,m1)  , TN_Case(p2,m2)  ) -> eq_vptr po p1 p2
@@ -859,7 +863,8 @@ let rec add_term :  bool -> bool -> pool -> term
                      if free then normalise pt po else (find pt po, po)
     | Prnt(s)     -> insert (TN_Prnt(s)) po
     | Repl(_,u)   -> add_term po u
-    | Delm(u)     -> add_term po u
+    | Delm(u)     -> let (pt, po) = add_term po u in
+                     insert (TN_Delm(pt)) po
     | Hint(h,t)   -> (match h with
                       | Close _
                       | Auto  _
@@ -1131,6 +1136,15 @@ and normalise_t_node : ?old:TPtr.t -> t_node -> pool -> Ptr.t  * pool =
          end
       | TN_MAbs(b)     -> insert node po (* FIXME #7 can do better. *)
       | TN_Name(s,pt)  -> insert node po (* FIXME #7 can do better. *)
+      | TN_Delm(tp)    ->
+         begin
+           let tp = find tp po in
+           if is_nobox tp po then
+             let po = union tp po in
+             (tp, po)
+           else
+             insert node po
+         end
       | TN_Proj(pv0,l) ->
          begin
            let pv = find_valu pv0 po in
@@ -1313,6 +1327,7 @@ and join : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
            else po
   in
   let po = if bs1 && not bs2 then begin
+               let po = mk_eq_delim p2 po in
                match p2 with
                | Ptr.V_ptr p2 -> set_bs p2 po
                | Ptr.T_ptr _  -> assert false
@@ -1324,6 +1339,14 @@ and join : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
                if is_head k then PtrSet.fold reinsert l po else po) nps po in
   let po = check_ineq po in
   po
+
+and mk_eq_delim p po =
+  List.fold_left (fun po (pt,nn) ->
+      match nn with
+      | TN_Delm pu when eq_ptr po (Ptr.T_ptr pt) p ->
+         union (T_ptr pt) pu po
+      | _ -> po
+    ) po po.ts
 
 (* when the join can be arbitrary, better to point to
    the oldest pointer (likely to given less occur-check failure*)
@@ -1405,6 +1428,8 @@ and canonical_term : bool -> TPtr.t -> pool -> term * pool
                             (Pos.none (MAbs(b)), po)
         | TN_Name(s,pt)  -> let (t, po) = cp pt po in
                             (Pos.none (Name(s,t)), po)
+        | TN_Delm(pt)    -> let (t, po) = cp pt po in
+                            (Pos.none (Delm(t)), po)
         | TN_Proj(pv,l)  -> let (v, po) = cv pv po in
                             (Pos.none (Proj(v,l)), po)
         | TN_Case(pv,m)  -> let (v, po) = cv pv po in
@@ -1713,6 +1738,8 @@ and unif_t_nodes : pool -> TPtr.t -> t_node -> TPtr.t -> t_node -> pool =
     | (TN_Name(s1,p1)  , TN_Name(s2,p2)  ) ->
        let po = unif_expr po s1 s2 in
        unif_ptr po p1 p2
+    | (TN_Delm(p1)     , TN_Delm(p2)     ) ->
+       unif_ptr po p1 p2
     | (TN_Proj(p1,l1)  , TN_Proj(p2,l2)  ) ->
        if l1.elt <> l2.elt then raise NoUnif;
        unif_vptr po p1 p2
@@ -1853,6 +1880,7 @@ let add_vptr_nobox : VPtr.t -> pool -> bool * pool = fun vp po ->
   if not (get_bs vp po) then
     begin
       let po = set_bs vp po in
+      let po = mk_eq_delim (V_ptr vp) po in
       let nps = parents (Ptr.V_ptr vp) po in
       let po = MapKey.fold (fun k l po ->
                    if is_head k then PtrSet.fold reinsert l po else po) nps po

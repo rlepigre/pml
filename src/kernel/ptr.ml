@@ -16,6 +16,7 @@ type par_key =
   | KT_Appl of [`Left|`Right]
   | KT_MAbs of int
   | KT_Name
+  | KT_Delm
   | KT_Proj of A.key
   | KT_Case of (A.key * int) option (* None for the main value *)
   | KT_FixY of int
