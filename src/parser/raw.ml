@@ -1531,6 +1531,9 @@ let from_int _loc n =
 let qed _loc =
   in_pos _loc (EReco([]))
 
+let scis _loc =
+  in_pos _loc (EScis)
+
 let eval _loc t = in_pos _loc (EHint(Eval,t))
 
 let ehint _loc h t = in_pos _loc (EHint(h,t))
@@ -1587,7 +1590,7 @@ let suppose _loc props t =
                   (case x { true -> qed false -> qed } ; x == true" *)
 let assume _loc t q p =
   let q = match q with
-    | None   -> qed _loc
+    | None   -> scis _loc
     | Some q -> q
   in
   ehint _loc Sugar
