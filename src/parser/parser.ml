@@ -510,10 +510,10 @@ and [@cache] term_seq =
          ';' (p::expr (Trm S))
       => showing _pos a q p
   (* Term ("assume"/"know" tactic) *)
-  ; (_assume_ => (); _know_ => ())  (a::expr (Trm R))
+  ; (ass::(_assume_ => true; _know_ => false)) (a::expr (Trm R))
          (q::~? (because (q::((e::expr (Trm R)) => e ; '{' (t::term) '}' => t)) => q))
          ';' (p::expr (Trm S))
-      => assume _pos a q p
+      => assume _pos ass a q p
   (* Term (auto lvl) *)
   ; _set_ (l::set_param) ';' (t::expr (Trm S))
       => in_pos _pos (EHint(LSet(l),t))

@@ -1588,9 +1588,9 @@ let suppose _loc props t =
 
 (* "assume t" := "let x = t;
                   (case x { true -> qed false -> qed } ; x == true" *)
-let assume _loc t q p =
+let assume _loc assume t q p =
   let q = match q with
-    | None   -> scis _loc
+    | None   -> (if assume then qed else scis) _loc
     | Some q -> q
   in
   ehint _loc Sugar
