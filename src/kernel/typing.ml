@@ -612,7 +612,7 @@ let rec subtype =
          if t_is_val then
            begin
              try  Sub_Impl_r(Some(subtype (learn ctx e)t a c))
-             with Contradiction -> Sub_Rest_l(None)
+             with Contradiction -> Sub_Impl_r(None)
            end
           (* NOTE may need a backtrack because a right rule could work *)
           else gen_subtype ctx a b
