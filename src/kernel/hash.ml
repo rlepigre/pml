@@ -134,39 +134,37 @@ let {hash_expr; hash_bndr; hash_ombinder; hash_vwit
       | SubSch s -> khash1 `SubSch (hash s.ssch_index)
   in
 
-  let hash_chrono = Chrono.create "hash" in
-
   let hash_expr : type a. a ex loc -> int =
     fun e ->
       c := -1; (* Reset. *)
-      Chrono.add_time hash_chrono hash_expr e
+      hash_expr e
   in
 
   let hash_bndr : type a b. a sort -> (a,b) bndr -> int =
     fun s b ->
       c := -1; (* Reset. *)
-      Chrono.add_time hash_chrono (hash_bndr s) b
+      hash_bndr s b
   in
 
   let hash_ombinder : type a. (o ex, a ex loc) mbinder -> int =
     fun omb ->
       c := -1; (* Reset. *)
-      Chrono.add_time hash_chrono hash_ombinder omb
+      hash_ombinder omb
   in
 
   let hash_vwit = fun w ->
       c := -1; (* Reset. *)
-      Chrono.add_time hash_chrono hash_vwit w
+      hash_vwit w
   in
 
   let hash_qwit = fun w ->
       c := -1; (* Reset. *)
-      Chrono.add_time hash_chrono hash_qwit w
+      hash_qwit w
   in
 
   let hash_owit = fun w ->
       c := -1; (* Reset. *)
-      Chrono.add_time hash_chrono hash_owit w
+      hash_owit w
   in
   { hash_expr; hash_bndr; hash_ombinder; hash_vwit
   ; hash_qwit; hash_owit; hash_swit; hash_cwit }

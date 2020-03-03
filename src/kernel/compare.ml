@@ -426,16 +426,13 @@ let {eq_expr; eq_bndr } =
         eq_binder (eq_expr oracle strict) b1 b2
   in
 
-  let compare_chrono = Chrono.create "compare" in
-
   let eq_expr : type a. ?oracle:oracle -> ?strict:bool ->
                           a ex loc -> a ex loc -> bool =
     fun ?(oracle=default_oracle) ?(strict=true) e1 e2 ->
       let is_oracle = oracle != default_oracle in
       log_equ "showing %a === %a (%b)" Print.ex e1 Print.ex e2 is_oracle;
       (*bug_msg "sizes: %i and %i" (binary_size e1) (binary_size e2);*)
-      let res = Chrono.add_time compare_chrono
-                  (UTimed.pure_test (eq_expr oracle strict e1)) e2 in
+      let res = UTimed.pure_test (eq_expr oracle strict e1) e2 in
       log_equ "we have %a %s %a"
               Print.ex e1 (if res then "=" else "≠") Print.ex e2;
       res
@@ -444,8 +441,7 @@ let {eq_expr; eq_bndr } =
   let eq_bndr : type a b. ?oracle:oracle -> ?strict:bool ->
                      a sort -> (a,b) bndr -> (a,b) bndr -> bool =
     fun ?(oracle=default_oracle) ?(strict=true) s1 b1 b2 ->
-      Chrono.add_time compare_chrono
-        (UTimed.pure_test (eq_bndr oracle strict s1 b1)) b2
+      UTimed.pure_test (eq_bndr oracle strict s1 b1) b2
   in
 
   {eq_expr; eq_bndr}

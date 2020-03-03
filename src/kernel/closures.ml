@@ -54,10 +54,3 @@ let make_bndr_closure
     let b = bind_var x e in
     let b = box_pair (box (fst b0)) b in
     (unbox (bind_mvar vv (bind_mvar tv b)), vl, tl)
-
-let closure_chrono = Chrono.create "closure"
-
-let make_closure e =
-  Chrono.add_time closure_chrono make_closure e
-let make_bndr_closure s e =
-  Chrono.add_time closure_chrono (make_bndr_closure s) e

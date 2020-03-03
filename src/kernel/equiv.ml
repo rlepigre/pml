@@ -18,7 +18,6 @@ open Epsilon
 
 let equiv_chrono = Chrono.create "equiv"
 let pareq_chrono = Chrono.create "pareq"
-let inser_chrono = Chrono.create "inser"
 
 (* Log function registration. *)
 let log_edp1 = Log.register 'e' (Some "equ") "equivalence decision procedure"
@@ -758,9 +757,6 @@ let insert_t_node : bool -> t_node -> pool -> TPtr.t * pool =
        let po = { po with time; ts ; next; eq_map } in
        let po = add_parent_t_nodes ptr children po in
        (ptr, po)
-
-let insert_v_node nn po = Chrono.add_time inser_chrono (insert_v_node nn) po
-let insert_t_node nn po = Chrono.add_time inser_chrono (insert_t_node nn) po
 
 (** avoid UWit and EWit, that makes duplicate. However, UWit and EWit
     can still appear as sub terms.
