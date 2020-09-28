@@ -234,7 +234,6 @@ let (<<=) = fun p1 p2 ->
   | Ord p1, Ord p2 -> p1 <= p2
   | _     , _      -> false
 
-let to_full = function
 (* Parser for expressions. *)
 let parser expr @(m : mode) =
   (* Any (higher-order function) *)
