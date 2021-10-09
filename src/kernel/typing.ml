@@ -48,7 +48,7 @@ exception No_typing_IH of strloc
 
 exception No_subtyping_IH of strloc * strloc
 
-exception Illegal_effect of Effect.effect
+exception Illegal_effect of Effect.pml_effect
 
 exception Unexpected_error of string
 let unexpected : string -> 'a =

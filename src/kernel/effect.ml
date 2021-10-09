@@ -15,11 +15,11 @@ open Output
 let log_eff = Log.register 'z' (Some "eff") "effect computation"
 let log_eff = Log.(log_eff.p)
 
-type effect =
+type pml_effect =
   Loop | CallCC
 
 module Effect = struct
-  type t = effect
+  type t = pml_effect
   let all = [ Loop; CallCC ]
   let print ch = function
     | Loop   -> Printf.fprintf ch "Loop"
