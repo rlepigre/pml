@@ -262,7 +262,16 @@ let get_infix_prio u =
   match u.elt with EInfx(_,p) -> p
                  | _ -> 0.0
 
-(*let to_full = function*)
+let (<<=) = fun p1 p2 ->
+  match p1, p2 with
+  | _     , HO     -> true
+  | Any   ,_       -> true
+  | Prp p1, Prp p2 -> p1 <= p2
+  | Trm p1, Trm p2 -> p1 <= p2
+  | Stk   , Stk    -> true
+  | Ord p1, Ord p2 -> p1 <= p2
+  | _     , _      -> false
+
 (* Parser for expressions. *)
 let%parser rec expr (m : mode) =
   (* Any (higher-order function) *)

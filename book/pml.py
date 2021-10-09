@@ -26,7 +26,7 @@ class PMLLexer(RegexLexer):
 
     keywords = [
       'assert', 'assume', 'because', 'bool', 'by', 'case', 'check', 'corec',
-      'deduce', 'delim', 'def', 'else', 'fix', 'for', 'from', 'fun', 'if',
+      'deduce', 'delim', 'def', 'else', 'eqns', 'fix', 'for', 'from', 'fun', 'if',
       'include', 'infix', 'know', 'let', 'of', 'print', 'prove', 'qed', 'rec',
       'restore', 'save', 'set', 'show', 'showing', 'sort', 'such', 'suppose',
       'take', 'that', 'type', 'unsafe', 'use', 'using', 'val'
