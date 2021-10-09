@@ -67,51 +67,53 @@ let removeq : ('a -> 'a -> bool) -> 'a list ref -> 'a -> bool = fun eq ls x ->
   in
   fn [] !ls
 
-let collect_exis : type s a.s sort -> a ex loc -> s var list * a ex loc =
-  fun s e ->
-  let rec fn : type a.s var list -> a ex loc -> s var list * a ex loc =
-    fun acc e ->
+let collect_exis : type s a.ctxt -> s sort -> a ex loc ->
+                        s var list * a ex loc * ctxt =
+  fun ctxt s e ->
+  let rec fn : type a.ctxt -> s var list -> a ex loc ->
+                    s var list * a ex loc * ctxt =
+    fun ctxt acc e ->
       let e = Norm.repr e in
       match e.elt with
       | Exis(s', f) ->
          begin
            match eq_sort s s' with
-           | Eq.Eq  ->  let ((x:s var), t) = bndr_open f in
-                        fn (x::acc) t
-           | Eq.NEq -> (acc, e)
+           | Eq.Eq  ->  let ((x:s var), t, ctxt) = bndr_open_in ctxt f in
+                        fn ctxt (x::acc) t
+           | Eq.NEq -> (acc, e, ctxt)
          end
-      | _           -> (acc, e)
+      | _           -> (acc, e, ctxt)
   in
-  fn [] e
+  fn ctxt [] e
 
 type _ sugar =
   | NoSugar : 'a sugar
-  | StrictReco : (pos * prop) Assoc.t -> p sugar
+  | StrictReco : (pos * prop) Assoc.t * ctxt -> p sugar
   | Tuple      : valu list -> v sugar
   | TupleType  : prop list -> p sugar
-  | DepSum     : t var list * prop * prop -> p sugar
-  | Compr      : t var * prop * rel -> p sugar
+  | DepSum     : t var list * prop * prop * ctxt -> p sugar
+  | Compr      : t var * prop * rel * ctxt -> p sugar
   | Def        : 'a ex loc -> 'a sugar
 
-let is_comprehension : type a. a ex loc -> a sugar = fun e ->
+let is_comprehension : type a. ctxt -> a ex loc -> a sugar = fun ctxt e ->
   match (Norm.repr e).elt with
   | Exis(T, f) ->
      begin
-       let (x, t) = bndr_open f in
+       let (x, t, ctxt) = bndr_open_in ctxt f in
        match (Norm.repr t).elt with
        | Memb(t,p) ->
           begin
             match ((Norm.repr t).elt, (Norm.repr p).elt) with
-            | (Vari(_,y), Rest(p,eq)) when eq_vars x y -> Compr(x,p,eq)
+            | (Vari(_,y), Rest(p,eq)) when eq_vars x y -> Compr(x,p,eq,ctxt)
             | _                                        -> NoSugar
           end
        | _         -> NoSugar
      end
   | _          -> NoSugar
 
-let is_strict_record : type a. a ex loc -> a sugar =
-  fun e ->
-  let (ls, e) = collect_exis V e in
+let is_strict_record : type a. ctxt -> a ex loc -> a sugar =
+  fun ctxt e ->
+  let (ls, e, ctxt) = collect_exis ctxt V e in
   match e.elt with
   | Memb(t,p) ->
      begin
@@ -132,7 +134,7 @@ let is_strict_record : type a. a ex loc -> a sugar =
                              | _         -> false
                            end
                        ) m1
-               then StrictReco m2
+               then StrictReco (m2, ctxt)
                else NoSugar
 
             | _                  -> NoSugar
@@ -223,8 +225,8 @@ let is_def : type a. a ex loc -> a sugar = fun e ->
       match acc with NoSugar -> is_expr e | _ -> acc)
     !(Env.env).Env.global_exprs NoSugar
 
-let is_dep_sum : type a.a ex loc -> a sugar = fun e ->
-  let (ls, e) = collect_exis T e in
+let is_dep_sum : type a.ctxt -> a ex loc -> a sugar = fun ctxt e ->
+  let (ls, e, ctxt) = collect_exis ctxt T e in
   let ty = ref None in
   match is_tuple_type e with
   | NoSugar      -> NoSugar
@@ -252,26 +254,26 @@ let is_dep_sum : type a.a ex loc -> a sugar = fun e ->
            | None    -> assert false
            | Some ty -> ty
          in
-         DepSum(vars, ty, List.nth ps (List.length ls))
+         DepSum(vars, ty, List.nth ps (List.length ls),ctxt)
        with
          Exit -> NoSugar
      else NoSugar
   | _ -> assert false
 
-let is_sugar : type a.a ex loc -> a sugar = fun e ->
-  let s = is_strict_record e in
+let is_sugar : type a.ctxt -> a ex loc -> a sugar = fun ctxt e ->
+  let s = is_strict_record ctxt e in
   if s <> NoSugar then s else
   let s = is_tuple e in
   if s <> NoSugar then s else
-  let s = is_dep_sum e in
+  let s = is_dep_sum ctxt e in
   if s <> NoSugar then s else
-  let s = is_comprehension e in
+  let s = is_comprehension ctxt e in
   if s <> NoSugar then s else
   let s = is_def e in
   if s <> NoSugar then s else
   s
 
-let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
+let rec ex : type a. ctxt -> mode -> a ex loc printer = fun ctxt pr ch e ->
   let is_unit : v ex loc -> bool = fun e ->
     match (Norm.repr e).elt with
     | Reco(m)   -> m = A.empty
@@ -288,40 +290,43 @@ let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
     | _ -> None
   in
   let e = Norm.repr e in
-  let exa ch t = ex Any ch t in
-  let exp ch t = ex (Prp F) ch t in
-  let ext ch t = ex (Trm F) ch t in
-  let exi ch t = ex (Trm I) ch t in
-  let exo ch t = ex (Ord F) ch t in
+  let exa ch t = ex ctxt Any ch t in
+  let exp ch t = ex ctxt (Prp F) ch t in
+  let ext ch t = ex ctxt (Trm F) ch t in
+  let exi ch t = ex ctxt (Trm I) ch t in
+  let exo ch t = ex ctxt (Ord F) ch t in
   let supo ch o = match (Norm.repr o).elt with
     | Conv -> ()
     | _    -> fprintf ch "^%a " exo o
   in
-  match is_sugar e with
-  | StrictReco m  -> let pelt ch (l,(_,a)) =
-                       fprintf ch "%s : %a" l exp a
-                     in fprintf ch "{%a}" (print_map pelt "; ") m
-  | Tuple ls      -> fprintf ch "(%a)" (print_list ext ", ") ls
-  | TupleType ls  -> let (l,r) = if Prp P < pr then ("(",")") else ("","") in
-                     fprintf ch "%s%a%s" l
-                       (print_list (ex (Prp R)) " × ") ls r
-  | DepSum(l,a,p) -> let pelt ch x = fprintf ch "%s" (name_of x) in
-                     fprintf ch "∃%a∈%a, %a"
-                       (print_list pelt " ") l exp a exp p
-  | Compr(x,p,r)  -> fprintf ch "{ %s ∈ %a | %a }" (name_of x) exp p rel r
-  | Def e         -> ex pr ch e
-  | NoSugar       ->
+  match is_sugar ctxt e with
+  | StrictReco (m,c) -> let pelt ch (l,(_,a)) =
+                          fprintf ch "%s : %a" l (ex c (Prp F)) a
+                        in fprintf ch "{%a}" (print_map pelt "; ") m
+  | Tuple ls         -> fprintf ch "(%a)" (print_list ext ", ") ls
+  | TupleType ls     -> let (l,r) =
+                          if Prp P < pr then ("(",")") else ("","")
+                        in
+                        fprintf ch "%s%a%s" l
+                          (print_list (ex ctxt (Prp R)) " × ") ls r
+  | DepSum(l,a,p,c)  -> let pelt ch x = fprintf ch "%s" (name_of x) in
+                        fprintf ch "∃%a∈%a, %a"
+                          (print_list pelt " ") l exp a (ex c (Prp F)) p
+  | Compr(x,p,r,c)   -> fprintf ch "{ %s ∈ %a | %a }"
+                          (name_of x) exp p (rel c) r
+  | Def e            -> ex ctxt pr ch e
+  | NoSugar          ->
   match e.elt with
   | Vari(_,x)   -> output_string ch (name_of x)
-  | HFun(s,_,b) -> let (x,t) = bndr_open b in
-                   fprintf ch "(%s ↦ %a)" (name_of x) exa t
+  | HFun(s,_,b) -> let (x,t,ctxt) = bndr_open_in ctxt b in
+                   fprintf ch "(%s ↦ %a)" (name_of x) (ex ctxt Any) t
   | HApp(_,f,a) -> let rec print_app : type a b.(a -> b) ex loc -> unit =
                      fun f ->
                        let f = Norm.repr f in
                        match f.elt with
                        | HApp(_,g,a) -> print_app g; fprintf ch "%a,"
                                                              exa a
-                       | _           -> fprintf ch "%a⟨" (ex HO) f
+                       | _           -> fprintf ch "%a⟨" (ex ctxt HO) f
                    in
                    print_app f; fprintf ch "%a⟩" exa a
   | HDef(_,d)   -> output_string ch d.expr_name.elt
@@ -329,7 +334,8 @@ let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
      begin
        match l with
        | NoLz   -> let (l,r) = if Prp F < pr then ("(",")") else ("","") in
-                   fprintf ch "%s%a %a %a%s" l (ex (Prp P)) a arrow t exp b r
+                   fprintf ch "%s%a %a %a%s"
+                     l (ex ctxt (Prp P)) a arrow t exp b r
        | Lazy   -> fprintf ch "lazy⟨%a⟩" exp b
      end
   | Prod(m)     -> let pelt ch (l,(_,a)) = fprintf ch "%s : %a" l exp a in
@@ -337,64 +343,69 @@ let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
                    fprintf ch "{%a%s}" (print_map pelt "; ") m elp
   | DSum(m)     -> let pelt ch (l,(_,a)) = fprintf ch "%s : %a" l exp a in
                    fprintf ch "[%a]" (print_map pelt "; ") m
-  | Univ(s,b)   -> let (x,a) = bndr_open b in
+  | Univ(s,b)   -> let (x,a,ctxt) = bndr_open_in ctxt b in
                    fprintf ch "∀%s:%a, %a" (name_of x)
-                     sort s exp a
-  | Exis(s,b)   -> let (x,a) = bndr_open b in
+                     sort s (ex ctxt (Prp F)) a
+  | Exis(s,b)   -> let (x,a,ctxt) = bndr_open_in ctxt b in
                    fprintf ch "∃%s:%a, %a" (name_of x)
-                     sort s exp a
-  | FixM(_,o,b,Nil) -> let (x,a) = bndr_open b in
-                   fprintf ch "μ%a%s, %a" supo o (name_of x) exp a
+                     sort s (ex ctxt (Prp F)) a
+  | FixM(_,o,b,Nil) -> let (x,a,ctxt) = bndr_open_in ctxt b in
+                       fprintf ch "μ%a%s, %a"
+                         supo o (name_of x) (ex ctxt (Prp F)) a
   | FixM(s,o,b,l) -> exp ch (apply_args (Pos.none (FixM(s,o,b,Nil))) l)
-  | FixN(_,o,b,Nil) -> let (x,a) = bndr_open b in
-                   fprintf ch "ν%a%s, %a" supo o (name_of x) exp a
+  | FixN(_,o,b,Nil) -> let (x,a,ctxt) = bndr_open_in ctxt b in
+                       fprintf ch "ν%a%s, %a"
+                         supo o (name_of x) (ex ctxt (Prp F)) a
   | FixN(s,o,b,l) -> exp ch (apply_args (Pos.none (FixN(s,o,b,Nil))) l)
   | Memb(t,a)   -> begin
                      match is_eq e with
                      | Some(e1,s,e2) -> fprintf ch "%a %s %a" exi e1 s exi e2
                      | None ->
-                       let (l,r) = if Prp M <= pr then ("(",")") else ("","")
-                       in fprintf ch "%s%a ∈ %a%s" l exi t (ex (Prp M)) a r
+                        let
+                          (l,r) = if Prp M <= pr then ("(",")") else ("","")
+                        in
+                        fprintf ch "%s%a ∈ %a%s" l exi t (ex ctxt (Prp M)) a r
                    end
   | Rest(a,c)   -> begin
                      match is_eq e with
                      | Some(e1,s,e2) -> fprintf ch "%a%s%a" exi e1 s exi e2
                      | None ->
                        let (l,r) = if Prp R <= pr then ("(",")") else ("","")
-                       in fprintf ch "(%s%a%s | %a)" l (ex (Prp R)) a r rel c
+                       in fprintf ch "(%s%a%s | %a)"
+                            l (ex ctxt (Prp R)) a r (rel ctxt) c
                    end
   | Impl(e,a)   -> begin
-                     fprintf ch "%a ↪ %a" rel e (ex (Prp R)) a
+                     fprintf ch "%a ↪ %a" (rel ctxt) e (ex ctxt (Prp R)) a
                    end
   | LAbs(a,b,l) ->
      begin
        match l with
-       | NoLz   -> let (x,t) = bndr_open b in
+       | NoLz   -> let (x,t,ctxt) = bndr_open_in ctxt b in
                    begin
                      match a with
                      | None   ->
-                        let rec fn acc t =
+                        let rec fn ctxt acc t =
                           match (Norm.repr t).elt with
                           | Valu(v) ->
                              begin
                                match (Norm.repr v).elt with
                                | LAbs(None,b,NoLz) ->
-                                  let (x,t) = bndr_open b in
-                                  fn (x::acc) t
-                               | _            -> (acc, t)
+                                  let (x,t,ctxt) = bndr_open_in ctxt b in
+                                  fn ctxt (x::acc) t
+                               | _            -> (acc, t, ctxt)
                              end
-                          | _            -> (acc, t)
+                          | _            -> (acc, t, ctxt)
                         in
-                        let (ls, t) = fn [x] t in
+                        let (ls, t, ctxt) = fn ctxt [x] t in
                         let ls = List.rev ls in
                         let pelt ch x = fprintf ch "%s" (name_of x) in
                         fprintf ch "fun %a {%a}"
-                                (print_list pelt " ") ls ext t
+                                (print_list pelt " ") ls (ex ctxt (Trm F)) t
                      | Some a -> fprintf ch "fun (%s:%a) {%a}"
-                                         (name_of x) exp a ext t
+                                         (name_of x) exp a (ex ctxt (Trm F)) t
                    end
-       | Lazy   -> let (x,t) = bndr_open b in
-                   fprintf ch "fun {%a}" ext t
+       | Lazy   -> let (x,t,ctxt) = bndr_open_in ctxt b in
+                   fprintf ch "fun {%a}" (ex ctxt (Trm F)) t
      end
   | Cons(c,v)   -> if is_unit v then fprintf ch "%s" c.elt
                    else fprintf ch "%s[%a]" c.elt ext v
@@ -403,31 +414,32 @@ let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
                    fprintf ch "{%a}" (print_map pelt "; ") m
   | Scis        -> output_string ch "✂"
   | VDef(d)     -> output_string ch d.value_name.elt
-  | Valu(v)     -> ex pr ch v
+  | Valu(v)     -> ex ctxt pr ch v
   | Appl(t,u,lz)->
      begin
        let (l,r) = if Trm P < pr then ("(",")") else ("","") in
        match lz with
-       | NoLz   -> fprintf ch "%s%a %a%s" l (ex (Trm P)) t (ex (Trm A)) u r
-       | Lazy   -> fprintf ch "%sforce %a%s" l (ex (Trm P)) t r
+       | NoLz   -> fprintf ch "%s%a %a%s" l (ex ctxt (Trm P)) t
+                     (ex ctxt (Trm A)) u r
+       | Lazy   -> fprintf ch "%sforce %a%s" l (ex ctxt (Trm P)) t r
      end
-  | MAbs(b)     -> let (x,t) = bndr_open b in
-                   fprintf ch "save %s {%a}" (name_of x) ext t
+  | MAbs(b)     -> let (x,t,ctxt) = bndr_open_in ctxt b in
+                   fprintf ch "save %s {%a}" (name_of x) (ex ctxt (Trm F)) t
   | Name(s,t)   -> fprintf ch "restore %a %a" exa s ext t
-  | Proj(v,l)   -> fprintf ch "%a.%s" (ex (Trm A)) v l.elt
+  | Proj(v,l)   -> fprintf ch "%a.%s" (ex ctxt (Trm A)) v l.elt
   | Case(v,m)   -> let pelt ch (c, (_, b)) =
-                     let (x,t) = bndr_open b in
+                     let (x,t,ctxt) = bndr_open_in ctxt b in
                      fprintf ch "%s[%s] → %a"
-                             c (name_of x) ext t
+                             c (name_of x) (ex ctxt (Trm F)) t
                    in
                    let pcase = print_map pelt " " in
                    fprintf ch "case %a {%a}" ext v pcase m
-  | FixY(b)     -> let (x,t) = bndr_open b in
-                   fprintf ch "fix %s {%a}" (name_of x) ext t
+  | FixY(b)     -> let (x,t,ctxt) = bndr_open_in ctxt b in
+                   fprintf ch "fix %s {%a}" (name_of x) (ex ctxt (Trm F)) t
   | Prnt(s)     -> fprintf ch "print(%S)" s
   | Repl(t,u)   -> fprintf ch "check {%a} for {%a}" ext t ext u
   | Delm(t)     -> fprintf ch "delim {%a}" ext t
-  | Hint(_,t)   -> ex pr ch t
+  | Hint(_,t)   -> ex ctxt pr ch t
   | Conv        -> output_string ch "∞"
   | Succ(o)     -> fprintf ch "%a+1" exo o
   | Coer(_,e,a) -> fprintf ch "(%a : %a)" ext e exp a
@@ -466,18 +478,20 @@ let rec ex : type a. mode -> a ex loc printer = fun pr ch e ->
   | VPtr(p)     -> fprintf ch "VPtr(%a)" VPtr.print p
   | TPtr(p)     -> fprintf ch "TPtr(%a)"  Ptr.print p
 
-and rel ch cnd =
+and rel ctxt ch cnd =
   let eq b = if b then "=" else "≠" in
     match cnd with
     | Equiv(t,b,u) -> fprintf ch "%a %s %a"
-                              (ex (Trm F)) t (eq b) (ex (Trm F)) u
-    | NoBox(v)     -> fprintf ch "%a↓" (ex (Trm F)) v
-
-let ex ch t = ex Any ch t
+                        (ex ctxt (Trm F)) t (eq b)
+                        (ex ctxt (Trm F)) u
+    | NoBox(v)     -> fprintf ch "%a↓" (ex ctxt (Trm F)) v
 
 let bndr ch b =
-  let (x, t) = bndr_open b in
-  fprintf ch "%s.%a" (name_of x) ex t
+  let ctxt = empty_ctxt in
+  let (x, t, ctxt) = bndr_open_in ctxt b in
+  fprintf ch "%s.%a" (name_of x) (ex ctxt Any) t
+let ex ch t = ex empty_ctxt Any ch t
+let rel ch r = rel empty_ctxt ch r
 
 let print_fix_sch ch sch =
   let (x,t) = unbind (snd (fst sch.fsch_judge)) in

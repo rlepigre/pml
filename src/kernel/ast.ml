@@ -331,6 +331,8 @@ let bndr_open : ('a, 'b) bndr -> 'a var * 'b ex loc =
   fun (_,b) -> unbind b
 let bndr_term : ('a, 'b) bndr -> 'b ex loc =
   fun b -> snd (bndr_open b)
+let bndr_open_in : ctxt -> ('a, 'b) bndr -> 'a var * 'b ex loc * ctxt =
+  fun ctxt (_,b) -> unbind_in ctxt b
 
 (** Obtain the name of a bound variable in the form of a located string. The
     position corresponds to the variable in binding position. *)
