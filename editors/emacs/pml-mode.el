@@ -9,12 +9,12 @@
     ;; This is added so entity names with underscores can be more easily parsed
     (modify-syntax-entry ?_ "w" pml-mode-syntax-table)
     (modify-syntax-entry ?' "w" pml-mode-syntax-table)
-    (modify-syntax-entry ?( "(" pml-mode-syntax-table)
+    (modify-syntax-entry ?\( "(" pml-mode-syntax-table)
     (modify-syntax-entry ?{ "(" pml-mode-syntax-table)
-    (modify-syntax-entry ?[ "(" pml-mode-syntax-table)
-    (modify-syntax-entry ?) ")" pml-mode-syntax-table)
+    (modify-syntax-entry ?\[ "(" pml-mode-syntax-table)
+    (modify-syntax-entry ?\) ")" pml-mode-syntax-table)
     (modify-syntax-entry ?} ")" pml-mode-syntax-table)
-    (modify-syntax-entry ?] ")" pml-mode-syntax-table)
+    (modify-syntax-entry ?\] ")" pml-mode-syntax-table)
     ;; comments definition
     ;; . means punctuation
     ;; // 12 means first and second char of one line comments
