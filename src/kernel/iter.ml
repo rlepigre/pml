@@ -75,8 +75,10 @@ let iter : type a. iterator -> a ex loc -> unit
         | DSum(m)       -> A.iter (fun _ (_,a) -> iter a) m
         | Univ(s,f)     -> biter s f
         | Exis(s,f)     -> biter s f
-        | FixM(s,o,f,l) -> if iterator.dofixpnt then (iter o; biter s f; iter_args l)
-        | FixN(s,o,f,l) -> if iterator.dofixpnt then (iter o; biter s f; iter_args l)
+        | FixM(s,o,f,l) ->
+           if iterator.dofixpnt then (iter o; biter s f; iter_args l)
+        | FixN(s,o,f,l) ->
+           if iterator.dofixpnt then (iter o; biter s f; iter_args l)
         | Memb(t,a)     -> iter t; iter a
         | Rest(a,c)     -> iter a; iter_cond c
         | Impl(c,a)     -> iter_cond c; iter a

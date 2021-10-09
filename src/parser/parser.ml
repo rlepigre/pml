@@ -37,7 +37,8 @@ let str_lit =
 (* Parser of a module path. *)
 
 let%parser path_atom = (id::RE"[a-zA-Z0-9_]+") => id
-let%parser path = (ps:: ~* ((p::path_atom) '.' => p)) (f::path_atom) => ps @ [f]
+let%parser path =
+  (ps:: ~* ((p::path_atom) '.' => p)) (f::path_atom) => ps @ [f]
 
 let path = Grammar.test_after (fun _ buf pos _ _ ->
                let (c,_,_) = Input.read buf pos in
@@ -395,13 +396,17 @@ and [@cache] prop_full =
   ; "∃" (x::llid) (xs::~* llid) "∈" (a::prop) ',' (b::prop)
       => eexis_in _pos x xs a b
   (* Proposition (least fixpoint) *)
-  ; "μ" (o:: ~? [none EConv] ('_' (o::ordinal) => o)) ((x,s)::s_arg) ',' (a::any)
-      => (let s = match s with Some s -> s | None -> new_sort_uvar (Some x) in
-         in_pos _pos (EFixM(s,o,x,a)))
+  ; "μ" (o:: ~? [none EConv] ('_' (o::ordinal) => o))
+      ((x,s)::s_arg) ',' (a::any)
+      => (let s = match s with Some s -> s
+                             | None -> new_sort_uvar (Some x) in
+          in_pos _pos (EFixM(s,o,x,a)))
   (* Proposition (greatest fixpoint) *)
-  ; "ν" (o:: ~? [none EConv] ('_' (o::ordinal) => o)) ((x,s)::s_arg) ',' (a::any)
-      => (let s = match s with Some s -> s | None -> new_sort_uvar (Some x) in
-         in_pos _pos (EFixN(s,o,x,a)))
+  ; "ν" (o:: ~? [none EConv] ('_' (o::ordinal) => o))
+      ((x,s)::s_arg) ',' (a::any)
+      => (let s = match s with Some s -> s |
+                               None -> new_sort_uvar (Some x) in
+          in_pos _pos (EFixN(s,o,x,a)))
 
 and [@cache] term_atom  =
     (* Term (lambda abstraction) *)
@@ -435,8 +440,11 @@ and [@cache] term_atom  =
   ; scis
       => in_pos _pos EScis
   ; "χ"
-    => in_pos _pos (ELAbs (((in_pos _pos "x",None), []),
-                           in_pos _pos (EClck(in_pos _pos (EVari(none "x",_sv)))), NoLz))
+    => (let clk _pos =
+         in_pos _pos (EClck(in_pos _pos (EVari(none "x",_sv))))
+       in
+       in_pos _pos (ELAbs (((in_pos _pos "x",None), []),
+                           clk _pos, NoLz)))
   (* Term (mu abstraction) *)
   ; _save_ (arg::llid) '{' (t::term) '}'
       => in_pos _pos (EMAbs(arg,t))
@@ -506,26 +514,30 @@ and [@cache] term_seq =
   ; _suppose_ (props::~+ [comma] (expr (Prp F))) ';' (t::expr (Trm S))
       => suppose _pos props t
   (* Term (let binding) *)
-  ; _let_ (r::v_rec) (arg::let_arg) '=' (t::expr (Trm R)) ';' (u::expr (Trm S))
+  ; _let_ (r::v_rec) (arg::let_arg) '='
+          (t::expr (Trm R)) ';' (u::expr (Trm S))
       => let_binding _pos r arg t u
   (* Local definition *)
   ; _def_ (id::llid) (args::s_args) (s::~?(':' (s::sort) => s)) '=' (e::any)
           ';' (u::expr (Trm S))
       => local_expr_def _pos id args s e u
   (* local definition of a proposition (special case of expression). *)
-  ; _type_ (r::t_rec) (id::llid) (args::s_args) '=' (e::prop) ';' (u::expr (Trm S))
+  ; _type_ (r::t_rec) (id::llid) (args::s_args) '='
+          (e::prop) ';' (u::expr (Trm S))
       => local_type_def _pos r id args e u
   (* Term (sequencing). *)
   ; (t::expr (Trm R)) ';' (u::expr (Trm S))
       => in_pos _pos (ESequ(t,u))
   (* Term ("showing" tactic) *)
   ; from (a::expr (Prp R))
-         (q::~? (because (q::((e::expr (Trm R)) => e ; '{' (t::term) '}' => t)) => q))
+         (q::~? (because (q::((e::expr (Trm R)) => e ;
+                           '{' (t::term) '}' => t)) => q))
          ';' (p::expr (Trm S))
       => showing _pos a q p
   (* Term ("assume"/"know" tactic) *)
   ; (ass::(_assume_ => true; _know_ => false)) (a::expr (Trm R))
-         (q::~? (because (q::((e::expr (Trm R)) => e ; '{' (t::term) '}' => t)) => q))
+         (q::~? (because (q::((e::expr (Trm R)) => e ;
+                           '{' (t::term) '}' => t)) => q))
          ';' (p::expr (Trm S))
       => assume _pos ass a q p
   (* Term (auto lvl) *)
@@ -548,7 +560,9 @@ and [@cache] term_infix =
       => in_pos _pos (EName(s,t))
   (* Term (infix symbol) *)
   ; ((pl',t)>:term_iprio)
-      (s::(s::"::" => (let p = 5.0 in if pl' > p -. epsilon then Lex.give_up ();s)))
+      (s::(s::"::" => (let p = 5.0 in
+                       if pl' > p -. epsilon then Lex.give_up ();
+                       s)))
       ((pr',u)::term_iprio)
     => (let p = 5.0 in
         if pr' > p then Lex.give_up ();
@@ -559,7 +573,8 @@ and [@cache] term_infix =
         in
         in_pos _pos (EInfx(t,p)))
   ; ((pl',t)>:term_iprio)
-      ((s,__,p,pr,ho)::((pl,i)::infix => (if pl' > pl then Lex.give_up (); i)))
+      ((s,__,p,pr,ho)::((pl,i)::infix =>
+                          (if pl' > pl then Lex.give_up (); i)))
       ((pr',u)::term_iprio)
     => (if pr' > pr then Lex.give_up ();
         let t =

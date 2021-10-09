@@ -669,7 +669,9 @@ let rec subtype =
          begin try
          let w =
            let x = new_var (mk_free V) (Print.get_lambda_name t) in
-           unbox (bind_var x (appl no_pos l1 (box t) (valu no_pos (vari no_pos x))))
+           unbox (bind_var x
+                    (appl no_pos l1 (box t)
+                       (valu no_pos (vari no_pos x))))
          in
          (* NOTE : if the "let in" below raise Contradiction, this means that
                    a2 is empty, a2 => b2 is then at least all function and no
@@ -905,7 +907,7 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
          let ctx = { ctx with auto = { ctx.auto with todo } } in
          (try
             let ctx = { ctx with auto = { ctx.auto with tlvl } } in
-            (** we use the auto hint to disallow auto for the added totality *)
+            (** we use auto hint to disallow auto for the added totality *)
             let f = labs no_pos NoLz None (Pos.none "x")
                       (fun _ -> hint no_pos (Auto true) (box t))
             in
@@ -941,7 +943,8 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
                  appl no_pos NoLz (valu no_pos f) (box e)
             in
             let t = unbox (hint no_pos (Auto false) t) in
-            log_aut "cases    (%d,%d): %a" ctx.auto.clvl ctx.auto.tlvl Print.ex t;
+            log_aut "cases    (%d,%d): %a"
+              ctx.auto.clvl ctx.auto.tlvl Print.ex t;
             let r = type_term ctx t ty in
             if nb > 0 then memo_insert ctx.memo (Skip nb);
             r
@@ -1476,7 +1479,8 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
           | Sys.Break as e -> raise e
           | e -> match d.value_orig.elt with
                  | Valu { elt = LAbs _ } -> raise e
-                 | Valu v when not (Timed.get ctx.equations.time d.value_clos) ->
+                 | Valu v
+                      when not (Timed.get ctx.equations.time d.value_clos) ->
                     begin
                       UTimed.Time.rollback st;
                       try
@@ -1878,7 +1882,8 @@ let get_memo name memo =
   in
   fn [] memo
 
-let type_check : memo_tbl option -> term -> prop -> prop * typ_proof * memo_tbl =
+let type_check : memo_tbl option -> term -> prop
+                 -> prop * typ_proof * memo_tbl =
   fun memo t a ->
   let st = Timed.Time.save () in
   try

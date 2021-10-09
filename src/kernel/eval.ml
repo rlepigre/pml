@@ -117,9 +117,10 @@ let rec eval : e_term -> e_stac -> e_valu = fun t s -> match (t, s) with
   | (TValu(v)          , SFram(t,pi)) -> eval t (SPush(v,pi))
   | (TValu(VVdef(d))   , pi         ) -> eval (TValu(d.value_eval)) pi
   | (TValu(VLAbs(b))   , SPush(v,pi)) -> eval (subst b v) pi
-  | (TClck(v)          , pi         ) -> eval t (SPush(VReco(A.add "1" (read_clock ())
-                                                            (A.add "2" v A.empty)), pi))
-  | (TValu(VLazy(e))   , SPush(_,pi)  ) ->
+  | (TClck(v)          , pi         ) ->
+     eval t (SPush(VReco(A.add "1" (read_clock ())
+                        (A.add "2" v A.empty)), pi))
+  | (TValu(VLazy(e))   , SPush(_,pi)) ->
      let v =
        match !e with
        | Frz t -> let v = eval t SEpsi in e := Val v; v
@@ -156,4 +157,5 @@ let rec eval : e_term -> e_stac -> e_valu = fun t s -> match (t, s) with
 
 let evalu_chrono = Chrono.create "evalu"
 
-let eval : e_term -> e_valu = fun t -> Chrono.add_time evalu_chrono (eval t) SEpsi
+let eval : e_term -> e_valu = fun t ->
+  Chrono.add_time evalu_chrono (eval t) SEpsi

@@ -180,7 +180,8 @@ let bind_params : Equiv.pool -> p ex loc -> sbndr box * slist = fun po e ->
   (* Compute the list of all the surface ordinal witnesses. *)
   let params = ref (Nil:slist) in
   let open Iter in
-  let iterator : type a. recall -> a ex loc -> unit = fun { default; recall } e ->
+  let iterator : type a. recall -> a ex loc -> unit =
+    fun { default; recall } e ->
     let rec from_args : type a b. (a,b) fix_args -> unit = fun l ->
       match l with
       | Nil       -> ()

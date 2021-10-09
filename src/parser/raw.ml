@@ -237,7 +237,8 @@ let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
     | EReco(l)      -> Printf.fprintf ch "EReco([%a])"
                          (print_list aux_rec "; ") l
     | EScis         -> Printf.fprintf ch "EScis"
-    | EAppl(t,u,l)  -> Printf.fprintf ch "EAppl(%a,%a,%b)" print t print u (l = Lazy)
+    | EAppl(t,u,l)  -> Printf.fprintf ch "EAppl(%a,%a,%b)"
+                         print t print u (l = Lazy)
     | ESequ(t,u)    -> Printf.fprintf ch "ESequ(%a,%a)" print t print u
     | EMAbs(arg,t)  -> Printf.fprintf ch "EMAbs(%a,%a)" aux_var arg print t
     | EName(s,t)    -> Printf.fprintf ch "EName(%a,%a)" print s print t
@@ -1145,11 +1146,12 @@ let ho_redex pos id s f e =
   let sl = none (SFun(s,new_sort_uvar None)) in
   in_pos pos (EHOAp(none (EHOFn(id,s,f)),sl,[e]))
 
-let local_expr_def : pos -> strloc -> (strloc * raw_sort option) list -> raw_sort option
-               -> raw_ex -> raw_ex -> raw_ex = fun pos id args s e f ->
-  let args = List.map (fun (x,k) -> (x, sort_from_opt k)) args in
-  let (id,s,e) = gen_expr_def id args s e in
-  ho_redex pos id s f e
+let local_expr_def : pos -> strloc -> (strloc * raw_sort option) list ->
+                     raw_sort option -> raw_ex -> raw_ex -> raw_ex =
+  fun pos id args s e f ->
+    let args = List.map (fun (x,k) -> (x, sort_from_opt k)) args in
+    let (id,s,e) = gen_expr_def id args s e in
+    ho_redex pos id s f e
 
 let filter_args : string -> (strloc * raw_sort) list -> raw_ex ->
                   (strloc * raw_sort) list =
@@ -1265,14 +1267,15 @@ let filter_args : string -> (strloc * raw_sort) list -> raw_ex ->
 
 let gen_type_def : pos -> [`Non | `Rec | `CoRec] -> strloc
                -> (strloc * raw_sort option) list
-               -> raw_ex -> expr_def * expr_def option  = fun _loc r id args e ->
-  let args = List.map (fun (x,k) -> (x, sort_from_opt k)) args in
-  let rec binds : (strloc * raw_sort) list -> raw_ex -> raw_ex =
-    fun args s ->
-      match args with
-      | []      -> s
-      | (v,k)::args ->
-         make (Some _loc) (EHOFn(v,k, binds args s))
+               -> raw_ex -> expr_def * expr_def option  =
+  fun _loc r id args e ->
+    let args = List.map (fun (x,k) -> (x, sort_from_opt k)) args in
+    let rec binds : (strloc * raw_sort) list -> raw_ex -> raw_ex =
+      fun args s ->
+        match args with
+        | []      -> s
+        | (v,k)::args ->
+           make (Some _loc) (EHOFn(v,k, binds args s))
   in
   let applies : (strloc * raw_sort) list -> raw_ex -> raw_ex =
     fun args s ->
@@ -1403,10 +1406,11 @@ let eexis _loc x xs s a =
 
 let euniv_in _loc x xs a b =
   let p x = in_pos _loc x in
-  let c = List.fold_right (fun x c ->
+  let fn x c =
     (* FIXME #21: notation for partial dependant product ? *)
-    p (EFunc(Effect.bot, p (EMemb(evari (Some _loc) x, a)), c, NoLz))) (x::xs) b
+    p (EFunc(Effect.bot, p (EMemb(evari (Some _loc) x, a)), c, NoLz))
   in
+  let c = List.fold_right fn (x::xs) b in
   p (EUniv((x,xs),p sv,c))
 
 let eexis_in _loc x xs a b =
@@ -1454,8 +1458,9 @@ let let_binding _loc r arg t u =
         match ao with
         | None   -> t
         | Some a -> in_pos t.pos (ECoer(new_sort_uvar None,t,a))
-      in
-      in_pos _loc (EAppl(in_pos u.pos (ELAbs(((id, ao), []), u, NoLz)), t, NoLz))
+     in
+     let u = in_pos u.pos (ELAbs(((id, ao), []), u, NoLz)) in
+     in_pos _loc (EAppl(u, t, NoLz))
   | `LetArgRec(fs)    ->
       if r <> `Non then Lex.give_up (); (* "let rec" meaningless here. *)
       let xs = List.map snd fs in
@@ -1466,7 +1471,8 @@ let let_binding _loc r arg t u =
         in_pos u.pos (EAppl(u, pr, NoLz))
       in
       let u = List.fold_left fn u fs in
-      in_pos _loc (EAppl(in_pos u.pos (ELAbs(((x, None), []), u, NoLz)), t, NoLz))
+      let u = in_pos u.pos (ELAbs(((x, None), []), u, NoLz)) in
+      in_pos _loc (EAppl(u, t, NoLz))
   | `LetArgTup(fs)    ->
       if r <> `Non then Lex.give_up (); (* "let rec" meaningless here. *)
       let u = in_pos u.pos (ELAbs((List.hd fs, List.tl fs), u, NoLz)) in
@@ -1477,7 +1483,8 @@ let let_binding _loc r arg t u =
         in_pos u.pos (EAppl(u, pr, NoLz))
       in
       let u = List.fold_left fn u is in
-      in_pos _loc (EAppl(in_pos u.pos (ELAbs(((x, None), []), u, NoLz)), t, NoLz))
+      let u = in_pos u.pos (ELAbs(((x, None), []), u, NoLz)) in
+      in_pos _loc (EAppl(u, t, NoLz))
 
 let pattern_matching _loc t ps =
   let fn ((c,pat), t) =

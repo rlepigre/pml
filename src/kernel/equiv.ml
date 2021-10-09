@@ -1883,8 +1883,8 @@ let add_equiv : equiv -> pool -> bool * pool = fun (t,u) pool ->
     (print_pool "        ") pool;
   (known, pool)
 
-(** Add the hypothesis that a vptr is nobox, It returns a boolean to know if the
-   fact was already known.  *)
+(** Add the hypothesis that a vptr is nobox, It returns a boolean to know if
+   the fact was already known.  *)
 let add_vptr_nobox : VPtr.t -> pool -> bool * pool = fun vp po ->
   let vp = find_valu vp po in
   if not (get_bs vp po) then
@@ -1899,8 +1899,8 @@ let add_vptr_nobox : VPtr.t -> pool -> bool * pool = fun vp po ->
     end
   else (true, po)
 
-(** Add the hypothesis that a value is nobox, It returns a boolean to know if the
-   fact was already known.  *)
+(** Add the hypothesis that a value is nobox, It returns a boolean to know if
+   the fact was already known.  *)
 let add_nobox : valu -> pool -> bool * pool = fun v po ->
   log_edp2 "add_nobox: inserting %a not box in context\n%a" Print.ex v
     (print_pool "        ") po;
@@ -2299,7 +2299,8 @@ let unif_bndr
 
 let leq_expr : pool -> (ordi * ordi) list -> p ex loc -> p ex loc -> bool =
   fun po pos a b ->
-    eq_expr ~oracle:{(oracle (ref po)) with leq_ord = Ordinal.leq_ordi pos} ~strict:false a b
+    let oracle = {(oracle (ref po)) with leq_ord = Ordinal.leq_ordi pos} in
+    eq_expr ~oracle ~strict:false a b
 
 
 let learn pool rel    = Chrono.add_time equiv_chrono (learn pool) rel

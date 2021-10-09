@@ -52,13 +52,15 @@ module rec Ptr : sig
                ; vlnk : lnk Timed.tref (** link in the union find structure *)
                ; vval : dp             (** the v_node (see equiv.ml) *)
                ; bs : bool Timed.tref  (** true if we know it is not box *)
-               ; mutable vas : las     (** loop detection in Equiv.normalise *) }
+               ; mutable vas : las    (** loop detection in Equiv.normalise *)
+               }
   and  t_ptr = { tadr : int            (** uid *)
                ; tlnk : lnk Timed.tref (** link in the union find structure *)
                ; tval : dp             (** the t_node (see equiv.ml) *)
                ; ns : bool Timed.tref  (** was normalised *)
                ; fs : bool Timed.tref  (** free : occur not under binders *)
-               ; mutable tas : las     (** loop detection in Equiv.normalise *) }
+               ; mutable tas : las    (** loop detection in Equiv.normalise *)
+               }
   (** ptr: a v_ptr or a t_ptr *)
   and  ptr   = V_ptr of v_ptr | T_ptr of t_ptr
   (** link for the union find, for roots, we store the parent map *)

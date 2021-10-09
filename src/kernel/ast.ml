@@ -565,7 +565,8 @@ let exis : type a. pos -> strloc -> a sort -> (a var -> pbox) -> pbox =
     let b = bind_var v (f v) in
     box_apply (fun b -> Pos.in_pos p (Exis(s, (x.pos, b)))) b
 
-let top : prop = unbox (exis no_pos (Pos.none "x") P (fun x -> p_vari no_pos x))
+let top : prop =
+  unbox (exis no_pos (Pos.none "x") P (fun x -> p_vari no_pos x))
 
 let nil : type a. unit -> (a,a) fbox = fun () -> box Nil
 
@@ -646,7 +647,8 @@ let rec redexes : pos -> (vvar * tbox) list -> tbox -> tbox =
   fun pos l t -> match l with
   | [] -> t
   | (v,t0)::l ->
-     redexes pos l (appl pos NoLz (valu no_pos (lvabs no_pos NoLz None v t)) t0)
+     redexes pos l
+       (appl pos NoLz (valu no_pos (lvabs no_pos NoLz None v t)) t0)
 
 (** Syntactic sugar for strict product type. *)
 let proj_name l =
@@ -656,7 +658,9 @@ let proj_name l =
 
 let strict_prod : pos -> (pos * pbox) A.t -> pbox =
   fun p m ->
-    let fn env = reco no_pos (A.mapi (fun l _ -> (no_pos, List.assoc l env)) m) in
+    let fn env =
+      reco no_pos (A.mapi (fun l _ -> (no_pos, List.assoc l env)) m)
+    in
     let rec build env ls =
       match ls with
       | []    -> memb no_pos (valu no_pos (fn env)) (prod p m)

@@ -184,7 +184,8 @@ val big_average : stream⟨man⟩ ⇒ man = fun xs {
   divideBy p4 (big_average_aux xs)
 }
 
-val rec affine_aux : man ⇒ man ⇒ man ⇒ man ⇒ stream⟨man⟩ = fun x xy y z { lazy {
+val rec affine_aux : man ⇒ man ⇒ man ⇒ man ⇒ stream⟨man⟩ =
+ fun x xy y z { lazy {
   let { hd = z0; tl = z } = force z;
   let d = case z0 {
     P → x

@@ -20,12 +20,13 @@ module Make(T:Time) = struct
           if the a past time is not accessible, it is collocted by the GC.
 
           Undone is not a valid time, it can appear only in the next field *)
-      type u = Undone : u    (** already undone change up to that time (excluded)
-                                 or before*)
+      type u = Undone : u (** already undone change up to that time (excluded)
+                              or before*)
              | Futur : { mutable next : u ; r : 'a ref; old : 'a } -> u
 
 
-      (** time of this module and the inherited module together, for nested times *)
+      (** time of this module and the inherited module together, for nested
+         times *)
       type t = u * T.t
 
       (** reference holding the current time *)

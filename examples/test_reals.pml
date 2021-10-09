@@ -48,7 +48,9 @@ val test : {} = print_real size (mul third third); print " = 1/3 * 1/3\n"
 val test : {} = print_man size (i2 man0); print " = 1 / (2 - 0)\n"
 val test : {} = print_man size (i2 man1); print " = 1 / (2 - 1)\n"
 val test : {} = print_man size (i2 mann1); print " = 1 / (2 + 1)\n"
-val test : {} = print_real size (open man0 half; inv half (1, {})); print " = inv (1 / 2)\n"
+val test : {} =
+  print_real size (open man0 half; inv half (1, {}));
+  print " = inv (1 / 2)\n"
 
 val i3 : real = open third man3; inv third (2, {})
 close i3

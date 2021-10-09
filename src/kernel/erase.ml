@@ -150,7 +150,8 @@ and to_term : e_term -> tbox = fun t ->
   | TVari(a)   -> vari no_pos (copy_var a (mk_free T) (name_of a))
   | TValu(v)   -> valu no_pos (to_valu v)
   | TAppl(t,u) -> appl no_pos NoLz (to_term t) (to_term u)
-  | TFrce(t)   -> appl no_pos Lazy (to_term t) (to_term (TValu (VReco A.empty)))
+  | TFrce(t)   -> appl no_pos Lazy (to_term t)
+                    (to_term (TValu (VReco A.empty)))
   | TFixY(b)   -> let f x =
                     let x = copy_var x mk_tvari (name_of x) in
                     to_valu (subst b (mk_tvari x))

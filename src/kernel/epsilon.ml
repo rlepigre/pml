@@ -330,7 +330,9 @@ let swit : ctxt -> (s,t) bndr -> prop -> stac * ctxt =
 let esch_names names w =
   match w with
   | FixSch s ->
-     let os, names = new_mvar_in names (mk_free O) (mbinder_names (snd s.fsch_judge)) in
+     let os, names =
+       new_mvar_in names (mk_free O) (mbinder_names (snd s.fsch_judge))
+     in
      (names, ((Array.map name_of os), [||]))
   | SubSch s ->
      let os, p, names = unmbind_in names s.ssch_judge in
