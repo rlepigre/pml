@@ -64,7 +64,7 @@ val rec app : ∀a:ο, ∀n1 n2:ι, slist⟨a,n1⟩ ⇒ slist⟨a,n2⟩ ⇒ slis
 type rec typ = [ A; F of typ × typ ]
 
 type rec term⟨c:τ→ο,a:τ⟩ =
-  [ App of ∃a' b:ι, term⟨c,F[(b,a')]⟩ × term⟨c,b⟩ | a ≡ a'
+  [ App of ∃b:ι, term⟨c,F[(b,a)]⟩ × term⟨c,b⟩
   ; Lam of ∃b d:ι, (c⟨b⟩ ⇒ term⟨c,d⟩) | a ≡ F[(b,d)]
   ; Var of c⟨a⟩
   ]
