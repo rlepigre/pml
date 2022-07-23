@@ -1030,7 +1030,7 @@ and check_sub : ctxt -> prop -> prop -> check_sub = fun ctx a b ->
         in
         log_sub "no suitable induction hypothesis";
         match a.elt, b.elt with
-        (* TODO #5 to avoid the restiction no_uvars () below,
+        (* TODO #5 to avoid the restriction no_uvars () below,
            subml introduces unification variables parametrised by the
            generalised ordinals *)
         | (FixN _, _     )
