@@ -14,8 +14,8 @@ lists and binary trees. More importantly, any list will be an append list.
                       ; Cons of {hd : a ; tl : alist⟨a⟩}
                       ; Append of {l : alist⟨a⟩; r : alist⟨a⟩}]
 
-  assert list⟨nat⟩ ⊂ alist⟨nat⟩
-  assert ¬ alist⟨nat⟩ ⊂ list⟨nat⟩
+  assert ∀a, list⟨a⟩ ⊂ alist⟨a⟩
+  assert ¬ ∀a, alist⟨a⟩ ⊂ list⟨a⟩
 \end{pmlcode}
 
 We see that the type \dupml{alist} is identical to \dupml{list} except

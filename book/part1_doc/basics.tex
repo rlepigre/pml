@@ -69,7 +69,7 @@ We can now prove two simple properties of these two functions:
 \end{pmlcode}
 
 For properties, we define values as for programs using the \dupml{val} keyword!
-PML follows the Curry-Howard correspondence and identify properties and types.
+PML follows the Curry-Howard correspondence and identifies properties and types.
 The type used for properties are richer, here it is an equality which is a
 type inhabited if and only if the equality holds (we will see later what is
 the element of this type). The body of the definition is just
@@ -112,7 +112,7 @@ For the converse property, we give a shorter proof using the hability of PML
 to perform some automatic theorem proving. In fact, it is very limited!
 The directive \dupml{set auto 1 0} tells PML to perform at most one case
 analysis (the 1) and no totality proof (the 0, we will see later what this
-means). In fact, the is no magic: PML sees that the computation of
+means). In fact, there is no magic: PML sees that the computation of
 \dupml{next_day d} is blocked on a case analysis and try to proceed in the
 proof using the same case analysis as the one in the program.
 
@@ -389,8 +389,8 @@ definitions above are equivalent. Here is the beginning of the proof:
     case n {
       0    → qed
       S[k] → showing S[k + m] ≡ S[fast_add m k];
-              showing k + m ≡ fast_add m k;
-              {- unfinished -}
+             showing k + m ≡ fast_add m k;
+             {- unfinished -}
     }
 \end{pmlcode}
 
@@ -677,8 +677,8 @@ to do both!
 \section{Totality issues}\label{sect-totality}
 
 PML, as already mentionned, uses a call-by-value evaluation strategy and
-supports some side effectq like LISP call-cc (see \ref{sect-classical}) or non
-termination.  This leads to difficulties\dots For instance, by definition of
+supports some side effect like LISP call-cc (see \ref{sect-classical}) or non
+termination.  This leads to difficulties... For instance, by definition of
 addition, we know that \dupml{S[x] + g y ≡ S[x + g y]}, but this can not be
 proved if \dupml{g y} does not evaluate to a value. If one know that \dupml{g
   y} evaluates to a value, adding a line \dupml{let _ = g y;} will solve the

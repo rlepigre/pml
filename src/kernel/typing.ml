@@ -1040,7 +1040,6 @@ and check_sub : ctxt -> prop -> prop -> check_sub = fun ctx a b ->
         | (Prod _, Prod _) when no_uvars () ->
            (* Construction of a new schema. *)
            let (sch, os) = sub_generalise ctx a b in
-           if os = [||] then Sub_New(ctx,(a,b)) else (
            (* Registration of the new top induction hypothesis and call. *)
            add_call ctx (sch.ssch_index, os) false;
            (* Recording of the new induction hypothesis. *)
@@ -1050,7 +1049,7 @@ and check_sub : ctxt -> prop -> prop -> check_sub = fun ctx a b ->
            let (spe, ctx) = inst_sub_schema ctx sch in
            let ctx = {ctx with positives = spe.sspe_relat} in
            Sub_New({ctx with top_ih = (sch.ssch_index, spe.sspe_param)},
-                   spe.sspe_judge))
+                   spe.sspe_judge)
         | _ ->
            Sub_New(ctx, (a, b))
 
@@ -1938,17 +1937,18 @@ let type_check : string -> term -> prop -> memo2 -> prop * typ_proof * memo2 =
 
 let type_check t = Chrono.add_time type_chrono (type_check t)
 
-let is_subtype : prop -> prop -> bool = fun a b ->
+let is_subtype : sub_schema -> bool = fun s ->
   let st = Timed.Time.save () in
   try
     let ctx = empty_ctxt () in
-    let _ = gen_subtype ctx a b in
+    let _ = check_schema ctx s in
     (* same as above *)
-    assert(uvars a = [] && uvars b = []);
+    (*TODO: assert(uvars a = [] && uvars b = []); ?*)
     List.iter (fun f -> f ()) (List.rev !(ctx.add_calls));
     let res = Scp.scp ctx.callgraph in
     reset_tbls ();
     Timed.Time.rollback st;
     res
-  with _ ->
-    reset_tbls (); Timed.Time.rollback st; false
+  with
+  | Out_of_memory | Sys.Break as e -> raise e
+  | e -> reset_tbls (); Timed.Time.rollback st; false

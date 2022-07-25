@@ -14,7 +14,7 @@ book: book/pml_book.pdf
 
 book/pml_book.pdf: book/biblio.bib book/pml.py $(shell find book -name "*.tex")
 	@rm -rf book/_minted*
-	@cd book && rubber --unsafe -W all --pdf pml_book.tex
+	@cd book && rubber --unsafe -W all --module xelatex pml_book.tex
 
 # Checks on the source code.
 check:
@@ -71,7 +71,7 @@ distclean: clean clean_mem
 	@find . -type f -name "*~" -exec rm {} \;
 	@find . -type f -name \#\* -exec rm {} \;
 	@find . -type f -name .\#\* -exec rm {} \;
-	@cd book && rubber --clean --pdf pml_book.tex
+	@cd book && rubber --clean --module xelatex pml_book.tex
 
 # Install.
 .PHONY: install

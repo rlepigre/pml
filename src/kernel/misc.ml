@@ -177,7 +177,6 @@ let rec mk_sassoc : slist -> sassoc = function
 
 
 let bind_params : Equiv.pool -> p ex loc -> sbndr box * slist = fun po e ->
-  (* Compute the list of all the surface ordinal witnesses. *)
   let params = ref (Nil:slist) in
   let open Iter in
   let iterator : type a. recall -> a ex loc -> unit =
