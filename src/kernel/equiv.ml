@@ -1817,12 +1817,23 @@ and eq_trm : pool ref -> term -> term -> bool = fun pool t1 t2 ->
       with NoUnif -> false
     end
 
+and no_box : pool ref -> valu -> bool = fun pool v1 ->
+      let po = !pool in
+      log_edp2 "eq_val: inserting %a no_box in context\n%a" Print.ex v1
+           (print_pool "        ") po;
+      let (p1, po) = add_valu true po v1 in
+      log_edp2 "eq_val: insertion at %a" VPtr.print p1;
+      log_edp2 "eq_val: obtained context:\n%a" (print_pool "        ") po;
+      let b = is_nobox (Ptr.V_ptr p1) po in pool := po; b
+
 and oracle pool = {
     default_oracle with
     eq_val = (fun v1 v2 ->
       Chrono.add_time equiv_chrono (eq_val pool v1) v2);
     eq_trm = (fun v1 v2 ->
-      Chrono.add_time equiv_chrono (eq_trm pool v1) v2)
+      Chrono.add_time equiv_chrono (eq_trm pool v1) v2);
+    no_box = (fun v1 ->
+      Chrono.add_time equiv_chrono (no_box pool) v1);
   }
 
 let canonical_valu = canonical_valu false
@@ -2199,7 +2210,8 @@ let get_blocked : pool -> blocked list -> blocked list = fun po old ->
   let bl =
     List.fold_left (fun (acc:blocked list) (tp,tn) ->
       let u = Ptr.T_ptr tp in
-      if List.exists (eq_ptr_blocked u) old then acc else
+      if List.exists (eq_ptr_blocked u) old
+        || List.exists (eq_ptr_blocked u) acc then acc else
       (*Printf.eprintf "testing %a %a %b %b\n%!" TPtr.print tp print_t_node tn
                      (get_ns tp po) (get_fs tp po);*)
       if not (get_ns tp po) && is_free u po then
@@ -2246,16 +2258,19 @@ let get_blocked : pool -> blocked list -> blocked list = fun po old ->
   let bl =
     List.fold_left (fun acc (vp, vn) ->
         let u = Ptr.V_ptr vp in
-        if not (is_nobox u po) then
+        if List.exists (eq_ptr_blocked u) old
+           || List.exists (eq_ptr_blocked u) acc
+           || is_nobox u po then acc else
           match vn with
           | VN_VWit(e) ->
              let (_,a,_) = !(e.valu) in
              let rec fn acc a =
                match  a.elt with
                | Memb(t,a) ->
-                  let b = BTot(u,t) in
+                  let b = BTot(ref 0, u,t) in
                   let acc =
-                    if List.exists (eq_blocked b) acc then acc else
+                    if List.exists (eq_blocked b) acc
+                       || List.exists (eq_blocked b) old then acc else
                       begin
                         log_aut "blocked arg vwit %a" Print.ex t;
                         b :: acc
@@ -2266,7 +2281,6 @@ let get_blocked : pool -> blocked list -> blocked list = fun po old ->
              in
              fn acc a
           | _ -> acc
-        else acc
       ) bl po.vs
   in
   bl
