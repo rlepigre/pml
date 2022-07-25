@@ -992,8 +992,8 @@ and check_adone : ctxt -> prop -> prop -> ctxt = fun ctx a b ->
 and check_sub : ctxt -> prop -> prop -> check_sub = fun ctx a b ->
   (* Looking for potential induction hypotheses. *)
   let ihs = ctx.sub_ihs in
-  log_sub "there are %i potential subtyping induction hypotheses"
-    (List.length ihs);
+  let ihs_nb = List.length ihs in
+  log_sub "there are %i potential subtyping induction hypotheses" ihs_nb;
   (* Function for finding a suitable induction hypothesis. *)
   let rec find_suitable ihs =
     match ihs with
