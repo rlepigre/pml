@@ -2054,21 +2054,23 @@ let learn : pool -> rel -> bool * pool = fun pool rel ->
 (** type of blocked evaluations sent back to typing for automatic
     case analysis and totality in auto_prove *)
 type blocked =
-  | BTot of Ptr.t * term
-  | BCas of Ptr.t * term * A.key list
+  | BTot of int ref * Ptr.t * term
+  | BCas of int ref * Ptr.t * term * A.key list
+
+let incrt p = incr p; true
 
 let eq_blocked : blocked -> blocked -> bool =
   fun b1 b2 ->
     match (b1, b2) with
-    | (BTot(pt,e)  , BTot(pu,f)  ) -> Ptr.compare pt pu = 0 || eq_expr e f
-    | (BCas(pt,e,_), BCas(pu,f,_)) -> Ptr.compare pt pu = 0 || eq_expr e f
+    | (BTot(_,pt,e)  , BTot(c,pu,f)  ) -> eq_expr e f && incrt c
+    | (BCas(_,pt,e,_), BCas(c,pu,f,_)) -> eq_expr e f && incrt c
     | (_           , _           ) -> false
 
 let eq_ptr_blocked : Ptr.t -> blocked -> bool =
   fun pt b2 ->
     match b2 with
-    | BTot(pu,_)   -> Ptr.compare pt pu = 0
-    | BCas(pu,_,_) -> Ptr.compare pt pu = 0
+    | BTot(c,pu,_)   -> Ptr.compare pt pu = 0 && incrt c
+    | BCas(c,pu,_,_) -> Ptr.compare pt pu = 0 && incrt c
 
 (** the exception when failing to prove carry the blocked evaluations *)
 exception Failed_to_prove of rel * blocked list
@@ -2224,7 +2226,7 @@ let get_blocked : pool -> blocked list -> blocked list = fun po old ->
                  let e = get_orig v po in
                  (* no need to prove totality of let _ = t; u *)
                  if is_let_underscore e then raise Not_found;
-                 let b = BTot(u,e) in
+                 let b = BTot(ref 0, u,e) in
                  if List.exists (eq_blocked b) acc
                     || List.exists (eq_blocked b) old then acc
                  else
@@ -2241,7 +2243,7 @@ let get_blocked : pool -> blocked list -> blocked list = fun po old ->
                | None   -> cases
              in
              let e = get_orig (Ptr.V_ptr v) po in
-             let b = BCas (u, e, cases) in
+             let b = BCas (ref 0, u, e, cases) in
              if List.exists (eq_blocked b) acc
                 || List.exists (eq_blocked b) old then acc
              else

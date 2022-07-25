@@ -884,8 +884,8 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
     let cmp b1 b2 = match (b1,b2) with
       | (_,BTot _), (_,BCas _) -> -1
       | (_,BCas _), (_,BTot _) ->  1
-      | (n,BTot _), (m,BTot _) -> compare m n
-      | (n,BCas _), (m,BCas _) -> compare m n
+      | (n,BTot (c,_,_)), (m,BTot (d,_,_)) -> compare (m,!d) (n,!c)
+      | (n,BCas (c,_,_,_)), (m,BCas (d,_,_,_)) -> compare (m,!d) (n,!c)
     in
     let todo = List.stable_sort cmp todo in
     let skip = match memo_find ctx.memo with
@@ -905,7 +905,7 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
       UTimed.Time.rollback st;
       match todo with
       | [] -> reraise exn
-      | (tlvl, BTot (_,e)) :: todo ->
+      | (tlvl, BTot (c,_,e)) :: todo ->
          (* for a totality, we add a let to the term and typecheck *)
          let ctx = { ctx with auto = { ctx.auto with todo } } in
          (try
@@ -916,17 +916,15 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
             in
             let t = unbox (hint no_pos (Auto false)
                              (appl no_pos NoLz (valu no_pos f) (box e))) in
-            log_aut "totality (%d,%d) [%d]: %a"
-                    ctx.auto.clvl ctx.auto.tlvl (List.length todo) Print.ex e;
+            log_aut "totality (%d,%d,%d) [%d]: %a"
+              ctx.auto.clvl ctx.auto.tlvl !c (List.length todo) Print.ex e;
             let r = type_term ctx t ty in
             if nb > 0 then memo_insert ctx.memo (Skip nb);
             r
           with
           | Failed_to_prove _ as e -> reraise e
-          | Sys.Break as e         -> raise e
-          | Out_of_memory as e     -> raise e
           | Type_error _           -> fn (nb+1) ctx todo)
-      | (clvl, BCas(_,e,cs)) :: todo ->
+      | (clvl, BCas(c,_,e,cs)) :: todo ->
          (* for a blocked case analysis, we add a case! *)
          let ctx = { ctx with auto = { ctx.auto with todo } } in
          (try
@@ -946,15 +944,13 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
                  appl no_pos NoLz (valu no_pos f) (box e)
             in
             let t = unbox (hint no_pos (Auto false) t) in
-            log_aut "cases    (%d,%d): %a"
-              ctx.auto.clvl ctx.auto.tlvl Print.ex t;
+            log_aut "cases    (%d,%d,%d): %a"
+              ctx.auto.clvl ctx.auto.tlvl !c Print.ex t;
             let r = type_term ctx t ty in
             if nb > 0 then memo_insert ctx.memo (Skip nb);
             r
           with
           | Failed_to_prove _ as e -> reraise e
-          | Sys.Break as e         -> raise e
-          | Out_of_memory as e     -> raise e
           | Type_error _           -> fn (nb+1) ctx todo)
     in fn skip ctx todo
 
@@ -1021,6 +1017,8 @@ and check_sub : ctxt -> prop -> prop -> check_sub = fun ctx a b ->
             in
             if not ok then raise Exit;
             (* Add call to call-graph and build the proof. *)
+            log_sub "%i subtyping induction hypotheses applies"
+              (ihs_nb - List.length ihs);
             add_call ctx (ih.ssch_index, spe.sspe_param) true;
             Sub_Applies(Sub_Ind(ih))
           with Exit -> find_suitable ihs
