@@ -22,6 +22,9 @@ val int_of_index : index -> int
 (** Special index denoting the entry point. *)
 val root : index
 
+(** Special dummy value, that should never be used *)
+val dummy : index
+
 (** A call [{callee; caller; matrix; is_rec}] represents a call to the
     function symbol with key [callee] by the function symbole with the
     key [caller]. The [matrix] gives the relation between the parameters

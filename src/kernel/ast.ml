@@ -107,7 +107,7 @@ type _ ex =
   (** Named term. *)
   | Proj : v ex loc * A.key loc                      -> t  ex
   (** Record projection. *)
-  | Case : v ex loc * (pos * (v, t) bndr) A.t       -> t  ex
+  | Case : v ex loc * (pos * (v, t) bndr) A.t        -> t  ex
   (** Case analysis. *)
   | Prnt : string                                    -> t  ex
   (** Printing instruction. *)
@@ -142,6 +142,7 @@ type _ ex =
   (** Type coercion on a value or a term. *)
   | Such : 'a v_or_t * 'b desc * ('a,'b) such_t      -> 'a ex
   (** Extraction of witness by pattern-matching. *)
+  | Chck :  'a v_or_t * sub_schema * 'a ex loc       -> 'a ex
 
   (* Special constructors. *)
 
@@ -513,6 +514,25 @@ let such : type a b. pos -> a v_or_t -> b desc -> such_var box
     let fn sv b = Pos.in_pos p (Such(t,d,{opt_var = sv; binder = b})) in
     box_apply2 fn sv (aux f)
 
+let cst : pbox -> pbox -> sbndr box =
+  fun a b -> box_apply2 (fun a b -> Cst(a,b)) a b
+
+let bnd : type a.a sort -> string -> (a var -> sbndr box) -> sbndr box =
+  fun s x f ->
+  let v = new_var (mk_free s) x in
+  let b = bind_var v (f v) in
+  box_apply (fun b -> Bnd(s,b)) b
+
+let sch =
+  fun ssch_index ssch_relat names f ->
+    let xs = Bindlib.new_mvar (mk_free O) names in
+    let f = bind_mvar xs (f xs) in
+    box_apply (fun x -> { ssch_index; ssch_relat; ssch_judge=x }) f
+
+let chck =
+  fun p t s f ->
+  box_apply2 (fun s f -> Pos.in_pos p (Chck(t,s,f))) s f
+
 let pset : pos -> set_param -> tbox -> tbox =
   fun p sp t ->
     let fn t = Pos.in_pos p (Hint(LSet(sp),t)) in
@@ -758,6 +778,7 @@ let rec sort : type a. a ex loc -> a sort * a ex loc = fun e ->
   | VDef _          -> (V,e)
   | Coer(VoT_V,_,_) -> (V,e)
   | Such(VoT_V,_,_) -> (V,e)
+  | Chck(VoT_V,_,_) -> (V,e)
   | VPtr _          -> (V,e)
   | CPsi            -> (F(V,V),e)
 
@@ -771,6 +792,7 @@ let rec sort : type a. a ex loc -> a sort * a ex loc = fun e ->
   | Prnt _          -> (T,e)
   | Coer(VoT_T,_,_) -> (T,e)
   | Such(VoT_T,_,_) -> (T,e)
+  | Chck(VoT_T,_,_) -> (T,e)
   | TPtr _          -> (T,e)
   | Repl(_,_)       -> (T,e)
   | Delm _          -> (T,e)
@@ -788,6 +810,10 @@ let rec sort : type a. a ex loc -> a sort * a ex loc = fun e ->
 
   | Vari(s,_)       -> (s,e)
 
+type fprint =
+      { mutable f : 'a. out_channel -> 'a ex loc -> unit }
+
+let fprint = { f = fun ch x -> assert false }
 let rec apply_args : type a b. a ex loc -> (a, b) fix_args -> b ex loc =
   fun f l ->
     match l with Nil -> f

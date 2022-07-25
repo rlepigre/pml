@@ -506,8 +506,6 @@ and [@cache] term_repl =
   ; lambda (args::~+ arg) '.' (t::expr (Trm I))
       => in_pos _pos (ELAbs((List.hd args, List.tl args),t,NoLz))
 
-
-
 and [@cache] term_seq =
     _take_ (args::~+ arg) ';' (t::expr (Trm S))
       => in_pos _pos (ELAbs((List.hd args, List.tl args),t,NoLz))
@@ -550,6 +548,9 @@ and [@cache] term_seq =
       => ehint _pos (Close(true,lids)) u
   ; _open_  (lids :: ~+ llid) ';' (u::expr (Trm S))
       => ehint _pos (Close(false,lids)) u
+  (* Checking subtyping *)
+  ; _check_ (s::schema) ';' (t::expr (Trm S))
+      => in_pos _pos (EChck(new_sort_uvar None,s,t))
 
 and [@cache] term_iprio =
   (t::expr (Trm I)) => (get_infix_prio t,t)
@@ -606,7 +607,11 @@ and [@cache] cond opt any =
   ; (t::expr (Trm I)) cvg
             => ENoBox(t)
 
-(* Higher-order variable arguments. *)
+and schema =
+    (a::expr (Prp P)) "⊂" (b::expr (Prp P)) => ECst(a,b)
+  ; "∀" (x::llid) (xs::~* llid) (s::~? (':' (s::sort) => s)) ',' (q::schema) =>
+      let s = match s with Some s -> s | None -> new_sort_uvar (Some x) in
+      EBnd((x,xs),s,q)
 
 and ho_args = langle (l:: ~+ [comma] any) rangle => l
 

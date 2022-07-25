@@ -83,6 +83,7 @@ let pure : type a. a ex loc -> bool =
     (* NOTE type annotations ignored. *)
     | Coer(_,e,_) -> iter e
     | Such(_,_,r) -> iter (bseq_open r.binder)
+    | Chck(_,_,e) -> iter e
     | ITag(_)     -> ()
     | Goal(_)     -> ()
     | VPtr(_)     -> ()

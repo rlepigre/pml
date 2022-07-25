@@ -314,7 +314,7 @@ let rec ex : type a. ctxt -> mode -> a ex loc printer = fun ctxt pr ch e ->
                           (print_list pelt " ") l exp a (ex c (Prp F)) p
   | Compr(x,p,r,c)   -> fprintf ch "{ %s ∈ %a | %a }"
                           (name_of x) exp p (rel c) r
-  | Def e            -> ex ctxt pr ch e
+  | Def _        (*    -> ex ctxt pr ch e*)
   | NoSugar          ->
   match e.elt with
   | Vari(_,x)   -> output_string ch (name_of x)
@@ -462,6 +462,7 @@ let rec ex : type a. ctxt -> mode -> a ex loc printer = fun ctxt pr ch e ->
             fprintf ch "%s:%a, " (name_of x) sort s;
             aux seq
       in aux r.binder
+  | Chck(_,_,e) -> fprintf ch "%a" ext e (* TODO *)
   | CPsi        -> fprintf ch "ψ"
   | Clck(v)     -> fprintf ch "χ(%a)" exp v
   | ITag(_,i)   -> fprintf ch "#%i" i
@@ -491,6 +492,7 @@ let bndr ch b =
   let (x, t, ctxt) = bndr_open_in ctxt b in
   fprintf ch "%s.%a" (name_of x) (ex ctxt Any) t
 let ex ch t = ex empty_ctxt Any ch t
+let _ = fprint.f <- ex
 let rel ch r = rel empty_ctxt ch r
 
 let print_fix_sch ch sch =

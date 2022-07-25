@@ -190,7 +190,8 @@ and raw_ex' =
   | EHint of strloc hint * raw_ex
   | ECoer of raw_sort * raw_ex * raw_ex
   | ESuch of raw_sort * (strloc * raw_sort) ne_list
-                      * (strloc option * raw_ex) * raw_ex
+             * (strloc option * raw_ex) * raw_ex
+  | EChck of raw_sort * raw_schema * raw_ex
   | EInfx of raw_ex * float (* for parsing *)
   | EConv
   | ESucc of raw_ex * int
@@ -200,6 +201,10 @@ and raw_ex' =
   | EGoal of string
 
 and patt_ex = (strloc * (strloc * raw_ex option) option) * raw_ex
+
+and raw_schema =
+  | ECst of raw_ex * raw_ex
+  | EBnd of strloc ne_list * raw_sort * raw_schema
 
 let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
   let rec print ch e =
@@ -258,6 +263,7 @@ let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
                        Printf.fprintf ch "ESuch(%a,%s,%a,%a)"
                          (print_list aux_sort ", ") (ne_list_to_list v)
                          x.elt print (snd j) print u
+    | EChck(_,_,t)  -> Printf.fprintf ch "EChck(...,%a)" print t
     | EInfx(t,p)    -> Printf.fprintf ch "EInfx(%a,%f)" print t p
     | EConv         -> Printf.fprintf ch "EConv"
     | ESucc(o,n)    -> Printf.fprintf ch "ESucc(%a,%d)" print o n
@@ -612,6 +618,18 @@ let infer_sorts : raw_ex -> raw_sort -> unit = fun e s ->
     | (ECoer(u,t,a) , SUni(_)  ) -> infer vars t u; leq u s;
                                     infer vars a _sp
     | (ECoer(_,t,_) , _        ) -> sort_clash e s
+    | (EChck(u,c,t) , SV _     )
+    | (EChck(u,c,t) , ST       )
+    | (EChck(u,c,t) , SUni(_)  ) ->
+       let rec fn vars = function
+         | ECst(a,b) -> infer vars a _sp; infer vars b _sp
+         | EBnd(xs,u,t) ->
+            let gn vars x = M.add x.elt (x.pos, u) vars in
+            let vars = List.fold_left gn vars (ne_list_to_list xs) in
+            fn vars t
+       in
+       infer vars t u; leq u s; fn vars c
+    | (EChck(u,_,t) , _        ) -> sort_clash e s
     | (ESuch(u,vs,j,v), SV _   )
     | (ESuch(u,vs,j,v), ST     )
     | (ESuch(u,vs,j,v), SUni(_)) ->
@@ -1034,6 +1052,54 @@ let unsugar_expr : raw_ex -> raw_sort -> boxed = fun e s ->
         let t = to_term (unsugar env vars t _st) in
         let a = to_prop (unsugar env vars a _sp) in
         Box(T, coer e.pos VoT_T t a)
+    | (EChck(u,c,a)  , (SV _|ST)) when leq_sort u s ->
+       let rec ords c =
+         match c with
+         | ECst _ -> ([], c)
+         | EBnd((x,xs),s,c) ->
+            let (os, c) = ords c in
+            if s.elt = SO then
+              (x::xs@os, c)
+            else
+              (os, EBnd((x,xs),s,c))
+       in
+       let (os, c) = ords c in
+       let os = Array.of_list os in
+       let rec aux vars = function
+         | ECst(a,b) -> cst (to_prop (unsugar env vars a _sp))
+                          (to_prop (unsugar env vars b _sp))
+         | EBnd(xs,k,c) ->
+            let xs = ne_list_to_list xs in
+            let Sort k = unsugar_sort k in
+            let rec build vars xs c =
+              match xs with
+              | []    -> aux vars c
+              | x::xs -> let fn xk =
+                           let xk = (x.pos, Box(k, vari x.pos xk)) in
+                           let vars = M.add x.elt xk vars in
+                           (build vars xs c : sbndr Bindlib.box)
+                         in
+                         bnd k x.elt fn
+            in
+            build vars xs c
+       in
+       let fn xs =
+         let xs =
+           Array.mapi (fun i o -> (os.(i).pos, Box(O, vari os.(i).pos o))) xs
+         in
+         let (_,vars) = Array.fold_left (fun (i,vars) x -> (i+1, M.add os.(i).elt x vars))
+                          (0, vars) xs
+         in
+         aux vars c
+       in
+       let index = Scp.dummy in
+       let os = Array.map (fun x -> x.elt) os in
+       (match s.elt with
+        | SV _ -> Box(V, chck e.pos VoT_V (sch index [] os fn)
+                           (to_valu (unsugar env vars a s)))
+        | ST   -> Box(T, chck e.pos VoT_T (sch index [] os fn)
+                           (to_term (unsugar env vars a s)))
+        | _    -> assert false)
     | (ESuch(u,v,j,r), (SV _|ST)) when leq_sort u s ->
         let xs = map_ne_list (fun (x,s) -> (x, unsugar_sort s)) v in
         let (var, a) = j in
@@ -1254,6 +1320,16 @@ let filter_args : string -> (strloc * raw_sort) list -> raw_ex ->
       | EDelm(u) -> fn u stack bounded
       | EHint(_,u) -> fn u stack bounded
       | ECoer(u,t,a) -> fn t stack bounded; fn a stack bounded
+      | EChck(u,s,t) ->
+         let rec aux = function
+           | ECst(a,b) ->
+              fn a stack bounded;
+              fn b stack bounded
+           | EBnd((x,vs),s,a) ->
+              let l = List.map (fun x -> x.elt) (x::vs) in
+              if not (List.mem id l) then aux a
+         in
+         fn t stack bounded; aux s
       | ESuch(u,(x,vs),j,v) ->
          let l = List.map (fun (x,_) -> x.elt) (x::vs) in
          if not (List.mem id l) then fn v stack (l @ bounded)

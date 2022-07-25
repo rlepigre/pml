@@ -72,6 +72,8 @@ let int_of_index : index -> int = fun i -> i
 (** Index of the root. *)
 let root : index = -1
 
+let dummy : index = -1000
+
 (** Map with indices as keys. *)
 module IMap =
   struct

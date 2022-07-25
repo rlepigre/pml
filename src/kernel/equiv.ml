@@ -883,6 +883,7 @@ let rec add_term :  bool -> bool -> pool -> term
                            Erase.Erasure_error _ | Exit -> add_term po t)
     | Coer(_,t,_) -> add_term po t
     | Such(_,_,r) -> add_term po (bseq_open r.binder)
+    | Chck(_,_,t) -> add_term po t
     | UWit(w)     -> insert (TN_UWit(w)) po
     | EWit(w)     -> insert (TN_EWit(w)) po
     | ESch(T,i,w) -> insert (TN_ESch(i,w)) po
@@ -962,6 +963,7 @@ and     add_valu : bool -> pool -> valu -> VPtr.t * pool = fun o po v0 ->
                      end
     | Coer(_,v,_) -> add_valu po v
     | Such(_,_,r) -> add_valu po (bseq_open r.binder)
+    | Chck(_,_,v) -> add_valu po v
     | VWit(w)     -> insert_v_node (VN_VWit(w)) po
     | UWit(w)     -> insert_v_node (VN_UWit(w)) po
     | EWit(w)     -> insert_v_node (VN_EWit(w)) po

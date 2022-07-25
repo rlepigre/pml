@@ -20,6 +20,8 @@ let type_error : sorted -> prop -> exn -> 'a =
     match e with
     | Type_error(E(_,t),_,_)
          when has_pos t.pos -> raise e
+    | Sys.Break             -> raise e
+    | Out_of_memory         -> raise e
     | _                     -> raise (Type_error(t, p, e))
 
 exception Subtype_msg of pos * string
@@ -32,6 +34,8 @@ let subtype_error : term -> prop -> prop -> exn -> 'a =
     match e with
     | Subtype_error _   -> raise e
     | Failed_to_prove _ -> raise e
+    | Sys.Break         -> raise e
+    | Out_of_memory     -> raise e
     | _                 -> raise (Subtype_error(t,a,b,e))
 
 exception Cannot_unify of prop * prop
@@ -254,6 +258,7 @@ type typ_rule =
   | Typ_Delm   of typ_proof
   | Typ_Cont
   | Typ_Clck   of sub_proof * typ_proof
+  | Typ_Chck   of sub_rule * typ_proof
 
 and  stk_rule =
   | Stk_Push   of sub_rule * typ_proof * stk_proof
@@ -848,8 +853,6 @@ let rec subtype =
     (t, a, b, r)
     with
     | Contradiction      -> assert false
-    | Sys.Break as e     -> raise e
-    | Out_of_memory as e -> raise e
     | e                  -> subtype_error t a b e
   in
   fun ctx t a b -> Chrono.add_time sub_chrono (subtype ctx t a) b
@@ -1039,20 +1042,34 @@ and check_sub : ctxt -> prop -> prop -> check_sub = fun ctx a b ->
         | (Prod _, Prod _) when no_uvars () ->
            (* Construction of a new schema. *)
            let (sch, os) = sub_generalise ctx a b in
+           if os = [||] then Sub_New(ctx,(a,b)) else (
            (* Registration of the new top induction hypothesis and call. *)
            add_call ctx (sch.ssch_index, os) false;
            (* Recording of the new induction hypothesis. *)
            log_sub "the schema has %i arguments" (Array.length os);
            let ctx = { ctx with sub_ihs = sch :: ctx.sub_ihs } in
            (* Instantiation of the schema. *)
-           let (spe, ctx) = inst_sub_schema ctx sch os in
+           let (spe, ctx) = inst_sub_schema ctx sch in
            let ctx = {ctx with positives = spe.sspe_relat} in
            Sub_New({ctx with top_ih = (sch.ssch_index, spe.sspe_param)},
-                   spe.sspe_judge)
+                   spe.sspe_judge))
         | _ ->
            Sub_New(ctx, (a, b))
 
   in find_suitable ihs
+
+and check_schema ctx sch =
+  (* Ask for a fresh symbol index. *)
+  let ssch_index =
+    let names = mbinder_names sch.ssch_judge in
+    Scp.create_symbol ctx.callgraph "$" names
+  in
+  let sch = { sch with ssch_index } in
+  let ctx as ctx0 = { ctx with sub_ihs = sch :: ctx.sub_ihs } in
+  let (spe, ctx) = inst_sub_schema ctx sch in
+  let ctx = {ctx with positives = spe.sspe_relat} in
+  let (a,b) = spe.sspe_judge in
+  (ctx0, gen_subtype ctx a b)
 
 and has_loop : prop -> bool =
   fun c ->
@@ -1234,9 +1251,8 @@ and inst_fix_schema : ctxt -> fix_schema -> ordi array
     ({ fspe_param ; fspe_judge }, ctx)
 
 (* Instantiation of a schema with ordinal witnesses. *)
-and inst_sub_schema : ctxt -> sub_schema -> ordi array
-                      -> sub_specialised * ctxt =
-  fun ctx sch os ->
+and inst_sub_schema : ctxt -> sub_schema -> sub_specialised * ctxt =
+  fun ctx sch ->
     let arity = mbinder_arity sch.ssch_judge in
     let (eps, ctx_names) = cwit ctx.ctx_names (SubSch sch) in
     let cache = ref [] in
@@ -1455,6 +1471,10 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
               warn_unreachable ctx t;
               Typ_Cont
        end
+    (* Subtyping judgement *)
+    | Chck(_,sch,v) ->
+       let (ctx,p) = check_schema ctx sch in
+       Typ_Chck(p, type_valu ctx v c)
     (* Witness. *)
     | VWit(w)     ->
         let (_,a,_) = !(w.valu) in
@@ -1743,6 +1763,10 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
         in
         let p = type_term ctx t c in
         Typ_TSuch(p)
+    (* Subtyping judgement *)
+    | Chck(_,sch,t) ->
+       let (ctx,p) = check_schema ctx sch in
+       Typ_Chck(p, type_term ctx t c)
     (* Definition. *)
     | HDef(_,d)   ->
        let (_,_,r) = type_term ctx d.expr_def c in r
@@ -1854,6 +1878,7 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
     (* Constructors that cannot appear in user-defined stacks. *)
     | Coer(_,_,_) -> .
     | Such(_,_,_) -> .
+    | Chck(_,_,_) -> .
     | UWit(_)     -> unexpected "∀-witness during typing..."
     | EWit(_)     -> unexpected "∃-witness during typing..."
     | ESch(_)     -> unexpected "schema-witness during typing..."

@@ -32,6 +32,7 @@ let rec valu_erasure : valu -> e_vbox = fun v ->
   | Goal(_,s)   -> vscis
   | VDef(d)     -> vvdef d
   | Coer(_,v,_) -> valu_erasure v
+  | Chck(_,_,v) -> valu_erasure v
   | Such(_,_,r) -> valu_erasure (bseq_open r.binder)
   | VPtr(_)     -> erasure_error "a pool pointer cannot be erased (value)"
   | ITag(_)     -> erasure_error "a tag cannot be erased (value)"
@@ -85,6 +86,7 @@ and     term_erasure : term -> e_tbox = fun t ->
                    end
   | Clck(v)     -> tclck (valu_erasure v)
   | Coer(_,t,_) -> term_erasure t
+  | Chck(_,_,t) -> term_erasure t
   | Such(_,_,r) -> term_erasure (bseq_open r.binder)
   | TPtr(_)     -> erasure_error "a pool pointer cannot be erased (term)"
   | ITag(_)     -> erasure_error "a tag cannot be erased (term)"
@@ -113,6 +115,7 @@ and     stac_erasure : stac -> e_sbox = fun s ->
   | FixN(_)   -> erasure_error "illegal nu (stack)"
   | Coer(_)   -> .
   | Such(_)   -> .
+  | Chck(_)   -> .
 
 
 let valu_erasure : valu -> e_valu =

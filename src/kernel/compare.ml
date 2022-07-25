@@ -41,12 +41,14 @@ let full_eq = ref false
 exception DontKnow
 type oracle = { eq_val  : v ex loc -> v ex loc -> bool
               ; eq_trm  : t ex loc -> t ex loc -> bool
+              ; no_box  : v ex loc ->             bool
               ; leq_ord : o ex loc -> o ex loc -> bool}
 
 (* the default oracle *)
 let default_oracle = {
-    eq_val = (fun _ _ -> raise DontKnow);
-    eq_trm = (fun _ _ -> raise DontKnow);
+    eq_val  = (fun _ _ -> raise DontKnow);
+    eq_trm  = (fun _ _ -> raise DontKnow);
+    no_box  = (fun _   -> raise DontKnow);
     leq_ord = (fun _ _ -> raise DontKnow);
   }
 
