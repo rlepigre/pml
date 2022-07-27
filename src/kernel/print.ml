@@ -462,7 +462,7 @@ let rec ex : type a. ctxt -> mode -> a ex loc printer = fun ctxt pr ch e ->
             fprintf ch "%s:%a, " (name_of x) sort s;
             aux seq
       in aux r.binder
-  | Chck(_,_,e) -> fprintf ch "%a" ext e (* TODO *)
+  | Chck(_,_,_,e) -> fprintf ch "%a" ext e (* TODO *)
   | CPsi        -> fprintf ch "ψ"
   | Clck(v)     -> fprintf ch "χ(%a)" exp v
   | ITag(_,i)   -> fprintf ch "#%i" i

@@ -83,7 +83,7 @@ type _ ex =
   (** Lambda abstraction. λx.t *)
   | Cons : A.key loc * v ex loc                      -> v  ex
   (** Constructor with exactly one argument. *)
-  | Reco : (pos * v ex loc) A.t                     -> v  ex
+  | Reco : (pos * v ex loc) A.t                      -> v  ex
   (** Record. *)
   | Scis :                                              v  ex
   (** PML scisors. *)
@@ -142,7 +142,8 @@ type _ ex =
   (** Type coercion on a value or a term. *)
   | Such : 'a v_or_t * 'b desc * ('a,'b) such_t      -> 'a ex
   (** Extraction of witness by pattern-matching. *)
-  | Chck :  'a v_or_t * sub_schema * 'a ex loc       -> 'a ex
+  | Chck : 'a v_or_t * v ex loc * p ex loc * 'a ex loc -> 'a ex
+  (** Adding a subtyping to the hypothesis *)
 
   (* Special constructors. *)
 
@@ -317,6 +318,7 @@ and  e_stac =
 
 type any_sort = Sort : 'a sort           -> any_sort
 type any_expr = Expr : 'a sort * 'a expr -> any_expr
+type any_var  = AVar : 'a sort * 'a var  -> any_var
 
 (** Sequence of functions to build and [bseq]. *)
 type (_,_) fseq =
@@ -523,15 +525,14 @@ let bnd : type a.a sort -> string -> (a var -> sbndr box) -> sbndr box =
   let b = bind_var v (f v) in
   box_apply (fun b -> Bnd(s,b)) b
 
-let sch =
-  fun ssch_index ssch_relat names f ->
-    let xs = Bindlib.new_mvar (mk_free O) names in
-    let f = bind_mvar xs (f xs) in
-    box_apply (fun x -> { ssch_index; ssch_relat; ssch_judge=x }) f
+let bnd_var : type a.a sort -> a var -> sbndr box -> sbndr box =
+  fun s v f ->
+  let b = bind_var v f in
+  box_apply (fun b -> Bnd(s,b)) b
 
 let chck =
-  fun p t s f ->
-  box_apply2 (fun s f -> Pos.in_pos p (Chck(t,s,f))) s f
+  fun p s v a f ->
+  box_apply3 (fun v a f -> Pos.in_pos p (Chck(s,v,a,f))) v a f
 
 let pset : pos -> set_param -> tbox -> tbox =
   fun p sp t ->
@@ -616,6 +617,12 @@ let rest : pos -> pbox -> rel box -> pbox =
 
 let impl : pos -> rel box -> pbox -> pbox =
   fun p -> box_apply2 (fun c a -> Pos.in_pos p (Impl(c,a)))
+
+(** subtyping as proposition *)
+let subt : pos -> pbox -> pbox -> pbox = fun p a b ->
+  univ p (none "x") V (fun x ->
+      let x = valu no_pos (vari no_pos x) in
+      func p Effect.bot NoLz (memb no_pos x a) (memb no_pos x b))
 
 (** {5 Condition constructors} *)
 
@@ -778,7 +785,7 @@ let rec sort : type a. a ex loc -> a sort * a ex loc = fun e ->
   | VDef _          -> (V,e)
   | Coer(VoT_V,_,_) -> (V,e)
   | Such(VoT_V,_,_) -> (V,e)
-  | Chck(VoT_V,_,_) -> (V,e)
+  | Chck(VoT_V,_,_,_)-> (V,e)
   | VPtr _          -> (V,e)
   | CPsi            -> (F(V,V),e)
 
@@ -792,7 +799,7 @@ let rec sort : type a. a ex loc -> a sort * a ex loc = fun e ->
   | Prnt _          -> (T,e)
   | Coer(VoT_T,_,_) -> (T,e)
   | Such(VoT_T,_,_) -> (T,e)
-  | Chck(VoT_T,_,_) -> (T,e)
+  | Chck(VoT_T,_,_,_)-> (T,e)
   | TPtr _          -> (T,e)
   | Repl(_,_)       -> (T,e)
   | Delm _          -> (T,e)

@@ -98,23 +98,7 @@ let map : type a. ?mapper:mapper -> a ex loc -> a ebox
                                               in
                                               such e.pos t d sv (aux r.binder)
 
-        | Chck(t,s,f)   ->
-                           let rec aux =
-                             fun b ->
-                             match b with
-                             | Cst (a, b) -> cst (map a) (map b)
-                             | Bnd (s, f) ->
-                                bnd s (Bindlib.binder_name f)
-                                  (fun x -> aux (Bindlib.subst f (mk_free s x)))
-                           in
-                           let names = Bindlib.mbinder_names s.ssch_judge in
-                           let xs = Bindlib.new_mvar (mk_free O) names in
-                           let xs = Array.map (mk_free O) xs in
-                           let sch =
-                             sch s.ssch_index s.ssch_relat names
-                               (fun x -> aux (Bindlib.msubst s.ssch_judge xs))
-                           in
-                           chck e.pos t sch (map f)
+        | Chck(s,v,a,f) -> chck e.pos s (map v) (map a) (map f)
         | Valu(v)       -> valu e.pos (map v)
         | Appl(t,u,l)   -> appl e.pos l (map t) (map u)
         | MAbs(f)       -> mabs e.pos (bndr_name f)

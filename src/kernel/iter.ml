@@ -94,7 +94,7 @@ let iter : type a. iterator -> a ex loc -> unit
 
         | Coer(t,e,a)   -> iter e
         | Such(t,d,r)   -> iter (bseq_open r.binder)
-        | Chck(t,s,e)   -> iter e
+        | Chck(_,_,_,e) -> iter e
 
         | Valu(v)       -> iter v
         | Appl(t,u,_)   -> iter t; iter u

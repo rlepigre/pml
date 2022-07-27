@@ -124,12 +124,15 @@ let _ =
   | Equiv.Failed_to_prove(rel,_)  ->
       err_msg "Failed to prove an equational relation.";
       err_msg "  %a" Print.rel rel
-  | Check_failed(a,n,b) ->
-      let (l,r) = if n then ("","") else ("¬(",")") in
-      if has_pos a.pos then err_msg "%a" print_err_pos a.pos;
-      if has_pos b.pos then err_msg "%a" print_err_pos b.pos;
-      err_msg "Failed to prove a subtyping relation.";
-      err_msg "  %s%a ⊂ %a%s" l Print.ex a Print.ex b r;
+  | Parser.Unexpected_success(id) ->
+      err_msg "A definition that should not type-check is accepted for";
+      err_msg "  %s at %a" id.elt print_err_pos id.pos;
+  | Typing.Bad_delim(t,msg) ->
+      err_msg "%s" msg;
+      err_msg "  %a at %a" Print.ex t print_err_pos t.pos;
+  | Typing.Bad_subtyping(p) ->
+      err_msg "This is not a subtyping proposition";
+      err_msg "  %a at %a" Print.ex p print_err_pos p.pos;
   | No_typing_IH(id)             ->
      if has_pos id.pos then err_msg "%a" print_err_pos id.pos;
      err_msg "No typing induction hypothesis for %S." id.elt;

@@ -46,7 +46,7 @@ let {hash_expr; hash_bndr; hash_ombinder; hash_vwit
     | Valu(v)       -> hash_expr v
     | Coer(_,e,_)   -> hash_expr e
     | Such(_,_,r)   -> hash_expr (bseq_open r.binder)
-    | Chck(_,_,e)   -> hash_expr e
+    | Chck(_,_,_,e) -> hash_expr e
     | Vari(_,x)     -> khash1 `Vari (Bindlib.hash_var x)
     | HFun(s,_,b)   -> khash1 `HFun (hash_bndr s b)
     | HApp(s,f,a)   -> khash3 `HApp (hash_sort s) (hash_expr f) (hash_expr a)

@@ -54,6 +54,10 @@ exception No_subtyping_IH of strloc * strloc
 
 exception Illegal_effect of Effect.pml_effect
 
+exception Bad_subtyping of prop
+
+exception Bad_delim of term * string
+
 exception Unexpected_error of string
 let unexpected : string -> 'a =
   fun msg -> raise (Unexpected_error(msg))
@@ -156,7 +160,7 @@ type ctxt  =
      is stricly less than the first *)
   ; positives : (ordi * ordi) list
   ; fix_ihs   : ((t,v) bndr, fix_schema) Buckets.t
-  ; sub_ihs   : sub_schema list
+  ; sub_ihs   : (sub_schema * bool) list
   ; sub_adone : (sub_adone * int) list
   ; top_ih    : Scp.index * ordi array
   ; add_calls : (unit -> unit) list ref
@@ -258,7 +262,7 @@ type typ_rule =
   | Typ_Delm   of typ_proof
   | Typ_Cont
   | Typ_Clck   of sub_proof * typ_proof
-  | Typ_Chck   of sub_rule * typ_proof
+  | Typ_Chck   of typ_proof * typ_proof
 
 and  stk_rule =
   | Stk_Push   of sub_rule * typ_proof * stk_proof
@@ -331,7 +335,10 @@ type any_bndr = Any : ('a,'b) bndr -> any_bndr [@@unboxed]
 (* Add to the context some conditions.
    A condition c is added if c false implies wit in a is false.
    as wit may be assumed not box, if c false implies wit = Box,
-   c can be added *)
+   c can be added.
+
+   It also raises a Contradiction if a value of the wring type
+   is in the pool. *)
 let learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
   let adone = ref [] in
   let rec fn ctx wit a =
@@ -344,6 +351,7 @@ let learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
     | Exis(s, f) -> let (t, ctx_names) = ewit ctx.ctx_names s twit f in
                     let ctx = { ctx with ctx_names } in
                     fn ctx wit (bndr_subst f t.elt)
+    | Func(_)    -> find_labs ctx.equations wit; ctx
     | Prod(fs)   ->
        A.fold (fun lbl (_, b) ctx ->
            let (v,pool,ctx_names) =
@@ -367,7 +375,7 @@ let learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
               let (_, b) = A.find s fs in
               let ctx = { ctx with equations = pool } in
               fn ctx v b
-            with Not_found -> assert false (* NOTE check *)
+            with Not_found -> raise Contradiction
        end
     (** Learn positivity of the ordinal *)
     | FixM(s,o,f,l)  ->
@@ -573,6 +581,7 @@ let rec subtype =
       else (
       log_sub "reflexivity does not applies";
       let ctx = check_adone ctx a b in
+      try find_suitable ctx true a b with Not_found ->
       match (a.elt, b.elt) with
       (* Unfolding of definitions. *)
       | (HDef(_,d)  , _          ) ->
@@ -595,6 +604,16 @@ let rec subtype =
            Sub_Exis_l(subtype ctx t (bndr_subst f eps.elt) b)
          else
            gen_subtype ctx a b
+      (* Membership on both side, necessary to have
+         x \in A < x \in B when A < B *)
+      | (Memb(u,c)  , Memb(v,d)  ) when eq_expr u v ->
+         if t_is_val then
+           try
+             let ctx = learn ctx (Equiv(t,true,u)) in
+             Sub_Memb_l(Some(subtype ctx t c d))
+           with Contradiction -> Sub_Memb_l(None)
+         (* NOTE may need a backtrack because a right rule could work *)
+         else gen_subtype ctx a b
       (* Membership on the left. *)
       | (Memb(u,c)  , _          ) ->
          if t_is_val then
@@ -848,6 +867,7 @@ let rec subtype =
          gen_subtype ctx a b
       (* No rule apply. *)
       | _                          ->
+         log_sub "no rule to apply";
          subtype_msg no_pos "No rule applies")
     in
     (t, a, b, r)
@@ -989,15 +1009,13 @@ and check_adone : ctxt -> prop -> prop -> ctxt = fun ctx a b ->
   in
   fn a b
 
-and check_sub : ctxt -> prop -> prop -> check_sub = fun ctx a b ->
-  (* Looking for potential induction hypotheses. *)
+and find_suitable ctx manual a b =
   let ihs = ctx.sub_ihs in
   let ihs_nb = List.length ihs in
   log_sub "there are %i potential subtyping induction hypotheses" ihs_nb;
-  (* Function for finding a suitable induction hypothesis. *)
-  let rec find_suitable ihs =
+  let rec fn ihs =
     match ihs with
-    | ih::ihs ->
+    | (ih,m)::ihs when m = manual ->
         begin
           try
             (* Elimination of the schema, and unification with goal type. *)
@@ -1005,8 +1023,9 @@ and check_sub : ctxt -> prop -> prop -> check_sub = fun ctx a b ->
             let (a0, b0) = spe.sspe_judge in
             (* Check if schema applies. *)
             if not (UTimed.pure_test
-                      (fun () -> leq_expr ctx.equations ctx.positives b0 b &&
-                                 leq_expr ctx.equations ctx.positives a a0)
+                      (fun () -> try leq_expr ctx.equations ctx.positives b0 b &&
+                                     leq_expr ctx.equations ctx.positives a a0
+                      with e -> Printf.eprintf "unexpected %s\n%!" (Printexc.to_string e); Printexc.print_backtrace stderr; exit 1)
                       ())
             then raise Exit;
             (* Check positivity of ordinals. *)
@@ -1020,10 +1039,19 @@ and check_sub : ctxt -> prop -> prop -> check_sub = fun ctx a b ->
             log_sub "%i subtyping induction hypotheses applies"
               (ihs_nb - List.length ihs);
             add_call ctx (ih.ssch_index, spe.sspe_param) true;
-            Sub_Applies(Sub_Ind(ih))
-          with Exit -> find_suitable ihs
+            Sub_Ind(ih)
+          with Exit -> fn ihs
         end
-    | []      ->
+    | (ih,_)::ihs -> fn ihs
+    | []      -> raise Not_found
+  in
+  fn ihs
+
+and check_sub : ctxt -> prop -> prop -> check_sub = fun ctx a b ->
+  (* Looking for potential induction hypotheses. *)
+  (* Function for finding a suitable induction hypothesis. *)
+  try Sub_Applies(find_suitable ctx false a b)
+  with Not_found ->
         (* No matching induction hypothesis. *)
         let no_uvars () =
           uvars ~ignore_epsilon:true a = [] &&
@@ -1044,7 +1072,7 @@ and check_sub : ctxt -> prop -> prop -> check_sub = fun ctx a b ->
            add_call ctx (sch.ssch_index, os) false;
            (* Recording of the new induction hypothesis. *)
            log_sub "the schema has %i arguments" (Array.length os);
-           let ctx = { ctx with sub_ihs = sch :: ctx.sub_ihs } in
+           let ctx = { ctx with sub_ihs = (sch, false) :: ctx.sub_ihs } in
            (* Instantiation of the schema. *)
            let (spe, ctx) = inst_sub_schema ctx sch in
            let ctx = {ctx with positives = spe.sspe_relat} in
@@ -1053,20 +1081,82 @@ and check_sub : ctxt -> prop -> prop -> check_sub = fun ctx a b ->
         | _ ->
            Sub_New(ctx, (a, b))
 
-  in find_suitable ihs
-
-and check_schema ctx sch =
-  (* Ask for a fresh symbol index. *)
-  let ssch_index =
-    let names = mbinder_names sch.ssch_judge in
-    Scp.create_symbol ctx.callgraph "$" names
+and check_sub_proof ctx v p =
+  let not_arrow a =
+    match (Norm.whnf a).elt with
+    | Func _ -> false
+    | _      -> true
   in
+  let not_arrow_bind f =
+    let (_,a) = bndr_open f in
+    not_arrow a
+  in
+  let rec fn : prop -> (o var list * any_var list * rel list * prop * prop) =
+    fun a -> match a.elt with
+    | Univ(s,f) when not_arrow_bind f ->
+       let (v,b) = bndr_open f in
+       let (ords,params,rel,a1,a2) = fn b in
+       (match eq_sort s O, v with
+       | Eq , v -> (v::ords, params,rel,a1,a2)
+       | NEq, v -> (ords, AVar(s,v)::params,rel,a1,a2))
+    | Impl(r,b) ->
+       let (ords,params,rel,a1,a2) = fn b in
+       (ords,params,r::rel,a1,a2)
+    | Univ(s,f) ->
+       let (v,b) = bndr_open f in
+       let chck e = match e.elt with
+         | Valu{elt = Vari(_,v'); _} -> eq_vars v v'
+         | _                         -> false
+       in
+       let (a1,a2) = match (Norm.whnf b).elt with
+         | Func(eff,{elt=Memb(v1,a1);_},
+                {elt=Memb(v2,a2);_},laz) when chck v1 && chck v2 -> (a1,a2)
+
+         | _ ->
+            raise (Bad_subtyping a)
+       in
+       ([],[],[],a1,a2)
+    | _ -> raise (Bad_subtyping a)
+
+  in
+  let (ords,params,rel,a1,a2) = fn (Norm.whnf p) in
+  let a1 = List.fold_left (fun a1 r -> none (Rest(a1,r))) a1 rel in
+  let j = cst (Mapper.lift a1) (Mapper.lift a2) in
+  let j = List.fold_right (fun (AVar(s,v)) j -> bnd_var s v j) params j in
+  let ords = Array.of_list ords in
+  let ssch_judge = unbox (Bindlib.bind_mvar ords j) in
+  let names = mbinder_names ssch_judge in
+  let ssch_index = Scp.create_symbol ctx.callgraph "$" names in
+  let ssch_relat = [] (* TODO: add relation between ordinals *) in
+  let sch = { ssch_index; ssch_relat; ssch_judge } in
+  let ctx = { ctx with sub_ihs = (sch,true) :: ctx.sub_ihs } in
+  let (spe, ctx_v) = inst_sub_schema ctx sch in
+  let ctx = add_path (Ap R) ctx in
+  let ctx_v = add_path (Ap L) ctx_v in
+  let ctx_v = {ctx_v with positives = spe.sspe_relat;
+                          top_ih = (sch.ssch_index, spe.sspe_param)} in
+  let prf = type_valu ctx_v v p in (* infer a type to learn equivalences *)
+  (ctx, prf)
+(*
+
+  let ctx_t = add_path (Ap R) ctx in
+  let ctx_v = {ctx_v with top_ih = (sch.fsch_index, spe.fspe_param)} in
+
+  (* Registration of the new top induction hypothesis and call. *)
   let sch = { sch with ssch_index } in
-  let ctx as ctx0 = { ctx with sub_ihs = sch :: ctx.sub_ihs } in
   let (spe, ctx) = inst_sub_schema ctx sch in
-  let ctx = {ctx with positives = spe.sspe_relat} in
+  let os = spe.sspe_param in
+  let ctx, ctx0 =
+    if os = [||] then (ctx, ctx) else
+      begin
+        add_call ctx (sch.ssch_index, os) false;
+        let ctx0 = { ctx with sub_ihs = sch :: ctx.sub_ihs} in
+        ({ctx0 with positives = spe.sspe_relat;
+                    top_ih = (sch.ssch_index, spe.sspe_param)}, ctx0)
+      end
+  in
   let (a,b) = spe.sspe_judge in
-  (ctx0, gen_subtype ctx a b)
+  (ctx0, gen_subtype ctx a b)*)
 
 and has_loop : prop -> bool =
   fun c ->
@@ -1469,9 +1559,9 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
               Typ_Cont
        end
     (* Subtyping judgement *)
-    | Chck(_,sch,v) ->
-       let (ctx,p) = check_schema ctx sch in
-       Typ_Chck(p, type_valu ctx v c)
+    | Chck(_,v,a,w) ->
+       let (ctx,p) = check_sub_proof ctx v a in
+       Typ_Chck(p, type_valu ctx w c)
     (* Witness. *)
     | VWit(w)     ->
         let (_,a,_) = !(w.valu) in
@@ -1567,9 +1657,9 @@ and warn_unreachable ctx t =
   if not (is_scis t) && not ctx.auto.doing then
     begin
       if has_pos t.pos then
-        Output.wrn_msg "unreachable code %a" Pos.print_wrn_pos t.pos
+        wrn_msg "unreachable code %a" Pos.print_wrn_pos t.pos
       else
-        Output.wrn_msg "unreachable code..."
+        wrn_msg "unreachable code..."
 
     end;
 
@@ -1761,8 +1851,8 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
         let p = type_term ctx t c in
         Typ_TSuch(p)
     (* Subtyping judgement *)
-    | Chck(_,sch,t) ->
-       let (ctx,p) = check_schema ctx sch in
+    | Chck(_,v,p,t) ->
+       let (ctx,p) = check_sub_proof ctx v p in
        Typ_Chck(p, type_term ctx t c)
     (* Definition. *)
     | HDef(_,d)   ->
@@ -1783,7 +1873,7 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
         let c = Pos.none (Memb(t,c)) in
         let p1 = type_term ctx u c in
         Typ_Repl(p1)
-    | Delm(t)     ->
+    | Delm(u)     ->
        let pure = Pure.pure c in
        let ctx =
          if pure then
@@ -1792,12 +1882,12 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
              let tot1 = Effect.create () in
              assert (Effect.sub ~except:[CallCC] tot1 ctx.totality);
              if not (Effect.absent CallCC ctx.totality) then
-               failwith "Useless delim";
+               raise (Bad_delim (t,"Useless delim"));
              { ctx with totality = tot1 }
            end
-         else failwith "Delim requires pure type"
+         else raise (Bad_delim (t, "Delim requires pure type"));
        in
-       let p = type_term ctx t c in
+       let p = type_term ctx u c in
        Typ_Delm(p)
     | Clck(v) ->
        let a = new_uvar ctx P in
@@ -1875,7 +1965,7 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
     (* Constructors that cannot appear in user-defined stacks. *)
     | Coer(_,_,_) -> .
     | Such(_,_,_) -> .
-    | Chck(_,_,_) -> .
+    | Chck(_,_,_,_)-> .
     | UWit(_)     -> unexpected "∀-witness during typing..."
     | EWit(_)     -> unexpected "∃-witness during typing..."
     | ESch(_)     -> unexpected "schema-witness during typing..."
@@ -1936,19 +2026,3 @@ let type_check : string -> term -> prop -> memo2 -> prop * typ_proof * memo2 =
        (p, prf, (o,n))
 
 let type_check t = Chrono.add_time type_chrono (type_check t)
-
-let is_subtype : sub_schema -> bool = fun s ->
-  let st = Timed.Time.save () in
-  try
-    let ctx = empty_ctxt () in
-    let _ = check_schema ctx s in
-    (* same as above *)
-    (*TODO: assert(uvars a = [] && uvars b = []); ?*)
-    List.iter (fun f -> f ()) (List.rev !(ctx.add_calls));
-    let res = Scp.scp ctx.callgraph in
-    reset_tbls ();
-    Timed.Time.rollback st;
-    res
-  with
-  | Out_of_memory | Sys.Break as e -> raise e
-  | e -> reset_tbls (); Timed.Time.rollback st; false

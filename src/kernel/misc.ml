@@ -187,21 +187,18 @@ let bind_params : Equiv.pool -> p ex loc -> sbndr box * slist = fun po e ->
       | Cns(a, l) -> if no_bound_var a && not (in_slist a !params)
                      then
                        begin
-                         let (s,a) = sort a in
-                         let open Eq in
-                         match eq_sort s O with
-                         | Eq  -> ()
-                         | NEq ->
-                            params := Cns(s,a,filter_slist a !params)
+                         match sort a with
+                         | (O, _)  -> ()
+                         | (s, a) -> params := Cns(s,a,filter_slist a !params)
                        end;
                      recall a;
                      from_args  l
     in
     match (Norm.whnf e).elt with
     | FixM(s,o,f,l) -> let (_,t) = bndr_open f in
-                       from_args l; default o; default t
+                       from_args l; recall o; recall t
     | FixN(s,o,f,l) -> let (_,t) = bndr_open f in
-                       from_args l; default o; default t
+                       from_args l; recall o; recall t
     | _             -> default e
   in
   let iterator = { iterator; doclosed = true

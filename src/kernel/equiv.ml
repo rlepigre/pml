@@ -27,7 +27,7 @@ let log_edp2 = Log.(log_edp2.p)
 let log_aut = Log.register 'a' (Some "aut") "automatic proving informations"
 let log_aut = Log.(log_aut.p)
 
-(** Exception raise when the pool contains a contradiction. *)
+(** Exception raised when the pool contains a contradiction. *)
 exception Contradiction
 let bottom () = raise Contradiction
 
@@ -862,7 +862,7 @@ let rec add_term :  bool -> bool -> pool -> term
                      in
                      if free then normalise pt po else (find pt po, po)
     | Prnt(s)     -> insert (TN_Prnt(s)) po
-    | Repl(_,u)   -> add_term po u
+    | Repl(u,t)   -> add_term po u
     | Delm(u)     -> let (pt, po) = add_term po u in
                      insert (TN_Delm(pt)) po
     | Hint(h,t)   -> (match h with
@@ -883,7 +883,7 @@ let rec add_term :  bool -> bool -> pool -> term
                            Erase.Erasure_error _ | Exit -> add_term po t)
     | Coer(_,t,_) -> add_term po t
     | Such(_,_,r) -> add_term po (bseq_open r.binder)
-    | Chck(_,_,t) -> add_term po t
+    | Chck(_,_,_,t)-> add_term po t
     | UWit(w)     -> insert (TN_UWit(w)) po
     | EWit(w)     -> insert (TN_EWit(w)) po
     | ESch(T,i,w) -> insert (TN_ESch(i,w)) po
@@ -963,7 +963,7 @@ and     add_valu : bool -> pool -> valu -> VPtr.t * pool = fun o po v0 ->
                      end
     | Coer(_,v,_) -> add_valu po v
     | Such(_,_,r) -> add_valu po (bseq_open r.binder)
-    | Chck(_,_,v) -> add_valu po v
+    | Chck(_,_,_,v)-> add_valu po v
     | VWit(w)     -> insert_v_node (VN_VWit(w)) po
     | UWit(w)     -> insert_v_node (VN_UWit(w)) po
     | EWit(w)     -> insert_v_node (VN_EWit(w)) po
@@ -1131,6 +1131,7 @@ and normalise_t_node : ?old:TPtr.t -> t_node -> pool -> Ptr.t  * pool =
                           Ptr.print tp;
                      (tp,po)
                    end
+                | (VN_Cons _ | VN_Reco _), _ -> raise Contradiction
                 | _          ->
                    raise Exit
               end
@@ -1171,6 +1172,7 @@ and normalise_t_node : ?old:TPtr.t -> t_node -> pool -> Ptr.t  * pool =
                   (tp, po)
                 with Not_found -> insert node po
               end
+           | VN_LAbs _ | VN_Cons _ -> raise Contradiction
            | _          -> insert node po
          end
       | TN_Case(pv0,m) ->
@@ -1189,6 +1191,7 @@ and normalise_t_node : ?old:TPtr.t -> t_node -> pool -> Ptr.t  * pool =
                 log_edp2 "normalised in %a = TN_Case %a => %a"
                      print_t_node node VPtr.print pv0 Ptr.print tp;
                 (tp,po)
+             | VN_LAbs _ | VN_Reco _ -> raise Contradiction
              | _            -> raise Not_found
            with Not_found ->
              log_edp2 "normalisation no progress %a = TN_Case: %a"
@@ -1800,7 +1803,7 @@ and eq_val : pool ref -> valu -> valu -> bool = fun pool v1 v2 ->
       log_edp2 "eq_val: insertion at %a and %a" VPtr.print p1 VPtr.print p2;
       log_edp2 "eq_val: obtained context:\n%a" (print_pool "        ") po;
       try pool := (UTimed.apply (unif_vptr po p1) p2); true
-      with NoUnif -> false
+      with NoUnif | Contradiction -> false
     end
 
 and eq_trm : pool ref -> term -> term -> bool = fun pool t1 t2 ->
@@ -1814,7 +1817,7 @@ and eq_trm : pool ref -> term -> term -> bool = fun pool t1 t2 ->
       log_edp2 "eq_trm: insertion at %a and %a" Ptr.print p1 Ptr.print p2;
       log_edp2 "eq_trm: obtained context:\n%a" (print_pool "        ") po;
       try pool := (UTimed.apply (unif_ptr po p1) p2); true
-      with NoUnif -> false
+      with NoUnif | Contradiction -> false
     end
 
 and no_box : pool ref -> valu -> bool = fun pool v1 ->
@@ -1973,8 +1976,20 @@ let find_sum : pool -> valu -> (string * valu * pool) option = fun po v ->
     match n with
     | VN_Cons(c,pt) ->
        Some (c.elt, Pos.none (VPtr pt), po)
+    | VN_LAbs _ | VN_Reco _ -> raise Contradiction
     | _ -> raise Not_found
   with Not_found -> None
+
+(* NOTE: this is only useful to raise Contradiction *)
+let find_labs : pool -> valu -> unit = fun po v ->
+  try
+    let (vp, po) = add_valu false po v in
+    let vp = find_valu vp po in
+    let n = find_v_node vp po in
+    match n with
+    | VN_Cons _ | VN_Reco _ -> raise Contradiction
+    | _ -> ()
+  with Not_found -> ()
 
 (* Adds no box to the bool *)
 let check_nobox : valu -> pool -> bool * pool = fun v pool ->
@@ -2011,28 +2026,28 @@ let is_value : term -> pool -> bool * bool * pool = fun t pool ->
   match is_nobox_value t with
   | Some(_,nb) -> (true, nb, pool)
   | _ ->
-  let (pt, pool) = add_term true true pool t in
-  log_edp2 "insertion at %a" Ptr.print pt;
-  log_edp2 "obtained context:\n%a" (print_pool "        ") pool;
-  let no_box = is_nobox pt pool in
-  let is_val = match pt with
-    | Ptr.V_ptr(v) -> true
-    | Ptr.T_ptr(_) -> false
-  in
-  log_edp1 "%a is%s a value and is%s box" Print.ex t
-      (if is_val then "" else " not")
-      (if no_box then " not" else "");
-  (is_val, no_box, pool)
+     let (pt, pool) = add_term true true pool t in
+     log_edp2 "insertion at %a" Ptr.print pt;
+     log_edp2 "obtained context:\n%a" (print_pool "        ") pool;
+     let no_box = is_nobox pt pool in
+     let is_val = match pt with
+       | Ptr.V_ptr(v) -> true
+       | Ptr.T_ptr(_) -> false
+     in
+     log_edp1 "%a is%s a value and is%s box" Print.ex t
+       (if is_val then "" else " not")
+       (if no_box then " not" else "");
+     (is_val, no_box, pool)
 
 (* Test whether a term is equivalent to a value or not. *)
 let to_value : term -> pool -> valu option * pool = fun t pool ->
   match is_nobox_value t with
   | Some(v,_) -> (Some v, pool)
   | _ ->
-  let (pt, pool) = add_term true true pool t in
-  match pt with
-  | Ptr.V_ptr(v) -> Some (Pos.none (VPtr v)), pool
-  | Ptr.T_ptr(_) -> None, pool
+     let (pt, pool) = add_term true true pool t in
+     match pt with
+     | Ptr.V_ptr(v) -> (Some (Pos.none (VPtr v)), pool)
+     | Ptr.T_ptr(_) -> (None, pool)
 
 (** learn a relation (equation, inequation or nobox) and returns a boolean
    telling if the fact was already known *)

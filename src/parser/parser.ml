@@ -10,7 +10,7 @@ open Typing
 open Raw
 open Priority
 
-exception Check_failed of Ast.prop * bool * Ast.prop
+exception Unexpected_success of strloc
 
 let verbose   = ref true
 let timed     = ref false
@@ -183,6 +183,10 @@ let%parser float = (s::FLOAT) => s
 let%parser llid_wc =
     (id::llid) => id
   ; '_'        => in_pos _pos "_"
+
+let%parser llid_opt =
+    (id::llid) => in_pos _pos (Some id.elt)
+  ; '_'        => in_pos _pos None
 
 (* Some useful tokens. *)
 let%parser elipsis = "⋯" => () ; "..." => ()
@@ -379,7 +383,9 @@ and [@cache] prop_rest =
 and [@cache] prop_full =
   (* Proposition (implication) *)
     (a::expr (Prp P)) (t::impl) (b::prop)
-      => in_pos _pos (EFunc(t,a,b,NoLz))
+    => in_pos _pos (EFunc(t,a,b,NoLz))
+  ; (a::expr (Prp P)) "⊂" (b::expr (Prp P))
+    => in_pos _pos (ESubt(a,b))
   ; _lazy_ langle (b::prop) rangle
       => (let t = Effect.create ~absent:[CallCC] () in
           in_pos _pos (EFunc(t,in_pos _pos (EProd([],true)), b, Lazy)))
@@ -549,8 +555,8 @@ and [@cache] term_seq =
   ; _open_  (lids :: ~+ llid) ';' (u::expr (Trm S))
       => ehint _pos (Close(false,lids)) u
   (* Checking subtyping *)
-  ; _check_ (s::schema) ';' (t::expr (Trm S))
-      => in_pos _pos (EChck(new_sort_uvar None,s,t))
+  ; _check_ (v:: ~? ((v::expr (Trm R)) ':' => v)) (p::prop) ';' (t::expr (Trm S))
+      => in_pos _pos (EChck(new_sort_uvar None,v,p,t))
 
 and [@cache] term_iprio =
   (t::expr (Trm I)) => (get_infix_prio t,t)
@@ -607,12 +613,6 @@ and [@cache] cond opt any =
   ; (t::expr (Trm I)) cvg
             => ENoBox(t)
 
-and schema =
-    (a::expr (Prp P)) "⊂" (b::expr (Prp P)) => ECst(a,b)
-  ; "∀" (x::llid) (xs::~* llid) (s::~? (':' (s::sort) => s)) ',' (q::schema) =>
-      let s = match s with Some s -> s | None -> new_sort_uvar (Some x) in
-      EBnd((x,xs),s,q)
-
 and ho_args = langle (l:: ~+ [comma] any) rangle => l
 
 (* Variable with optional type. *)
@@ -663,6 +663,11 @@ and set_param =
 
 let%parser oc = () => None ; _close_ => Some true; _open_ => Some false
 
+let%parser check =
+    ()  => Yes
+  ; "?" => Maybe
+  ; "¬" => No
+
 (* Toplevel item. *)
 let%parser rec toplevel =
   (* Definition of a new sort. *)
@@ -678,12 +683,16 @@ let%parser rec toplevel =
       => (fun () -> type_def _pos r id args e)
 
   (* Definition of a value (to be computed). *)
-  ; _val_ (r::v_rec) (oc::oc) (id::llid) ':' (a::prop) '=' (t::term)
-      => (fun () -> val_def r id oc a t)
+  ; _val_ (r::v_rec) (oc::oc) (ch::check) (id::llid_opt) ':' (a::prop) '=' (t::term)
+      => (fun () -> val_def r id ch oc a t)
 
   (* Check of a subtyping relation. *)
-  ; _assert_ (r::neg) (a::prop) "⊂" (b::prop)
-      => (fun () -> check_sub a r b)
+  ; _assert_ (ch::check) (a::prop) (t::~? ('=' (t::term) => t))
+      => (let t = match t with
+            | Some t -> t
+            | None -> idt_term a.pos
+          in
+          fun () -> val_def `Non (in_pos _pos None) ch None a t)
 
   (* Inclusion of a file. *)
   ; _include_ (p::path)
@@ -731,17 +740,36 @@ and interpret : bool -> memo2 -> Raw.toplevel -> memo2 =
         out "expr %s : %a ≔ %a\n%!" id.elt Print.sort s Print.ex ee;
       add_expr id s e;
       memo
-  | Valu_def(id,oc,a,t) ->
+  | Valu_def(id,ch,oc,a,t) ->
       let a = unbox (to_prop (unsugar_expr a _sp)) in
       let t = unbox (to_term (unsugar_expr t _st)) in
-      let (a, prf, memo) = type_check id.elt t a memo in
-      let v = Eval.eval (Erase.term_erasure t) in
-      ignore prf;
-      let close = if add_value id oc t a v then "close" else "open" in
-      if verbose then
-        out "val %s %s : %a\n%!" close id.elt Print.ex a;
-      memo
-      (* out "  = %a\n%!" Print.ex (Erase.to_valu v); *)
+      begin try
+        let (a, prf, memo) = type_check id.elt t a memo in
+        let v = Eval.eval (Erase.term_erasure t) in
+        ignore prf;
+        let close = if add_value id oc t a v then "close" else "open" in
+        if verbose then
+          out "val %s %s : %a\n%!" close id.elt Print.ex a;
+        begin
+          match ch with
+          | No -> raise (Unexpected_success id)
+          | Maybe -> wrn_msg "definition at %a is accepted" print_wrn_pos id.pos
+          | Yes -> ();
+        end;
+        (* out "  = %a\n%!" Print.ex (Erase.to_valu v); *)
+        memo
+      with
+      | Type_error _ | Loops _ as e ->
+         begin
+           match ch with
+           | No -> ()
+           | Maybe -> wrn_msg "definition at %a is not accepted" print_wrn_pos id.pos
+           | Yes -> raise e
+         end;
+         memo
+      | e ->
+         Printf.printf "Unexpected %s\n%!" (Printexc.to_string e); raise e
+      end
   | Clos_def(b, lids) ->
       let s = if b then "closing" else "opening" in
       let fn lid =
@@ -751,16 +779,6 @@ and interpret : bool -> memo2 -> Raw.toplevel -> memo2 =
         with Not_found -> unbound_var lid
       in
       List.iter fn lids;
-      memo
-  | Chck_sub(a,n,b) ->
-      let a = unbox (to_prop (unsugar_expr a _sp)) in
-      let b = unbox (to_prop (unsugar_expr b _sp)) in
-      if is_subtype a b <> n then raise (Check_failed(a,n,b));
-      if verbose then
-        begin
-          let (l,r) = if n then ("","") else ("¬(",")") in
-          out "showed %s%a ⊂ %a%s\n%!" l Print.ex a Print.ex b r;
-        end;
       memo
   | Include(fn) ->
       if verbose then
