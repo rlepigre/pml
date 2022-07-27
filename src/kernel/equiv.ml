@@ -356,6 +356,11 @@ let print_pool : string -> out_channel -> pool -> unit = fun prefix ch po ->
                    Ptr.print p1 Ptr.print p2 Ptr.print p3
   in
   List.iter fn eq_map;
+  Printf.fprintf ch "%s#### Ineq ####\n" prefix;
+  let fn (p1, p2) =
+    Printf.fprintf ch "%s  %a != %a\n" prefix Ptr.print p1 Ptr.print p2
+  in
+  List.iter fn po.ineq;
   Printf.fprintf ch "%s###############" prefix
 
 
@@ -1131,7 +1136,6 @@ and normalise_t_node : ?old:TPtr.t -> t_node -> pool -> Ptr.t  * pool =
                           Ptr.print tp;
                      (tp,po)
                    end
-                | (VN_Cons _ | VN_Reco _), _ -> raise Contradiction
                 | _          ->
                    raise Exit
               end
@@ -1172,7 +1176,6 @@ and normalise_t_node : ?old:TPtr.t -> t_node -> pool -> Ptr.t  * pool =
                   (tp, po)
                 with Not_found -> insert node po
               end
-           | VN_LAbs _ | VN_Cons _ -> raise Contradiction
            | _          -> insert node po
          end
       | TN_Case(pv0,m) ->
@@ -1191,7 +1194,6 @@ and normalise_t_node : ?old:TPtr.t -> t_node -> pool -> Ptr.t  * pool =
                 log_edp2 "normalised in %a = TN_Case %a => %a"
                      print_t_node node VPtr.print pv0 Ptr.print tp;
                 (tp,po)
-             | VN_LAbs _ | VN_Reco _ -> raise Contradiction
              | _            -> raise Not_found
            with Not_found ->
              log_edp2 "normalisation no progress %a = TN_Case: %a"
@@ -1299,10 +1301,12 @@ and reinsert_vdef : value list -> pool -> pool = fun vs po ->
 and check_ineq pool =
   (* NOTE: we could consider ineq as parents to avoid scanning the whole ineq
      list *)
+  log_edp2 "checking ineq (%d)\n%!" (List.length pool.ineq);
   let fn (ineq,po) (pt, pu) =
     let pt = find pt po in
     let pu = find pu po in
     try
+
       ignore (UTimed.apply (unif_ptr po pt) pu);
       log_edp2 "add_inequiv: contradiction found";
       bottom ()
