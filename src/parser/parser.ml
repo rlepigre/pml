@@ -793,7 +793,7 @@ and interpret : bool -> memo2 -> Raw.toplevel -> memo2 =
         match l with
         | Alvl(b,d) -> Typing.default_auto_lvl := (b,d)
         | Logs s    -> Log.set_enabled s
-        | Keep s    -> Equiv.keep_intermediate := true
+        | Keep s    -> Equiv.keep_intermediate := s
       end;
       memo
   | Infix(sym,infix) ->
@@ -827,6 +827,9 @@ and compile_file : bool -> string -> unit = fun nodep fn ->
   if !verbose then out "[%s]\n%!" fn;
   Env.start fn;
   let save = !Env.env in
+  let (save_log, save_auto, save_keep) =
+    (Log.get_enabled (),!Typing.default_auto_lvl,!Equiv.keep_intermediate)
+  in
   Env.env := Env.empty;
   (* avoid timing of grammar compilation *)
   let _ = Grammar.compile entry in
@@ -835,7 +838,10 @@ and compile_file : bool -> string -> unit = fun nodep fn ->
   let (_,memo) = List.fold_left (interpret nodep) (memo, []) ast in
   save_memo fn (List.rev memo);
   Env.save_file fn;
-  Env.env := save
+  Env.env := save;
+  Log.set_enabled save_log;
+  Typing.default_auto_lvl := save_auto;
+  Equiv.keep_intermediate := save_keep
 
 (* Handling the files. *)
 and handle_file : bool -> string -> unit = fun nodep fn ->
