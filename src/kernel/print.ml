@@ -186,7 +186,9 @@ let is_def : type a. a ex loc -> a sugar = fun e ->
     | HApp(_,e,_) -> is_def e
     | _           -> false
   in
-  if is_def e then NoSugar else
+  (* TODO: uvars e could be non empty, we should just make sure
+     variables are not instanciated *)
+  if is_def e || uvars e <> [] then NoSugar else
   let (s,e) = Ast.sort e in
   let res : a sugar =
     match s with
