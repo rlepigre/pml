@@ -260,5 +260,19 @@ list because the type of \dupml{mem} is a subtype of the type of
 \dupml{memassoc}. This would fail if \dupml{set} were defined using
 \dupml{list} instead of \dupml{elist}.
 
+\section{Tuple as record}
+
+Most programing language provide a type for tuples also known are ordered
+sets. In PML, this is only a syntactic sugar for a record type
+that uses consecutive number as labels. i.e.:
+
+\begin{pmlcode}
+  type nat3 = nat × nat × nat
+
+  val pi1 : nat3 ⇒ nat = fun t { let (x,y,z) = t; x }
+\end{pmlcode}
+
+
+
 %<!-- Local IspellDict: british -->
 %<!-- Local IspellPersDict: ~/.ispell-british -->

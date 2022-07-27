@@ -26,16 +26,17 @@ is not a primitive type, it is defined using:
   can infer the sort of \dupml{x} and we can simly write \dupml{∃x, t⟨x⟩}.
   It is often necessary to indicate the sort for \dupml{ι} and \dupml{τ}, because of subtyping.
 
-\item singleton type:\dupml{u ∈ t} hich is the type only inhabited bu
+\item singleton type: \dupml{u ∈ t} which is the type only inhabited by
   \dupml{u} of type \dupml{t}
 
 \item restriction: \dupml{t | u ≡ v} which is the same type as \dupml{t} if
-  the tw terms \dupml{u} and \dupml{v} are equivalent.
+  the two terms \dupml{u} and \dupml{v} are equivalent. Otherwise, this is the
+  empty type.
 \end{itemize}
 
 Using this, the type \dupml{{ l ∈ list⟨a⟩ | length l ≡ n }} is a syntactic
 sugar for \dupml{∃l, l ∈ list⟨a⟩ | length l ≡ n} which reads as
-``the union of all singleton \dupml{l ∈ list⟨a⟩} such that \dupml{length l ≡ n}''.
+``the union of all singletons \dupml{l ∈ list⟨a⟩} such that \dupml{length l ≡ n}''.
 
 
 \section{Set and search trees}
