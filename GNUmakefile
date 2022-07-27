@@ -46,6 +46,9 @@ TEST_FILES = $(shell find examples tests -name "*.pml")
 tests: $(LIB_PMI) $(TEST_FILES)
 	dune exec -- pml --quiet --timed $(TEST_FILES)
 
+.PHONY: all
+all: lib tests book_tests
+
 # target to mesure time
 .PHONY: time
 time: bin

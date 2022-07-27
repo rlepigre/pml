@@ -243,7 +243,7 @@
   Remark: we need the \dupml{map_app} lemma from \ref{sect-totality}.
 
   \begin{pmlcode}
-    include book.part1_doc.more
+    include book.part1_doc.subtype
 
     val rec alist_map : ∀a b, (a ⇒ b) ⇒ alist⟨a⟩ ⇒ alist⟨b⟩ =
       fun f l1 {
@@ -280,10 +280,12 @@
         { r ∈ int | r ≡ case n { 0 → r | S[_] → opp_pos n | P[_] → opp_neg n
         } } =
         fun n {
-          case n {
+            case n {
             0    → 0
-            S[p] → P[check opp_pos p for opp p]
-            P[s] → S[check opp_neg s for opp s]
+            S[p] → let _ = opp p; // TODO: auto should find this
+                    P[check opp_pos p for opp p]
+            P[s] → let _ = opp s; // TODO: auto should find this
+                    S[check opp_neg s for opp s]
           }
         }
     \end{pmlcode}
@@ -297,7 +299,7 @@
         { opp = fun n {
             case n {
               0    → 0
-              S[p] → P[check opp_pos p for r.opp p by r.opp_pos_lem p]
+              S[p] → P[check {opp_pos p} for r.opp p by r.opp_pos_lem p]
               P[s] → S[check opp_neg s for r.opp s by r.opp_neg_lem s]
             }
           }

@@ -420,7 +420,7 @@ let rec is_singleton : prop -> term option = fun t ->
 
    The optional argument arg, is given when wit is a lambda.
    in this case, arg is a term such that (wit arg) not in c.
-   Therefore, if c = Func(t in a,b) one must have arg t, otherwise
+   Therefore, if c = Func(t in a,b) one must have arg = t, otherwise
    arg could not be a counter example.
 *)
 let learn_neg_equivalences
@@ -836,8 +836,8 @@ let rec subtype =
          Sub_FixN_l(false, prf)
       (* Membership on the right. *)
       | (_          , Memb(u,b)  ) when t_is_val ->
-          prove ctx.equations ctx.auto.old (Equiv(t,true,u));
-          Sub_Memb_r(subtype ctx t a b)
+         prove ctx.equations ctx.auto.old (Equiv(t,true,u));
+         Sub_Memb_r(subtype ctx t a b)
       (* Restriction on the right. *)
       | (_          , Rest(c,e)  ) ->
          begin

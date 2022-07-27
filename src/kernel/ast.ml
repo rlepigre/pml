@@ -483,14 +483,6 @@ let fixy : pos -> strloc -> (tvar -> vbox) -> tbox =
 let prnt : pos -> string -> tbox =
   fun p s -> box (Pos.in_pos p (Prnt(s)))
 
-let repl : pos -> tbox -> tbox -> tbox option -> tbox =
-  fun p t u b ->
-    let u = match b with
-      | None -> u
-      | Some b -> sequ no_pos b u
-    in
-    box_apply2 (fun t u -> Pos.in_pos p (Repl(t,u))) t u
-
 let delm : pos -> tbox -> tbox =
   fun p -> box_apply (fun u -> Pos.in_pos p (Delm(u)))
 
@@ -695,6 +687,17 @@ let strict_prod : pos -> (pos * pbox) A.t -> pbox =
                  exis no_pos (Pos.none (proj_name l)) V fn
     in
     build [] (List.map fst (A.bindings m))
+
+let repl : pos -> tbox -> tbox -> tbox option -> tbox =
+  fun p t u b ->
+    let u = match b with
+      | None -> u
+      | Some b -> sequ no_pos
+                    (coer no_pos VoT_T b
+                       (rest no_pos (strict_prod no_pos A.empty)
+                          (equiv t true u))) u
+    in
+    box_apply2 (fun t u -> Pos.in_pos p (Repl(t,u))) t u
 
 (** produce t = true *)
 let eq_true : pos -> tbox -> pbox =
