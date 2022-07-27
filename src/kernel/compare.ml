@@ -264,7 +264,7 @@ let {eq_expr; eq_bndr } =
     | (_             , HDef(_,d)     ) -> eq_expr e1 d.expr_def
     | (Func(t1,a1,b1,l1), Func(t2,a2,b2,l2)) ->
        (if strict then Effect.know_eq else Effect.eq) t1 t2
-       && eq_expr a1 a2 && eq_expr b2 b1 && l1 = l2
+       && eq_expr a2 a1 && eq_expr b2 b1 && l1 = l2
     | (DSum(m1)      , DSum(m2)      ) ->
         A.equal (fun (_,a1) (_,a2) -> eq_expr a1 a2) m1 m2
     | (Prod(m1)      , Prod(m2)      ) ->
