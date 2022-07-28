@@ -1698,8 +1698,9 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
                let c = Pos.none (Func(tot,a,c,l)) in
                let st = UTimed.Time.save () in
                try
-                 let (v,ctx) = learn_value ctx u a in
-                 let ctx = learn_equivalences ctx v a in
+                 let (v,ctx) = learn_value ctx u a0 in
+                 let ctx = learn_equivalences ctx v a0 in
+                 log_typ "trying strong application";
                  type_term ctx f c
                with Contradiction      -> warn_unreachable ctx f;
                                           (t,c,Typ_Scis)
@@ -1707,6 +1708,7 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
                   | Out_of_memory as e -> raise e
                   | _ when strong && is_typed VoT_T f ->
                      UTimed.Time.rollback st;
+                     log_typ "strong application failed";
                      check_f ctx false a0
              else
                let r = type_term ctx f (Pos.none (Func(tot,a,c,l))) in
