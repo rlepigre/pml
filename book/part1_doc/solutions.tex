@@ -277,15 +277,15 @@
 
     \begin{pmlcode}
       val rec opp : ∀n∈int,
-        { r ∈ int | r ≡ case n { 0 → r | S[_] → opp_pos n | P[_] → opp_neg n
+        { r ∈ int | r ≡ case n { 0 → 0 | S[_] → opp_pos n | P[_] → opp_neg n
         } } =
         fun n {
             case n {
             0    → 0
-            S[p] → let _ = opp p; // TODO: auto should find this
-                    P[check opp_pos p for opp p]
-            P[s] → let _ = opp s; // TODO: auto should find this
-                    S[check opp_neg s for opp s]
+            S[p] → let x = opp p; // TODO: auto should find this?
+                   P[check opp_pos p for x]
+            P[s] → let x = opp s; // TODO: auto should find this?
+                   S[check opp_neg s for x]
           }
         }
     \end{pmlcode}
