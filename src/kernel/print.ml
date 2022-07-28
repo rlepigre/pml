@@ -439,7 +439,7 @@ let rec ex : type a. ctxt -> mode -> a ex loc printer = fun ctxt pr ch e ->
   | FixY(b)     -> let (x,t,ctxt) = bndr_open_in ctxt b in
                    fprintf ch "fix %s {%a}" (name_of x) (ex ctxt (Trm F)) t
   | Prnt(s)     -> fprintf ch "print(%S)" s
-  | Repl(t,u)   -> fprintf ch "check {%a} for {%a}" ext t ext u
+  | Repl(t,u)   -> fprintf ch "check {%a} for {%a}" ext u ext t
   | Delm(t)     -> fprintf ch "delim {%a}" ext t
   | Hint(_,t)   -> ex ctxt pr ch t
   | Conv        -> output_string ch "∞"
