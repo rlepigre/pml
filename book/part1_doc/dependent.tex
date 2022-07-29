@@ -41,40 +41,137 @@ sugar for \dupml{∃l, l ∈ list⟨a⟩ | length l ≡ n} which reads as
 
 \section{Set and search trees}
 
+Here is a definition of binary trees:
+
 \begin{pmlcode}
-  type rec st1⟨a⟩ = [ Nil
-                   ; Node of { l : st1⟨a⟩ ; e : a ; r : st1⟨a⟩ ; ⋯ } ]
+  type rec bt⟨a⟩ = [ Nil
+                   ; Node of { l : bt⟨a⟩ ; e : a ; r : bt⟨a⟩ ; ⋯ } ]
 \end{pmlcode}
 
 Notice the dots in the record type. It means that more fields are allowed.
 By default in PML record are strict and shouldhave exactly the label
 mentionned in the type, but record with more fields are also possible.
 
-Before using this feature, there is another issue. This type is intended to represent binary search trees which means
+We want binary search trees.
+This means
 that elements stored in \dupml{l} (resp. \dupml{r}) should be smaller
 (resp. bigger) than \dupml{e}. But this is not written in the type.
 To overcome this, we can define a function and use a few more advanced
 feature of PML!
 
 \begin{pmlcode}
-  include lib.bool
-  include lib.comparison
+include lib.bool
+include lib.comparison
 
-  val rec for_all : ∀a, (a ⇒ bool) ⇒ st1⟨a⟩ ⇒ bool = fun f t {
-    case t {
-      | []               → true
-      | Node[{ l; e; r}] → f e && for_all f l && for_all f r
-    }
+val rec for_all : ∀a, (a ⇒ bool) ⇒ bt⟨a⟩ ⇒ bool = fun f t {
+  case t {
+    | []               → true
+    | Node[{ l; e; r}] → f e && for_all f l && for_all f r
   }
+}
 
-  type rec st⟨a,cmp⟩ = [ Nil
-    ; Node of
-    ∃e, { l : { t ∈ st⟨a,cmp⟩ | for_all (λx.is_Ls (cmp x e)) t }
-        ; e : e ∈ a
-        ; r : { t ∈ st⟨a,cmp⟩ | for_all (λx.is_Gs (cmp x e)) t }
+type rec st⟨a,c⟩ = [ Nil; Node of
+  ∃e, { l : { t ∈ st⟨a,c⟩ | for_all (λx.is_Ls (c x e)) t }
+      ; e : e ∈ a
+      ; r : { t ∈ st⟨a,c⟩ | for_all (λx.is_Gr (c x e)) t }
       ; ⋯ } ]
 
-  val rec add : ∀a, a ⇒ st1⟨a⟩ ⇒ st1⟨a⟩ = {--}
+// We can check that search trees are binary trees.
+assert ∀a,∀c, st⟨a,c⟩ ⊂ bt⟨a⟩
+\end{pmlcode}
+
+First, the function \dupml{for_all f t} checks that the function \dupml{f}
+return \dupml{true} for all the elements stored in the tree \dupml{t}.
+Then, in the type \dupml{st⟨a,c⟩}, we check that the ordering is respected
+using list comprehension.
+
+Remark: to talk about one field (here \dupml{e})
+of the record signature in the type of the other fields, we use
+existential and membership to make sure \dupml{e} is available
+everywhere.
+
+The module \dupml{lib.comparison} define the functions
+\dupml{is_Ls} and \dupml{is_Gr} to check the return
+value of the function \dupml{c : a ⇒ a ⇒ [ Ls; Eq; Gr]}.
+
+Now, we can define the function doing insertion in a binary search tree:
+\begin{pmlcode}
+val rec insert : ∀o,∀a, (a ⇒ a ⇒ cmp) ⇒ a ⇒ bt⟨a⟩ ⇒ bt⟨a⟩ =
+  fun c e t {
+    case t {
+      | []                  → Node[{ l = []; e; r = []}]
+      | Node[{ l; e=e'; r}] →
+        case c e e' {
+          | Eq → t
+          | Ls → Node[{ l = insert c e l; e = e'; r}]
+          | Gr → Node[{ l; e = e'; r = insert c e r}]
+        }
+    }}
+\end{pmlcode}
+
+Unfortunately, this function does not have the type that would express
+that it works on binary search tree. But we can fix that,
+first using a lemma, and then a second function \dupml{insert2}
+with the intended type.
+
+\begin{pmlcode}
+val rec lem : ∀a, ∀c∈(a ⇒ a ⇒ cmp), ∀f∈(a ⇒ bool),∀t∈bt⟨a⟩,∀e∈a,
+          for_all f t ⇒ f e ⇒ for_all f (insert c e t) =
+  fun c f t e ht he { set auto 1 2;
+    case t {
+      | []                  → {}
+      | Node[{ l; e=e'; r}] →
+        deduce f e';
+        deduce for_all f r;
+        deduce for_all f l;
+        case c e e' {
+          | Eq → {}
+          | Ls →
+            let hl : for_all f (insert c e l) = lem c f l e {} he;
+            {}
+          | Gr →
+            let hr : for_all f (insert c e r) = lem c f r e {} he;
+            {}
+        }
+  }}
+
+val rec insert2 : ∀o,∀a, ∀c∈(a ⇒ a ⇒ cmp), ∀e∈a, ∀t∈st⟨a,c⟩,
+                 insert c e t ∈ st⟨a,c⟩ =
+  fun c e t {
+    case t {
+      []                 → Node[{ l = []; e; r = []}]
+      Node[{l; e=e'; r}] →
+        let ls = λx.is_Ls (c x e');
+        let gr = λx.is_Gr (c x e');
+        deduce for_all ls l;
+        deduce for_all gr r;
+        case c e e' {
+          Eq → t
+          Ls → let l'  = insert2 c e l;
+               deduce for_all ls l' by lem c ls l e {} {};
+               Node[{l=l'; e=e'; r}]
+          Gr →  let r' = insert2 c e r;
+               deduce for_all gr r' by lem c gr r e {} {};
+               Node[{l; e=e'; r=r'}]
+        }
+    }}
+\end{pmlcode}
+
+Finally, because the above function is more complex that the previous one, we
+can use the \dupml{check ⋯ for ⋯} construct of PML to give the intended to the
+original function \dupml{insert}.
+
+This contruction \dupml{check t for u}, allows for type-checking \dupml{t} in
+place of \dupml{u}, providing that \dupml{t ≡ u} holds. Here the type of
+\dupml{insert2 c e t} is \dupml{insert c e t ∈ st⟨a,c⟩} which enforces the
+wanted equality.
+
+This construction will also allow for manually proving termination of
+function...
+
+\begin{pmlcode}
+val insert : ∀o,∀a,∀c∈(a ⇒ a ⇒ cmp), a ⇒ st⟨a,c⟩ ⇒ st⟨a,c⟩ =
+  fun c e t { check insert2 c e t for insert c e t }
 \end{pmlcode}
 
 %<!-- Local IspellDict: british -->

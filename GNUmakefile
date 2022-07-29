@@ -35,7 +35,6 @@ TEXPML= book/part1_doc/basics.pml \
         book/part1_doc/subtype.pml \
         book/part1_doc/dependent.pml \
         book/part1_doc/advanced.pml \
-        book/part1_doc/more.pml \
         book/part1_doc/solutions.pml
 book_tests: $(LIB_PMI) $(TEXPML)
 	dune exec -- pml --quiet --timed $(TEXPML)
