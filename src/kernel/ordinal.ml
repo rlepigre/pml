@@ -45,6 +45,7 @@ let rec leq_i_ordi : positives -> ordi -> int -> ordi -> bool =
     | (Vari(_) , _       ) -> assert false (* Should not happen. *)
     | (_       , Vari(_) ) -> assert false (* Should not happen. *)
     (* TODO #54 use oracle for eq_expr *)
+    | (_       , Conv    ) -> true (* This means that Succ(Conv) = Conv *)
     | (_       , _       )
          when (i = 0 && eq_expr ~strict:false o1 o2)
                            -> true
