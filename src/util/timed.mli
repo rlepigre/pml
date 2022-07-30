@@ -9,10 +9,9 @@
    to rollback to this value.
 
 
-   Remark: it is not possible to  return in the future. Rollback are definitive.
-   Trying to return to the future will give unpredictable  result. *)
+   It is also possible to  return in the future, if it was saved previously. *)
 
-module Time :
+module type Time =
   sig
     (** Type representing a precise time in the program execution. *)
     type t
@@ -24,7 +23,18 @@ module Time :
        time. Raise the exception [Time.Bad_time] if  you rollback to a time that
        was already undone. *)
     val rollback : t -> unit
+
+    type futur
+    (** [save_futur t] save the change between the time [t] and the
+        present time. *)
+    val save_futur : t -> futur
+    (** return to a previously saved futur, provided that we didnot go in past
+        further that the time used to save the futur. *)
+    val return_futur : futur -> t
+
   end
+
+module Time : Time
 
 (**  This function  can  be used  to  update a  reference,  which recording  the
    changes. This  is done  transparently, so  this function can  be used  as the
@@ -69,18 +79,8 @@ val set : Time.t -> 'a tref -> 'a -> Time.t
    position in the graph and a second level of time to update the result of your
    search. Rolling back in the second level will ensure rolling back in the
    first level, but not the converse.*)
-module type Time = sig
-  type t
-  val rollback : t -> unit
-  val save : unit -> t
-end
-
 module type Timed = sig
-  module Time : sig
-    type t
-    val save : unit -> t
-    val rollback : t -> unit
-  end
+  module Time : Time
   val ( := ) : 'a ref -> 'a -> unit
   val incr : int ref -> unit
   val decr : int ref -> unit

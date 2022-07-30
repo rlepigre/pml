@@ -477,7 +477,7 @@ let rec ex : type a. ctxt -> mode -> a ex loc printer = fun ctxt pr ch e ->
   | OSch(i,_,w) -> fprintf ch "%s%a" (fst w.name).(i) print_vars e
   | ESch(s,i,w) -> fprintf ch "%s%a" (snd w.name).(i) print_vars e
   | UVar(_,u)   -> fprintf ch "?%i" u.uvar_key
-  | Goal(_,s)   -> fprintf ch "{- %s -}" s
+  | Goal(_,s,_) -> fprintf ch "{- %s -}" s
   | VPtr(p)     -> fprintf ch "VPtr(%a)" VPtr.print p
   | TPtr(p)     -> fprintf ch "TPtr(%a)"  Ptr.print p
 

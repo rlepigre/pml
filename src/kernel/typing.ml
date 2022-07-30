@@ -263,6 +263,7 @@ type typ_rule =
   | Typ_Cont
   | Typ_Clck   of sub_proof * typ_proof
   | Typ_Chck   of typ_proof * typ_proof
+  | Typ_Auto   of typ_rule ref
 
 and  stk_rule =
   | Stk_Push   of sub_rule * typ_proof * stk_proof
@@ -296,6 +297,9 @@ and  sub_rule =
 and typ_proof = term * prop * typ_rule
 and stk_proof = stac * prop * stk_rule
 and sub_proof = term * prop * prop * sub_rule
+
+type goal_cb +=
+   | Auto of (ctxt -> typ_rule ref -> p ex loc -> unit)
 
 let learn_nobox : ctxt -> valu -> ctxt = fun ctx v ->
   let (known, equations) = add_nobox v ctx.equations in
@@ -902,10 +906,11 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
     let bls = List.filter (fun (l, _) -> l >= 0) bls in
     let todo = bls @ ctx.auto.todo in
     let cmp b1 b2 = match (b1,b2) with
+      | (n, _    ), (m, _    ) when n <> m -> compare m n
       | (_,BTot _), (_,BCas _) -> -1
       | (_,BCas _), (_,BTot _) ->  1
-      | (n,BTot (c,_,_)), (m,BTot (d,_,_)) -> compare (m,!d) (n,!c)
-      | (n,BCas (c,_,_,_)), (m,BCas (d,_,_,_)) -> compare (m,!d) (n,!c)
+      | (_,BTot (c,_,_)), (_,BTot (d,_,_))
+      | (_,BCas (c,_,_,_)), (_,BCas (d,_,_,_)) -> compare d c
     in
     let todo = List.stable_sort cmp todo in
     let skip = match memo_find ctx.memo with
@@ -921,57 +926,96 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
       fn skip todo
     in
     (* main recursive function trying all elements *)
-    let rec fn nb ctx todo =
+    let rec fn nb ctx0 todo =
       UTimed.Time.rollback st;
+      log_aut "loop (%d,%d,%d)" nb ctx.auto.tlvl ctx.auto.clvl;
       match todo with
       | [] -> reraise exn
       | (tlvl, BTot (c,_,e)) :: todo ->
+         assert (tlvl <= ctx.auto.tlvl);
          (* for a totality, we add a let to the term and typecheck *)
-         let ctx = { ctx with auto = { ctx.auto with todo } } in
-         (try
-            let ctx = { ctx with auto = { ctx.auto with tlvl } } in
-            (** we use auto hint to disallow auto for the added totality *)
-            let f = labs no_pos NoLz None (Pos.none "x")
-                      (fun _ -> hint no_pos (Auto true) (box t))
-            in
-            let t = unbox (hint no_pos (Auto false)
-                             (appl no_pos NoLz (valu no_pos f) (box e))) in
-            log_aut "totality (%d,%d,%d) [%d]: %a"
-              ctx.auto.clvl ctx.auto.tlvl !c (List.length todo) Print.ex e;
-            let r = type_term ctx t ty in
-            if nb > 0 then memo_insert ctx.memo (Skip nb);
-            r
-          with
-          | Failed_to_prove _ as e -> reraise e
-          | Type_error _           -> fn (nb+1) ctx todo)
+         let ctx = { ctx0 with auto = { ctx0.auto with todo; tlvl } } in
+         (** we use auto hint to disallow auto for the added totality *)
+         let res = ref None in
+         let get_goal ctx rule_ptr ty =
+           if !res <> None then assert false;
+           res := Some (ctx,rule_ptr,ty)
+         in
+         let g = box (none (Goal(T,"auto",Auto get_goal))) in
+         let f = labs no_pos NoLz None (Pos.none "x") (fun _ -> g) in
+         let t0 = unbox (appl no_pos NoLz (valu no_pos f) (box e)) in
+         log_aut "totality (%d,%d) (%d,%d) [%d]: %a"
+           ctx.auto.clvl ctx.auto.tlvl tlvl !c (List.length todo) Print.ex e;
+         let f =
+           try
+             let ctx = {ctx with auto = {ctx.auto with auto = false}} in
+             let r0 = type_term ctx t0 ty in
+             (*             if nb > 0 then memo_insert ctx.memo (Skip nb);*)
+             (fun () ->
+               match !res with
+               | None -> r0 (* Contradiction ! *)
+               | Some(ctx,ptr,ty) ->
+                  let ctx = {ctx with auto = {ctx.auto with auto = true}} in
+                  let (_,_,r) = type_term ctx t ty in
+                  ptr := r;
+                  r0)
+           with
+           | Failed_to_prove _
+           | Type_error _           -> (fun () -> fn (nb+1) ctx0 todo)
+         in
+         f ()
       | (clvl, BCas(c,_,e,cs)) :: todo ->
+         assert (clvl <= ctx.auto.clvl);
          (* for a blocked case analysis, we add a case! *)
-         let ctx = { ctx with auto = { ctx.auto with todo } } in
-         (try
-            let ctx = { ctx with auto = { ctx.auto with clvl } } in
+         let ctx = { ctx0 with auto = { ctx0.auto with todo; clvl } } in
             (** we use the auto hint to disallow auto for the added case *)
-            let mk_case c =
-              A.add c (no_pos, Pos.none "x",
-                       (fun _ -> hint no_pos (Auto true) (box t)))
-            in
-            let cases = List.fold_right mk_case cs A.empty in
-            let t = match e.elt with
-              Valu e -> case no_pos (box e) cases
-              | _ ->
-                 let f = labs no_pos NoLz None (Pos.none "x") (fun v ->
-                             case no_pos (vari no_pos v) cases)
-                 in
-                 appl no_pos NoLz (valu no_pos f) (box e)
-            in
-            let t = unbox (hint no_pos (Auto false) t) in
-            log_aut "cases    (%d,%d,%d): %a"
-              ctx.auto.clvl ctx.auto.tlvl !c Print.ex t;
-            let r = type_term ctx t ty in
-            if nb > 0 then memo_insert ctx.memo (Skip nb);
-            r
-          with
-          | Failed_to_prove _ as e -> reraise e
-          | Type_error _           -> fn (nb+1) ctx todo)
+         let res = ref [] in
+         let time0 = ctx0.equations.time in
+         let get_goal cs ctx rule_ptr ty =
+           let bup = Timed.Time.save_futur time0 in
+           res := (cs,ctx,bup,rule_ptr,ty) :: !res
+         in
+         let g c = box (none (Goal(T,"auto",Auto (get_goal c)))) in
+         let mk_case c =
+           A.add c (no_pos, Pos.none "x", (fun _ -> g c)) in
+         let cases = List.fold_right mk_case cs A.empty in
+         let t0 = match e.elt with
+             Valu e -> case no_pos (box e) cases
+           | _ ->
+              let f = labs no_pos NoLz None (Pos.none "x") (fun v ->
+                          case no_pos (vari no_pos v) cases)
+              in
+              appl no_pos NoLz (valu no_pos f) (box e)
+         in
+         let t0 = unbox t0 in
+         log_aut "cases    (%d,%d) (%d,%d) [%d]: %a"
+           ctx.auto.clvl ctx.auto.tlvl clvl !c (List.length todo) Print.ex e;
+         let f =
+           try
+             let ctx = {ctx with auto = {ctx.auto with auto = false}} in
+             let r0 = type_term ctx t0 ty in
+             if nb > 0 then memo_insert ctx.memo (Skip nb);
+             (fun () ->
+               let rec fn l =
+                 match l with
+                 | [] -> r0
+                 | (cs,ctx,bup,ptr,ty) :: ls->
+                  let equations = { ctx.equations with
+                                    time = Timed.Time.return_futur bup } in
+                  let ctx = {ctx with equations;
+                                      auto = {ctx.auto with auto = true}} in
+                    log_aut "cases    (%d,%d) (%d,%d) [%d]: %a ==> %s case"
+                      ctx.auto.clvl ctx.auto.tlvl clvl !c (List.length todo)
+                      Print.ex e cs;
+                    let (_,_,r) = type_term ctx t ty in
+                    ptr := r;
+                    fn ls
+               in fn !res)
+           with
+           | Failed_to_prove _
+           | Type_error _           -> fun () -> fn (nb+1) ctx0 todo
+         in
+         f ()
     in fn skip ctx todo
 
 and gen_subtype : ctxt -> prop -> prop -> sub_rule =
@@ -1600,11 +1644,16 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
                  | _ -> raise e
         end
     (* Goal *)
-    | Goal(_,str) ->
-        wrn_msg "goal (value) %S %a" str print_wrn_pos v.pos;
-        Print.pretty ctx.pretty;
-        Printf.printf "|- %a\n%!" Print.ex c;
-        Typ_Goal(str)
+    | Goal(_,str,NoCB) ->
+       wrn_msg "goal (value) %S %a" str print_wrn_pos v.pos;
+       Print.pretty ctx.pretty;
+       Printf.printf "|- %a\n%!" Print.ex c;
+       Typ_Goal(str)
+    | Goal(_,str,Auto f) ->
+       let r  = ref Typ_Cont in
+       f ctx r c;
+       Typ_Auto r
+    | Goal(_,_,_) -> assert false
     (* Constructors that cannot appear in user-defined terms. *)
     | UWit(_)     -> unexpected "∀-witness during typing..."
     | EWit(_)     -> unexpected "∃-witness during typing..."
@@ -1860,11 +1909,16 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
     | HDef(_,d)   ->
        let (_,_,r) = type_term ctx d.expr_def c in r
     (* Goal. *)
-    | Goal(_,str) ->
+    | Goal(_,str,NoCB) ->
         wrn_msg "goal (term) %S %a" str print_wrn_pos t.pos;
         Print.pretty ctx.pretty;
         Printf.printf "|- %a\n%!" Print.ex c;
         Typ_Goal(str)
+    | Goal(_,str,Auto f) ->
+       let r  =ref Typ_Cont in
+       f ctx r c;
+       Typ_Auto r
+    | Goal(_,_,_) -> assert false
     (* Printing. *)
     | Prnt(_)     ->
        let a = unbox (strict_prod no_pos A.empty) in
@@ -1959,7 +2013,7 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
     | HDef(_,d)   ->
         let (_, _, r) = type_stac ctx d.expr_def c in r
     (* Goal *)
-    | Goal(_,str) ->
+    | Goal(_,str,cb) ->
         wrn_msg "goal (stack) %S %a" str print_wrn_pos s.pos;
         Print.pretty ctx.pretty;
         Printf.printf "|- %a\n%!" Print.ex c;

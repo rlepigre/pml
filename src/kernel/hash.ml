@@ -100,7 +100,7 @@ let {hash_expr; hash_bndr; hash_ombinder; hash_vwit
     (* two next cases are automatically stronger with oracle *)
     | VPtr v        -> khash1 `VPtr (hash v)
     | TPtr t        -> khash1 `TPtr (hash t)
-    | Goal(s,str)   -> khash2 `Goal (hash_sort s) (hash str)
+    | Goal(s,str,_) -> khash2 `Goal (hash_sort s) (hash str)
 
   and hash_bndr : type a b. a sort -> (a,b) bndr -> int =
     fun s b ->

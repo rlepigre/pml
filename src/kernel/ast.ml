@@ -159,7 +159,9 @@ type _ ex =
   (** Existential quantifier witness. *)
   | UVar : 'a sort * 'a uvar                         -> 'a ex
   (** Unification variable. *)
-  | Goal : 'a sort * string                          -> 'a ex
+  | Goal : 'a sort * string * goal_cb                -> 'a ex
+
+and goal_cb = ..
 
 and (_,_) fix_args =
   | Nil : ('a, 'a) fix_args
@@ -319,6 +321,8 @@ and  e_stac =
 type any_sort = Sort : 'a sort           -> any_sort
 type any_expr = Expr : 'a sort * 'a expr -> any_expr
 type any_var  = AVar : 'a sort * 'a var  -> any_var
+type goal_cb += NoCB
+
 
 (** Sequence of functions to build and [bseq]. *)
 type (_,_) fseq =
@@ -636,7 +640,7 @@ let succ : pos -> obox -> obox =
   fun p -> box_apply (fun o -> Pos.in_pos p (Succ(o)))
 
 let goal : type a. pos -> a sort -> string -> a ex loc box =
-  fun p s str -> box (Pos.in_pos p (Goal(s,str)))
+  fun p s str -> box (Pos.in_pos p (Goal(s,str,NoCB)))
 
 (** {5 syntactic sugars} *)
 
@@ -767,7 +771,7 @@ let rec sort : type a. a ex loc -> a sort * a ex loc = fun e ->
   | EWit(w)         -> let (s,_,_) = !(w.valu) in (s, e)
   | UVar(s,_)       -> (s,e)
   | ITag(s,_)       -> (s,e)
-  | Goal(s,_)       -> (s,e)
+  | Goal(s,_,_)     -> (s,e)
 
   | Func _          -> (P,e)
   | Prod _          -> (P,e)

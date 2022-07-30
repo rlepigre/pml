@@ -2083,13 +2083,7 @@ let eq_blocked : blocked -> blocked -> bool =
     match (b1, b2) with
     | (BTot(_,pt,e)  , BTot(c,pu,f)  ) -> eq_expr e f && incrt c
     | (BCas(_,pt,e,_), BCas(c,pu,f,_)) -> eq_expr e f && incrt c
-    | (_           , _           ) -> false
-
-let eq_ptr_blocked : Ptr.t -> blocked -> bool =
-  fun pt b2 ->
-    match b2 with
-    | BTot(c,pu,_)   -> Ptr.compare pt pu = 0 && incrt c
-    | BCas(c,pu,_,_) -> Ptr.compare pt pu = 0 && incrt c
+    | (_             , _             ) -> false
 
 (** the exception when failing to prove carry the blocked evaluations *)
 exception Failed_to_prove of rel * blocked list
@@ -2231,8 +2225,6 @@ let get_blocked : pool -> blocked list -> blocked list = fun po old ->
   let bl =
     List.fold_left (fun (acc:blocked list) (tp,tn) ->
       let u = Ptr.T_ptr tp in
-      if List.exists (eq_ptr_blocked u) old
-        || List.exists (eq_ptr_blocked u) acc then acc else
       (*Printf.eprintf "testing %a %a %b %b\n%!" TPtr.print tp print_t_node tn
                      (get_ns tp po) (get_fs tp po);*)
       if not (get_ns tp po) && is_free u po then
@@ -2279,9 +2271,7 @@ let get_blocked : pool -> blocked list -> blocked list = fun po old ->
   let bl =
     List.fold_left (fun acc (vp, vn) ->
         let u = Ptr.V_ptr vp in
-        if List.exists (eq_ptr_blocked u) old
-           || List.exists (eq_ptr_blocked u) acc
-           || is_nobox u po then acc else
+        if is_nobox u po then acc else
           match vn with
           | VN_VWit(e) ->
              let (_,a,_) = !(e.valu) in

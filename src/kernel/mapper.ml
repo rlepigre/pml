@@ -40,7 +40,7 @@ let map : type a. ?mapper:mapper -> a ex loc -> a ebox
         | EWit(_)       -> Bindlib.box e
         | UVar(_,_)     -> Bindlib.box e
         | ITag(_,_)     -> Bindlib.box e
-        | Goal(_,_)     -> Bindlib.box e
+        | Goal(_,_,_)   -> Bindlib.box e
 
         | Func(t,a,b,l) -> func e.pos t l (map a) (map b)
         | Prod(m)       -> prod e.pos (A.map (fun (p,a) -> (p, map a)) m)

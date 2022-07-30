@@ -68,7 +68,7 @@ let iter : type a. iterator -> a ex loc -> unit
         | EWit(w)       -> if todo e then l_iter w
         | UVar(_,_)     -> ()
         | ITag(_,_)     -> ()
-        | Goal(_,_)     -> ()
+        | Goal(_,_,_)   -> ()
 
         | Func(t,a,b,l) -> iter a; iter b
         | Prod(m)       -> A.iter (fun _ (_,a) -> iter a) m

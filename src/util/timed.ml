@@ -1,14 +1,20 @@
 
 module type Time = sig
   type t
-  val rollback : t -> unit
   val save : unit -> t
+  val rollback : t -> unit
+  type futur
+  val save_futur : t -> futur
+  val return_futur : futur -> t
 end
 
 module NoTime : Time = struct
   type t = unit
-  let rollback () = ()
   let save () = ()
+  let rollback () = ()
+  type futur = unit
+  let save_futur () = ()
+  let return_futur () = ()
 end
 
 module Make(T:Time) = struct
@@ -52,16 +58,47 @@ module Make(T:Time) = struct
         match t with
         | Undone -> assert false
         | Futur ({ next; _ } as t) -> t.next <- Undone; fn next
+
+      type bu = R : ('a ref * 'a) -> bu
+      type futur = t * bu list * T.futur
+
+      (* same as roll_back, but we will be able to return in the futur *)
+      let save_futur : t -> futur =  fun (t,ut as t0) ->
+        let sf = ref [] in
+        (** undo all time in the futur of t, and make t the current time. *)
+        let rec fn = function
+          | Undone -> ()
+          | Futur ({ next; r; old }) ->
+                       sf := R (r, !r) :: !sf;
+                       fn next
+        in
+        let bu = T.save_futur ut in
+        begin
+          match t with
+          | Undone -> assert false
+          | Futur ({ next; _ }) -> fn next
+        end;
+        (t0, List.rev !sf, bu)
+
+      let (:=) : 'a ref -> 'a -> unit = fun r v ->
+        let old = !r in
+        let t = Futur { next = Undone; r; old } in
+        (match !current with
+         | Undone -> assert false
+         | Futur u -> u.next <- t);
+        current := t; r := v
+
+      let return_futur : futur -> t = fun (t, sf, bu) ->
+        let _ = T.return_futur bu in
+        rollback t;
+        let fn (R(ptr,v)) = ptr := v in
+        List.iter fn sf;
+        save ()
+
     end
 
-  let (:=) : 'a ref -> 'a -> unit = fun r v ->
-    let open Time in
-    let old = !r in
-    let t = Futur { next = Undone; r; old } in
-    (match !current with
-    | Undone -> assert false
-    | Futur u -> u.next <- t);
-    current := t; r := v
+
+  let (:=) = Time.(:=)
 
   let incr : int ref -> unit = fun r -> r := !r + 1
   let decr : int ref -> unit = fun r -> r := !r - 1
@@ -100,11 +137,7 @@ module Make(T:Time) = struct
 end
 
 module type Timed = sig
-  module Time : sig
-    type t
-    val save : unit -> t
-    val rollback : t -> unit
-  end
+  module Time : Time
   val ( := ) : 'a ref -> 'a -> unit
   val incr : int ref -> unit
   val decr : int ref -> unit

@@ -29,7 +29,7 @@ let rec valu_erasure : valu -> e_vbox = fun v ->
   | Cons(c,v)   -> vcons c.elt (valu_erasure v)
   | Reco(m)     -> vreco (A.map (fun (_,v) -> valu_erasure v) m)
   | Scis        -> vscis
-  | Goal(_,s)   -> vscis
+  | Goal(_,s,_) -> vscis
   | VDef(d)     -> vvdef d
   | Coer(_,v,_) -> valu_erasure v
   | Chck(_,_,_,v)-> valu_erasure v
