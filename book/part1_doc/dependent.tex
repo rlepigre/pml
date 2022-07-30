@@ -82,21 +82,24 @@ assert ∀a,∀c, st⟨a,c⟩ ⊂ bt⟨a⟩
 
 First, the function \dupml{for_all f t} checks that the function \dupml{f}
 return \dupml{true} for all the elements stored in the tree \dupml{t}.
-Then, in the type \dupml{st⟨a,c⟩}, we check that the ordering is respected
-using list comprehension.
+
+Second, we define the type \dupml{st⟨a,c⟩} which is parameterised by a type
+\dupml{a} and a comparison function that is suppose to rerun value of the type
+\dupml{[ Ls; Eq; Gr]}. The module \dupml{lib.comparison} define the functions
+\dupml{is_Ls} and \dupml{is_Gr} to check the return
+value of the function \dupml{c}.
+
+Using this, comprehension and the function \dupml{for_all}, we can check that
+the ordering is respected.
 
 Remark: to talk about one field (here \dupml{e})
 of the record signature in the type of the other fields, we use
 existential and membership to make sure \dupml{e} is available
 everywhere.
 
-The module \dupml{lib.comparison} define the functions
-\dupml{is_Ls} and \dupml{is_Gr} to check the return
-value of the function \dupml{c : a ⇒ a ⇒ [ Ls; Eq; Gr]}.
-
 Now, we can define the function doing insertion in a binary search tree:
 \begin{pmlcode}
-val rec insert : ∀o,∀a, (a ⇒ a ⇒ cmp) ⇒ a ⇒ bt⟨a⟩ ⇒ bt⟨a⟩ =
+val rec insert : ∀a, (a ⇒ a ⇒ cmp) ⇒ a ⇒ bt⟨a⟩ ⇒ bt⟨a⟩ =
   fun c e t {
     case t {
       | []                  → Node[{ l = []; e; r = []}]
@@ -135,7 +138,7 @@ val rec lem : ∀a, ∀c∈(a ⇒ a ⇒ cmp), ∀f∈(a ⇒ bool),∀t∈bt⟨a�
         }
   }}
 
-val rec insert2 : ∀o,∀a, ∀c∈(a ⇒ a ⇒ cmp), ∀e∈a, ∀t∈st⟨a,c⟩,
+val rec insert2 : ∀a, ∀c∈(a ⇒ a ⇒ cmp), ∀e∈a, ∀t∈st⟨a,c⟩,
                  insert c e t ∈ st⟨a,c⟩ =
   fun c e t {
     case t {
@@ -150,7 +153,7 @@ val rec insert2 : ∀o,∀a, ∀c∈(a ⇒ a ⇒ cmp), ∀e∈a, ∀t∈st⟨a,c
           Ls → let l'  = insert2 c e l;
                deduce for_all ls l' by lem c ls l e {} {};
                Node[{l=l'; e=e'; r}]
-          Gr →  let r' = insert2 c e r;
+          Gr → let r' = insert2 c e r;
                deduce for_all gr r' by lem c gr r e {} {};
                Node[{l; e=e'; r=r'}]
         }
@@ -173,6 +176,85 @@ function...
 val insert : ∀o,∀a,∀c∈(a ⇒ a ⇒ cmp), a ⇒ st⟨a,c⟩ ⇒ st⟨a,c⟩ =
   fun c e t { check insert2 c e t for insert c e t }
 \end{pmlcode}
+
+We can now define the search function:
+\begin{pmlcode}
+val rec mem : ∀a,∀c∈(a ⇒ a ⇒ cmp), a ⇒ st⟨a,c⟩ ⇒ bool =
+  fun c e t {
+    case t {
+      [] → false
+      Node[{l; e=e'; r}] → case c e e' {
+        Ls → mem c e l
+        Eq → true
+        Gr → mem c e r
+      }
+    }
+  }
+
+// TODO: auto is not working well and this example.
+// probably normalisation in the pool, with the c.f in head position?
+val rec mem_correct : ∀a,∀c∈preorder⟨a⟩,∀e e'∈a,∀t∈st⟨a,c.f⟩,
+                        mem c.f e (insert c.f e' t) ≡ (is_Eq (c.f e e') || mem c.f e t) =
+  fun c e e' t {
+    set auto 3 3;
+    case t {
+      [] → deduce mem c.f e (insert c.f e' t) ≡ is_Eq (c.f e e');
+           deduce is_Eq (c.f e e') || mem c.f e t ≡ is_Eq (c.f e e');
+           {}
+      Node[{l; e=e''; r}] →
+        case c.f e e'' {
+        Ls → deduce mem c.f e (insert c.f e' l) ≡ is_Eq (c.f e e') || mem c.f e l
+             by mem_correct c e e' l;
+             deduce mem c.f e t ≡ mem c.f e l;
+             case c.f e' e'' {
+               Ls → deduce mem c.f e (insert c.f e' t) ≡ mem c.f e (insert c.f e' l);
+                    deduce mem c.f e (insert c.f e' t) ≡ is_Eq (c.f e e') || mem c.f e l;
+                    deduce mem c.f e (insert c.f e' t) ≡ is_Eq (c.f e e') || mem c.f e t;
+                      {}
+               Eq → deduce mem c.f e (insert c.f e' t) ≡ mem c.f e l;
+                    deduce c.f e'' e' ≡ Eq by c.sym e' e'';
+                    deduce c.f e e' ≡ Ls by c.trans e e' e'';
+                    {}
+               Gr → deduce mem c.f e (insert c.f e' t) ≡ mem c.f e l;
+                    deduce c.f e'' e' ≡ Ls by c.sym e' e'';
+                    deduce c.f e e' ≡ Ls by c.trans e e' e'';
+                    {}
+             }
+        Eq → deduce mem c.f e t;
+             case c.f e' e'' {
+               Ls → deduce mem c.f e (insert c.f e' t);
+                    deduce is_Eq (c.f e e') || mem c.f e t;
+                    {}
+               Eq → deduce mem c.f e (insert c.f e' t);
+                    deduce is_Eq (c.f e e') || mem c.f e t;
+                    set log "a"; {}
+               Gr → deduce mem c.f e (insert c.f e' t);
+                    deduce is_Eq (c.f e e') || mem c.f e t;
+                    {}
+             }
+        Gr → deduce mem c.f e (insert c.f e' r) ≡ is_Eq (c.f e e') || mem c.f e r
+             by mem_correct c e e' r;
+             deduce mem c.f e t ≡ mem c.f e r;
+             case c.f e' e'' {
+               Gr → deduce mem c.f e (insert c.f e' t) ≡ mem c.f e (insert c.f e' r);
+                    deduce mem c.f e (insert c.f e' t) ≡ is_Eq (c.f e e') || mem c.f e r;
+                    deduce mem c.f e (insert c.f e' t) ≡ is_Eq (c.f e e') || mem c.f e t;
+                    {}
+               Eq → deduce mem c.f e (insert c.f e' t) ≡ mem c.f e r;
+                    deduce c.f e'' e' ≡ Eq by c.sym e' e'';
+                    deduce c.f e e' ≡ Gr by c.trans e e' e'';
+                    {}
+               Ls → deduce mem c.f e (insert c.f e' t) ≡ mem c.f e r;
+                    deduce c.f e'' e' ≡ Gr by c.sym e' e'';
+                    deduce c.f e e' ≡ Gr by c.trans e e' e'';
+                    {}
+             }
+      }
+    }
+  }
+
+\end{pmlcode}
+
 
 %<!-- Local IspellDict: british -->
 %<!-- Local IspellPersDict: ~/.ispell-british -->
