@@ -69,7 +69,7 @@ clean: clean_pmi
 	@rm -f $(TEXPML)
 
 distclean: clean clean_mem
-	@rm -rf book/_minted* book/pml_book.pygmented
+	@rm -rf book/_minted* book/pml_book.pygmented book/pml_book.pyg
 	@find . -type f -name "*~" -exec rm {} \;
 	@find . -type f -name \#\* -exec rm {} \;
 	@find . -type f -name .\#\* -exec rm {} \;
