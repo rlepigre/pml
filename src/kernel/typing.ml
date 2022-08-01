@@ -2067,18 +2067,27 @@ let type_check : memo_tbl option -> term -> prop
     (Norm.whnf a, prf, fst ctx.memo)
   with e -> reset_tbls (); Timed.Time.rollback st; raise e
 
+let use_memo = ref true
+
 let type_check : string -> term -> prop -> memo2 -> prop * typ_proof * memo2 =
   fun name t a (o,n) ->
+  if !use_memo then
     try
       let (memo,o) = get_memo name o in
       let (p, prf, memo) = type_check (Some memo) t a in
       let n = (name,memo) :: n in
       (p, prf, (o,n))
     with
-    | Out_of_memory | Sys.Break as e -> raise e
+    | e when Exn.system ~break:false e -> raise e
     | e ->
+       wrn_msg "trying to typecheck without memo (%s)" (Printexc.to_string e);
        let (p, prf, memo) = type_check None t a in
        let n = (name,memo) :: n in
        (p, prf, (o,n))
+  else
+    let (p, prf, memo) = type_check None t a in
+    let n = (name,memo) :: n in
+    (p, prf, (o,n))
+
 
 let type_check t = Chrono.add_time type_chrono (type_check t)

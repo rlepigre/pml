@@ -69,6 +69,9 @@ let files =
     ; ( "--no-eval"
       , Arg.Clear Equiv.use_eval
       , " ignore try_eval keyword and to not use eval for type-checking.")
+    ; ( "--no-memo"
+      , Arg.Clear Typing.use_memo
+      , " do not use memo when type_checking (for debugging pml only).")
     ] @ List.map help ["--help" ; "-help" ; "-h" ]
   in
   let spec = Arg.align spec in
