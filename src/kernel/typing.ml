@@ -13,6 +13,32 @@ open Compare
 
 type sorted = E : 'a sort * 'a ex loc -> sorted
 
+exception Cannot_unify of prop * prop
+let cannot_unify : prop -> prop -> 'a =
+  fun a b -> raise (Cannot_unify(a,b))
+
+exception Loops of term
+let loops : term -> 'a =
+  fun t -> raise (Loops(t))
+
+exception Reachable
+
+exception No_typing_IH of strloc
+
+exception No_subtyping_IH of strloc * strloc
+
+exception Illegal_effect of Effect.pml_effect
+
+exception Bad_subtyping of prop
+
+exception Bad_delim of term * string
+
+exception Unexpected_error of string
+let unexpected : string -> 'a =
+  fun msg -> raise (Unexpected_error(msg))
+
+exception Bad_memo
+
 (* exception you do not want to catch in the subtype and type_check function. *)
 let chk_exc = function
   | Invalid_argument _
@@ -24,6 +50,7 @@ let chk_exc = function
      Printf.eprintf "THIS SHOULD NOT HAPPEND %s" (Printexc.to_string e);
      Printexc.print_backtrace stderr;
      exit 1
+  | Bad_memo -> true
   | _ -> false
 
 
@@ -49,30 +76,6 @@ let subtype_error : term -> prop -> prop -> exn -> 'a =
     | Failed_to_prove _ -> raise e
     | e when chk_exc e -> raise e
     | _                 -> raise (Subtype_error(t,a,b,e))
-
-exception Cannot_unify of prop * prop
-let cannot_unify : prop -> prop -> 'a =
-  fun a b -> raise (Cannot_unify(a,b))
-
-exception Loops of term
-let loops : term -> 'a =
-  fun t -> raise (Loops(t))
-
-exception Reachable
-
-exception No_typing_IH of strloc
-
-exception No_subtyping_IH of strloc * strloc
-
-exception Illegal_effect of Effect.pml_effect
-
-exception Bad_subtyping of prop
-
-exception Bad_delim of term * string
-
-exception Unexpected_error of string
-let unexpected : string -> 'a =
-  fun msg -> raise (Unexpected_error(msg))
 
 (* Type_error may contrain break to report good error when interrupted.*)
 let rec is_break = function
@@ -111,65 +114,109 @@ let auto_empty () =
 type sub_adone =
   SA : 'a sort * ('a, 'a) bndr * 'b sort * ('b,'b) bndr -> sub_adone
 
+let log_memo = Log.register 'm' (Some "memo") "memo informations"
+let log_memo = Log.(log_memo.p)
+
 type lr = L | R
-type path = Rc of string | Ap of lr | Ca of string | Cm | Df of string
-type memo_info = Weak | Skip of int | NoInfo | OpDefi
+type path = Rc of string | Ap of lr | Ca of string | Cm | Df
+type memo_info = Weak | Skip of int | NoInfo | OpDf
 type memo_tbl = { info  : memo_info ref
                 ; below : memo_node ref }
 and memo_node = MNil
               | MApp of memo_tbl * memo_tbl
               | MCas of memo_tbl * (string * memo_tbl) list
               | MRec of (string * memo_tbl) list
+              | MDf  of memo_tbl
 
 type memo_tmp = (memo_tbl * path list)
 
 let empty_memo_tbl () = { info  = ref NoInfo
                         ; below = ref MNil }
 
-exception Bad_memo
+let print_path ch = function
+  | Rc l -> Printf.fprintf ch "Rc(%s)" l
+  | Ca l -> Printf.fprintf ch "Ca(%s)" l
+  | Cm   -> Printf.fprintf ch "Cm"
+  | Ap L -> Printf.fprintf ch "ApL"
+  | Ap R -> Printf.fprintf ch "ApR"
+  | Df   -> Printf.fprintf ch "Df"
 
-let memo_move : memo_tmp -> path -> memo_tmp = fun (tbl,ps) p ->
-  match !(tbl.below), p, ps with
-  | MNil       , _   , _    -> (tbl, p::ps)
-  | _          , _   , _::_ -> (tbl, p::ps)
-  | MApp(t1,t2), Ap L, []   -> (t1, [])
-  | MApp(t1,t2), Ap R, []   -> (t2, [])
-  | MCas(m,ms) , Cm  , []   -> (m, [])
-  | MCas(m,ms) , Ca n, []   -> (try (List.assoc n ms, [])
-                                with Not_found -> (tbl, [p]))
-  | MRec(ms)   , Rc n, []   -> (try (List.assoc n ms, [])
-                                with Not_found -> (tbl, [p]))
-  | _          , _   , _    -> raise Bad_memo
+let print_paths ch ls =
+  List.iter (print_path ch) ls
+
+let print_info ch = function
+  | Weak   -> Printf.fprintf ch "Weak"
+  | Skip n -> Printf.fprintf ch "Sk %d" n
+  | OpDf   -> Printf.fprintf ch "OPDf"
+  | NoInfo -> Printf.fprintf ch "?"
+
+let print_memo ch tbl =
+  let rec fn ps tbl =
+    if !(tbl.info) <> NoInfo then
+      Printf.fprintf ch "%a => %a\n"
+        print_paths (List.rev ps) print_info !(tbl.info);
+    match !(tbl.below) with
+    | MNil        -> ()
+    | MApp(t1,t2) -> fn ((Ap L)::ps) t1; fn ((Ap L)::ps) t2
+    | MCas(m,ms)  -> fn (Cm::ps) m; List.iter (fun (l,m) -> fn (Ca l::ps) m) ms
+    | MRec(ms)    -> List.iter (fun (l,m) -> fn (Rc l::ps) m) ms
+    | MDf(m)      -> fn (Df::ps) m
+  in
+  fn [] tbl
+
+(** move one level down into the memo, if possible *)
+let memo_move : memo_tbl -> path -> memo_tbl = fun tbl p ->
+  match !(tbl.below), p with
+  | MNil       , _    -> raise Not_found
+  | MApp(t1,t2), Ap L -> t1
+  | MApp(t1,t2), Ap R -> t2
+  | MCas(m,ms) , Cm   -> m
+  | MCas(m,ms) , Ca n -> List.assoc n ms
+  | MRec(ms)   , Rc n -> List.assoc n ms
+  | MDf(m)     , Df   -> m
+  | _          , _    -> raise Bad_memo
 
 let memo_create : memo_tbl -> path -> memo_tbl = fun tbl p ->
-  let (tbl, ps) = memo_move (tbl,[]) p in
-  if ps = [] then tbl else
+  try memo_move tbl p
+  with Not_found ->
+    let nm = empty_memo_tbl in
+    let open UTimed in
     begin
-      let nm = empty_memo_tbl in
-      let open UTimed in
-      (match !(tbl.below), p with
+      match !(tbl.below), p with
       | MNil      , Ap _ -> tbl.below := MApp(nm (), nm ())
       | MNil      , Cm   -> tbl.below := MCas(nm (), [])
       | MNil      , Ca n -> tbl.below := MCas(nm (), [n, nm ()])
       | MCas(m,ms), Ca n -> tbl.below := MCas(m, (n, nm ())::ms)
       | MNil      , Rc n -> tbl.below := MRec([n, nm ()])
       | MRec(ms)  , Rc n -> tbl.below := MRec((n, nm ())::ms)
-      | _         , _    -> raise Bad_memo);
-      let (tbl, ps) = memo_move (tbl,[]) p in
-      assert (ps = []);
-      tbl
-    end
+      | MNil      , Df   -> tbl.below := MDf(nm ())
+      | _         , _    -> assert false
+    end;
+    try memo_move tbl p with Not_found -> assert false
 
 let memo_find   : memo_tmp -> memo_info = fun (tbl, ps) ->
-  if ps = [] then !(tbl.info) else NoInfo
+  try
+    log_memo "memo is\n%a" print_memo tbl;
+    log_memo "search memo for %a" print_paths (List.rev ps);
+    let tbl = List.fold_left memo_move tbl (List.rev ps) in
+    let r = !(tbl.info) in
+    if r <> NoInfo then
+      begin
+        log_memo "memo is\n%a" print_memo tbl;
+        log_memo "found memo %a at %a" print_info r print_paths (List.rev ps);
+      end;
+    r
+  with Not_found -> NoInfo
 
 let memo_insert : memo_tmp -> memo_info -> unit = fun (tbl, ps) info ->
+  log_memo "memo is\n%a" print_memo tbl;
+  log_memo "insert memo %a at %a" print_info info print_paths (List.rev ps);
   let tbl = List.fold_left memo_create tbl (List.rev ps) in
   let open UTimed in
   tbl.info := info
 
 type memo     = (string * memo_tbl) list
-type memo2    = memo * memo (*old memo/new memo*)
+type memo2    = memo option * memo (*old memo/new memo*)
 
 (* Context. *)
 type ctxt  =
@@ -211,7 +258,9 @@ let add_pretty ctx known p =
   if known then ctx else { ctx with pretty = p :: ctx.pretty }
 
 let add_path x ctx =
-  { ctx with memo = memo_move ctx.memo x }
+  let (tbl, ps) = ctx.memo in
+  let memo = (tbl, x::ps) in
+  { ctx with memo }
 
 let new_uvar : type a. ctxt -> a sort -> a ex loc = fun ctx s ->
   let c = ctx.uvarcount in
@@ -937,7 +986,7 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
     let todo =
       let rec fn n l = match (n,l) with
         | (0, l) -> l
-        | (n, []) -> assert false
+        | (n, []) -> raise Bad_memo
         | (n, _::l) -> fn (n-1) l
       in
       fn skip todo
@@ -967,7 +1016,7 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
            try
              let ctx = {ctx with auto = {ctx.auto with auto = false}} in
              let r0 = type_term ctx t0 ty in
-             (*             if nb > 0 then memo_insert ctx.memo (Skip nb);*)
+             if nb > 0 then memo_insert ctx.memo (Skip nb);
              (fun () ->
                match !res with
                | None -> r0 (* Contradiction ! *)
@@ -1197,26 +1246,6 @@ and check_sub_proof ctx v p =
                           top_ih = (sch.ssch_index, spe.sspe_param)} in
   let prf = type_valu ctx_v v p in (* infer a type to learn equivalences *)
   (ctx, prf)
-(*
-
-  let ctx_t = add_path (Ap R) ctx in
-  let ctx_v = {ctx_v with top_ih = (sch.fsch_index, spe.fspe_param)} in
-
-  (* Registration of the new top induction hypothesis and call. *)
-  let sch = { sch with ssch_index } in
-  let (spe, ctx) = inst_sub_schema ctx sch in
-  let os = spe.sspe_param in
-  let ctx, ctx0 =
-    if os = [||] then (ctx, ctx) else
-      begin
-        add_call ctx (sch.ssch_index, os) false;
-        let ctx0 = { ctx with sub_ihs = sch :: ctx.sub_ihs} in
-        ({ctx0 with positives = spe.sspe_relat;
-                    top_ih = (sch.ssch_index, spe.sspe_param)}, ctx0)
-      end
-  in
-  let (a,b) = spe.sspe_judge in
-  (ctx0, gen_subtype ctx a b)*)
 
 and has_loop : prop -> bool =
   fun c ->
@@ -1251,7 +1280,7 @@ and check_fix
            log_typ "an induction hypothesis has been found, trying";
            log_typ "   %a\n < %a" Print.ex (snd spe.fspe_judge) Print.ex c;
            let prf =
-             Chrono.add_time type_chrono
+             Chrono.add_time sub_chrono
                (subtype ctx t (snd spe.fspe_judge)) c
            in
            log_typ "it matches\n%!";
@@ -1543,7 +1572,6 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
           fn c
         in
         let fn l t m =
-          let ctx = add_path (Rc l) ctx in
           let a = new_uvar ctx P in
           let a = if has_mem l then
                     Pos.none (Memb(Pos.none (Valu (snd t)), a))
@@ -1561,6 +1589,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
               let fn l (p, v) ps =
                 log_typ "Checking field %s." l;
                 let (_,a) = A.find l pm in
+                let ctx = add_path (Rc l) ctx in
                 let p = type_valu ctx v (unbox a) in
               p::ps
               in
@@ -1635,7 +1664,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
         begin
           let st = UTimed.Time.save () in
           try
-            if memo_find ctx.memo = OpDefi then raise Exit;
+            if memo_find ctx.memo = OpDf then raise Exit;
             let p = subtype ctx t d.value_type c in
             Typ_VDef(d,p)
           with
@@ -1652,9 +1681,9 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
                   when not (Timed.get ctx.equations.time d.value_clos) ->
                 begin
                   UTimed.Time.rollback st;
-                  let ctx2 = add_path (Df d.value_name.elt) ctx in
+                  let ctx2 = add_path Df ctx in
                   let (_,_,r) = type_valu ctx2 v c in
-                  memo_insert ctx.memo OpDefi;
+                  memo_insert ctx.memo OpDf;
                   r
                 end
              | _ -> raise e
@@ -2050,12 +2079,14 @@ exception Unif_variables
 
 let get_memo name memo =
   let rec fn acc = function
-      [] -> raise Bad_memo
+      [] -> None
     | (name',tbl as c)::memo ->
-       if name = name' then (tbl, List.rev_append acc memo)
+       if name = name' then Some tbl
        else fn (c::acc) memo
   in
-  fn [] memo
+  match memo with
+  | None -> None
+  | Some memo -> fn [] memo
 
 let type_check : memo_tbl option -> term -> prop
                  -> prop * typ_proof * memo_tbl =
@@ -2078,23 +2109,19 @@ let use_memo = ref true
 
 let type_check : string -> term -> prop -> memo2 -> prop * typ_proof * memo2 =
   fun name t a (o,n) ->
-  if !use_memo then
-    try
-      let (memo,o) = get_memo name o in
-      let (p, prf, memo) = type_check (Some memo) t a in
-      let n = (name,memo) :: n in
-      (p, prf, (o,n))
-    with
-    | e when chk_exc e -> raise e
-    | e when not (is_break e) ->
-       wrn_msg "trying to typecheck without memo (%s)" (Printexc.to_string e);
-       let (p, prf, memo) = type_check None t a in
-       let n = (name,memo) :: n in
-       (p, prf, (o,n))
-  else
-    let (p, prf, memo) = type_check None t a in
+  let memo = get_memo name o in
+  try
+    let (p, prf, memo) = type_check memo t a in
     let n = (name,memo) :: n in
     (p, prf, (o,n))
+  with
+  | e when chk_exc e && e <> Bad_memo -> raise e
+  | e when not (is_break e) && memo <> None ->
+     wrn_msg "trying to typecheck without memo (%s)" (Printexc.to_string e);
+     let (p, prf, memo) = type_check None t a in
+     let n = (name,memo) :: n in
+     (p, prf, (o,n))
 
 
-let type_check t = Chrono.add_time type_chrono (type_check t)
+let type_check name t a m =
+  Chrono.add_time type_chrono (type_check name t a) m

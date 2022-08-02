@@ -744,6 +744,7 @@ and interpret : bool -> memo2 -> Raw.toplevel -> memo2 =
       let a = unbox (to_prop (unsugar_expr a _sp)) in
       let t = unbox (to_term (unsugar_expr t _st)) in
       begin try
+        let memo = if !use_memo && ch = Yes then memo else (None, snd memo) in
         let (a, prf, memo) = type_check id.elt t a memo in
         let v = Eval.eval (Erase.term_erasure t) in
         ignore prf;
@@ -835,7 +836,7 @@ and compile_file : bool -> string -> unit = fun nodep fn ->
   let _ = Grammar.compile entry in
   let ast = Chrono.add_time parsing_chrono parse_file fn in
   let memo = get_memo fn in
-  let (_,memo) = List.fold_left (interpret nodep) (memo, []) ast in
+  let (_,memo) = List.fold_left (interpret nodep) (Some memo, []) ast in
   save_memo fn (List.rev memo);
   Env.save_file fn;
   Env.env := save;
