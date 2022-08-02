@@ -8,6 +8,5 @@ val wrong : ∀n∈nat, S[n] ≡ n = fun n {
 
 val loop : ∀n∈nat, {} = fun n {
   use wrong n;
-  // use n + n; FIXME #24: loops
-  {--}
+  ✂
 }
