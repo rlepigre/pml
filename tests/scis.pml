@@ -6,7 +6,7 @@ val f : {} =
 
 val f : {} =
   case F[{}] {
-    T[x] → {}
+    T[x] → {} // print warning unreachable code
     F[x] → x
   }
 

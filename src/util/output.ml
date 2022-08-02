@@ -2,6 +2,9 @@
     utilities for logs (or log file), warnings and errors. Integration  with
     command line arguments parsing is made easy. *)
 
+type verbose = Silent | Quiet | Verbose
+let verbose   = ref Verbose
+
 (* Type of a printf-like function. *)
 type 'a formatter = ('a, out_channel, unit) format -> 'a
 

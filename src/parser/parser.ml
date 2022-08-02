@@ -12,7 +12,6 @@ open Priority
 
 exception Unexpected_success of strloc
 
-let verbose   = ref true
 let timed     = ref false
 let recompile = ref false
 
@@ -724,7 +723,7 @@ and entry = (l::~* toplevel) => l
 
 and interpret : bool -> memo2 -> Raw.toplevel -> memo2 =
   fun nodep memo top ->
-  let verbose = !verbose && nodep in
+  let verbose = (!verbose > Quiet) && nodep in
   let open Env in
   match top with
   | Sort_def(id,s) ->
@@ -774,7 +773,7 @@ and interpret : bool -> memo2 -> Raw.toplevel -> memo2 =
   | Clos_def(b, lids) ->
       let s = if b then "closing" else "opening" in
       let fn lid =
-        Printf.printf "%s %s\n%!" s lid.elt;
+        if verbose then Printf.printf "%s %s\n%!" s lid.elt;
         try let d = SMap.find lid.elt !env.global_values in
             ignore (Timed.set (Timed.Time.save ()) d.value_clos b)
         with Not_found -> unbound_var lid
@@ -825,7 +824,7 @@ and save_memo : string -> memo -> unit = fun fn memo ->
   close_out ch
 
 and compile_file : bool -> string -> unit = fun nodep fn ->
-  if !verbose then out "[%s]\n%!" fn;
+  if !verbose > Silent then out "[%s]\n%!" fn;
   Env.start fn;
   let save = !Env.env in
   let (save_log, save_auto, save_keep) =

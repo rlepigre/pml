@@ -2,6 +2,10 @@
     utilities for logs (or log file), warnings and errors. Integration  with
     command line arguments parsing is made easy. *)
 
+type verbose = Silent | Quiet | Verbose
+val verbose : verbose ref
+
+
 (** Type of printf-like functions. *)
 type 'a formatter = ('a, out_channel, unit) format -> 'a
 

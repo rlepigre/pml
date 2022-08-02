@@ -47,8 +47,11 @@ let files =
       , Arg.Set recompile
       , " Force compilation of files given on command line.")
     ; ( "--quiet"
-      , Arg.Clear verbose
+      , Arg.Unit(fun ()-> verbose:= Quiet)
       , " Disables the printing definition data.")
+    ; ( "--silent"
+      , Arg.Unit(fun ()-> verbose:= Silent)
+      , " Disables all printing.")
     ; ( "--config"
       , Arg.Unit(show_config)
       , " Prints local configuration." )

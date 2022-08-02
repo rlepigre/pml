@@ -145,10 +145,11 @@ let rec eval : e_term -> e_stac -> e_valu = fun t s -> match (t, s) with
         with Not_found -> runtime_error "Unknown constructor"
       end
   | (TPrnt(s)          , pi         ) ->
-      begin
-        Printf.printf "%s%!" s;
-        eval (TValu(VReco(A.empty))) pi
-      end
+     begin
+       let open Output in
+       if !verbose > Silent then Printf.printf "%s%!" s;
+       eval (TValu(VReco(A.empty))) pi
+     end
   (* Runtime errors. *)
   | (TProj(_)          , _          ) -> runtime_error "invalid projection"
   | (TCase(_,_)        , _          ) -> runtime_error "invalid case analysis"

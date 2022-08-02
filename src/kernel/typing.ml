@@ -114,7 +114,7 @@ let auto_empty () =
 type sub_adone =
   SA : 'a sort * ('a, 'a) bndr * 'b sort * ('b,'b) bndr -> sub_adone
 
-let log_memo = Log.register 'm' (Some "memo") "memo informations"
+let log_memo = Log.register 'm' (Some "mem") "memo informations"
 let log_memo = Log.(log_memo.p)
 
 type lr = L | R
@@ -369,6 +369,13 @@ and sub_proof = term * prop * prop * sub_rule
 
 type goal_cb +=
    | Auto of (ctxt -> typ_rule ref -> p ex loc -> unit)
+
+let print_goal ctx str pos c =
+  if !verbose > Silent then begin
+      wrn_msg "goal (value) %S %a" str print_wrn_pos pos;
+      Print.pretty ctx.pretty;
+      Printf.printf "|- %a\n%!" Print.ex c;
+    end
 
 let learn_nobox : ctxt -> valu -> ctxt = fun ctx v ->
   let (known, equations) = add_nobox v ctx.equations in
@@ -1690,9 +1697,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
         end
     (* Goal *)
     | Goal(_,str,NoCB) ->
-       wrn_msg "goal (value) %S %a" str print_wrn_pos v.pos;
-       Print.pretty ctx.pretty;
-       Printf.printf "|- %a\n%!" Print.ex c;
+       print_goal ctx str v.pos c;
        Typ_Goal(str)
     | Goal(_,str,Auto f) ->
        let r  = ref Typ_Cont in
@@ -1952,10 +1957,8 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
        let (_,_,r) = type_term ctx d.expr_def c in r
     (* Goal. *)
     | Goal(_,str,NoCB) ->
-        wrn_msg "goal (term) %S %a" str print_wrn_pos t.pos;
-        Print.pretty ctx.pretty;
-        Printf.printf "|- %a\n%!" Print.ex c;
-        Typ_Goal(str)
+       print_goal ctx str t.pos c;
+       Typ_Goal(str)
     | Goal(_,str,Auto f) ->
        let r  =ref Typ_Cont in
        f ctx r c;

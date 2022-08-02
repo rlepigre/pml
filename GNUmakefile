@@ -1,4 +1,6 @@
 VERSION = devel
+#PML_OPTIONS = --quiet --timed
+PML_OPTIONS = --silent --timed
 
 # Main target.
 .PHONY: all
@@ -24,7 +26,7 @@ check:
 LIB_FILES = $(shell find lib -name "*.pml")
 LIB_PMI   = $(LIB_FILES:.pml=.pmi)
 $(LIB_PMI): $(LIB_FILES)
-	dune exec -- pml --quiet --timed $(LIB_FILES)
+	dune exec -- pml $(PML_OPTIONS) $(LIB_FILES)
 
 .PHONY: lib
 lib: $(LIB_PMI)
@@ -37,13 +39,13 @@ TEXPML= book/part1_doc/basics.pml \
         book/part1_doc/advanced.pml \
         book/part1_doc/solutions.pml
 book_tests: $(LIB_PMI) $(TEXPML)
-	dune exec -- pml --quiet --timed $(TEXPML)
+	dune exec -- pml $(PML_OPTIONS) $(TEXPML)
 
 # Test target.
 .PHONY: tests
 TEST_FILES = $(shell find examples tests -name "*.pml")
 tests: $(LIB_PMI) $(TEST_FILES)
-	dune exec -- pml --quiet --timed $(TEST_FILES)
+	dune exec -- pml $(PML_OPTIONS) $(TEST_FILES)
 
 .PHONY: all
 all: lib tests book_tests
