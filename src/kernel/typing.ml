@@ -13,15 +13,28 @@ open Compare
 
 type sorted = E : 'a sort * 'a ex loc -> sorted
 
+(* exception you do not want to catch in the subtype and type_check function. *)
+let chk_exc = function
+  | Invalid_argument _
+    | Out_of_memory
+    | Failure _
+    | Assert_failure _
+    | Exit | Contradiction
+    | Not_found as e ->
+     Printf.eprintf "THIS SHOULD NOT HAPPEND %s" (Printexc.to_string e);
+     Printexc.print_backtrace stderr;
+     exit 1
+  | _ -> false
+
+
 (* Exceptions to be used in case of failure. *)
 exception Type_error of sorted * prop * exn
-let type_error : sorted -> prop -> exn -> 'a =
-  fun t p e ->
+let type_error : ?auto:bool -> sorted -> prop -> exn -> 'a =
+  fun ?(auto=false) t p e ->
     match e with
     | Type_error(E(_,t),_,_)
          when has_pos t.pos -> raise e
-    | Sys.Break             -> raise e
-    | Out_of_memory         -> raise e
+    | e  when auto || chk_exc e -> raise e
     | _                     -> raise (Type_error(t, p, e))
 
 exception Subtype_msg of pos * string
@@ -34,8 +47,7 @@ let subtype_error : term -> prop -> prop -> exn -> 'a =
     match e with
     | Subtype_error _   -> raise e
     | Failed_to_prove _ -> raise e
-    | Sys.Break         -> raise e
-    | Out_of_memory     -> raise e
+    | e when chk_exc e -> raise e
     | _                 -> raise (Subtype_error(t,a,b,e))
 
 exception Cannot_unify of prop * prop
@@ -108,6 +120,8 @@ type memo_tmp = (memo_tbl * path list)
 let empty_memo_tbl () = { info  = ref NoInfo
                         ; below = ref MNil }
 
+exception Bad_memo
+
 let memo_move : memo_tmp -> path -> memo_tmp = fun (tbl,ps) p ->
   match !(tbl.below), p, ps with
   | MNil       , _   , _    -> (tbl, p::ps)
@@ -119,7 +133,7 @@ let memo_move : memo_tmp -> path -> memo_tmp = fun (tbl,ps) p ->
                                 with Not_found -> (tbl, [p]))
   | MRec(ms)   , Rc n, []   -> (try (List.assoc n ms, [])
                                 with Not_found -> (tbl, [p]))
-  | _          , _   , _    -> assert false
+  | _          , _   , _    -> raise Bad_memo
 
 let memo_create : memo_tbl -> path -> memo_tbl = fun tbl p ->
   let (tbl, ps) = memo_move (tbl,[]) p in
@@ -134,7 +148,7 @@ let memo_create : memo_tbl -> path -> memo_tbl = fun tbl p ->
       | MCas(m,ms), Ca n -> tbl.below := MCas(m, (n, nm ())::ms)
       | MNil      , Rc n -> tbl.below := MRec([n, nm ()])
       | MRec(ms)  , Rc n -> tbl.below := MRec((n, nm ())::ms)
-      | _         , _    -> assert false);
+      | _         , _    -> raise Bad_memo);
       let (tbl, ps) = memo_move (tbl,[]) p in
       assert (ps = []);
       tbl
@@ -887,10 +901,7 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
     (* Save utime to backtrack even on unification *)
     let st = UTimed.Time.save () in
     (* Tell we are in auto *)
-    let first_auto = not ctx.auto.doing in
-    let reraise e =
-      raise (if first_auto then type_error (E(T,t)) ty e else e)
-    in
+    let auto = ctx.auto.doing in
     let ctx = { ctx with auto = { ctx.auto with doing = true } } in
     (* Get the blocked case/eval from the exception *)
     let bls =
@@ -930,7 +941,7 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
       UTimed.Time.rollback st;
       log_aut "loop (%d,%d,%d)" nb ctx.auto.tlvl ctx.auto.clvl;
       match todo with
-      | [] -> reraise exn
+      | [] -> type_error ~auto (E(T,t)) ty exn
       | (tlvl, BTot (c,_,e)) :: todo ->
          assert (tlvl <= ctx.auto.tlvl);
          (* for a totality, we add a let to the term and typecheck *)
@@ -1067,9 +1078,8 @@ and find_suitable ctx manual a b =
             let (a0, b0) = spe.sspe_judge in
             (* Check if schema applies. *)
             if not (UTimed.pure_test
-                      (fun () -> try leq_expr ctx.equations ctx.positives b0 b &&
-                                     leq_expr ctx.equations ctx.positives a a0
-                      with e -> Printf.eprintf "unexpected %s\n%!" (Printexc.to_string e); Printexc.print_backtrace stderr; exit 1)
+                      (fun () -> leq_expr ctx.equations ctx.positives b0 b &&
+                                   leq_expr ctx.equations ctx.positives a a0)
                       ())
             then raise Exit;
             (* Check positivity of ordinals. *)
@@ -1627,21 +1637,20 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
                will fail for base case of sized function, this backtracking
                solves the problem and is not too expensive for value only.
                We do not do it for function *)
-          | Sys.Break as e -> raise e
-          | e -> match d.value_orig.elt with
-                 | Valu { elt = LAbs _ } -> raise e
-                 | Valu v
-                      when not (Timed.get ctx.equations.time d.value_clos) ->
-                    begin
-                      UTimed.Time.rollback st;
-                      try
-                        let ctx2 = add_path (Df d.value_name.elt) ctx in
-                        let (_,_,r) = type_valu ctx2 v c in
-                        memo_insert ctx.memo OpDefi;
-                        r
-                      with _ -> raise e
-                    end
-                 | _ -> raise e
+          | Exit | Subtype_error _ | Failed_to_prove _ as e ->
+             let e = if e = Exit then Bad_memo else e in
+             match d.value_orig.elt with
+             | Valu { elt = LAbs _ } -> raise e
+             | Valu v
+                  when not (Timed.get ctx.equations.time d.value_clos) ->
+                begin
+                  UTimed.Time.rollback st;
+                  let ctx2 = add_path (Df d.value_name.elt) ctx in
+                  let (_,_,r) = type_valu ctx2 v c in
+                  memo_insert ctx.memo OpDefi;
+                  r
+                end
+             | _ -> raise e
         end
     (* Goal *)
     | Goal(_,str,NoCB) ->
@@ -1667,8 +1676,6 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
   in (Pos.in_pos v.pos (Valu(v)), c, r)
   with
   | Failed_to_prove _ as e -> raise e
-  | Out_of_memory as e     -> raise e
-  | Sys.Break as e         -> raise e
   | e                      -> type_error (E(V,v)) c e
 
 and do_set_param ctx = function
@@ -1751,13 +1758,11 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
                  let ctx = learn_equivalences ctx v a0 in
                  log_typ "trying strong application";
                  type_term ctx f c
-               with Contradiction      -> warn_unreachable ctx f;
-                                          (t,c,Typ_Scis)
-                  | Sys.Break as e     -> raise e
-                  | Out_of_memory as e -> raise e
-                  | _ when strong && is_typed VoT_T f ->
+               with Contradiction       -> warn_unreachable ctx f;
+                                           (t,c,Typ_Scis)
+                  | e when strong && is_typed VoT_T f && not (chk_exc e) ->
                      UTimed.Time.rollback st;
-                     log_typ "strong application failed";
+                     log_typ "strong application failed (%s)" (Printexc.to_string e);
                      check_f ctx false a0
              else
                let r = type_term ctx f (Pos.none (Func(tot,a,c,l))) in
@@ -1993,8 +1998,6 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
   | Contradiction      -> assert false
   | Failed_to_prove _ as e when ctx.auto.auto
                        -> UTimed.Time.rollback st; auto_prove ctx e t c
-  | Sys.Break as e     -> raise e
-  | Out_of_memory as e -> raise e
   | e                  -> type_error (E(T,t)) c e
 
 and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
@@ -2033,17 +2036,13 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
   in (s, c, r)
   with
   | Failed_to_prove _ as e -> raise e
-  | Sys.Break as e         -> raise e
-  | Out_of_memory as e     -> raise e
   | e                      -> type_error (E(S,s)) c e
 
 exception Unif_variables
 
-exception NoMemo
-
 let get_memo name memo =
   let rec fn acc = function
-      [] -> raise NoMemo
+      [] -> raise Bad_memo
     | (name',tbl as c)::memo ->
        if name = name' then (tbl, List.rev_append acc memo)
        else fn (c::acc) memo
@@ -2078,7 +2077,7 @@ let type_check : string -> term -> prop -> memo2 -> prop * typ_proof * memo2 =
       let n = (name,memo) :: n in
       (p, prf, (o,n))
     with
-    | e when Exn.system ~break:false e -> raise e
+    | e when chk_exc e -> raise e
     | e ->
        wrn_msg "trying to typecheck without memo (%s)" (Printexc.to_string e);
        let (p, prf, memo) = type_check None t a in
