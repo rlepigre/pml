@@ -2082,13 +2082,13 @@ exception Unif_variables
 
 let get_memo name memo =
   let rec fn acc = function
-      [] -> None
+      [] -> (None, Some (List.rev acc))
     | (name',tbl as c)::memo ->
-       if name = name' then Some tbl
+       if name = name' then (Some tbl, Some (List.rev_append acc memo))
        else fn (c::acc) memo
   in
   match memo with
-  | None -> None
+  | None -> (None, None)
   | Some memo -> fn [] memo
 
 let type_check : memo_tbl option -> term -> prop
@@ -2112,7 +2112,7 @@ let use_memo = ref true
 
 let type_check : string -> term -> prop -> memo2 -> prop * typ_proof * memo2 =
   fun name t a (o,n) ->
-  let memo = get_memo name o in
+  let (memo, o) = get_memo name o in
   try
     let (p, prf, memo) = type_check memo t a in
     let n = (name,memo) :: n in
