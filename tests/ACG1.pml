@@ -190,7 +190,7 @@ val reduce_size : ∀o, ∀n∈nat^(o+ₒ1), ∀m∈nat | m < n, m ∈ nat^o =
                  ✂
         InR[p] → p
       }}
-    for { m }
+    for m
   }
 
 val le_well_founded : ∀a, ∀p, (∀x:ι, (∀y:ι, y∈a → le⟨a,y,x⟩ → p⟨y⟩) → x∈a → p⟨x⟩)

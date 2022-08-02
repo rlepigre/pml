@@ -99,6 +99,7 @@ let _such_    = Keyword.create "such"
 let _suppose_ = Keyword.create "suppose"
 let _take_    = Keyword.create "take"
 let _that_    = Keyword.create "that"
+let _then_    = Keyword.create "then"
 let _true_    = Keyword.create "true"
 let _type_    = Keyword.create "type"
 let _use_     = Keyword.create "use"
@@ -417,7 +418,7 @@ and [@cache] term_atom  =
     (* Term (lambda abstraction) *)
     _fun_ (args::~+ arg) '{' (t::term) '}'
       => in_pos _pos (ELAbs((List.hd args, List.tl args),t,NoLz))
-  ; _lazy_ '{' (t::term) '}'
+  ; _lazy_ (t::term_opt_brace)
       => (let unit = Some(in_pos _pos (EProd([],true))) in
           in_pos _pos (ELAbs(((in_pos _pos "_", unit), []),t,Lazy)))
   (* Term (printing) *)
@@ -437,7 +438,7 @@ and [@cache] term_atom  =
       => from_int _pos n
   (* Term (record) *)
   ; "{" (fs::~+ [semi] field) "}"
-      => record _pos fs
+      => (match fs with [(_,None)] -> Lex.give_up () | _ -> record _pos fs)
   (* Term (tuple) *)
   ; '(' (t::term) "," (ts::~+ [comma] term) ')'
       => tuple_term _pos (t::ts)
@@ -462,7 +463,10 @@ and [@cache] term_atom  =
       '}'
       => pattern_matching _pos t ps
   (* Term (conditional) *)
-  ; _if_ (c::term) '{' (t::term) '}' (e::~? (_else_ '{' (t::term) '}' => t))
+  ; _if_ (c::term) (~? _then_) '{' (t::term) '}'
+      (e::~? (_else_ (t::term_opt_brace)  => t))
+      => if_then_else _pos c t e
+  ; _if_ (c::term) _then_ (t::term_opt_brace) (e::~? (_else_ (t::term_opt_brace)  => t))
       => if_then_else _pos c t e
   (* Term ("QED" tactic) *)
   ; _qed_
@@ -484,14 +488,16 @@ and [@cache] term_appl =
   ; _force_ (t::expr (Trm A))
       => in_pos _pos (EAppl(t,in_pos _pos (EReco []),Lazy))
 
+and [@cache] term_opt_brace =
+    (e::expr (Trm R)) => e
+ ; '{' (t::term) '}' => t
+
 and [@cache] term_repl =
   (* Term (replacement) *)
-    _check_ (u::((e::expr (Trm R)) => e ; '{' (t::term) '}' => t))
-      _for_ (t::((e::expr (Trm R)) => e ; '{' (t::term) '}' => t))
-            (b::~? justification)
+    _check_ (u::term_opt_brace) _for_ (t::term_opt_brace) (b::~? justification)
       => in_pos _pos (ERepl(t,u,b))
   (* Term (totality by purity) *)
-  ; _delim_ '{' (u::term) '}'
+  ; _delim_ (u::term_opt_brace)
       => in_pos _pos (EDelm(u))
   (* Term ("show" tactic) *)
   ; deduce (a::prop) (p::~? justification)
@@ -532,16 +538,11 @@ and [@cache] term_seq =
   ; (t::expr (Trm R)) ';' (u::expr (Trm S))
       => in_pos _pos (ESequ(t,u))
   (* Term ("showing" tactic) *)
-  ; from (a::expr (Prp R))
-         (q::~? (because (q::((e::expr (Trm R)) => e ;
-                           '{' (t::term) '}' => t)) => q))
-         ';' (p::expr (Trm S))
+  ; from (a::expr (Prp R)) (q::~? justification) ';' (p::expr (Trm S))
       => showing _pos a q p
   (* Term ("assume"/"know" tactic) *)
   ; (ass::(_assume_ => true; _know_ => false)) (a::expr (Trm R))
-         (q::~? (because (q::((e::expr (Trm R)) => e ;
-                           '{' (t::term) '}' => t)) => q))
-         ';' (p::expr (Trm S))
+         (q::~? justification) ';' (p::expr (Trm S))
       => assume _pos ass a q p
   (* Term (auto lvl) *)
   ; _set_ (l::set_param) ';' (t::expr (Trm S))
@@ -591,8 +592,7 @@ and [@cache] term_infix =
             in_pos _pos (EAppl(none (EAppl(s,t,NoLz)), u,NoLz)) in
         in_pos _pos (EInfx(t,p)))
 
-and justification =
-  because (p::((t::expr (Trm R)) => t ; '{' (t::term)  '}' => t)) => p
+and justification = because (p::term_opt_brace) => p
 
 and [@cache] cond opt any =
     (opt = true) (t::expr (Trm I))
