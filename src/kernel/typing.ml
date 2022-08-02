@@ -74,6 +74,12 @@ exception Unexpected_error of string
 let unexpected : string -> 'a =
   fun msg -> raise (Unexpected_error(msg))
 
+(* Type_error may contrain break to report good error when interrupted.*)
+let rec is_break = function
+  | Sys.Break -> true
+  | Type_error(_,_,e) | Subtype_error(_,_,_,e) -> is_break e
+  | _ -> false
+
 (* Log functions registration. *)
 let log_sub = Log.register 's' (Some "sub") "subtyping informations"
 let log_sub = Log.(log_sub.p)
@@ -1637,7 +1643,8 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
                will fail for base case of sized function, this backtracking
                solves the problem and is not too expensive for value only.
                We do not do it for function *)
-          | Exit | Subtype_error _ | Failed_to_prove _ as e ->
+          | Exit | Subtype_error _ | Failed_to_prove _ | Type_error _ as e
+            when not (is_break e) ->
              let e = if e = Exit then Bad_memo else e in
              match d.value_orig.elt with
              | Valu { elt = LAbs _ } -> raise e
@@ -1760,7 +1767,8 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
                  type_term ctx f c
                with Contradiction       -> warn_unreachable ctx f;
                                            (t,c,Typ_Scis)
-                  | e when strong && is_typed VoT_T f && not (chk_exc e) ->
+                  | e when strong && is_typed VoT_T f && not (chk_exc e) &&
+                    not (is_break e) ->
                      UTimed.Time.rollback st;
                      log_typ "strong application failed (%s)" (Printexc.to_string e);
                      check_f ctx false a0
@@ -2078,7 +2086,7 @@ let type_check : string -> term -> prop -> memo2 -> prop * typ_proof * memo2 =
       (p, prf, (o,n))
     with
     | e when chk_exc e -> raise e
-    | e ->
+    | e when not (is_break e) ->
        wrn_msg "trying to typecheck without memo (%s)" (Printexc.to_string e);
        let (p, prf, memo) = type_check None t a in
        let n = (name,memo) :: n in
