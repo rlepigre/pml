@@ -11,5 +11,5 @@
   (targets config.ml)
   (action (with-stdout-to config.ml (progn
     (echo "let path = [ String.trim \"") ; hack to remove newline.
-    (run opam config var lib)
+    (run opam var lib)
     (echo "\"]\n")))))

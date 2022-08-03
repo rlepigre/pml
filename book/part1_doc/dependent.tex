@@ -65,8 +65,8 @@ include lib.comparison
 
 val rec for_all : ∀a, (a ⇒ bool) ⇒ bt⟨a⟩ ⇒ bool = fun f t {
   case t {
-    | []               → true
-    | Node[{ l; e; r}] → f e && for_all f l && for_all f r
+    | []             → true
+    | Node[ l; e; r] → f e && for_all f l && for_all f r
   }
 }
 
@@ -102,12 +102,12 @@ Now, we can define the function doing insertion in a binary search tree:
 val rec insert : ∀a, (a ⇒ a ⇒ cmp) ⇒ a ⇒ bt⟨a⟩ ⇒ bt⟨a⟩ =
   fun c e t {
     case t {
-      | []                  → Node[{ l = []; e; r = []}]
-      | Node[{ l; e=e'; r}] →
+      | []                → Node[l = []; e; r = []]
+      | Node[ l; e=e'; r] →
         case c e e' {
           | Eq → t
-          | Ls → Node[{ l = insert c e l; e = e'; r}]
-          | Gr → Node[{ l; e = e'; r = insert c e r}]
+          | Ls → Node[l = insert c e l; e = e'; r]
+          | Gr → Node[l; e = e'; r = insert c e r]
         }
     }}
 \end{pmlcode}

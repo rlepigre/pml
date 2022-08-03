@@ -108,12 +108,14 @@ let _val_     = Keyword.create "val"
 
 (* Identifiers. *)
 
-let lid =
+let id =
   Grammar.term (Lex.appl (fun id -> Keyword.check id; id)
-      Regexp.(regexp (from_string "[a-z][a-zA-Z0-9_']*")))
+      Regexp.(regexp (from_string "[a-zA-Z][a-zA-Z0-9_']*")))
 let uid =
   Grammar.term (Lex.appl (fun id -> Keyword.check id; id)
       Regexp.(regexp (from_string "[A-Z][a-zA-Z0-9_']*")))
+
+
 let%parser num = (id::RE"[0-9]+")              => id
 
 let%parser because = _using_ => () ; _by_ => () ; _because_ => ()
@@ -153,7 +155,7 @@ let%parser rec infix =
         (pl,(sym, name,p,pr,hiho))
       with Not_found -> Lex.give_up ()
     end
-; ((pl,(__,s,p,pr,ho))::infix) '_' (m::lid) =>
+; ((pl,(__,s,p,pr,ho))::infix) '_' (m::id) =>
     begin
       let m = evari (Some m_pos) (in_pos m_pos m) in
       let t = in_pos _pos (EProj(m,ref `T, s)) in
@@ -163,12 +165,17 @@ let%parser rec infix =
 let%parser [@layout Blank.none] infix = (i::infix) => i
 
 (* Located identifiers. *)
-let%parser llid = (id::lid)                => in_pos _pos id
+let%parser lid = (id::id)                  => in_pos _pos id
   ; '(' ((__,(__,id,__,__,__))::infix) ')' => id
-let%parser luid = (id::uid)    => in_pos _pos id
-                ; _true_       => in_pos _pos "true"
-                ; _false_      => in_pos _pos "false"
-let%parser lnum = (id::num)    => in_pos _pos id
+let%parser luid =
+    (id::uid)                              => in_pos _pos id
+  ; _true_                                 => in_pos _pos "true"
+  ; _false_                                => in_pos _pos "false"
+let%parser lbid =
+    (id::id)                               => in_pos _pos id
+  ; _true_                                 => in_pos _pos "true"
+  ; _false_                                => in_pos _pos "false"
+let%parser lnum = (id::num)                => in_pos _pos id
 
 (* Int. *)
 let%parser int  = (s::INT) => s
@@ -180,13 +187,13 @@ let%parser bool = "true" => true ; "false" => false
 let%parser float = (s::FLOAT) => s
 
 (* Lowercase identifier or wildcard (located). *)
-let%parser llid_wc =
-    (id::llid) => id
-  ; '_'        => in_pos _pos "_"
+let%parser lid_wc =
+    (id::lid) => id
+  ; '_'       => in_pos _pos "_"
 
-let%parser llid_opt =
-    (id::llid) => in_pos _pos (Some id.elt)
-  ; '_'        => in_pos _pos None
+let%parser lid_opt =
+    (id::lid) => in_pos _pos (Some id.elt)
+  ; '_'       => in_pos _pos None
 
 (* Some useful tokens. *)
 let%parser elipsis = "⋯" => () ; "..." => ()
@@ -251,7 +258,7 @@ let%parser rec sort (p : ps) =
   ; ("σ" => () ; "<sigma>"   => () ; "<stack>"   => ()) => in_pos _pos SS
   ; ("ο" => () ; "<omicron>" => () ; "<prop>"    => ()) => in_pos _pos SP
   ; ("κ" => () ; "<kappa>"   => () ; "<ordinal>" => ()) => in_pos _pos SO
-  ; (id::lid)                                    => in_pos _pos (SVar(id))
+  ; (id::id)                                     => in_pos _pos (SVar(id))
   ; "(" (s::sort Fs) ")"                         => s
   ; (p<=Fs) (s1::sort As) arrow (s2::sort Fs)    => in_pos _pos (SFun(s1,s2))
 
@@ -259,7 +266,7 @@ let%parser rec sort (p : ps) =
 let sort = sort Fs
 
 (* Auxiliary parser for sort arguments. *)
-let%parser s_arg  = (id::llid) (so:: ~? (column (s::sort) => s))  => (id,so)
+let%parser s_arg  = (id::lid) (so:: ~? (column (s::sort) => s))   => (id,so)
 let%parser s_lst  = (l:: ~+ [comma] s_arg)                        => l
 let%parser s_args = (l:: ~? [[]] (langle (l::s_lst) rangle => l)) => l
 
@@ -314,17 +321,17 @@ let%parser rec expr (m : mode) =
   ; (m <<= Stk || m <<= Trm A) (s::goal) => in_pos _pos (EGoal(s))
 
 and [@cache] ho_fun =
-  "(" (x::llid) ":" (s::sort) "↦" (e::any) ")"
+  "(" (x::lid) ":" (s::sort) "↦" (e::any) ")"
       => in_pos _pos (EHOFn(x,s,e))
 
 and [@cache] ho_app =
     (e::expr HO) (args::ho_args)
       => in_pos _pos (EHOAp(e, new_sort_uvar None, args))
   ; "ψ"
-    => in_pos _pos ECPsi
+      => in_pos _pos ECPsi
 
 and [@cache] expr_var =
-    (id::llid) (s:: ~? ('^' (e::expr (Ord E)) => e))
+    (id::lid) (s:: ~? ('^' (e::expr (Ord E)) => e))
       => begin
            match s with
            | None   -> evari (Some _pos) id
@@ -342,19 +349,19 @@ and [@cache] prop_atom =
     _bool_
       => p_bool (Some _pos)
   (* Proposition (non-empty product) *)
-  ; "{" (fs::~+ [semi] ((l::llid) ":" (a::prop) => (l,a))) (s::strict) "}"
+  ; '{' (fs::~+ [semi] ((l::lid) ':' (a::prop) => (l,a))) (s::strict) '}'
       => in_pos _pos (EProd(fs,s))
   (* Proposition (extensible empty record) *)
-  ; "{" elipsis "}"
+  ; '{' elipsis '}'
       => in_pos _pos (EProd([],false))
   (* Proposition (disjoint sum) *)
-  ; "[" (fs::~+ [semi] ((l::luid) (a::~? (_of_ (a::prop) => a)) => (l,a))) "]"
+  ; '[' (fs::~+ [semi] ((l::lbid) (a::~? (_of_ (a::prop) => a)) => (l,a))) ']'
       => in_pos _pos (EDSum(fs))
   (* empty type *)
   ; empty_s
       => in_pos _pos (EDSum [])
   (* Proposition (set type) *)
-  ; "{" (x::llid) "∈" (a::prop) "}"
+  ; '{' (x::lid) "∈" (a::prop) '}'
       => esett _pos x a
 
 and [@cache] ord_full =
@@ -390,16 +397,16 @@ and [@cache] prop_full =
       => (let t = Effect.create ~absent:[CallCC] () in
           in_pos _pos (EFunc(t,in_pos _pos (EProd([],true)), b, Lazy)))
   (* Proposition (universal quantification) *)
-  ; "∀" (x::llid) (xs::~* llid) (s::~? (':' (s::sort) => s)) ',' (a::prop)
+  ; "∀" (x::lid) (xs::~* lid) (s::~? (':' (s::sort) => s)) ',' (a::prop)
       => euniv _pos x xs s a
   (* Proposition (dependent function type) *)
-  ; "∀" (x::llid) (xs::~* llid) "∈" (a::prop) ',' (b::prop)
+  ; "∀" (x::lid) (xs::~* lid) "∈" (a::prop) ',' (b::prop)
       => euniv_in _pos x xs a b
   (* Proposition (existential quantification) *)
-  ; "∃" (x::llid) (xs::~* llid) (s::~? (':' (s::sort) => s)) ',' (a::prop)
+  ; "∃" (x::lid) (xs::~* lid) (s::~? (':' (s::sort) => s)) ',' (a::prop)
       => eexis _pos x xs s a
   (* Proposition (dependent pair) *)
-  ; "∃" (x::llid) (xs::~* llid) "∈" (a::prop) ',' (b::prop)
+  ; "∃" (x::lid) (xs::~* lid) "∈" (a::prop) ',' (b::prop)
       => eexis_in _pos x xs a b
   (* Proposition (least fixpoint) *)
   ; "μ" (o:: ~? [none EConv] ('_' (o::ordinal) => o))
@@ -428,8 +435,10 @@ and [@cache] term_atom  =
   ; "(" (t::term) ":" (a::prop) ")"
       => in_pos _pos (ECoer(new_sort_uvar None,t,a))
   (* Term (constructor) *)
-  ; (c::luid) (t::~? ('[' (t::term) ']' => t))
-      => in_pos _pos (ECons(c, Option.map (fun t -> (t, ref `T)) t))
+  ; (c::lbid) (t:: ('[' (t::inner_prod) ']' => t))
+      => in_pos _pos (ECons(c, Some (t, ref `T)))
+  ; (c::(_true_ => "true" ; _false_ => "false"))
+      => in_pos _pos (ECons(in_pos _pos c, None))
   (* Term (empty list) *)
   ; '[' ']'
       => v_nil _pos
@@ -452,10 +461,10 @@ and [@cache] term_atom  =
        in_pos _pos (ELAbs (((in_pos _pos "x",None), []),
                            clk _pos, NoLz)))
   (* Term (mu abstraction) *)
-  ; _save_ (arg::llid) '{' (t::term) '}'
+  ; _save_ (arg::lid) '{' (t::term) '}'
       => in_pos _pos (EMAbs(arg,t))
   (* Term (projection) *)
-  ; (t::expr (Trm A)) "." (l::((l::llid) => l ; (l::lnum) => l))
+  ; (t::expr (Trm A)) "." (l::((l::lid) => l ; (l::lnum) => l))
       => in_pos _pos (EProj(t, ref `T, l))
   (* Term (case analysis) *)
   ; _case_ (t::term) '{'
@@ -480,6 +489,15 @@ and [@cache] term_atom  =
            | Some ty -> in_pos _pos (ECoer(new_sort_uvar None,t,ty))
          in
          t)
+
+and [@cache] inner_prod =
+    (t::(expr (Trm R))) => t
+    (* Term (record) *)
+  ; (fs::~+ [semi] field)
+    => (match fs with [(_,None)] -> Lex.give_up () | _ -> record _pos fs)
+  (* Term (tuple) *)
+  ; (t::term) "," (ts::~+ [comma] term)
+    => tuple_term _pos (t::ts)
 
 and [@cache] term_appl =
   (* Term (application) *)
@@ -527,11 +545,11 @@ and [@cache] term_seq =
           (t::expr (Trm R)) ';' (u::expr (Trm S))
       => let_binding _pos r arg t u
   (* Local definition *)
-  ; _def_ (id::llid) (args::s_args) (s::~?(':' (s::sort) => s)) '=' (e::any)
+  ; _def_ (id::lid) (args::s_args) (s::~?(':' (s::sort) => s)) '=' (e::any)
           ';' (u::expr (Trm S))
       => local_expr_def _pos id args s e u
   (* local definition of a proposition (special case of expression). *)
-  ; _type_ (r::t_rec) (id::llid) (args::s_args) '='
+  ; _type_ (r::t_rec) (id::lid) (args::s_args) '='
           (e::prop) ';' (u::expr (Trm S))
       => local_type_def _pos r id args e u
   (* Term (sequencing). *)
@@ -548,11 +566,11 @@ and [@cache] term_seq =
   ; _set_ (l::set_param) ';' (t::expr (Trm S))
       => in_pos _pos (EHint(LSet(l),t))
   (* Term (let such that) *)
-  ; _let_ (vs::s_lst) _st_ (x::llid_wc) ':' (a::prop) ';' (u::expr (Trm S))
+  ; _let_ (vs::s_lst) _st_ (x::lid_wc) ':' (a::prop) ';' (u::expr (Trm S))
       => esuch _pos vs x a u
-  ; _close_ (lids :: ~+ llid) ';' (u::expr (Trm S))
+  ; _close_ (lids :: ~+ lid) ';' (u::expr (Trm S))
       => ehint _pos (Close(true,lids)) u
-  ; _open_  (lids :: ~+ llid) ';' (u::expr (Trm S))
+  ; _open_  (lids :: ~+ lid) ';' (u::expr (Trm S))
       => ehint _pos (Close(false,lids)) u
   (* Checking subtyping *)
   ; _check_ (v:: ~? ((v::expr (Trm R)) ':' => v)) (p::prop) ';' (t::expr (Trm S))
@@ -615,35 +633,45 @@ and [@cache] cond opt any =
 and ho_args = langle (l:: ~+ [comma] any) rangle => l
 
 (* Variable with optional type. *)
-and arg_t = (id::llid) (ao::~? (":" (a::prop) => a)) => (id,ao)
+and arg_t = (id::lid) (ao::~? (":" (a::prop) => a)) => (id,ao)
 
 (* Function argument. *)
 and arg =
-    (id::llid_wc)                       => (id, None  )
-  ; "(" (id::llid_wc) ":" (a::prop) ")" => (id, Some a)
+    (id::lid_wc)                       => (id, None  )
+  ; "(" (id::lid_wc) ":" (a::prop) ")" => (id, Some a)
 
 and field_nt =
     (a::arg_t)               => (fst a, a)
-  ; (l::llid) '=' (a::arg_t) => (l    , a)
+  ; (l::lid) '=' (a::arg_t) => (l    , a)
 
 (* Argument of let-binding. *)
 and let_arg =
-    (id::llid_wc) (ao::~? (':' (a::prop) => a))   => `LetArgVar(id,ao)
+    (id::lid_wc) (ao::~? (':' (a::prop) => a))   => `LetArgVar(id,ao)
   ; '{' (fs::~+ [semi] field_nt) '}'              => `LetArgRec(fs)
   ; '(' (f::arg_t) ',' (fs::~+ [comma] arg_t) ')' => `LetArgTup(f::fs)
 
+(* Argument of let-binding inside []. *)
+and let_arg_inner =
+    (l::let_arg)                           => l
+  ; (fs::~+ [semi] field_nt)               =>
+      (match fs with [(x,(y,_))] when x == y -> Lex.give_up ()
+                   | _ -> `LetArgRec(fs))
+  ; (f::arg_t) ',' (fs::~+ [comma] arg_t)  => `LetArgTup(f::fs)
+
 (* Record field. *)
-and field = (l::llid) (t::~? ("=" (t::expr (Trm R)) => t)) => (l,t)
+and field = (l::lid) (t::~? ("=" (t::expr (Trm R)) => t)) => (l,t)
 
 (* Pattern. *)
 and patt =
     '[' ']'                        => (in_pos _pos "Nil"  , None)
-  ; (x::llid_wc) "::" (y::llid_wc) => (
+  ; (x::lid_wc) "::" (y::lid_wc) => (
       let fs = if y.elt <> "_" then [(none "tl", (y, None))] else [] in
       let fs = if x.elt <> "_" then (none "hd", (x, None))::fs else fs in
       (in_pos _pos "Cons", Some (`LetArgRec fs)))
-  ; (c::luid) (arg::~?('[' (a::let_arg) ']' => a))
-                                   => (c                  , arg )
+  ; (c::lbid) (arg::('[' (a::let_arg_inner) ']' => a))
+                                   => (c                  , Some arg )
+  ; (c::luid)
+                                   => (c                  , None )
   ; "0"                            => (in_pos _pos "Zero" , None)
 
 (* Common entry points. *)
@@ -670,19 +698,19 @@ let%parser check =
 (* Toplevel item. *)
 let%parser rec toplevel =
   (* Definition of a new sort. *)
-    _sort_ (id::llid) '=' (s::sort)
+    _sort_ (id::lid) '=' (s::sort)
       => (fun () -> sort_def id s)
 
   (* Definition of an expression. *)
-  ; _def_  (id::llid) (args::s_args) (s::~?(':' (s::sort) => s)) '=' (e::any)
+  ; _def_  (id::lid) (args::s_args) (s::~?(':' (s::sort) => s)) '=' (e::any)
       => (fun () -> expr_def id args s e)
 
   (* Definition of a proposition (special case of expression). *)
-  ; _type_ (r::t_rec) (id::llid) (args::s_args) '=' (e::prop)
+  ; _type_ (r::t_rec) (id::lid) (args::s_args) '=' (e::prop)
       => (fun () -> type_def _pos r id args e)
 
   (* Definition of a value (to be computed). *)
-  ; _val_ (r::v_rec) (oc::oc) (ch::check) (id::llid_opt) ':' (a::prop) '=' (t::term)
+  ; _val_ (r::v_rec) (oc::oc) (ch::check) (id::lid_opt) ':' (a::prop) '=' (t::term)
       => (fun () -> val_def r id ch oc a t)
 
   (* Check of a subtyping relation. *)
@@ -701,7 +729,7 @@ let%parser rec toplevel =
   ; _set_ (l::set_param)
       => (fun () -> Glbl_set l)
 
-  ; _infix_ '(' (s::infix_re) ')' '=' (name::lid)
+  ; _infix_ '(' (s::infix_re) ')' '=' (name::id)
       (hiho::~? [false] ("⟨" "⟩"=>true))
       "priority" (prio::float)
       (asso::( "left"  => Env.LeftAssoc
@@ -712,10 +740,10 @@ let%parser rec toplevel =
         Hashtbl.replace Env.infix_tbl s infix;
         fun () -> Infix(s,infix))
 
-  ; _close_ (lids :: ~+ llid)
+  ; _close_ (lids :: ~+ lid)
     => (fun () -> clos_def true lids)
 
-  ; _open_ (lids :: ~+ llid)
+  ; _open_ (lids :: ~+ lid)
     => (fun () -> clos_def false lids)
 
 (* Entry point of the parser. *)

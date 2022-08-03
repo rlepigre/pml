@@ -326,6 +326,9 @@ let rec leq_sort : ?evar:bool -> raw_sort -> raw_sort -> bool =
       | (_          , _          ) -> false
     in log_par "ok"; res
 
+let is_upper x =
+  let c = x.elt.[0] in Char.uppercase_ascii c = c
+
 let infer_sorts : raw_ex -> raw_sort -> unit = fun e s ->
   let open Timed in
   let rec infer vars e s =
@@ -347,7 +350,10 @@ let infer_sorts : raw_ex -> raw_sort -> unit = fun e s ->
               ignore (find_value x.elt);
               leq _sv sx; leqv sx s
             with Not_found ->
-              unbound_var x
+               if is_upper x then
+                 (leq _sv sx; leqv sx s)
+               else
+                 unbound_var x
          end
     | (EHOAp(e,sx,es), _        ) ->
          let nb_args = List.length es in
@@ -734,12 +740,15 @@ let unsugar_expr : raw_ex -> raw_sort -> boxed = fun e s ->
          let bx =
            try box_set_pos (snd (M.find x.elt vars)) e.pos
            with Not_found -> try
-               let Expr(sx, d) = find_expr x.elt in
-               let bx = Box(sx, Bindlib.box (in_pos x.pos (HDef(sx,d)))) in
-               box_set_pos bx e.pos
-             with Not_found ->
-               let d = find_value x.elt in
-               Box(V, Bindlib.box (in_pos x.pos (VDef(d))))
+             let Expr(sx, d) = find_expr x.elt in
+             let bx = Box(sx, Bindlib.box (in_pos x.pos (HDef(sx,d)))) in
+             box_set_pos bx e.pos
+           with Not_found -> try
+             let d = find_value x.elt in
+             Box(V, Bindlib.box (in_pos x.pos (VDef(d))))
+           with Not_found ->
+             assert (is_upper x && leq_sort _sv sx);
+             Box(V,cons e.pos x (reco no_pos A.empty))
          in
          convert bx
        end
