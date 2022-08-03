@@ -853,6 +853,7 @@ and save_memo : string -> memo -> unit = fun fn memo ->
 
 and compile_file : bool -> string -> unit = fun nodep fn ->
   if !verbose > Silent then out "[%s]\n%!" fn;
+  reset_constructors ();
   Env.start fn;
   let save = !Env.env in
   let (save_log, save_auto, save_keep) =

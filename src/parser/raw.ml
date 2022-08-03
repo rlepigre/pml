@@ -9,6 +9,17 @@ open Sorts
 open Ast
 open Env
 
+let seen_constructors = ref ([] : string list)
+let test_constructor s =
+  if List.mem s.elt !seen_constructors then
+    wrn_msg "Constructor %s used as variable at %a" s.elt
+      print_wrn_pos s.pos
+let reset_constructors () =
+  seen_constructors := []
+let add_constructor s =
+  if not (List.mem s !seen_constructors) then
+    seen_constructors := s :: !seen_constructors
+
 (* Log function registration. *)
 let log_par = Log.register 'p' (Some "par") "syntax analysis"
 let log_par = Log.(log_par.p)
@@ -344,10 +355,12 @@ let infer_sorts : raw_ex -> raw_sort -> unit = fun e s ->
                 let Expr(k,d) = find_expr x.elt in
                 sort_from_ast k
             in
+            test_constructor x;
             leq sy sx; leqv sx s
           with Not_found ->
             try
               ignore (find_value x.elt);
+              test_constructor x;
               leq _sv sx; leqv sx s
             with Not_found ->
                if is_upper x then

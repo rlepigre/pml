@@ -860,6 +860,7 @@ let rec subtype =
           in
           let check_variant c (_,p,a1) ps =
             try
+              Raw.add_constructor c;
               let cwit = vdot wit c in
               let (vwit, ctx) = learn_value ctx cwit a1 in
               let ctx =
@@ -1887,6 +1888,7 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
        let ctx_v = add_path Cm ctx in
        let p = type_valu ctx_v v a in (* infer a type to learn equivalences *)
        let fn d (p,_) m =
+         Raw.add_constructor d;
          let a = new_uvar ctx P in
          A.add d (p,a) m
        in
