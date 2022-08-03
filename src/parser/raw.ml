@@ -737,21 +737,18 @@ let unsugar_expr : raw_ex -> raw_sort -> boxed = fun e s ->
            then Box(P,eq_true e.pos (to_term t))
            else t
          in
-         let bx =
-           try box_set_pos (snd (M.find x.elt vars)) e.pos
-           with Not_found -> try
-             let Expr(sx, d) = find_expr x.elt in
-             let bx = Box(sx, Bindlib.box (in_pos x.pos (HDef(sx,d)))) in
-             box_set_pos bx e.pos
-           with Not_found -> try
-             let d = find_value x.elt in
-             Box(V, Bindlib.box (in_pos x.pos (VDef(d))))
-           with Not_found ->
-             assert (is_upper x && leq_sort _sv sx);
-             Box(V,cons e.pos x (reco no_pos A.empty))
-         in
-         convert bx
-       end
+         try convert (box_set_pos (snd (M.find x.elt vars)) e.pos)
+         with Not_found -> try
+           let Expr(sx, d) = find_expr x.elt in
+           let bx = Box(sx, Bindlib.box (in_pos x.pos (HDef(sx,d)))) in
+           convert (box_set_pos bx e.pos)
+         with Not_found -> try
+           let d = find_value x.elt in
+           convert (Box(V, Bindlib.box (in_pos x.pos (VDef(d)))))
+         with Not_found ->
+           assert (is_upper x && leq_sort _sv sx);
+           Box(V,cons e.pos x (reco no_pos A.empty))
+         end
     | (EHOAp(f,xs,es), s0      ) ->
         let box = unsugar env vars f xs in
         let rec build_app (Box(se,ex)) args =
