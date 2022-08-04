@@ -250,7 +250,7 @@
         case l1 {
           []   → []
           h::l → f h :: alist_map f l
-          Append[{l;r}] → Append[{l=alist_map f l; r = alist_map f r}]
+          Append[{l,r}] → Append[l=alist_map f l, r = alist_map f r]
         }
       }
 
@@ -260,7 +260,7 @@
       case l1 {
         []   → qed
         h::l → alist_map_map f l
-        Append[{l;r}] →
+        Append[{l,r}] →
           alist_map_map f l; alist_map_map f r;
           showing (map f (alist_to_list l) @ map f (alist_to_list r))
             ≡ map f (alist_to_list l @ alist_to_list r);
@@ -303,13 +303,13 @@
               P[s] → S[check opp_neg s for r.opp s by r.opp_neg_lem s]
             }
           }
-        ; opp_pos_lem = (
+        , opp_pos_lem = (
           take p;
           case p {
             0    → qed
             S[k] → r.opp_pos_lem k
           })
-        ; opp_neg_lem = (
+        , opp_neg_lem = (
           take n;
           case n {
             0    → qed
