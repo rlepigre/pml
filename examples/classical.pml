@@ -35,11 +35,11 @@ type c⟨s,a⟩ = {hd : a; tl : stream^s⟨a⟩}
 
 val rec aux : ∀se so, neg⟨c⟨se,even⟩⟩ ⇒ neg⟨c⟨so,odd⟩⟩ ⇒ neg⟨stream⟨nat⟩⟩ =
   fun fe fo s {
-    let {hd; tl} = s {};
+    let {hd, tl} = s {};
     if is_odd hd {
-      fo {hd; tl = fun _ {save o {aux fe (fun x {restore o x}) tl}}}
+      fo {hd, tl = fun _ {save o {aux fe (fun x {restore o x}) tl}}}
     } else {
-      fe {hd; tl = fun _ {save e {aux (fun x {restore e x}) fo tl}}}
+      fe {hd, tl = fun _ {save e {aux (fun x {restore e x}) fo tl}}}
     }
   }
 

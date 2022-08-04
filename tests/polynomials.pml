@@ -575,11 +575,11 @@ val simpl2 : ∀r, ∀s∈semiring⟨r⟩, ∀x y∈r, ∀p∈tpoly⟨r⟩ ⇒ t
 
 // Test with polynomials with integer coefficients
 val semi_nat : semiring⟨nat⟩ = {
-  zero = zero; one; add; mul;
-  add_neutral = fun n { {} };
-  add_assoc; add_comm;
-  mul_neutral; mul_assoc; mul_comm;
-  mul_distrib = mul_dist_l;
+  zero = zero, one, add, mul,
+  add_neutral = fun n { {} },
+  add_assoc, add_comm,
+  mul_neutral, mul_assoc, mul_comm,
+  mul_distrib = mul_dist_l,
   mul_abs = fun n { {} }
 }
 
@@ -592,10 +592,10 @@ val pn : {
   (*)  : tpoly⟨nat⟩ ⇒ tpoly⟨nat⟩ ⇒ tpoly⟨nat⟩;
   (**) : tpoly⟨nat⟩ ⇒ nat ⇒ tpoly⟨nat⟩
 } = {
-  zero = Cst[0];
-  one  = Cst[1];
-  cst  = fun n { Cst[n] };
-  (+)  = fun a b { a +~ b };
-  (*)  = fun a b { a *~ b };
+  zero = Cst[0],
+  one  = Cst[1],
+  cst  = fun n { Cst[n] },
+  (+)  = fun a b { a +~ b },
+  (*)  = fun a b { a *~ b },
   (**) = fun a b { a **~ b }
   }

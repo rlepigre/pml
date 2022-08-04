@@ -9,7 +9,7 @@ val fst : ∀ a:ο, ∀ b:ο, a ⇒ b ⇒ a = fun x y { x }
 
 val weird_app : (∀ a:ο, a ⇒ a) ⇒ {} ⇒ {} = fun id x { id x }
 
-val pair : ∀ a:ο, ∀ b:ο, a ⇒ b ⇒ {x : a; y : b} = fun x y { {x = x; y = y} }
+val pair : ∀ a:ο, ∀ b:ο, a ⇒ b ⇒ {x : a; y : b} = fun x y { {x = x, y = y} }
 val pfst : ∀ a:ο, ∀ b:ο, {x : a; y : b} ⇒ a = fun p { p.x }
 val psnd : ∀ a:ο, ∀ b:ο, {x : a; y : b} ⇒ b = fun p { p.y }
 

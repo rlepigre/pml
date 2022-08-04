@@ -8,7 +8,7 @@ type rec alist⟨a⟩ =
   ; Append of {l : alist⟨a⟩; r : alist⟨a⟩}]
 
 val alist_app : ∀a, alist⟨a⟩ ⇒ alist⟨a⟩ ⇒ alist⟨a⟩ =
-  fun l r { Append[{l;r}] }
+  fun l r { Append[{l,r}] }
 
 val list_to_alist : ∀a, list⟨a⟩ ⇒ alist⟨a⟩ =
   fun l { l }

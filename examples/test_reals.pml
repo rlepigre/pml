@@ -5,15 +5,15 @@ include examples.reals
 
 // Tests for reals
 
-val r0   : real = { exp = 0; man = man0 }
-val r1   : real = { exp = 1; man = cons S man0 }
-val rn1  : real = { exp = 1; man = cons P man0 }
+val r0   : real = { exp = 0, man = man0 }
+val r1   : real = { exp = 1, man = cons S man0 }
+val rn1  : real = { exp = 1, man = cons P man0 }
 
-val half : real = { exp = 0; man = cons S man0 }
+val half : real = { exp = 0, man = cons S man0 }
 close half
-val rec man3 : man = lazy { { hd = S; tl = lazy { { hd = P; tl = man3 }}}}
+val rec man3 : man = lazy { hd = S, tl = lazy { hd = P, tl = man3 }}
 close man0 man1 man3
-val third : real = { exp = 0; man = man3 }
+val third : real = { exp = 0, man = man3 }
 close third
 
 val size : nat = 10

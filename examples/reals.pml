@@ -58,8 +58,8 @@ type sbds⟨s:κ,n:τ⟩ = stream^s⟨bint⟨n⟩⟩
 
 val rec divideBy : ∀o:κ, ∀n∈nat, ∀s∈sbds⟨o+ₒ2,n⟩, sman⟨o⟩ =
   fun n x { lazy {
-    let { hd = a; tl = x } = force x;
-    let { hd = b; tl = x } = force x;
+    let { hd = a, tl = x } = force x;
+    let { hd = b, tl = x } = force x;
     let d = p2 * a + b;
     show le a n using (set auto 1 2; {});
     deduce ge a (opp n);
@@ -99,7 +99,7 @@ val rec divideBy : ∀o:κ, ∀n∈nat, ∀s∈sbds⟨o+ₒ2,n⟩, sman⟨o⟩ =
                    add_zero_right (opp n));
         {}
         );
-      { hd = P; tl = divideBy n (lazy { { hd = k; tl = x } }) }
+      { hd = P, tl = divideBy n (lazy { hd = k, tl = x }) }
     } else { if ge d n {
       let k : int = d - p2 * n;
       let _ : le k n = (
@@ -130,7 +130,7 @@ val rec divideBy : ∀o:κ, ∀n∈nat, ∀s∈sbds⟨o+ₒ2,n⟩, sman⟨o⟩ =
           ≡ opp n by add_inv n;
         {}
         );
-      { hd = S; tl = divideBy n (lazy { { hd = k; tl = x } }) }
+      { hd = S, tl = divideBy n (lazy { hd = k, tl = x }) }
     } else {
       let _ : le d n = (
         deduce ge d n ≡ false;
@@ -143,18 +143,18 @@ val rec divideBy : ∀o:κ, ∀n∈nat, ∀s∈sbds⟨o+ₒ2,n⟩, sman⟨o⟩ =
         show ge d (opp n) using gt_is_ge d (opp n) {};
         {}
       );
-      { hd = Z; tl = divideBy n (lazy { { hd = d; tl = x } }) }
+      { hd = Z, tl = divideBy n (lazy { hd = d, tl = x }) }
     }}
   } }
 
 val rec average_aux : ∀s, sman⟨s⟩ ⇒ sman⟨s⟩ ⇒ sbds⟨s,p2⟩ =
   fun x y { lazy {
-    let {hd = x0; tl = x} = force x;
-    let {hd = y0; tl = y} = force y;
+    let {hd = x0, tl = x} = force x;
+    let {hd = y0, tl = y} = force y;
     let d = bti x0 + bti y0;
     let _ : le d p2 = (set auto 2 1; {});
     let _ : ge d n2 = (set auto 2 1; {});
-    { hd = d; tl = average_aux x y }
+    { hd = d, tl = average_aux x y }
   } }
 
 
@@ -168,16 +168,16 @@ val average : ∀s, sman⟨s+ₒ2⟩ ⇒ sman⟨s+ₒ2⟩ ⇒ sman⟨s⟩ = fun 
 val test : man ⇒ man ⇒ man = average
 
 val rec big_average_aux : stream⟨man⟩ ⇒ bds⟨p4⟩ = fun xs { lazy {
-   let { hd = x0; tl = xs } = force xs;
-   let { hd = x1; tl = xs } = force xs;
-   let { hd = a ; tl = x0 } = force x0;
-   let { hd = b ; tl = x0 } = force x0;
-   let { hd = c ; tl = x1 } = force x1;
+   let { hd = x0, tl = xs } = force xs;
+   let { hd = x1, tl = xs } = force xs;
+   let { hd = a , tl = x0 } = force x0;
+   let { hd = b , tl = x0 } = force x0;
+   let { hd = c , tl = x1 } = force x1;
    let d = p2* bti a + bti b + bti c;
    let _ : le d p4 = (set auto 3 1; {});
    let _ : ge d n4 = (set auto 3 1; {});
    { hd = d
-   ; tl = big_average_aux (lazy { { hd = average x0 x1; tl = xs } }) }
+   , tl = big_average_aux (lazy { hd = average x0 x1, tl = xs }) }
 } }
 
 val big_average : stream⟨man⟩ ⇒ man = fun xs {
@@ -186,13 +186,13 @@ val big_average : stream⟨man⟩ ⇒ man = fun xs {
 
 val rec affine_aux : man ⇒ man ⇒ man ⇒ man ⇒ stream⟨man⟩ =
  fun x xy y z { lazy {
-  let { hd = z0; tl = z } = force z;
+  let { hd = z0, tl = z } = force z;
   let d = case z0 {
     P → x
     Z → xy
     S → y
   };
-  { hd = d; tl = affine_aux x xy y z }
+  { hd = d, tl = affine_aux x xy y z }
 } }
 
 val affine : man ⇒ man ⇒ man ⇒ man = fun x y z {
@@ -208,7 +208,7 @@ val mul_man : man ⇒ man ⇒ man = fun x y { affine (opp_man x) x y }
 type real = { man : man; exp : nat }
 
 val opp : real ⇒ real = fun x {
-   { man = opp_man x.man; exp = x.exp }
+   { man = opp_man x.man, exp = x.exp }
 }
 
 // From average we get addition using a few extra function
@@ -217,7 +217,7 @@ val opp : real ⇒ real = fun x {
 val rec shift : nat ⇒ man ⇒ man = fun n x {
   case n {
     Zero → x
-    S[p] → lazy { { hd = Z; tl = shift p x } }
+    S[p] → lazy { hd = Z, tl = shift p x }
   }
 }
 
@@ -245,11 +245,11 @@ val add_int : int ⇒ int ⇒ int = add
 val rec add : real ⇒ real ⇒ real = fun x y {
   case nat_cmp x.exp y.exp {
     Eq       → { man = average x.man y.man
-               ; exp = S[x.exp] }
+               , exp = S[x.exp] }
     Left[n]  → { man = average x.man (shift n y.man)
-               ; exp = S[x.exp] }
+               , exp = S[x.exp] }
     Right[n] → { man = average (shift n x.man) y.man
-               ; exp = S[y.exp] }
+               , exp = S[y.exp] }
   }
 }
 
@@ -285,28 +285,28 @@ val rec minus : real ⇒ real ⇒ real = fun x y {
 
 // multiplication of reals
 val mul : real ⇒ real ⇒ real = fun x y {
-  { man = mul_man x.man y.man; exp = add_nat x.exp y.exp }
+  { man = mul_man x.man y.man, exp = add_nat x.exp y.exp }
 }
 
 // non zero exponent only for mantissa starting with "10" "11" or "-10"
 // "-1-1"
 val rec norm_aux : nat ⇒ man ⇒ real = fun n x {
   case n {
-    Zero → { exp = n; man = x }
-    S[p] → let {hd = x0; tl = x'} = force x;
+    Zero → { exp = n, man = x }
+    S[p] → let {hd = x0, tl = x'} = force x;
            case x0 {
              Z → norm_aux p x
-             S → let { hd = x1; tl = x'} = force x';
+             S → let { hd = x1, tl = x'} = force x';
                  case x1 {
-                   Z → { exp = n; man = x }
-                   S → { exp = n; man = x }
-                   P → norm_aux p (lazy { {hd = S; tl = x'} })
+                   Z → { exp = n, man = x }
+                   S → { exp = n, man = x }
+                   P → norm_aux p (lazy {hd = S, tl = x'})
                  }
-             P → let { hd = x1; tl = x'} = force x';
+             P → let { hd = x1, tl = x'} = force x';
                  case x1 {
-                   Z → { exp = n; man = x }
-                   P → { exp = n; man = x }
-                   S → norm_aux p (lazy { {hd = P; tl = x'} })
+                   Z → { exp = n, man = x }
+                   P → { exp = n, man = x }
+                   S → norm_aux p (lazy {hd = P, tl = x'})
                  }
            }
   }
@@ -318,20 +318,20 @@ val rec norm : real ⇒ real = fun x { norm_aux x.exp x.man }
 val rec sign_approx : nat ⇒ man ⇒ sbit = fun n x {
   case n {
     Zero → Z
-    S[p] → let {hd = x0; tl = x'} = force x;
+    S[p] → let {hd = x0, tl = x'} = force x;
            case x0 {
              Z → sign_approx p x'
-             S → let { hd = x1; tl = x'} = force x';
+             S → let { hd = x1, tl = x'} = force x';
                  case x1 {
                    Z → S
                    S → S
-                   P → sign_approx p (lazy { {hd = S; tl = x'} })
+                   P → sign_approx p (lazy {hd = S, tl = x'})
                  }
-             P → let { hd = x1; tl = x'} = force x';
+             P → let { hd = x1, tl = x'} = force x';
                  case x1 {
                    Z → P
                    P → P
-                   S → sign_approx p (lazy { {hd = P; tl = x'} })
+                   S → sign_approx p (lazy {hd = P, tl = x'})
                  }
            }
   }
@@ -349,7 +349,7 @@ type eq_reals⟨x:τ,y:τ⟩ = is_zero⟨x - y⟩
 
 // i2 x = 1 / (2 - x)
 val rec power_stream_aux : man ⇒ man ⇒ stream⟨man⟩ = fun x y { lazy {
-  { hd = y; tl = power_stream_aux x (mul_man x y) } }
+  { hd = y, tl = power_stream_aux x (mul_man x y) } }
 }
 val power_stream : man ⇒ stream⟨man⟩ = fun x { power_stream_aux x man1 }
 val i2 : man ⇒ man = fun x { big_average (power_stream x) }
@@ -360,29 +360,29 @@ val rec inv_aux : ∀n m∈nat, ∀x, x ∈ man | sign_approx n x ≠ Z ⇒ real
     case n {
       Zero → ✂
       S[p] →
-        let {hd = x0; tl = x'} = force x;
+        let {hd = x0, tl = x'} = force x;
         case x0 {
           Z → inv_aux p S[m] x'
-          S → let { hd = x1; tl = x'} = force x' ;
+          S → let { hd = x1, tl = x'} = force x' ;
               case x1 {
                 Z → // X = 2^(-m-2) + 2 + x1
                     //   = 2^(-m-2) + 2 - (-x1)
-                    { exp = S[S[m]]; man = i2 (opp_man x') }
+                    { exp = S[S[m]], man = i2 (opp_man x') }
                 S → // X = 2^(-m-1) + 1 + 1/2 + x1
                     //   = 2^(-m-1) + 2 - (1/2 - x1)
                     { exp = S[m]
-                    ; man = i2 (lazy { { hd = S; tl = opp_man x' } })}
-                P → inv_aux p S[m] (lazy { {hd = S; tl = x'} })
+                    , man = i2 (lazy { hd = S, tl = opp_man x'})}
+                P → inv_aux p S[m] (lazy {hd = S, tl = x'})
               }
-          P → let { hd = x1; tl = x'} = force x';
+          P → let { hd = x1, tl = x'} = force x';
               case x1 {
                 Z → // X = 2^(-m-2) - (2 - x1)
-                    { exp = S[S[m]]; man = opp_man (i2 x') }
+                    { exp = S[S[m]], man = opp_man (i2 x') }
                 P → // X = 2^(-m-1) - 1 - 1/2 + x1
                     //   = 2^(-m-1) - (2 - (-1/2 + x1))
                     { exp = S[m]
-                    ; man = opp_man (i2 (lazy { { hd = P; tl = x' } }))}
-                S → inv_aux p S[m] (lazy { {hd = P; tl = x'} })
+                    , man = opp_man (i2 (lazy { hd = P, tl = x' }))}
+                S → inv_aux p S[m] (lazy {hd = P, tl = x'})
               }
         }
     }
@@ -392,9 +392,9 @@ val inv : ∀x∈ real, non_zero⟨x⟩ ⇒ real
   = fun x h {
     let y = inv_aux h.1 Zero x.man;
     case nat_cmp y.exp x.exp {
-      Left[e]  → { exp = e; man = y.man }
-      Right[e] → { exp = 0; man = shift e y.man }
-      Eq       → { exp = 0; man = y.man }
+      Left[e]  → { exp = e, man = y.man }
+      Right[e] → { exp = 0, man = shift e y.man }
+      Eq       → { exp = 0, man = y.man }
     }
   }
 
@@ -405,14 +405,14 @@ val zero_or_inv
           either⟨cis_zero⟨x⟩, ∃h∈non_zero⟨x⟩, { y ∈ real | y ≡ inv x h}⟩
 = fun x {
   save a {
-    InL[fun n h { restore a (let nz = (n,h); InR[(nz, inv x nz)])}]
+    InL[fun n h { restore a (let nz = (n,h); InR[nz, inv x nz])}]
   }
 }
 
 val rec print_man : nat ⇒ man ⇒ {} = fun n x {
   case n {
     Zero → {}
-    S[p] → let { hd = x0; tl = x } = force x;
+    S[p] → let { hd = x0, tl = x } = force x;
            case x0 {
              S → print "1"; print_man p x
              Z → print "0"; print_man p x
@@ -424,7 +424,7 @@ val rec print_man : nat ⇒ man ⇒ {} = fun n x {
 val rec print_bds : nat ⇒ ∀k, bds⟨k⟩ ⇒ {} = fun n x {
   case n {
     Zero → {}
-    S[p] → let { hd = x0; tl = x } = force x;
+    S[p] → let { hd = x0, tl = x } = force x;
            print_int x0; print " "; print_bds p x
   }
 }

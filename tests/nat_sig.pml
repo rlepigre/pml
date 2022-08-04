@@ -8,8 +8,8 @@ type rec nat = [ Zero ; S of nat ]
 
 val nat_nat:nat_sig =
   { z = (Zero : nat)
-  ; s = (fun x { S[x] } : nat ⇒ nat)
-  ; r = (let rec r : nat ⇒ ∀p,(p ⇒ p) ⇒ p ⇒ p =
+  , s = (fun x { S[x] } : nat ⇒ nat)
+  , r = (let rec r : nat ⇒ ∀p,(p ⇒ p) ⇒ p ⇒ p =
             fun n f a { case n { Zero → a S[m] → r m f (f a) } }; r)
   }
 
@@ -17,8 +17,8 @@ type cnat = ∀p,(p ⇒ p) ⇒ (p ⇒ p)
 
 val nat_cnat:nat_sig =
   { z = (fun f x { x } : cnat)
-  ; s = (fun n f x { f (n f x) } : cnat ⇒ cnat)
-  ; r = (fun n { n } : cnat ⇒ ∀p,(p ⇒ p) ⇒ p ⇒ p )
+  , s = (fun n f x { f (n f x) } : cnat ⇒ cnat)
+  , r = (fun n { n } : cnat ⇒ ∀p,(p ⇒ p) ⇒ p ⇒ p )
   }
 
 

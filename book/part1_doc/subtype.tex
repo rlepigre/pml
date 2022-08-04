@@ -30,9 +30,9 @@ Here is a function converting an append list to a list.
   val rec alist_to_list : ∀a, alist⟨a⟩ ⇒ list⟨a⟩ =
   fun l {
     case l {
-      []           → []
-      h::l         → h::alist_to_list l
-      Append[l; r] → alist_to_list l @ alist_to_list r
+      []             → []
+      h::l           → h::alist_to_list l
+      Append[{l, r}] → alist_to_list l @ alist_to_list r
     }
   }
 \end{pmlcode}
@@ -240,7 +240,7 @@ Notice the subtyping that works.
   assert ¬ asslist⟨nat,bool⟩ ⊂ list⟨nat⟩
 
   val add_assoc : ∀a b, a ⇒ b ⇒ asslist⟨a,b⟩ ⇒ asslist⟨a,b⟩ =
-    fun hd v tl { Cons[hd; v; tl] }
+    fun hd v tl { Cons[{hd, v, tl}] }
 
   val mem_assoc : ∀a b, (a ⇒ a ⇒ bool) ⇒ a ⇒ asslist⟨a,b⟩ ⇒ bool = mem
 

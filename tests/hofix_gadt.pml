@@ -23,7 +23,7 @@ type rec slist⟨a,n:τ⟩ =
 val nil : ∀a, slist⟨a,zero⟩ = Nil
 
 val cons : ∀a, ∀p:ι, a ⇒ slist⟨a,p⟩ ⇒ slist⟨a,succ p⟩ =
-  fun a l { Cons[{ hd = a; tl = l}] }
+  fun a l { Cons[ hd = a, tl = l] }
 
 val rec length : ∀a:ο,∀n:τ, slist⟨a,n⟩ ⇒ n ∈ nat  =
   fun l {

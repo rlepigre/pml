@@ -5,7 +5,7 @@ val nil : ∀a:ο, list⟨a⟩ = Nil
 def tl : ι = fun l { case l { Cns[c] → c.tl } }
 def hd : ι = fun l { case l { Cns[c] → c.hd } }
 
-val cns : ∀a:ο, a ⇒ list⟨a⟩ ⇒ list⟨a⟩ = fun e l { Cns[{ hd = e; tl = l }] }
+val cns : ∀a:ο, a ⇒ list⟨a⟩ ⇒ list⟨a⟩ = fun e l { Cns[ hd = e, tl = l ] }
 
 val rec app : ∀b:ο, list⟨b⟩ ⇒ list⟨b⟩ ⇒ list⟨b⟩ =
   fun l1 l2 {
@@ -13,7 +13,7 @@ val rec app : ∀b:ο, list⟨b⟩ ⇒ list⟨b⟩ ⇒ list⟨b⟩ =
       Nil[_] → l2
       Cns[c] → let hd = c.hd;
                let tl = app c.tl l2;
-               Cns[{ hd = hd; tl = tl }]
+               Cns[{ hd = hd, tl = tl }]
     }
   }
 
@@ -71,7 +71,7 @@ val rec map : ∀a b:ο, (a ⇒ b) ⇒ list⟨a⟩ ⇒ list⟨b⟩ =
       Nil    → Nil
       Cns[c] → let hd = f c.hd;
                let tl = map f c.tl;
-               Cns[{hd= hd; tl= tl}]
+               Cns[hd= hd, tl= tl]
     }
   }
 
@@ -106,8 +106,8 @@ val rec map_map : ∀a b c:ο, ∀f∈(a ⇒ b), ∀g∈(b ⇒ c), ∀l∈list�
         let ind : map gn (map fn tl) ≡ map gof tl = map_map fn gn tl;
         let ded : gn (fn hd) ≡ gof hd = {};
         let ded : map gn (map fn ls) ==
-          Cns[{ hd = gn (fn hd) ; tl = map gn (map fn tl)}] = {};
+          Cns[ hd = gn (fn hd), tl = map gn (map fn tl)] = {};
         let ded : map gof ls ==
-          Cns[{ hd = gof hd ; tl = map gof tl }] = {}; {}
+          Cns[ hd = gof hd , tl = map gof tl ] = {}; {}
     }
   }

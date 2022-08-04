@@ -446,7 +446,7 @@ and [@cache] term_atom  =
   ; (n::int)
       => from_int _pos n
   (* Term (record) *)
-  ; "{" (fs::~+ [semi] field) "}"
+  ; "{" (fs::~+ [comma] field) "}"
       => (match fs with [(_,None)] -> Lex.give_up () | _ -> record _pos fs)
   (* Term (tuple) *)
   ; '(' (t::term) "," (ts::~+ [comma] term) ')'
@@ -493,8 +493,9 @@ and [@cache] term_atom  =
 and [@cache] inner_prod =
     (t::(expr (Trm R))) => t
     (* Term (record) *)
-  ; (fs::~+ [semi] field)
-    => (match fs with [(_,None)] -> Lex.give_up () | _ -> record _pos fs)
+  ; (fs::~+ [comma] field)
+    => (if List.for_all (fun (_,x) -> x = None) fs then Lex.give_up ();
+        record _pos fs)
   (* Term (tuple) *)
   ; (t::term) "," (ts::~+ [comma] term)
     => tuple_term _pos (t::ts)
@@ -647,15 +648,15 @@ and field_nt =
 (* Argument of let-binding. *)
 and let_arg =
     (id::lid_wc) (ao::~? (':' (a::prop) => a))   => `LetArgVar(id,ao)
-  ; '{' (fs::~+ [semi] field_nt) '}'              => `LetArgRec(fs)
+  ; '{' (fs::~+ [comma] field_nt) '}'              => `LetArgRec(fs)
   ; '(' (f::arg_t) ',' (fs::~+ [comma] arg_t) ')' => `LetArgTup(f::fs)
 
 (* Argument of let-binding inside []. *)
 and let_arg_inner =
     (l::let_arg)                           => l
-  ; (fs::~+ [semi] field_nt)               =>
-      (match fs with [(x,(y,_))] when x == y -> Lex.give_up ()
-                   | _ -> `LetArgRec(fs))
+  ; (fs::~+ [comma] field_nt)               =>
+      (if List.for_all (fun (x,y) -> fst y == x) fs then Lex.give_up ();
+       `LetArgRec(fs))
   ; (f::arg_t) ',' (fs::~+ [comma] arg_t)  => `LetArgTup(f::fs)
 
 (* Record field. *)

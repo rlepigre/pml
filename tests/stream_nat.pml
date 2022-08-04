@@ -20,20 +20,20 @@ val test5 : {} = print_nat_list (takes 5 naturals)
 // Stream of the natural numbers.
 val naturals : stream⟨nat⟩ =
   let rec aux : nat ⇒ stream⟨nat⟩ =
-    fun i { lazy { {hd = i; tl = aux S[i]} } };
+    fun i { lazy { hd = i, tl = aux S[i]} };
   aux Zero
 
 // Map function.
 val rec map : ∀o, ∀a b, (a ⇒ b) ⇒ stream^o⟨a⟩ ⇒ stream^o⟨b⟩ =
   fun f s { lazy {
     let c = force s;
-    {hd = f c.hd ; tl = map f c.tl}
+    {hd = f c.hd , tl = map f c.tl}
   } }
 
 
 val cons : ∀o, ∀a, a ⇒ stream^o⟨a⟩ ⇒ stream^(o+ₒ1)⟨a⟩ =
   fun a s { lazy {
-    { hd = a; tl = s }
+    { hd = a, tl = s }
   } }
 
 // Map function.
@@ -55,5 +55,5 @@ val cons : ∀o, ∀a, a ⇒ stream^o⟨a⟩ ⇒ stream^(o+ₒ1)⟨a⟩ =
 // Stream of the natural numbers.
 val rec naturals : stream⟨nat⟩ =
   lazy {
-    {hd = Zero; tl = map succ naturals}
+    {hd = Zero, tl = map succ naturals}
   }

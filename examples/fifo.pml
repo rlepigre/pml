@@ -20,8 +20,8 @@ val take_last : ∀a, list⟨a⟩ ⇒ option⟨a × list⟨a⟩⟩ =
 // one value with two types (open and abstracted*)
 val fifo_simple_open : fifo_sig_open⟨list⟩ =
    { empty = nil
-   ; push  = fun e s { e::s }
-   ; pop   = take_last
+   , push  = fun e s { e::s }
+   , pop   = take_last
    }
 
 val fifo_simple : fifo_sig = fifo_simple_open
@@ -46,8 +46,8 @@ val push :  ∀a, a ⇒ list2⟨a⟩ ⇒ list2⟨a⟩ =
 // one value with two types (open and abstracted*)
 val fifo_pair_open : fifo_sig_open⟨list2⟩ =
    { empty = ((nil, nil) : ∀a, list2⟨a⟩)
-   ; push  = push
-   ; pop   = pop }
+   , push  = push
+   , pop   = pop }
 
 val fifo_pair : fifo_sig = fifo_pair_open
 
@@ -75,13 +75,13 @@ val equiv_push :
 // lemma for po, the crucial case (needs a definition,
 // and a few intermediate lemmas)
 def translate_opt⟨o:τ⟩ =
-  case o { None → None | Some[(x,f)] → Some[(x,translate⟨f⟩)] }
+  case o { None → None | Some[x,f] → Some[x, translate⟨f⟩] }
 
 val rec lemma1 : ∀a, ∀x∈a, ∀s1∈list⟨a⟩, ∀s2∈list⟨a⟩,
-    take_last (app s1 (rev (x::s2))) ≡ Some[(x,app s1 (rev s2))] =
+    take_last (app s1 (rev (x::s2))) ≡ Some[x, app s1 (rev s2)] =
   fun x s1 s2 {
     let a such that s2 : list⟨a⟩;
-    let s2':list⟨a⟩ = Cons[{hd=x; tl=s2}];
+    let s2':list⟨a⟩ = Cons[{hd=x, tl=s2}];
     let _ = rev s2';
     let _ = rev s1;
     let _ = app s1 (rev s2');
@@ -155,7 +155,7 @@ val rec apply_aux : ∀t,∀a, fifo_sig_open⟨t⟩ ⇒ t⟨a⟩ ⇒ list⟨ope�
           Push[x] → fifo.push x f
           Pop     → case fifo.pop f {
             None        → fifo.empty
-            Some[(e,f)] → f
+            Some[e, f] → f
           }
         };
         apply_aux fifo (f:t⟨a⟩) ops
@@ -171,7 +171,7 @@ val apply : ∀a, fifo_sig ⇒ list⟨ope⟨a⟩⟩ ⇒ option⟨a⟩ =
     let f : t⟨a⟩ = apply_aux fifo fifo.empty ops;
     case fifo.pop f {
       None        → None
-      Some[(e,f)] → Some[e]
+      Some[e, f] → Some[e]
     }
   }
 

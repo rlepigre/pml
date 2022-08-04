@@ -34,9 +34,9 @@ include lib.nat
 include lib.nat_proofs
 
 val nat_order : total_order⟨nat⟩ =
-  { cmp = leq; refl = leq_refl; trans = leq_trans;
-    total = leq_total; anti = leq_anti }
+  { cmp = leq, refl = leq_refl, trans = leq_trans,
+    total = leq_total, anti = leq_anti }
 
 val nat_rev_order : total_order⟨nat⟩ =
-  { cmp = geq; refl = geq_refl; trans = geq_trans;
-    total = geq_total; anti = geq_anti }
+  { cmp = geq, refl = geq_refl, trans = geq_trans,
+    total = geq_total, anti = geq_anti }

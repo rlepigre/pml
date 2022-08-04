@@ -143,7 +143,7 @@ val rec map : ∀a b:ο, (a ⇒ b) ⇒ list⟨a⟩ ⇒ list⟨b⟩ =
       Nil     → Nil
       Cons[c] → let hd = f c.hd;
                 let tl = map f c.tl;
-                Cons[{hd = hd ; tl = tl}]
+                Cons[hd = hd, tl = tl]
     }
   }
 
@@ -175,7 +175,7 @@ val rec app : ∀a:ο, ∀m n:ι, vec⟨a, m⟩ ⇒ vec⟨a, n⟩ ⇒ vec⟨a, a
       Nil[_]  → l2
       Cons[c] → let _ = length c.tl;
                 let r = app c.tl l2;
-                Cons[{hd = c.hd; tl = r}]
+                Cons[hd = c.hd, tl = r]
     }
   }
 
@@ -196,12 +196,12 @@ type ord⟨a:ο⟩ = ∃cmp:ι,
 val rec insert : ∀a:ο, ord⟨a⟩ ⇒ a ⇒ list⟨a⟩ ⇒ list⟨a⟩ =
   fun o x l {
     case l {
-      Nil[_]  → Cons[{hd = x; tl = Nil}]
+      Nil[_]  → Cons[hd = x, tl = Nil]
       Cons[c] → let hd = c.hd; let tl = c.tl;
-                if o.cmp x hd { Cons[{hd = x ; tl = l}] }
+                if o.cmp x hd { Cons[hd = x, tl = l] }
                 else {
                   let tl = insert o x tl;
-                  Cons[{hd = hd ; tl = tl}]
+                  Cons[hd = hd, tl = tl]
                 }
     }
   }

@@ -33,10 +33,10 @@ val rec aux : ∀a b, (csstream⟨a,even⟩ → bot) ⇒ (csstream⟨b,odd⟩ �
     let hd = (s {}).hd;
     let tl = (s {}).tl;
     if is_odd hd {
-      fo {hd = hd; tl = fun _ { save o {
+      fo {hd = hd, tl = fun _ { save o {
         abort (aux fe (fun x { restore o x }) tl) } }}
     } else {
-      fe {hd = hd; tl = fun _ { save e {
+      fe {hd = hd, tl = fun _ { save e {
         abort (aux (fun x { restore e x }) fo tl) } }}
     }
   }
@@ -56,7 +56,7 @@ val rec takes : ∀a, nat ⇒ stream⟨a⟩ → list⟨a⟩ =
            | Zero → Nil
            | S[k] → let c = s {};
                     let tl = takes k c.tl;
-                    Cons[{hd = c.hd; tl = tl}]
+                    Cons[hd = c.hd, tl = tl]
     }
   }
 
@@ -70,7 +70,7 @@ val take2 : ∀a, nat ⇒ istream⟨a⟩ ⇒ list⟨a⟩ = fun n s { delim { tak
 
 // Stream of the natural numbers starting at n.
 val rec naturals_from : nat ⇒ istream⟨nat⟩ =
-  fun n { lazy { {hd = n; tl = naturals_from S[n]} } }
+  fun n { lazy {hd = n, tl = naturals_from S[n]} }
 
 // Stream of the natural numbers.
 val naturals : istream⟨nat⟩ = naturals_from Zero

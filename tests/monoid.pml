@@ -20,12 +20,12 @@ val product : ∀m1 m2 ∈ monoid, monoid =
     let (*) : x1 × x2 ⇒ x1 × x2 ⇒ x1 × x2 =
       fun a b { (a.1 *_m1 b.1, a.2 *_m2 b.2) };
     { e = ((m1.e, m2.e) : (m1.e, m2.e) ∈ (x1 × x2))
-    ; (*) = ((*) : (*) ∈ (x1 × x2 ⇒ x1 × x2 ⇒ x1 × x2))
-    ; nl = fun a { use m1.nl a.1;
+    , (*) = ((*) : (*) ∈ (x1 × x2 ⇒ x1 × x2 ⇒ x1 × x2))
+    , nl = fun a { use m1.nl a.1;
                    use m2.nl a.2; qed }
-    ; nr = fun a { use m1.nr a.1;
+    , nr = fun a { use m1.nr a.1;
                    use m2.nr a.2; qed }
-    ; as = fun a b c {
+    , as = fun a b c {
                   use m1.as a.1 b.1 c.1;
                   use m2.as a.2 b.2 c.2;
                   set auto 0 2; qed }

@@ -9,16 +9,43 @@ open Sorts
 open Ast
 open Env
 
-let seen_constructors = ref ([] : string list)
+type constructors_constraints =
+  { constructors : (string, pos) Hashtbl.t
+  ; variables : (string, pos) Hashtbl.t }
+
+let seen_constructors =
+  { constructors = Hashtbl.create 1024
+  ; variables = Hashtbl.create 1024 }
+
+let wrn_const s p1 p2 =
+    wrn_msg "Constructor %s from %a used as variable at %a" s
+      print_wrn_pos p1 print_wrn_pos p2
+
 let test_constructor s =
-  if List.mem s.elt !seen_constructors then
-    wrn_msg "Constructor %s used as variable at %a" s.elt
-      print_wrn_pos s.pos
+  try
+    let p2 = Hashtbl.find seen_constructors.variables s.elt in
+    wrn_const s.elt s.pos p2
+  with Not_found ->
+    let old = try Hashtbl.find seen_constructors.constructors s.elt with
+                Not_found -> Pos.phantom_pos
+    in
+    if not (Pos.has_pos old) then
+      Hashtbl.replace seen_constructors.constructors s.elt s.pos
+
+let test_variable s =
+  try
+    let p1 = Hashtbl.find seen_constructors.constructors s.elt in
+    wrn_const s.elt p1 s.pos
+  with Not_found ->
+    let old = try Hashtbl.find seen_constructors.variables s.elt with
+                Not_found -> Pos.phantom_pos
+    in
+    if not (Pos.has_pos old) then
+      Hashtbl.replace seen_constructors.variables s.elt s.pos
+
 let reset_constructors () =
-  seen_constructors := []
-let add_constructor s =
-  if not (List.mem s !seen_constructors) then
-    seen_constructors := s :: !seen_constructors
+  Hashtbl.clear seen_constructors.constructors;
+  Hashtbl.clear seen_constructors.variables
 
 (* Log function registration. *)
 let log_par = Log.register 'p' (Some "par") "syntax analysis"

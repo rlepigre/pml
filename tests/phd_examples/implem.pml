@@ -52,15 +52,15 @@ val u : unit = {}
 // But not by any other record.
 // val fail : unit = {l = {}}
 val true_unit : ∀x∈unit, x ≡ {} = fun x { {} }
-type pair⟨a,b⟩ = ∃ x y:ι, {fst = x; snd = y} ∈ {fst : a; snd : b; ⋯}
+type pair⟨a,b⟩ = ∃ x y:ι, {fst = x, snd = y} ∈ {fst : a; snd : b; ⋯}
 // type pair⟨a,b⟩ = {fst : a ; snd : b}
 
 val couple : ∀ a b, a ⇒ b ⇒ pair⟨a,b⟩ =
-  fun x y { {fst = x ; snd = y} }
+  fun x y { {fst = x, snd = y} }
 
 val pi1 : ∀ a b, pair⟨a,b⟩ ⇒ a = fun p { p.fst }
 val pi2 : ∀ a b, pair⟨a,b⟩ ⇒ b = fun p { p.snd }
-val true_pair : ∀a b, ∀p∈pair⟨a,b⟩, ∃x y:ι, p ≡ {fst = x ; snd = y} =
+val true_pair : ∀a b, ∀p∈pair⟨a,b⟩, ∃x y:ι, p ≡ {fst = x, snd = y} =
   fun p { {} }
 type boolean = [False of {}; True of {}]
 // type boolean = [False; True]
@@ -256,7 +256,7 @@ val rec map : ∀a b:ο, (a ⇒ b) ⇒ list⟨a⟩ ⇒ list⟨b⟩ =
   fun f l {
     case l {
       Nil     → Nil
-      Cons[c] → Cons[{hd = f c.hd; tl = map f c.tl}]
+      Cons[c] → Cons[hd = f c.hd, tl = map f c.tl]
     }
   }
 
@@ -283,7 +283,7 @@ val rec app : ∀a:ο, ∀m n:ι, vec⟨a, m⟩ ⇒ vec⟨a, n⟩ ⇒ vec⟨a, a
     case l1 {
       Nil     → l2
       Cons[c] → length c.tl;
-                Cons[{hd = c.hd; tl = app c.tl l2}]
+                Cons[hd = c.hd, tl = app c.tl l2]
     }
   }
 val app3 : ∀a:ο, ∀m n p:ι, vec⟨a,m⟩ ⇒ vec⟨a,n⟩ ⇒ vec⟨a,p⟩
@@ -300,13 +300,13 @@ type ord⟨a:ο⟩ = ∃cmp:ι,
 val rec insert : ∀a:ο, ord⟨a⟩ ⇒ a ⇒ list⟨a⟩ ⇒ list⟨a⟩ =
   fun o x l {
     case l {
-      Nil     → Cons[{hd = x; tl = Nil}]
+      Nil     → Cons[hd = x, tl = Nil]
       Cons[c] → let hd = c.hd; let tl = c.tl;
                  if o.cmp x hd {
-                   Cons[{hd = x ; tl = l}]
+                   Cons[hd = x, tl = l]
                  } else {
                    let tl = insert o x tl;
-                   Cons[{hd = hd ; tl = tl}]
+                   Cons[hd = hd, tl = tl]
                  }
     }
   }

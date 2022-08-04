@@ -65,8 +65,8 @@ include lib.comparison
 
 val rec for_all : ∀a, (a ⇒ bool) ⇒ bt⟨a⟩ ⇒ bool = fun f t {
   case t {
-    | []             → true
-    | Node[ l; e; r] → f e && for_all f l && for_all f r
+    | []              → true
+    | Node[{l, e, r}] → f e && for_all f l && for_all f r
   }
 }
 
@@ -102,12 +102,12 @@ Now, we can define the function doing insertion in a binary search tree:
 val rec insert : ∀a, (a ⇒ a ⇒ cmp) ⇒ a ⇒ bt⟨a⟩ ⇒ bt⟨a⟩ =
   fun c e t {
     case t {
-      | []                → Node[l = []; e; r = []]
-      | Node[ l; e=e'; r] →
+      | []                → Node[l = [], e, r = []]
+      | Node[ l, e=e', r] →
         case c e e' {
           | Eq → t
-          | Ls → Node[l = insert c e l; e = e'; r]
-          | Gr → Node[l; e = e'; r = insert c e r]
+          | Ls → Node[l = insert c e l, e = e', r]
+          | Gr → Node[l, e = e', r = insert c e r]
         }
     }}
 \end{pmlcode}
@@ -123,7 +123,7 @@ val rec lem : ∀a, ∀c∈(a ⇒ a ⇒ cmp), ∀f∈(a ⇒ bool),∀t∈bt⟨a�
   fun c f t e ht he { set auto 1 2;
     case t {
       | []                  → {}
-      | Node[{ l; e=e'; r}] →
+      | Node[ l, e=e', r] →
         deduce f e';
         deduce for_all f r;
         deduce for_all f l;
@@ -142,8 +142,8 @@ val rec insert2 : ∀a, ∀c∈(a ⇒ a ⇒ cmp), ∀e∈a, ∀t∈st⟨a,c⟩,
                  insert c e t ∈ st⟨a,c⟩ =
   fun c e t {
     case t {
-      []                 → Node[{ l = []; e; r = []}]
-      Node[{l; e=e'; r}] →
+      []                 → Node[ l = [], e, r = []]
+      Node[l, e=e', r] →
         let ls = λx.is_Ls (c x e');
         let gr = λx.is_Gr (c x e');
         deduce for_all ls l;
@@ -152,10 +152,10 @@ val rec insert2 : ∀a, ∀c∈(a ⇒ a ⇒ cmp), ∀e∈a, ∀t∈st⟨a,c⟩,
           Eq → t
           Ls → let l'  = insert2 c e l;
                deduce for_all ls l' by lem c ls l e {} {};
-               Node[{l=l'; e=e'; r}]
+               Node[l=l', e=e', r]
           Gr → let r' = insert2 c e r;
                deduce for_all gr r' by lem c gr r e {} {};
-               Node[{l; e=e'; r=r'}]
+               Node[l, e=e', r=r']
         }
     }}
 \end{pmlcode}
@@ -183,7 +183,7 @@ val rec mem : ∀a,∀c∈(a ⇒ a ⇒ cmp), a ⇒ st⟨a,c⟩ ⇒ bool =
   fun c e t {
     case t {
       [] → false
-      Node[{l; e=e'; r}] → case c e e' {
+      Node[l, e=e', r] → case c e e' {
         Ls → mem c e l
         Eq → true
         Gr → mem c e r
@@ -201,7 +201,7 @@ val rec mem_correct : ∀a,∀c∈preorder⟨a⟩,∀e e'∈a,∀t∈st⟨a,c.f�
       [] → deduce mem c.f e (insert c.f e' t) ≡ is_Eq (c.f e e');
            deduce is_Eq (c.f e e') || mem c.f e t ≡ is_Eq (c.f e e');
            {}
-      Node[{l; e=e''; r}] →
+      Node[l, e=e'', r] →
         case c.f e e'' {
         Ls → deduce mem c.f e (insert c.f e' l) ≡ is_Eq (c.f e e') || mem c.f e l
              by mem_correct c e e' l;

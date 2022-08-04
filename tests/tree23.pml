@@ -12,9 +12,9 @@ val rec mem : ∀a:ο, (a⇒a⇒cmp) ⇒ a ⇒ tree23⟨a⟩ ⇒ bool =
   fun f z t {
     case t {
       E     → false
-      N2[{l; x; r}] →
+      N2[{l, x, r}] →
         case f z x { Le → mem f z l | Eq → true | Ge → mem f z r }
-      N3[{l; x; m; y; r}] →
+      N3[{l, x, m, y, r}] →
         case f z x { Le → mem f z l | Eq → true | Ge →
           case f z y { Le → mem f z m | Eq → true | Ge → mem f z r }
         }
@@ -28,41 +28,41 @@ type add23⟨a:ο⟩ = [
 val rec add_aux : ∀a:ο, (a⇒a⇒cmp) ⇒ a ⇒ tree23⟨a⟩ ⇒ add23⟨a⟩ =
   fun f x t {
     case t {
-    | E     → N2[{l=E; x=x; r=E}]
+    | E     → N2[l=E, x=x, r=E]
     | N2[c] →
        case f x c.x {
        | Le → case add_aux f x c.l {
-              | N1[t] → N1[N2[{l=t;x=c.x;r=c.r}]]
-              | N2[n] → N1[N3[{l=n.l;x=n.x;m=n.r;y=c.x;r=c.r}]]
+              | N1[t] → N1[N2[l=t,x=c.x,r=c.r]]
+              | N2[n] → N1[N3[l=n.l,x=n.x,m=n.r,y=c.x,r=c.r]]
               }
        | Eq → N1[t]
        | Ge → case add_aux f x c.r {
-              | N1[t] → N1[N2[{l=c.l;x=c.x;r=t}]]
-              | N2[n] → N1[N3[{l=c.l;x=c.x;m=n.l;y=n.x;r=n.r}]]
+              | N1[t] → N1[N2[l=c.l,x=c.x,r=t]]
+              | N2[n] → N1[N3[l=c.l,x=c.x,m=n.l,y=n.x,r=n.r]]
               }}
     | N3[c] →
        case f x c.x {
        | Le → case add_aux f x c.l {
-              | N1[t] → N1[N3[{l=t;x=c.x;m=c.m;y=c.y;r=c.r}]]
-              | N2[n] → N2[{l=N2[{l=n.l;x=n.x;r=n.r}]
-                           ;x=c.x
-                           ;r=N2[{l=c.m;x=c.y;r=c.r}]}]
+              | N1[t] → N1[N3[l=t,x=c.x,m=c.m,y=c.y,r=c.r]]
+              | N2[n] → N2[l=N2[l=n.l,x=n.x,r=n.r]
+                           ,x=c.x
+                           ,r=N2[l=c.m,x=c.y,r=c.r]]
               }
        | Eq → N1[t]
        | Ge →
        case f x c.y {
        | Le → case add_aux f x c.m {
-              | N1[t] → N1[N3[{l=c.l;x=c.x;m=t;y=c.y;r=c.r}]]
-              | N2[n] → N2[{l=N2[{l=c.l;x=c.x;r=n.l}]
-                           ;x=n.x
-                           ;r=N2[{l=n.r;x=c.y;r=c.r}]}]
+              | N1[t] → N1[N3[l=c.l,x=c.x,m=t,y=c.y,r=c.r]]
+              | N2[n] → N2[l=N2[l=c.l,x=c.x,r=n.l]
+                           ,x=n.x
+                           ,r=N2[l=n.r,x=c.y,r=c.r]]
               }
        | Eq → N1[t]
        | Ge → case add_aux f x c.r {
-              | N1[t] → N1[N3[{l=c.l;x=c.x;m=t;y=c.y;r=c.r}]]
-              | N2[n] → N2[{l=N2[{l=c.l;x=c.x;r=c.m}]
-                           ;x=c.y
-                           ;r=N2[{l=n.l;x=n.x;r=n.r}]}]
+              | N1[t] → N1[N3[l=c.l,x=c.x,m=t,y=c.y,r=c.r]]
+              | N2[n] → N2[l=N2[l=c.l,x=c.x,r=c.m]
+                           ,x=c.y
+                           ,r=N2[l=n.l,x=n.x,r=n.r]]
               }}}
     }
   }

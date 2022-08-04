@@ -26,9 +26,9 @@ val rec aux : ∀o1 o2, ∀a, ∀f∈(a⇒bool),
     let hd = c.hd;
     let tl = c.tl;
     if f hd {
-      ct { hd = hd; tl = fun _ { save ct { aux f to_term⟨ct⟩ cf c.tl}}}
+      ct { hd = hd, tl = fun _ { save ct { aux f to_term⟨ct⟩ cf c.tl}}}
     } else {
-      cf { hd = hd; tl = fun _ { save cf { aux f ct to_term⟨cf⟩ c.tl}}}
+      cf { hd = hd, tl = fun _ { save cf { aux f ct to_term⟨cf⟩ c.tl}}}
     }
   }
 
@@ -56,10 +56,10 @@ val rec aux2 : ∀o1 o2, ∀a, ∀f∈color⟨a⟩,
     let tl = c.tl;
     case f hd tl {
       InL[s] →
-        ct { hd = hd; tl = fun _ {
+        ct { hd = hd, tl = fun _ {
             save ct { aux2 f to_term⟨ct⟩ cf s } } }
       InR[s] →
-        cf { hd = hd; tl = fun _ {
+        cf { hd = hd, tl = fun _ {
             save cf { aux2 f ct to_term⟨cf⟩ s } } }
     }
   }

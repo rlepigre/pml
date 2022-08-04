@@ -21,7 +21,7 @@ val ex : ∀a,∀b, (∀n∈nat, ∃m∈b, a⟨n,m⟩) ⇒
     let a,b such that g : ∀n∈nat, ∃m∈b, a⟨n,m⟩;
     let rec fn : nat ⇒ stream⟨∃n∈nat,∃m∈b, a⟨n,m⟩⟩ = fun n { lazy {
       let hd : ∃n∈nat,∃m∈b, a⟨n,m⟩ = (n, g n);
-      { hd; tl = fn (S[n]) }
+      { hd, tl = fn (S[n]) }
     } };
     let rec lem : ∀n k∈nat, (nth k (fn n)).1 ≡ add n k = fun n k {
       case k {

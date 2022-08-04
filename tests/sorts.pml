@@ -11,5 +11,5 @@ sort l = ι → κ
 sort m = <term> → (<term> → <term>)
 
 def unit : ι = {}
-def reco  : ι = {l1 = {}; l2 = {}}
+def reco  : ι = {l1 = {}, l2 = {}}
 def unit_v : v = {}

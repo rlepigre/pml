@@ -56,9 +56,9 @@ type _ ex =
 
   | Func : Effect.t * p ex loc * p ex loc * laz      -> p  ex
   (** Arrow type. *)
-  | Prod : (pos * p ex loc) A.t               -> p  ex
+  | Prod : (pos * p ex loc) A.t                      -> p  ex
   (** Product (or record) type. *)
-  | DSum : (pos * p ex loc) A.t               -> p  ex
+  | DSum : (pos * p ex loc) A.t                      -> p  ex
   (** Disjoint sum type. *)
   | Univ : 'a sort * ('a, p) bndr                    -> p  ex
   (** Universal quantification. *)

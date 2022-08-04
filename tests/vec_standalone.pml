@@ -4,7 +4,7 @@ type rec list⟨a⟩ = [ Nil; Cns of { hd : a; tl : list⟨a⟩ }  ]
 
 val nil : ∀a:ο, list⟨a⟩ = Nil
 val cns : ∀a:ο, a ⇒ list⟨a⟩ ⇒ list⟨a⟩ =
-  fun e l { Cns[{ hd = e; tl = l }] }
+  fun e l { Cns[ hd = e, tl = l ] }
 
 val rec length : ∀a:ο, list⟨a⟩ ⇒ nat =
   fun l {
@@ -21,7 +21,7 @@ type vec⟨a:ο,s:τ⟩ = ∃l:ι, l∈(list⟨a⟩ | length l ≡ s)
 val vnil : ∀a:ο, vec⟨a,zero⟩ = nil
 
 val vcns : ∀a:ο,∀s:ι, ∀x∈a, vec⟨a,s⟩ ⇒ vec⟨a,succ s⟩ =
-  fun y ls { Cns[{hd= y;tl= ls}] }
+  fun y ls { Cns[hd= y, tl= ls] }
 
 val total : ∀a b, ∀f∈a⇒b, ∀x∈a, ∃v:ι, v ∈ b | v ≡ f x =
   fun f x { let y = f x; y }
