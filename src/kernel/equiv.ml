@@ -2111,7 +2111,7 @@ let term_vwit : term -> pool -> term = fun t po ->
   if l = [] then raise Not_found;
   snd (List.hd (List.sort cmp_orig l))
 
-(* Search a vwit or a projection equal to a given term in the pool *)
+(* Search a vwit or a projection equal to a given valu in the pool *)
 let valu_vwit : valu -> pool -> valu = fun t po ->
   (*Printf.eprintf "valu_vwit: %a\n%!" Print.ex t;*)
   let (pt, po) = add_valu true po t in
@@ -2193,12 +2193,19 @@ let get_orig : Ptr.t -> pool -> term =
          begin
            match sort t with
            | (T, t) -> r.recall (term_vwit t po)
+           | (V, t) -> r.recall (valu_vwit t po)
            | _      -> r.default t
          end
       | VPtr _ ->
          begin
            match sort t with
            | (V, t) -> r.recall (valu_vwit t po)
+           | _      -> .
+         end
+      | TPtr _ ->
+         begin
+           match sort t with
+           | (T, t) -> r.recall (term_vwit t po)
            | _      -> .
          end
       | Valu(v) ->
@@ -2220,12 +2227,12 @@ let is_let_underscore e = match e.elt with
 
 (** get all blocked terms in the pool *)
 let get_blocked : pool -> blocked list -> blocked list = fun po old ->
-  (*Printf.eprintf "obtained context:\n%a\n\n" (print_pool "        ") po;*)
+  (*log_aut "obtained context:\n%a\n\n" (print_pool "        ") po;*)
   (*Printf.eprintf "coucou 0 %d\n%!" (List.length !adone);*)
   let bl =
     List.fold_left (fun (acc:blocked list) (tp,tn) ->
       let u = Ptr.T_ptr tp in
-      (*Printf.eprintf "testing %a %a %b %b\n%!" TPtr.print tp print_t_node tn
+      (*log_aut "testing %a %a %b %b\n%!" TPtr.print tp print_t_node tn
                      (get_ns tp po) (get_fs tp po);*)
       if not (get_ns tp po) && is_free u po then
       begin
