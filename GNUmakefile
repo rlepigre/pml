@@ -25,11 +25,10 @@ check:
 # Lib target (PML handles the dependencies).
 LIB_FILES = $(shell find lib -name "*.pml")
 LIB_PMI   = $(LIB_FILES:.pml=.pmi)
-$(LIB_PMI): $(LIB_FILES)
+.PHONY: lib
+lib: $(LIB_FILES)
 	dune exec -- pml $(PML_OPTIONS) $(LIB_FILES)
 
-.PHONY: lib
-lib: $(LIB_PMI)
 
 # Book test target, testing pml code in the book
 .PHONY: book_tests
@@ -38,13 +37,13 @@ TEXPML= book/part1_doc/basics.pml \
         book/part1_doc/dependent.pml \
         book/part1_doc/advanced.pml \
         book/part1_doc/solutions.pml
-book_tests: $(LIB_PMI) $(TEXPML)
+book_tests: lib $(TEXPML)
 	dune exec -- pml $(PML_OPTIONS) $(TEXPML)
 
 # Test target.
 .PHONY: tests
 TEST_FILES = $(shell find examples tests -name "*.pml")
-tests: $(LIB_PMI) $(TEST_FILES)
+tests: lib $(TEST_FILES)
 	dune exec -- pml $(PML_OPTIONS) $(TEST_FILES)
 
 .PHONY: all
