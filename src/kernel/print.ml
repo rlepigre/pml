@@ -275,12 +275,17 @@ let is_sugar : type a.ctxt -> a ex loc -> a sugar = fun ctxt e ->
   if s <> NoSugar then s else
   s
 
+let is_unit : v ex loc -> bool = fun e ->
+  match (Norm.repr e).elt with
+  | Reco(m)   -> m = A.empty
+  | _         -> false
+
+let is_unit_ty : ctxt -> p ex loc -> bool = fun ctxt e ->
+  match is_strict_record ctxt e with
+  | StrictReco(m,_) when m = A.empty -> true
+  | _ -> false
+
 let rec ex : type a. ctxt -> mode -> a ex loc printer = fun ctxt pr ch e ->
-  let is_unit : v ex loc -> bool = fun e ->
-    match (Norm.repr e).elt with
-    | Reco(m)   -> m = A.empty
-    | _         -> false
-  in
   let is_eq : p ex loc -> (t ex loc * string * t ex loc) option = fun e ->
     match (Norm.repr e).elt with
     | Rest({elt=Memb({elt=Valu r},{elt=Prod m})},Equiv(e1,b,e2))
@@ -316,7 +321,7 @@ let rec ex : type a. ctxt -> mode -> a ex loc printer = fun ctxt pr ch e ->
                           (print_list pelt " ") l exp a (ex c (Prp F)) p
   | Compr(x,p,r,c)   -> fprintf ch "{ %s ∈ %a | %a }"
                           (name_of x) exp p (rel c) r
-  | Def _        (*    -> ex ctxt pr ch e*)
+  | Def e            -> ex ctxt pr ch e
   | NoSugar          ->
   match e.elt with
   | Vari(_,x)   -> output_string ch (name_of x)
@@ -343,7 +348,10 @@ let rec ex : type a. ctxt -> mode -> a ex loc printer = fun ctxt pr ch e ->
   | Prod(m)     -> let pelt ch (l,(_,a)) = fprintf ch "%s : %a" l exp a in
                    let elp = if A.is_empty m then " ⋯" else "; ⋯" in
                    fprintf ch "{%a%s}" (print_map pelt "; ") m elp
-  | DSum(m)     -> let pelt ch (l,(_,a)) = fprintf ch "%s : %a" l exp a in
+  | DSum(m)     -> let pelt ch (l,(_,a)) =
+                     if is_unit_ty ctxt a then fprintf ch "%s" l
+                     else fprintf ch "%s of %a" l exp a
+                   in
                    fprintf ch "[%a]" (print_map pelt "; ") m
   | Univ(s,b)   -> let (x,a,ctxt) = bndr_open_in ctxt b in
                    fprintf ch "∀%s:%a, %a" (name_of x)
@@ -413,7 +421,7 @@ let rec ex : type a. ctxt -> mode -> a ex loc printer = fun ctxt pr ch e ->
                    else fprintf ch "%s[%a]" c.elt ext v
   | Reco(m)     -> let pelt ch (l,(_,a)) =
                      fprintf ch "%s = %a" l ext a in
-                   fprintf ch "{%a}" (print_map pelt "; ") m
+                   fprintf ch "{%a}" (print_map pelt ", ") m
   | Scis        -> output_string ch "✂"
   | VDef(d)     -> output_string ch d.value_name.elt
   | Valu(v)     -> ex ctxt pr ch v

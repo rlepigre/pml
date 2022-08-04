@@ -869,7 +869,10 @@ let rec subtype =
               in
               let a2 =
                 try snd (A.find c cs2) with Not_found ->
-                  subtype_msg p ("Sum clash on constructor " ^ c ^ "...")
+                  if A.length cs1 = 1 then
+                    subtype_msg p ("Sum clash on constructor " ^ c ^ ". May be you misspelled " ^c)
+                  else
+                    subtype_msg p ("Sum clash on constructor " ^ c ^ "...")
               in
               let p = subtype ctx (Pos.none (Valu vwit)) a1 a2 in
               p::ps
@@ -959,6 +962,10 @@ let rec subtype =
          log_sub "general subtyping";
          gen_subtype ctx a b
       (* No rule apply. *)
+      | (DSum m     , _          ) when A.length m = 1 ->
+         log_sub "no rule to apply";
+         let c = List.hd (A.keys m) in
+         subtype_msg no_pos ("No rule applies, maybe you misspelled "^c)
       | _                          ->
          log_sub "no rule to apply";
          subtype_msg no_pos "No rule applies")

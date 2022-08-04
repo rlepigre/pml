@@ -108,37 +108,37 @@ let files =
   files
 
 let _ =
-  let rec print_exn = function
+  let rec print_exn last = function
   | Type_error(E(_,t),c,exc) ->
-     if has_pos t.pos then err_msg "%a" print_err_pos t.pos;
+     if has_pos t.pos && t.pos <> last then err_msg "%a" print_err_pos t.pos;
      err_msg "Type error: %a expected." Print.ex c;
-     print_exn exc
+     print_exn t.pos exc
   | Typing.Subtype_error(t,a,b,exc) ->
-     if has_pos t.pos then err_msg "%a" print_err_pos t.pos;
+     if has_pos t.pos && t.pos <> last  then err_msg "%a" print_err_pos t.pos;
      err_msg "Subtype error: %a ⊂ %a" Print.ex a Print.ex b;
-     print_exn exc
+     print_exn t.pos exc
   | Typing.Loops(t) ->
-     if has_pos t.pos then err_msg "%a" print_err_pos t.pos;
+     if has_pos t.pos && t.pos <> last  then err_msg "%a" print_err_pos t.pos;
      err_msg "Cannot prove termination."
   | Typing.Subtype_msg(p,msg) ->
-     if has_pos p then err_msg "%a" print_err_pos p;
+     if has_pos p && p <> last  then err_msg "%a" print_err_pos p;
      err_msg "Subtype error: %s." msg
   | Typing.Cannot_unify(a,b) ->
-      err_msg "Unable to unify %a and %a." Print.ex a Print.ex b
+     err_msg "Unable to unify %a and %a." Print.ex a Print.ex b
   | Typing.Reachable            ->
-      err_msg "Reachable scissors"
+     err_msg "Reachable scissors"
   | Equiv.Failed_to_prove(rel,_)  ->
-      err_msg "Failed to prove an equational relation.";
-      err_msg "  %a" Print.rel rel
+     err_msg "Failed to prove an equational relation.";
+     err_msg "  %a" Print.rel rel
   | Parser.Unexpected_success(id) ->
-      err_msg "A definition that should not type-check is accepted for";
-      err_msg "  %s at %a" id.elt print_err_pos id.pos;
+     err_msg "A definition that should not type-check is accepted for";
+     err_msg "  %s at %a" id.elt print_err_pos id.pos;
   | Typing.Bad_delim(t,msg) ->
-      err_msg "%s" msg;
-      err_msg "  %a at %a" Print.ex t print_err_pos t.pos;
+     err_msg "%s" msg;
+     err_msg "  %a at %a" Print.ex t print_err_pos t.pos;
   | Typing.Bad_subtyping(p) ->
-      err_msg "This is not a subtyping proposition";
-      err_msg "  %a at %a" Print.ex p print_err_pos p.pos;
+     err_msg "This is not a subtyping proposition";
+     err_msg "  %a at %a" Print.ex p print_err_pos p.pos;
   | No_typing_IH(id)             ->
      if has_pos id.pos then err_msg "%a" print_err_pos id.pos;
      err_msg "No typing induction hypothesis for %S." id.elt;
@@ -154,7 +154,7 @@ let _ =
       err_msg "%t" Printexc.print_backtrace;
   in
   try List.iter (handle_file true) files with
-  | e -> print_exn e; exit 1
+  | e -> print_exn Pos.phantom_pos e; exit 1
 
 
 let _ =
