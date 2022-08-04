@@ -917,8 +917,20 @@ let rec subtype =
          Sub_FixN_l(false, prf)
       (* Membership on the right. *)
       | (_          , Memb(u,b)  ) when t_is_val ->
-         prove ctx.equations ctx.auto.old (Equiv(t,true,u));
-         Sub_Memb_r(subtype ctx t a b)
+         begin
+           let st = UTimed.Time.save () in
+           let e = Equiv(t,true,u) in
+           try
+             prove ctx.equations ctx.auto.old e;
+             (fun () -> Sub_Memb_r(subtype ctx t a b))
+           with
+             Failed_to_prove _ ->
+             (fun () ->
+               UTimed.Time.rollback st;
+               let prf = subtype ctx t a b in
+               prove ctx.equations ctx.auto.old e;
+               Sub_Memb_r(prf))
+         end ()
       (* Restriction on the right. *)
       | (_          , Rest(c,e)  ) ->
          begin
