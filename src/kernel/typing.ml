@@ -242,7 +242,7 @@ let empty_ctxt ?(memo=empty_memo_tbl ()) () =
   ; equations = empty_pool ()
   ; ctx_names = Bindlib.empty_ctxt
   ; positives = []
-  ; fix_ihs   = Buckets.empty (==)
+  ; fix_ihs   = Buckets.empty (eq_bndr T)
   ; sub_ihs   = []
   ; sub_adone = []
   ; top_ih    = (Scp.root, [| |])
