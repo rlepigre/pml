@@ -1104,7 +1104,7 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
                     let (_,_,r) = type_term ctx t ty in
                     ptr := r;
                     fn ls
-               in fn !res)
+               in fn (List.rev !res))
            with
            | Failed_to_prove _
            | Type_error _           -> fun () -> fn (nb+1) ctx0 todo
