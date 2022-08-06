@@ -1548,13 +1548,14 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
            let tot = Effect.create () in
            if l = Lazy then ignore (Effect.absent CallCC tot);
            let ctx = { ctx with ctx_names; totality = tot } in
+           (* learn now than witness exists: is there are no witness, any term
+              is ok! *)
+           let ctx = learn_nobox ctx wit in
            (* learn equivalences both for subtyping below and typing *)
            let (c, ctx) = learn_neg_equivalences ctx v (Some wit) c in
            let c' = Pos.none (Func(tot,a,b,l)) in
            (* check subtyping *)
            let p1 = subtype ctx t c' c in
-           (* learn now than witness exists *)
-           let ctx = learn_nobox ctx wit in
            (* call typing *)
            let no_use = (bndr_name f).elt = "_" in
            let ctx = add_pretty ctx no_use (Decl(wit,a)) in
