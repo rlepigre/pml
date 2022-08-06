@@ -198,7 +198,7 @@ val rec mem_correct : ∀a,∀c∈preorder⟨a⟩,∀e e'∈a,∀t∈st⟨a,c.f�
   fun c e e' t {
     set auto 3 3;
     case t {
-      [] → qed
+      []                → qed
       Node[l, e=e'', r] →
         case c.f e e'' {
         Ls → deduce mem c.f e (insert c.f e' l) ≡ is_Eq (c.f e e') || mem c.f e l

@@ -48,11 +48,11 @@ val lem : ∀a,∀o∈order⟨a⟩, ∀x∈a, ∀l∈(slist⟨∞,a,o⟩|head_le
 
 val rec rev_append : ∀s,∀a,∀o∈order⟨a⟩, ∀l1∈slist⟨s,a,orev o⟩,
                        ∀l2∈slist⟨∞,a,o⟩|before o l1 l2, slist⟨∞,a,o⟩ =
-    fun o l1 l2 {
-      set auto 2 1;
+    fun o l1 l2 { set auto 2 1;
       case l1 {
         [] → []
-        x::l → rev_append o l (x::l2) }}
+        x::l → rev_append o l (x::l2)
+      }}
 
 val rec insert : ∀s,∀a:ο, ∀o∈order⟨a⟩, a ⇒ slist⟨s,a,o⟩ ⇒ slist⟨s+ₒ1,a,o⟩ =
   fun o x l {
@@ -62,32 +62,30 @@ val rec insert : ∀s,∀a:ο, ∀o∈order⟨a⟩, a ⇒ slist⟨s,a,o⟩ ⇒ s
       []     → x::[]
       hd::tl → if o.cmp x hd { x::l }
                else {
-                 use o.tot x hd;
                  let r = insert o x tl;
-                 deduce sorted o (hd::r) by {
-                   case tl {
+                 check
+                   {deduce sorted o (hd::r) by {
+                    use o.tot x hd;
+                    case tl {
                      [] → qed
                      hd2::tl2 →
-                       deduce o.cmp hd hd2;
-                       use o.tot x hd2;
                        if o.cmp x hd2
                          { qed }
                        else
-                         { deduce o.cmp hd2 x;
-                           {-deduce r ≡ hd2::insert o x tl2;
-                           deduce head r ≡ hd2;
-                           -} }
+                         { use o.tot x hd2;
+                           let r2 = insert o x tl2;
+                           qed }
                    }
                  } ;
-                 hd::r }
+                 hd::r} for hd::r }
     }
   }
 
-// val rec isort : ∀s,∀a:ο, ∀o∈order⟨a⟩, slist⟨s,a,o⟩ ⇒ slist⟨s,a,o⟩ =
-//   fun o l {
-//     set auto 2 2;
-//     case l {
-//       []     → []
-//       hd::tl → insert o hd (isort o tl)
-//     }
-//   }
+val rec isort : ∀s,∀a:ο, ∀o∈order⟨a⟩, slist⟨s,a,o⟩ ⇒ slist⟨s,a,o⟩ =
+  fun o l {
+    set auto 2 1;
+    case l {
+      []     → []
+      hd::tl → insert o hd (isort o tl)
+    }
+  }
