@@ -2097,7 +2097,7 @@ let cmp_orig (p,x) (q,y) = match (x.elt, y.elt) with
     | (Valu{elt=VPtr _},  _              ) ->  1
     | (Valu{elt=VDef _}, _               ) -> -1
     | ( _              , Valu{elt=VDef _}) ->  1
-    (*    | (Valu{elt=VWit _}, Valu{elt=VWit _}) ->  compare p q*)
+    | (Valu{elt=VWit _}, Valu{elt=VWit _}) ->  compare p q
     | (Valu{elt=VWit _}, _               ) -> -1
     | (_               , Valu{elt=VWit _}) ->  1
     | (Proj _          , _               ) -> -1
