@@ -704,8 +704,8 @@ let insert_v_node : v_node -> pool -> VPtr.t * pool = fun nn po ->
 
 exception FoundT of TPtr.t * pool
 
-let insert_t_node : bool -> t_node -> pool -> TPtr.t * pool =
-  fun fs nn po ->
+let insert_t_node : ?create:bool -> bool -> t_node -> pool -> TPtr.t * pool =
+  fun ?(create=true) fs nn po ->
     let children = children_t_node nn in
     try
       (** search if the node already exists, using parents if possible *)
@@ -741,7 +741,7 @@ let insert_t_node : bool -> t_node -> pool -> TPtr.t * pool =
            end
          else po
        in (p, po)
-    | Not_found ->
+    | Not_found when create ->
        (** new node creation *)
        let open Ptr in
        let ptr = { tadr = po.next
@@ -820,17 +820,19 @@ let rec add_term :  bool -> bool -> pool -> term
   let insert node po =
     if free then
       begin
-        if !keep_intermediate then
-          begin
-            let (p, po) = insert_t_node true node po in
-            let (q, po) = normalise_t_node ~old:p node po in
-            (find q po, po)
-          end
-        else
-          normalise_t_node node po
+        let (p, po) =
+          try
+            let (p,po) = insert_t_node ~create:!keep_intermediate true node po in
+            (Some p, po)
+          with Not_found ->
+            (None, po)
+        in
+        let (q, po) = normalise_t_node ?old:p node po in
+        (find q po, po)
       (* NOTE: insrting not normal term as can be faster by avoiding
          renormalising the same terms, but in case of big computation, the
-         size of the pool may explode, hence a choice fr the user *)
+         size of the pool may explode, hence a choice for the user with
+         the keep_intermediate parameter *)
       end
     else
       begin

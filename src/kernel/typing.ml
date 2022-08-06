@@ -1294,8 +1294,8 @@ and check_fix
   fun ctx t b c ->
   (* Looking for potential induction hypotheses. *)
   let ihs = Buckets.find b ctx.fix_ihs in
-  log_typ "there are %i potential fixpoint induction hypotheses"
-    (List.length ihs);
+  log_typ "there are %i/%i potential fixpoint induction hypotheses"
+    (List.length ihs) (Buckets.length ctx.fix_ihs);
   (* Function for finding a suitable induction hypothesis. *)
   let rec find_suitable ihs =
     match ihs with
@@ -1548,8 +1548,8 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
            let tot = Effect.create () in
            if l = Lazy then ignore (Effect.absent CallCC tot);
            let ctx = { ctx with ctx_names; totality = tot } in
-           (* learn now than witness exists: is there are no witness, any term
-              is ok! *)
+           (* learn now than witness exists: is there are no witness,
+              any term is ok! *)
            let ctx = learn_nobox ctx wit in
            (* learn equivalences both for subtyping below and typing *)
            let (c, ctx) = learn_neg_equivalences ctx v (Some wit) c in
@@ -1828,9 +1828,12 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
                      log_typ "strong application failed (%s)" (Printexc.to_string e);
                      check_f ctx false a0
              else
-               let r = type_term ctx f (Pos.none (Func(tot,a,c,l))) in
-               memo_insert memo Weak;
-               r
+               begin
+                 log_typ "trying weak application";
+                 let r = type_term ctx f (Pos.none (Func(tot,a,c,l))) in
+                 memo_insert memo Weak;
+                 r
+               end
            in
            let (p1,p2,strong) =
              (* when u is not typed and f is, typecheck f first *)
