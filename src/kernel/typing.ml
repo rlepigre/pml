@@ -1025,7 +1025,7 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
       match todo with
       | [] -> type_error ~auto (E(T,t)) ty exn
       | (tlvl, BTot (c,_,e)) :: todo ->
-         assert (tlvl <= ctx.auto.tlvl);
+         let tlvl = min tlvl ctx.auto.tlvl in
          (* for a totality, we add a let to the term and typecheck *)
          let ctx = { ctx0 with auto = { ctx0.auto with todo; tlvl } } in
          (** we use auto hint to disallow auto for the added totality *)
@@ -1059,7 +1059,7 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
          in
          f ()
       | (clvl, BCas(c,_,e,cs)) :: todo ->
-         assert (clvl <= ctx.auto.clvl);
+         let clvl = min clvl ctx.auto.clvl in
          (* for a blocked case analysis, we add a case! *)
          let ctx = { ctx0 with auto = { ctx0.auto with todo; clvl } } in
             (** we use the auto hint to disallow auto for the added case *)
