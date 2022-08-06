@@ -2219,7 +2219,7 @@ let get_orig : Ptr.t -> pool -> term =
       | _      -> r.default t
     in
     let t0 = unbox (map ~mapper:{mapper} t) in
-    (*Printf.eprintf "%a ==> %a\n%!" Print.ex t Print.ex t0;*)
+    (*log_aut "%a ==> %a\n%!" Print.ex t Print.ex t0;*)
     t0
 
 let is_let_underscore e = match e.elt with

@@ -1050,6 +1050,7 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
                | Some(ctx,ptr,ty) ->
                   let ctx = {ctx with auto = {ctx.auto with auto = true}} in
                   let (_,_,r) = type_term ctx t ty in
+                  log_aut "totality OK";
                   ptr := r;
                   r0)
            with
@@ -1097,9 +1098,9 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
                                     time = Timed.Time.return_futur bup } in
                   let ctx = {ctx with equations;
                                       auto = {ctx.auto with auto = true}} in
-                    log_aut "cases    (%d,%d) (%d,%d) [%d]: %a ==> %s case"
+                    log_aut "cases    (%d,%d) (%d,%d) [%d]: %a ==> %s case (%d)"
                       ctx.auto.clvl ctx.auto.tlvl clvl !c (List.length todo)
-                      Print.ex e cs;
+                      Print.ex e cs (List.length ls);
                     let (_,_,r) = type_term ctx t ty in
                     ptr := r;
                     fn ls

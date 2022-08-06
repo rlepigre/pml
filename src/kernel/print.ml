@@ -444,8 +444,8 @@ let rec ex : type a. ctxt -> mode -> a ex loc printer = fun ctxt pr ch e ->
                    in
                    let pcase = print_map pelt " " in
                    fprintf ch "case %a {%a}" ext v pcase m
-  | FixY(b)     -> let (x,t,ctxt) = bndr_open_in ctxt b in
-                   fprintf ch "fix %s {%a}" (name_of x) (ex ctxt (Trm F)) t
+  | FixY(b)     -> let (x,_,_) = bndr_open_in ctxt b in
+                   fprintf ch "%s" (name_of x)
   | Prnt(s)     -> fprintf ch "print(%S)" s
   | Repl(t,u)   -> fprintf ch "check {%a} for {%a}" ext u ext t
   | Delm(t)     -> fprintf ch "delim {%a}" ext t
