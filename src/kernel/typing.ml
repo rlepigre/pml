@@ -93,19 +93,25 @@ let log_typ = Log.(log_typ.p)
 type auto_ctxt =
   { tlvl  : int
   ; clvl  : int
+  ; dlvl  : int
   ; doing : bool
   ; old   : blocked list
-  ; todo  : (int * blocked) list
+  ; todo  : (int * int * blocked) list
   ; auto  : bool }
 
 (* constant for loop detection in sub typing *)
 let sub_max = ref 10
 
-let default_auto_lvl = ref (0, 1)
+type auto_lvl = { mutable t : int
+                ; mutable c : int
+                ; mutable d : int }
+
+let default_auto_lvl = { t = 1; c = 0; d = 0 }
 
 let auto_empty () =
-  { tlvl  = snd !default_auto_lvl
-  ; clvl  = fst !default_auto_lvl
+  { tlvl  = default_auto_lvl.t
+  ; clvl  = default_auto_lvl.c
+  ; dlvl  = default_auto_lvl.d
   ; doing = false
   ; old   = []
   ; todo  = []
@@ -993,17 +999,18 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
     let old  = bls @ ctx.auto.old in
     let ctx = { ctx with auto = { ctx.auto with old }} in
     let bls = List.map (function
-                  | BTot _ as b -> (ctx.auto.tlvl - 1, b)
-                  | BCas _ as b -> (ctx.auto.clvl - 1, b)) bls
+                  | BTot _ as b -> (ctx.auto.tlvl - 1, ctx.auto.dlvl, b)
+                  | BCas _ as b -> (ctx.auto.clvl - 1, ctx.auto.dlvl, b)) bls
     in
-    let bls = List.filter (fun (l, _) -> l >= 0) bls in
+    let bls = List.filter (fun (l, _, _) -> l >= 0) bls in
     let todo = bls @ ctx.auto.todo in
     let cmp b1 b2 = match (b1,b2) with
-      | (n, _    ), (m, _    ) when n <> m -> compare m n
-      | (_,BTot _), (_,BCas _) -> -1
-      | (_,BCas _), (_,BTot _) ->  1
-      | (_,BTot (c,_,_)), (_,BTot (d,_,_))
-      | (_,BCas (c,_,_,_)), (_,BCas (d,_,_,_)) -> compare d c
+      | (_,n, _    ), (_,m, _    ) when n <> m -> compare m n
+      | (n,_, _    ), (m,_, _    ) when n <> m -> compare m n
+      | (_,_,BTot _), (_,_,BCas _) -> -1
+      | (_,_,BCas _), (_,_,BTot _) ->  1
+      | (_,_,BTot (c,_,_)), (_,_,BTot (d,_,_))
+      | (_,_,BCas (c,_,_,_)), (_,_,BCas (d,_,_,_)) -> compare d c
     in
     let todo = List.stable_sort cmp todo in
     let skip = match memo_find ctx.memo with
@@ -1014,6 +1021,7 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
       let rec fn n l = match (n,l) with
         | (0, l) -> l
         | (n, []) -> raise Bad_memo
+        | (n, (x,d,b)::l) when d > 0 -> fn (n-1) (l @ [(x,d-1,b)])
         | (n, _::l) -> fn (n-1) l
       in
       fn skip todo
@@ -1024,7 +1032,7 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
       log_aut "loop (%d,%d,%d)" nb ctx.auto.tlvl ctx.auto.clvl;
       match todo with
       | [] -> type_error ~auto (E(T,t)) ty exn
-      | (tlvl, BTot (c,_,e)) :: todo ->
+      | (tlvl, dlvl, (BTot (c,_,e) as b)) :: todo ->
          let tlvl = min tlvl ctx.auto.tlvl in
          (* for a totality, we add a let to the term and typecheck *)
          let ctx = { ctx0 with auto = { ctx0.auto with todo; tlvl } } in
@@ -1044,21 +1052,25 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
              let ctx = {ctx with auto = {ctx.auto with auto = false}} in
              let r0 = type_term ctx t0 ty in
              if nb > 0 then memo_insert ctx.memo (Skip nb);
+             log_aut "totality OK";
              (fun () ->
                match !res with
                | None -> r0 (* Contradiction ! *)
                | Some(ctx,ptr,ty) ->
                   let ctx = {ctx with auto = {ctx.auto with auto = true}} in
                   let (_,_,r) = type_term ctx t ty in
-                  log_aut "totality OK";
                   ptr := r;
                   r0)
            with
            | Failed_to_prove _
-           | Type_error _           -> (fun () -> fn (nb+1) ctx0 todo)
+           | Type_error _           ->
+              (fun () -> log_aut "totality FAIL";
+                         let todo =
+                           if dlvl > 0 then todo @ [(tlvl, dlvl-1,b)] else todo in
+                         fn (nb+1) ctx0 todo)
          in
          f ()
-      | (clvl, BCas(c,_,e,cs)) :: todo ->
+      | (clvl, dlvl, (BCas(c,_,e,cs) as b)) :: todo ->
          let clvl = min clvl ctx.auto.clvl in
          (* for a blocked case analysis, we add a case! *)
          let ctx = { ctx0 with auto = { ctx0.auto with todo; clvl } } in
@@ -1089,6 +1101,7 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
              let ctx = {ctx with auto = {ctx.auto with auto = false}} in
              let r0 = type_term ctx t0 ty in
              if nb > 0 then memo_insert ctx.memo (Skip nb);
+             log_aut "case OK";
              (fun () ->
                let rec fn l =
                  match l with
@@ -1107,7 +1120,12 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
                in fn (List.rev !res))
            with
            | Failed_to_prove _
-           | Type_error _           -> fun () -> fn (nb+1) ctx0 todo
+             | Type_error _           ->
+              (fun () ->
+                log_aut "case FAIL";
+                let todo =
+                  if dlvl > 0 then todo @ [(clvl, dlvl-1,b)] else todo in
+                fn (nb+1) ctx0 todo)
          in
          f ()
     in fn skip ctx todo
@@ -1742,8 +1760,8 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
   | e                      -> type_error (E(V,v)) c e
 
 and do_set_param ctx = function
-  | Alvl(clvl,tlvl) ->
-     let ctx = { ctx with auto = { ctx.auto with clvl; tlvl } } in
+  | Alvl{t;c;d}     ->
+     let ctx = { ctx with auto = { ctx.auto with clvl=c; tlvl=t; dlvl = d } } in
      (ctx, fun () -> ())
   | Logs(s)         ->
      let save = Log.get_enabled () in
@@ -1824,7 +1842,7 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
                with Contradiction       -> warn_unreachable ctx f;
                                            (t,c,Typ_Scis)
                   | e when strong && is_typed VoT_T f && not (chk_exc e) &&
-                    not (is_break e) ->
+                             not (is_break e) ->
                      UTimed.Time.rollback st;
                      log_typ "strong application failed (%s)" (Printexc.to_string e);
                      check_f ctx false a0

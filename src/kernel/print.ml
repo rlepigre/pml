@@ -42,7 +42,7 @@ let arrow ch t =
   | _        -> fprintf ch "?>"
 
 let print_set_param ch = function
-  | Alvl(b,d)   -> fprintf ch "auto %d %d" b d
+  | Alvl{t;c;d} -> fprintf ch "auto %d %d %d" t c d
   | Logs(s)     -> fprintf ch "log %s" s
   | Keep(b)     -> fprintf ch "keep_intermediate %b" b
 

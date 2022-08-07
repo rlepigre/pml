@@ -30,7 +30,10 @@ type 'a hint =
                             whre we want, see Typing.auto_prove code *)
 
 and set_param =
-  | Alvl of int * int
+  | Alvl of { t : int (** max level for totalitty *)
+            ; c : int (** max level for case analysis *)
+            ; d : int (** max level for using auto when typing totality/case *)
+            }
   | Logs of string
   | Keep of bool
 

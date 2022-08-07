@@ -57,10 +57,9 @@ let files =
       , " Prints local configuration." )
     ; ( "--auto"
       , Typing. (
-        Arg.Tuple [Arg.Int (fun n ->
-                       default_auto_lvl := (n, snd !default_auto_lvl))
-                  ;Arg.Int (fun n ->
-                       default_auto_lvl := (fst !default_auto_lvl, n))
+        Arg.Tuple [Arg.Int (fun n -> default_auto_lvl.c <- n)
+                  ;Arg.Int (fun n -> default_auto_lvl.t <- n)
+                  ;Arg.Int (fun n -> default_auto_lvl.d <- n)
       ])
       , " Set the default level for automatic theorem proving. Two naturals: \
           maximum number of nested case analysis and number of let statement \

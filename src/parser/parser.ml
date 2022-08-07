@@ -684,7 +684,8 @@ and any     = expr Any
 
 (* Set general parameters *)
 and set_param =
-    "auto" (b::int) (d::int) => Ast.Alvl(b,d)
+    "auto" (c::int) (t::int) (d::~?int)
+                             => Ast.Alvl{t;c;d=match d with None -> 0 | Some n -> n}
   ; "log"  (s::str_lit)      => Ast.Logs(s)
   ; "keep_intermediate"
            (b::bool)         => Ast.Keep(b)
@@ -820,9 +821,11 @@ and interpret : bool -> memo2 -> Raw.toplevel -> memo2 =
       begin
         let open Ast in
         match l with
-        | Alvl(b,d) -> Typing.default_auto_lvl := (b,d)
-        | Logs s    -> Log.set_enabled s
-        | Keep s    -> Equiv.keep_intermediate := s
+        | Alvl{t;c;d} -> Typing.default_auto_lvl.t <- t;
+                         Typing.default_auto_lvl.c <- c;
+                         Typing.default_auto_lvl.d <- d
+        | Logs s      -> Log.set_enabled s
+        | Keep s      -> Equiv.keep_intermediate := s
       end;
       memo
   | Infix(sym,infix) ->
@@ -858,7 +861,7 @@ and compile_file : bool -> string -> unit = fun nodep fn ->
   Env.start fn;
   let save = !Env.env in
   let (save_log, save_auto, save_keep) =
-    (Log.get_enabled (),!Typing.default_auto_lvl,!Equiv.keep_intermediate)
+    (Log.get_enabled (),Typing.default_auto_lvl,!Equiv.keep_intermediate)
   in
   Env.env := Env.empty;
   (* avoid timing of grammar compilation *)
@@ -870,7 +873,9 @@ and compile_file : bool -> string -> unit = fun nodep fn ->
   Env.save_file fn;
   Env.env := save;
   Log.set_enabled save_log;
-  Typing.default_auto_lvl := save_auto;
+  Typing.default_auto_lvl.t <- save_auto.t;
+  Typing.default_auto_lvl.c <- save_auto.c;
+  Typing.default_auto_lvl.d <- save_auto.d;
   Equiv.keep_intermediate := save_keep
 
 (* Handling the files. *)

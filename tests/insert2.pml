@@ -57,24 +57,20 @@ val rec rev_append : ∀s,∀a,∀o∈order⟨a⟩, ∀l1∈slist⟨s,a,orev o�
 val rec insert : ∀s,∀a:ο, ∀o∈order⟨a⟩, a ⇒ slist⟨s,a,o⟩ ⇒ slist⟨s+ₒ1,a,o⟩ =
   fun o x l {
     let a such that x:a;
-    set auto 3 3;
+    // show that some lemma may be integrated in the function
+    let cmp = fun x y {let _ = o.tot x y; o.cmp x y};
+    set auto 2 3 1;
     case l {
       []     → x::[]
-      hd::tl → if o.cmp x hd { x::l }
+      hd::tl → if cmp x hd { x::l }
                else {
                  let r = insert o x tl;
                  check
                    {deduce sorted o (hd::r) by {
-                    use o.tot x hd;
                     case tl {
                      [] → qed
                      hd2::tl2 →
-                       if o.cmp x hd2
-                         { qed }
-                       else
-                         { use o.tot x hd2;
-                           let r2 = insert o x tl2;
-                           qed }
+                       if cmp x hd2 then qed else qed
                    }
                  } ;
                  hd::r} for hd::r }
