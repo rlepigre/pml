@@ -174,7 +174,7 @@ let vwit : ctxt -> (v,t) bndr -> prop -> prop -> valu * ctxt =
     (Pos.none (VWit eps), ctx)
 
 (** The other function works in the same ... It would be nice
-    to share mode code, but it is not easy because of GADT ...*)
+    to share more code, but it is not easy because of GADT ...*)
 let qwit : type a. ctxt -> a sort -> term -> (a,p) bndr
                 -> (a qwit, string) eps * ctxt =
   fun ctx s t b ->
