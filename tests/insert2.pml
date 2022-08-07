@@ -56,7 +56,6 @@ val rec rev_append : ∀s,∀a,∀o∈order⟨a⟩, ∀l1∈slist⟨s,a,orev o�
 
 val rec insert : ∀s,∀a:ο, ∀o∈order⟨a⟩, a ⇒ slist⟨s,a,o⟩ ⇒ slist⟨s+ₒ1,a,o⟩ =
   fun o x l {
-    let a such that x:a;
     // show that some lemma may be integrated in the function
     let cmp = fun x y {let _ = o.tot x y; o.cmp x y};
     set auto 4 6 1;
