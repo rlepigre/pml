@@ -404,7 +404,7 @@ let learn_value : ctxt -> term -> prop -> valu * ctxt = fun ctx t a ->
          | _ -> Pos.none (Memb(t,a))
        in
        let (vwit, ctx_names) =
-         vwit ctx.ctx_names idt_valu ae Ast.bottom
+         vwit ~vis:false ctx.ctx_names idt_valu ae Ast.bottom
        in
        let ctx = { ctx with ctx_names } in
        let twit = Pos.none (Valu vwit) in
@@ -434,7 +434,7 @@ let learn_equivalences : ctxt -> valu -> prop -> ctxt = fun ctx wit a ->
     | Memb(t,a)  -> let ctx = learn ctx (Equiv(twit,true,t)) in
                     fn ctx wit a
     | Rest(a,c)  -> fn (learn ctx c) wit a
-    | Exis(s, f) -> let (t, ctx_names) = ewit ctx.ctx_names s twit f in
+    | Exis(s, f) -> let (t, ctx_names) = ewit ~vis:false ctx.ctx_names s twit f in
                     let ctx = { ctx with ctx_names } in
                     fn ctx wit (bndr_subst f t.elt)
     | Func(_)    -> find_labs ctx.equations wit; ctx
@@ -519,7 +519,7 @@ let learn_neg_equivalences
       match (Norm.whnf a).elt, arg with
       | HDef(_,e), _ -> fn ctx e.expr_def
       | Impl(c,a), _ -> fn (learn ctx c) a
-      | Univ(s,f), _ -> let (t, ctx_names) = uwit ctx.ctx_names s twit f in
+      | Univ(s,f), _ -> let (t, ctx_names) = uwit ~vis:false ctx.ctx_names s twit f in
                         let ctx = { ctx with ctx_names } in
                         let u = bndr_subst f t.elt in
                         fn ctx u
@@ -677,7 +677,7 @@ let rec subtype =
       (* Universal quantification on the right. *)
       | (_          , Univ(s,f)  ) ->
          if t_is_val then
-           let (eps, ctx_names) = uwit ctx.ctx_names s t f in
+           let (eps, ctx_names) = uwit ~vis:false ctx.ctx_names s t f in
            let ctx = { ctx with ctx_names } in
            Sub_Univ_r(subtype ctx t a (bndr_subst f eps.elt))
          else
@@ -685,7 +685,7 @@ let rec subtype =
       (* Existential quantification on the left. *)
       | (Exis(s,f)  , _          ) ->
          if t_is_val then
-           let (eps, ctx_names) = ewit ctx.ctx_names s t f in
+           let (eps, ctx_names) = ewit ~vis:false ctx.ctx_names s t f in
            let ctx = { ctx with ctx_names } in
            Sub_Exis_l(subtype ctx t (bndr_subst f eps.elt) b)
          else
@@ -792,7 +792,8 @@ let rec subtype =
               let (_,ctx) = learn_value ctx wit a2 in
               (wit, ctx)
            | _ ->
-              let (vwit, ctx_names) = vwit ctx.ctx_names (no_pos, w) a2 b2 in
+              let (vwit, ctx_names) = vwit ~vis:false
+                                        ctx.ctx_names (no_pos, w) a2 b2 in
               let ctx = { ctx with ctx_names } in
               let ctx = learn_nobox ctx vwit in
               let wit = Pos.none (Valu(vwit)) in
@@ -1083,7 +1084,7 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
          in
          let g c = box (none (Goal(T,"auto",Auto (get_goal c)))) in
          let mk_case c =
-           A.add c (no_pos, Pos.none "x", (fun _ -> g c)) in
+           A.add c (no_pos, Pos.none ("$"^c), (fun _ -> g c)) in
          let cases = List.fold_right mk_case cs A.empty in
          let t0 = match e.elt with
              Valu e -> case no_pos (box e) cases
@@ -1132,7 +1133,7 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
 
 and gen_subtype : ctxt -> prop -> prop -> sub_rule =
   fun ctx a b ->
-    let (eps, ctx_names) = vwit ctx.ctx_names idt_valu a b in
+    let (eps, ctx_names) = vwit ~vis:false ctx.ctx_names idt_valu a b in
     let ctx = { ctx with ctx_names } in
     let ctx = learn_nobox ctx eps in
     let wit = Pos.none (Valu eps) in
@@ -1893,7 +1894,7 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
     | FixY(b)     ->
        let rec break_univ ctx c =
          match (Norm.whnf c).elt with
-         | Univ(O,f) -> let (eps, ctx_names) = uwit ctx.ctx_names O t f in
+         | Univ(O,f) -> let (eps, ctx_names) = uwit ~vis:false ctx.ctx_names O t f in
                         let ctx = { ctx with ctx_names } in
                         break_univ ctx (bndr_subst f eps.elt)
          | _         -> (c, ctx)

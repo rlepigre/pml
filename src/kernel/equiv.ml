@@ -361,6 +361,11 @@ let print_pool : string -> out_channel -> pool -> unit = fun prefix ch po ->
     Printf.fprintf ch "%s  %a != %a\n" prefix Ptr.print p1 Ptr.print p2
   in
   List.iter fn po.ineq;
+  Printf.fprintf ch "%s#### Orig ####\n" prefix;
+  let fn (p, t) =
+    Printf.fprintf ch "%s  %a = %a\n" prefix Ptr.print p Print.ex t
+  in
+  List.iter fn po.os;
   Printf.fprintf ch "%s###############" prefix
 
 
@@ -1935,7 +1940,7 @@ let add_nobox : valu -> pool -> bool * pool = fun v po ->
 let proj_eps : Bindlib.ctxt -> valu -> string -> valu * Bindlib.ctxt =
   fun names v l ->
     let w =
-      let name = proj_name l in
+      let name = "#" ^ proj_name l in
       let x = new_var (mk_free V) name in
       let term_x = valu no_pos (vari no_pos x) in
       let v_dot_l = proj no_pos (box v) (Pos.none l) in

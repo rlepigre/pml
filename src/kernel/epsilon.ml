@@ -115,8 +115,8 @@ let exists_set l =
 (** Functions building all the epsilons, only the first one is commented,
     the others are similar *)
 
-let vwit : ctxt -> (v,t) bndr -> prop -> prop -> (vwit, string) eps * ctxt =
-  fun ctx f a b ->
+let vwit : ?vis:bool -> ctxt -> (v,t) bndr -> prop -> prop -> (vwit, string) eps * ctxt =
+  fun ?(vis=true) ctx f a b ->
     let valu = (f,a,b) in
     try (VWitHash.find vwit_hash valu, ctx)
     with Not_found ->
@@ -154,7 +154,9 @@ let vwit : ctxt -> (v,t) bndr -> prop -> prop -> (vwit, string) eps * ctxt =
             Pure.(pure a && pure b && pure (bndr_term f)))
       in
       (** we create a name for printing *)
-      let v, ctx = new_var_in ctx (mk_free V) (bndr_name f).elt in
+      let name = (bndr_name f).elt in
+      let name = if vis then name else "$"^name in
+      let v, ctx = new_var_in ctx (mk_free V) name in
       (** and the final record *)
       let rec w = { vars = ref []
                   ; name = name_of v
@@ -168,16 +170,16 @@ let vwit : ctxt -> (v,t) bndr -> prop -> prop -> (vwit, string) eps * ctxt =
       (w, ctx)
 
 (** wrapper for the above function applying the ast constructor *)
-let vwit : ctxt -> (v,t) bndr -> prop -> prop -> valu * ctxt =
-  fun ctx f a b ->
-    let (eps, ctx) = vwit ctx f a b in
+let vwit : ?vis:bool -> ctxt -> (v,t) bndr -> prop -> prop -> valu * ctxt =
+  fun ?(vis=true) ctx f a b ->
+    let (eps, ctx) = vwit ~vis ctx f a b in
     (Pos.none (VWit eps), ctx)
 
 (** The other function works in the same ... It would be nice
     to share more code, but it is not easy because of GADT ...*)
-let qwit : type a. ctxt -> a sort -> term -> (a,p) bndr
+let qwit : type a. ?vis:bool -> ctxt -> a sort -> term -> (a,p) bndr
                 -> (a qwit, string) eps * ctxt =
-  fun ctx s t b ->
+  fun ?(vis=true) ctx s t b ->
     let valu = (s,t,b) in
     let key = QWit.Q(valu) in
     try
@@ -210,7 +212,9 @@ let qwit : type a. ctxt -> a sort -> term -> (a,p) bndr
               QWitHash.add qwit_hash key (Q w)
           end
       in
-      let v, ctx = new_var_in ctx (mk_free V) (bndr_name b).elt in
+      let name = (bndr_name b).elt in
+      let name = if vis then name else "$"^name in
+      let v, ctx = new_var_in ctx (mk_free V) name in
       let pure =
         Lazy.from_fun (fun () ->
             Pure.(pure t && pure (bndr_term b)))
@@ -225,18 +229,18 @@ let qwit : type a. ctxt -> a sort -> term -> (a,p) bndr
       refr ~force:true w;
       (w, ctx)
 
-let uwit : type a. ctxt -> a sort -> term -> (a,p) bndr -> a ex loc * ctxt =
-  fun ctx s t f ->
-    let (eps, ctx) = qwit ctx s t f in
+let uwit : type a. ?vis:bool -> ctxt -> a sort -> term -> (a,p) bndr -> a ex loc * ctxt =
+  fun ?(vis=true) ctx s t f ->
+    let (eps, ctx) = qwit ~vis ctx s t f in
     (Pos.none (UWit eps), ctx)
 
-let ewit : type a. ctxt -> a sort -> term -> (a,p) bndr -> a ex loc * ctxt =
-  fun ctx s t f ->
-    let (eps, ctx) = qwit ctx s t f in
+let ewit : type a. ?vis:bool -> ctxt -> a sort -> term -> (a,p) bndr -> a ex loc * ctxt =
+  fun ?(vis=true) ctx s t f ->
+    let (eps, ctx) = qwit ~vis ctx s t f in
     (Pos.none (EWit eps), ctx)
 
-let owit : ctxt -> ordi -> term -> (o,p) bndr -> (owit, string) eps * ctxt =
-  fun ctx o a b ->
+let owit : ?vis:bool -> ctxt -> ordi -> term -> (o,p) bndr -> (owit, string) eps * ctxt =
+  fun ?(vis=true) ctx o a b ->
     let valu = (o,a,b) in
     try (OWitHash.find owit_hash valu, ctx)
     with Not_found ->
@@ -259,7 +263,9 @@ let owit : ctxt -> ordi -> term -> (o,p) bndr -> (owit, string) eps * ctxt =
               OWitHash.add owit_hash valu w
           end
       in
-      let v, ctx = new_var_in ctx (mk_free V) (bndr_name b).elt in
+      let name = (bndr_name b).elt in
+      let name = if vis then name else "$"^name in
+      let v, ctx = new_var_in ctx (mk_free V) name in
       let pure =
         Lazy.from_fun (fun () ->
             Pure.(pure o && pure a && pure (bndr_term b)))
@@ -274,14 +280,14 @@ let owit : ctxt -> ordi -> term -> (o,p) bndr -> (owit, string) eps * ctxt =
       refr ~force:true w;
       (w, ctx)
 
-let owmu : ctxt -> ordi -> term -> (o, p) bndr -> ordi * ctxt =
-  fun ctx o t b ->
-    let (eps, ctx) = owit ctx o t b in
+let owmu : ?vis:bool -> ctxt -> ordi -> term -> (o, p) bndr -> ordi * ctxt =
+  fun ?(vis=true) ctx o t b ->
+    let (eps, ctx) = owit ~vis ctx o t b in
     (Pos.none (OWMu eps), ctx)
 
-let ownu : ctxt -> ordi -> term -> (o, p) bndr -> ordi * ctxt =
-  fun ctx o t b ->
-    let (eps, ctx) = owit ctx o t b in
+let ownu : ?vis:bool -> ctxt -> ordi -> term -> (o, p) bndr -> ordi * ctxt =
+  fun ?(vis=true) ctx o t b ->
+    let (eps, ctx) = owit ~vis ctx o t b in
     (Pos.none (OWNu eps), ctx)
 
 let swit : ctxt -> (s,t) bndr -> prop -> (swit, string) eps * ctxt =

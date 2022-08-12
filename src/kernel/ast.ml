@@ -656,10 +656,10 @@ let t_proj : pos -> tbox -> (pos * strloc) list -> tbox =
       | []    -> assert false
       | [(p,l)]   ->
          let f x = proj p (v_vari no_pos x) l in
-         valu p (labs p NoLz None (Pos.none "x") f)
+         valu p (labs p NoLz None (Pos.none "$p") f)
       | (p,l)::ls ->
          let f x = appl p NoLz (fn ls) (proj p (v_vari no_pos x) l) in
-         valu p (labs p NoLz None (Pos.none "x") f)
+         valu p (labs p NoLz None (Pos.none "$p") f)
     in
     appl p NoLz (fn ls) t
 
@@ -678,8 +678,8 @@ let rec redexes : pos -> (vvar * tbox) list -> tbox -> tbox =
 
 (** Syntactic sugar for strict product type. *)
 let proj_name l =
-  if l = "" then "x"
-  else if l.[0] >= '0' && l.[0] <= '9' then "x"^l
+  if l = "" then "$x"
+  else if l.[0] >= '0' && l.[0] <= '9' then "$_"^l
   else l
 
 let strict_prod : pos -> (pos * pbox) A.t -> pbox =
@@ -854,5 +854,5 @@ let isTerm : type a.a ex loc -> t ex loc option = fun e ->
 
 let vdot : valu -> string -> term = fun v c ->
   let f x = valu no_pos (vari no_pos x) in
-  let id = (no_pos, Pos.none "x", f) in
+  let id = (no_pos, Pos.none "$c", f) in
   unbox (case no_pos (box v) (A.singleton c id))
