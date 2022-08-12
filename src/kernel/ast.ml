@@ -18,7 +18,7 @@ module A = Assoc
 type laz = NoLz | Lazy
 
 (** the hint for the proof checkee *)
-type 'a hint =
+type 'a hint_elt =
           | Eval   (** try to use eval before adding the term in the pool.
                        if the term is not closed, proceed as usual. *)
           | Sugar (** indicate terms of the form "use t" or "show t"
@@ -28,6 +28,8 @@ type 'a hint =
           | Auto of bool (** hint to turn on/off the use of auto.  used by
                             auto_prove only to have the recursive call
                             whre we want, see Typing.auto_prove code *)
+
+and 'a hint = 'a hint_elt loc
 
 and set_param =
   | Alvl of { t : int (** max level for totalitty *)
@@ -445,9 +447,6 @@ let appl : pos -> laz -> tbox -> tbox -> tbox =
 let hint : pos -> value hint -> tbox -> tbox =
   fun p h -> box_apply (fun t -> Pos.in_pos p (Hint(h,t)))
 
-let hint : pos -> value hint -> tbox -> tbox =
-  fun p h -> box_apply (fun t -> Pos.in_pos p (Hint(h,t)))
-
 let clck : pos -> vbox -> tbox =
   fun p -> box_apply (fun v -> Pos.in_pos p (Clck v))
 
@@ -533,9 +532,9 @@ let chck =
   fun p s v a f ->
   box_apply3 (fun v a f -> Pos.in_pos p (Chck(s,v,a,f))) v a f
 
-let pset : pos -> set_param -> tbox -> tbox =
-  fun p sp t ->
-    let fn t = Pos.in_pos p (Hint(LSet(sp),t)) in
+let pset : pos -> pos -> set_param -> tbox -> tbox =
+  fun p p' sp t ->
+    let fn t = Pos.in_pos p (Hint(in_pos p' (LSet(sp)),t)) in
     box_apply fn t
 
 let sv_none : such_var box =

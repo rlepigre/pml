@@ -97,7 +97,11 @@ type auto_ctxt =
   ; doing : bool
   ; old   : blocked list
   ; todo  : (int * int * blocked) list
-  ; auto  : bool }
+  ; auto  : bool
+  ; tworst : int ref
+  ; cworst : int ref
+  ; dworst : int ref
+  }
 
 (* constant for loop detection in sub typing *)
 let sub_max = ref 10
@@ -115,7 +119,11 @@ let auto_empty () =
   ; doing = false
   ; old   = []
   ; todo  = []
-  ; auto  = true }
+  ; auto  = true
+  ; tworst = ref default_auto_lvl.t
+  ; cworst = ref default_auto_lvl.c
+  ; dworst = ref default_auto_lvl.d
+  }
 
 type sub_adone =
   SA : 'a sort * ('a, 'a) bndr * 'b sort * ('b,'b) bndr -> sub_adone
@@ -987,8 +995,6 @@ let rec subtype =
 and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
   fun ctx exn t ty ->
     log_aut "entering auto_prove (%a : %a)" Print.ex t Print.ex ty;
-    (* Save utime to backtrack even on unification *)
-    let st = UTimed.Time.save () in
     (* Tell we are in auto *)
     let auto = ctx.auto.doing in
     let ctx = { ctx with auto = { ctx.auto with doing = true } } in
@@ -1027,24 +1033,29 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
       in
       fn skip todo
     in
+    (* Save utime to backtrack even on unification *)
+    let st = UTimed.Time.save () in
     (* main recursive function trying all elements *)
     let rec fn nb ctx0 todo =
-      UTimed.Time.rollback st;
       log_aut "loop (%d,%d,%d)" nb ctx.auto.tlvl ctx.auto.clvl;
       match todo with
       | [] -> type_error ~auto (E(T,t)) ty exn
       | (tlvl, dlvl, (BTot (c,_,e) as b)) :: todo ->
          let tlvl = min tlvl ctx.auto.tlvl in
+         ctx0.auto.tworst := min tlvl !(ctx0.auto.tworst);
+         ctx0.auto.dworst := min dlvl !(ctx0.auto.dworst);
          (* for a totality, we add a let to the term and typecheck *)
          let ctx = { ctx0 with auto = { ctx0.auto with todo; tlvl } } in
          (** we use auto hint to disallow auto for the added totality *)
          let res = ref None in
+         let time0 = ctx0.equations.time in
          let get_goal ctx rule_ptr ty =
            if !res <> None then assert false;
-           res := Some (ctx,rule_ptr,ty)
+           let bup = Timed.Time.save_futur time0 in
+           res := Some (ctx,bup,rule_ptr,ty)
          in
          let g = box (none (Goal(T,"auto",Auto get_goal))) in
-         let f = labs no_pos NoLz None (Pos.none "x") (fun _ -> g) in
+         let f = labs no_pos NoLz None (Pos.none "$t") (fun _ -> g) in
          let t0 = unbox (appl no_pos NoLz (valu no_pos f) (box e)) in
          log_aut "totality (%d,%d) (%d,%d) [%d]: %a"
            ctx.auto.clvl ctx.auto.tlvl tlvl !c (List.length todo) Print.ex e;
@@ -1057,28 +1068,40 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
              (fun () ->
                match !res with
                | None -> r0 (* Contradiction ! *)
-               | Some(ctx,ptr,ty) ->
-                  let ctx = {ctx with auto = {ctx.auto with auto = true}} in
-                  let (_,_,r) = type_term ctx t ty in
-                  ptr := r;
-                  r0)
+               | Some(ctx,bup,ptr,ty) ->
+                  let equations = { ctx.equations with
+                                    time = Timed.Time.return_futur bup } in
+                  let ctx = {ctx with equations;
+                                      auto = {ctx.auto with auto = true}} in
+                  try
+                    let (_,_,r) = type_term ctx t ty in
+                    ptr := r;
+                    r0
+                  with e ->
+                    log_aut "exception in auto (tot): %s" (Printexc.to_string e); raise e
+
+             )
            with
            | Failed_to_prove _
            | Type_error _           ->
               (fun () -> log_aut "totality FAIL";
                          let todo =
                            if dlvl > 0 then todo @ [(tlvl, dlvl-1,b)] else todo in
+                         UTimed.Time.rollback st;
                          fn (nb+1) ctx0 todo)
          in
          f ()
       | (clvl, dlvl, (BCas(c,_,e,cs) as b)) :: todo ->
          let clvl = min clvl ctx.auto.clvl in
+         ctx0.auto.cworst := min clvl !(ctx0.auto.cworst);
+         ctx0.auto.dworst := min dlvl !(ctx0.auto.dworst);
          (* for a blocked case analysis, we add a case! *)
          let ctx = { ctx0 with auto = { ctx0.auto with todo; clvl } } in
             (** we use the auto hint to disallow auto for the added case *)
          let res = ref [] in
          let time0 = ctx0.equations.time in
          let get_goal cs ctx rule_ptr ty =
+           (*log_aut "saved context:\n%a\n\n" (print_pool "        ") ctx.equations;*)
            let bup = Timed.Time.save_futur time0 in
            res := (cs,ctx,bup,rule_ptr,ty) :: !res
          in
@@ -1112,12 +1135,16 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
                                     time = Timed.Time.return_futur bup } in
                   let ctx = {ctx with equations;
                                       auto = {ctx.auto with auto = true}} in
+                  (*log_aut "restored context:\n%a\n\n" (print_pool "        ") ctx.equations;*)
                     log_aut "cases    (%d,%d) (%d,%d) [%d]: %a ==> %s case (%d)"
                       ctx.auto.clvl ctx.auto.tlvl clvl !c (List.length todo)
                       Print.ex e cs (List.length ls);
-                    let (_,_,r) = type_term ctx t ty in
-                    ptr := r;
-                    fn ls
+                    try
+                      let (_,_,r) = type_term ctx t ty in
+                      ptr := r;
+                      fn ls
+                    with e ->
+                      log_aut "exception in auto (case): %s" (Printexc.to_string e); raise e
                in fn (List.rev !res))
            with
            | Failed_to_prove _
@@ -1126,6 +1153,7 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
                 log_aut "case FAIL";
                 let todo =
                   if dlvl > 0 then todo @ [(clvl, dlvl-1,b)] else todo in
+                UTimed.Time.rollback st;
                 fn (nb+1) ctx0 todo)
          in
          f ()
@@ -1762,7 +1790,11 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
 
 and do_set_param ctx = function
   | Alvl{t;c;d}     ->
-     let ctx = { ctx with auto = { ctx.auto with clvl=c; tlvl=t; dlvl = d } } in
+     let ctx = { ctx with auto = { ctx.auto with clvl=c; tlvl=t; dlvl = d
+                                 ; cworst = ref c
+                                 ; tworst = ref t
+                                 ; dworst = ref d
+               } } in
      (ctx, fun () -> ())
   | Logs(s)         ->
      let save = Log.get_enabled () in
@@ -1772,6 +1804,20 @@ and do_set_param ctx = function
      let save = !Equiv.keep_intermediate in
      Equiv.keep_intermediate := b;
      (ctx, fun () -> Equiv.keep_intermediate := save)
+
+and check_best_auto_lvl ctxt hint =
+  match hint.elt with
+  | LSet(Alvl{t;c;d}) ->
+     let t' = t - !(ctxt.auto.tworst) in
+     let c' = c - !(ctxt.auto.cworst) in
+     let d' = d - !(ctxt.auto.dworst) in
+     if (t' < t || c' < c || d' < d) then
+       if has_pos hint.pos then
+         wrn_msg "not best auto %d %d %d sufficient at\n%a"
+           c' t' d' Pos.print_wrn_pos hint.pos
+       else
+         wrn_msg "not best auto %d %d %d sufficient" c' t' d'
+  | _ -> ()
 
 and is_typed : type a. a v_or_t -> a ex loc -> bool = fun t e ->
   let e = Norm.whnf e in
@@ -2040,9 +2086,9 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
        let p = subtype ctx t (ac_right a v) c in
        let q = type_valu ctx v a in
        Typ_Clck(p,q)
-    | Hint(h,t)   ->
+    | Hint(h,u)   ->
        let ctx, restore =
-         match h with
+         match h.elt with
          | Eval ->
             (ctx, fun () -> ())
          | Sugar ->
@@ -2065,8 +2111,10 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
              fun () -> Timed.Time.rollback st);
        in
        (try
-          let (_,_,r) = type_term ctx t c in
-          restore (); r
+          let (_,_,r) = type_term ctx u c in
+          check_best_auto_lvl ctx h;
+          restore ();
+          r
         with e -> restore (); raise e)
     (* Constructors that cannot appear in user-defined terms. *)
     | UWit(_)     -> unexpected "∀-witness during typing..."

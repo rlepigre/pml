@@ -877,7 +877,7 @@ let rec add_term :  bool -> bool -> pool -> term
     | Repl(u,t)   -> add_term po u
     | Delm(u)     -> let (pt, po) = add_term po u in
                      insert (TN_Delm(pt)) po
-    | Hint(h,t)   -> (match h with
+    | Hint(h,t)   -> (match h.elt with
                       | Close _
                       | Auto  _
                       | LSet  _
@@ -1028,7 +1028,7 @@ and add_bndr_closure : type a b. pool -> a sort -> b sort ->
       FunHash.add  funptrs key key;
       ((funptr,vs,ts), po)
 
-(** case of closure for hight order terms *)
+(** case of closure for high order terms *)
 and add_ho_appl
     : type a b. pool -> a sort -> (a -> b) ex loc
            -> a ex loc -> b ho_appl * pool

@@ -196,7 +196,7 @@ val rec mem : ∀a,∀c∈(a ⇒ a ⇒ cmp), a ⇒ st⟨a,c⟩ ⇒ bool =
 val rec mem_correct : ∀a,∀c∈preorder⟨a⟩,∀e e'∈a,∀t∈st⟨a,c.f⟩,
                         mem c.f e (insert c.f e' t) ≡ (is_Eq (c.f e e') || mem c.f e t) =
   fun c e e' t {
-    set auto 3 3;
+    set auto 2 2;
     case t {
       []                → qed
       Node[l, e=e'', r] →

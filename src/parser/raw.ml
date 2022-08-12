@@ -291,7 +291,7 @@ let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
     | ERepl(t,u,p)  -> Printf.fprintf ch "ERepl(%a,%a,%a)"
                          print t print u aux_opt p
     | EDelm(u)      -> Printf.fprintf ch "EDelm(%a)" print u
-    | EHint(h,u)    -> Printf.fprintf ch "EHint(%a,%a)" Print.lhint h print u
+    | EHint(h,u)    -> Printf.fprintf ch "EHint(%a,%a)" Print.lhint h.elt print u
     | EClck(v)      -> Printf.fprintf ch "EClck(%a)" print v
     | ECPsi         -> Printf.fprintf ch "ECPsi"
     | ECoer(_,t,a)  -> Printf.fprintf ch "ECoer(%a,%a)" print t print a
@@ -1085,7 +1085,7 @@ let unsugar_expr : raw_ex -> raw_sort -> boxed = fun e s ->
         Box(T, delm e.pos u)
     | (EHint(h,u)     , ST       ) ->
         let u = to_term (unsugar env vars u _st) in
-        let h = match h with
+        let h = in_pos h.pos (match h.elt with
           | Eval          -> Eval
           | Sugar         -> Sugar
           | LSet(l)       -> LSet(l)
@@ -1094,7 +1094,7 @@ let unsugar_expr : raw_ex -> raw_sort -> boxed = fun e s ->
                           unbound_var x
              in
              Close(b,List.map fn lids)
-          | Auto _        -> assert false
+          | Auto _        -> assert false)
         in
         Box(T, hint e.pos h u)
     (* Type annotations. *)
@@ -1645,12 +1645,12 @@ let qed _loc =
 let scis _loc =
   in_pos _loc (EScis)
 
-let eval _loc t = in_pos _loc (EHint(Eval,t))
+let eval _loc t = in_pos _loc (EHint(none Eval,t))
 
 let ehint _loc h t = in_pos _loc (EHint(h,t))
 
 (* "use a" := "a" *)
-let use _loc t = ehint _loc Sugar t
+let use _loc t = ehint _loc (none Sugar) t
 
 (* "show a" := "(qed : a"
    "show a using p" := "p : a" *)
@@ -1659,7 +1659,7 @@ let show _loc a t =
     | None   -> (_sv, qed _loc)
     | Some t -> (new_sort_uvar None, t)
   in
-  ehint _loc Sugar (in_pos _loc (ECoer(s, t, a)))
+  ehint _loc (none Sugar) (in_pos _loc (ECoer(s, t, a)))
 
 (* "show a == b using t_1
            == c"
@@ -1681,7 +1681,7 @@ let equations _loc _loc_a a eqns =
        in
        fn t l
   in
-  ehint _loc Sugar (fn None eqns)
+  ehint _loc (none Sugar) (fn None eqns)
 
 (* "from a; p" := "let _ = p : a in {}" *)
 let showing _loc a q p =
@@ -1689,7 +1689,7 @@ let showing _loc a q p =
     | None   -> qed _loc
     | Some q -> q
   in
-  let p = ehint _loc Sugar p in
+  let p = ehint _loc (none Sugar) p in
   let_binding _loc `Non (`LetArgVar(none "",Some a)) p q
 
 (* "suppose p t" := "fun _:p { t }" *)
@@ -1704,7 +1704,7 @@ let assume _loc assume t q p =
     | None   -> (if assume then qed else scis) _loc
     | Some q -> q
   in
-  ehint _loc Sugar
+  ehint _loc (none Sugar)
     (in_pos _loc (ECase(t, ref `T,
                         [ ((none "false", None), q)
                         ; ((none "true" , None), p)])))

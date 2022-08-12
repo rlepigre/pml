@@ -565,14 +565,14 @@ and [@cache] term_seq =
       => assume _pos ass a q p
   (* Term (auto lvl) *)
   ; _set_ (l::set_param) ';' (t::expr (Trm S))
-      => in_pos _pos (EHint(LSet(l),t))
+      => in_pos _pos (EHint(in_pos l_pos (Ast.LSet(l)),t))
   (* Term (let such that) *)
   ; _let_ (vs::s_lst) _st_ (x::lid_wc) ':' (a::prop) ';' (u::expr (Trm S))
       => esuch _pos vs x a u
   ; _close_ (lids :: ~+ lid) ';' (u::expr (Trm S))
-      => ehint _pos (Close(true,lids)) u
+      => ehint _pos (in_pos lids_pos (Ast.Close(true,lids))) u
   ; _open_  (lids :: ~+ lid) ';' (u::expr (Trm S))
-      => ehint _pos (Close(false,lids)) u
+      => ehint _pos (in_pos lids_pos (Ast.Close(false,lids))) u
   (* Checking subtyping *)
   ; _check_ (v:: ~? ((v::expr (Trm R)) ':' => v)) (p::prop) ';' (t::expr (Trm S))
       => in_pos _pos (EChck(new_sort_uvar None,v,p,t))
@@ -685,7 +685,8 @@ and any     = expr Any
 (* Set general parameters *)
 and set_param =
     "auto" (c::int) (t::int) (d::~?int)
-                             => Ast.Alvl{t;c;d=match d with None -> 0 | Some n -> n}
+                             => (let d = match d with None -> 0 | Some n -> n in
+                                Ast.Alvl{t;c;d})
   ; "log"  (s::str_lit)      => Ast.Logs(s)
   ; "keep_intermediate"
            (b::bool)         => Ast.Keep(b)

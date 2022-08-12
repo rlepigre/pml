@@ -162,14 +162,14 @@ val opp_suc : ∀n∈int, opp (suc n) ≡ pre (opp n) = fun n {
   case n {
     Zero → {}
     S[p] → opp_pos_suc p
-    P[s] → set auto 2 1; {}
+    P[s] → set auto 1 1; {}
   }
 }
 
 val opp_pre : ∀n∈int, opp (pre n) ≡ suc (opp n) = fun n {
   case n {
     Zero → {}
-    S[p] → set auto 2 1; {}
+    S[p] → set auto 1 1; {}
     P[s] → opp_neg_pre s
   }
 }
@@ -181,12 +181,12 @@ val rec add_opp_opp : ∀n m∈int, opp n + opp m ≡ opp (n + m) = fun n m {
            opp_suc (p + m);
            showing P[opp_pos p] + opp m ≡  pre (opp (p + m));
            add_opp_opp p m;
-           set auto 1 2; {}
+           set auto 1 1; {}
     P[s] → showing S[opp_neg s] + opp m ≡  opp (pre (s + m));
            opp_pre (s + m);
            showing S[opp_neg s] + opp m ≡  suc (opp (s + m));
            add_opp_opp s m;
-           set auto 1 2; {}
+           set auto 1 1; {}
   }
 }
 
@@ -216,8 +216,8 @@ val rec non_neg_add : ∀m n∈{ x ∈ int | non_negative x}, non_negative (m + 
   = fun m n {
     case m {
       Zero  → {}
-      S[pm] → show non_negative pm using (set auto 1 2; {});
-              non_neg_add pm n; set auto 1 2; {}
+      S[pm] → show non_negative pm using (set auto 1 0; {});
+              non_neg_add pm n; set auto 1 1; {}
       P[sm] → ✂
     }
   }
@@ -253,7 +253,7 @@ val not_le_is_gt : ∀m n∈int, le m n ≡ false ⇒ gt m n = fun m n _ {
 
 val lt_is_le : ∀m n∈int, lt m n ⇒ le m n = fun m n _ {
   let c = n - m; // fixme #28 incompleteness of auto
-  set auto 1 3; {}
+  set auto 2 2; qed
 }
 
 val not_ge_is_lt : ∀m n∈int, ge m n ≡ false ⇒ lt m n =

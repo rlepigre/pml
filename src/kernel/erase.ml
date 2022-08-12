@@ -56,7 +56,7 @@ and     term_erasure : term -> e_tbox = fun t ->
                      | Lazy -> tfrce (term_erasure t)
                      | NoLz ->
                         match t.elt, u.elt with
-                        | Valu{elt= LAbs(_,b,_)}, Hint(Sugar,_)
+                        | Valu{elt= LAbs(_,b,_)}, Hint({elt = Sugar;_},_)
                              when binder_constant (snd b) ->
                            term_erasure (bndr_subst b (unbox unit_reco).elt)
                         | _ ->  tappl (term_erasure t) (term_erasure u)
@@ -81,8 +81,8 @@ and     term_erasure : term -> e_tbox = fun t ->
   | Repl(t,_)   -> term_erasure t
   | Delm(t)     -> term_erasure t
   | Hint(h,t)   -> begin
-                     match h with Sugar -> tvalu (vreco A.empty)
-                                | _ -> term_erasure t
+                     match h.elt with Sugar -> tvalu (vreco A.empty)
+                                    | _ -> term_erasure t
                    end
   | Clck(v)     -> tclck (valu_erasure v)
   | Coer(_,t,_) -> term_erasure t
