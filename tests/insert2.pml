@@ -25,7 +25,7 @@ val rec sorted : ∀a:ο, ∀o∈order⟨a⟩, ∀l∈list⟨a⟩, bool =
 
 val rec tail_sorted : ∀a:ο, ∀o∈order⟨a⟩, ∀x∈a, ∀l∈list⟨a⟩,
           sorted o (x::l) ⇒ sorted o l =
-  fun o x l _ { set auto 2 2; qed }
+  fun o x l _ { set auto 2 1; qed }
 
 type slist⟨s,a:ο,ord:τ⟩ = ∃l:ι, l∈(list^s⟨a⟩ | sorted ord l)
 

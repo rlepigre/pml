@@ -1017,7 +1017,7 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
       | (_,_,BTot _), (_,_,BCas _) -> -1
       | (_,_,BCas _), (_,_,BTot _) ->  1
       | (_,_,BTot (c,_,_)), (_,_,BTot (d,_,_))
-      | (_,_,BCas (c,_,_,_)), (_,_,BCas (d,_,_,_)) -> compare d c
+      | (_,_,BCas (c,_,_,_)), (_,_,BCas (d,_,_,_)) -> compare c d
     in
     let todo = List.stable_sort cmp todo in
     let skip = match memo_find ctx.memo with
@@ -1058,7 +1058,7 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
          let f = labs no_pos NoLz None (Pos.none "$t") (fun _ -> g) in
          let t0 = unbox (appl no_pos NoLz (valu no_pos f) (box e)) in
          log_aut "totality (%d,%d) (%d,%d) [%d]: %a"
-           ctx.auto.clvl ctx.auto.tlvl tlvl !c (List.length todo) Print.ex e;
+           ctx.auto.clvl ctx.auto.tlvl tlvl c (List.length todo) Print.ex e;
          let f =
            try
              let ctx = {ctx with auto = {ctx.auto with auto = false}} in
@@ -1119,7 +1119,7 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
          in
          let t0 = unbox t0 in
          log_aut "cases    (%d,%d) (%d,%d) [%d]: %a"
-           ctx.auto.clvl ctx.auto.tlvl clvl !c (List.length todo) Print.ex e;
+           ctx.auto.clvl ctx.auto.tlvl clvl c (List.length todo) Print.ex e;
          let f =
            try
              let ctx = {ctx with auto = {ctx.auto with auto = false}} in
@@ -1137,7 +1137,7 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
                                       auto = {ctx.auto with auto = true}} in
                   (*log_aut "restored context:\n%a\n\n" (print_pool "        ") ctx.equations;*)
                     log_aut "cases    (%d,%d) (%d,%d) [%d]: %a ==> %s case (%d)"
-                      ctx.auto.clvl ctx.auto.tlvl clvl !c (List.length todo)
+                      ctx.auto.clvl ctx.auto.tlvl clvl c (List.length todo)
                       Print.ex e cs (List.length ls);
                     try
                       let (_,_,r) = type_term ctx t ty in

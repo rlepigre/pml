@@ -63,7 +63,7 @@ val rec divideBy : ∀o:κ, ∀n∈nat, ∀s∈sbds⟨o+ₒ2,n⟩, sman⟨o⟩ =
     let d = p2 * a + b;
     show le a n using (set auto 1 2; {});
     deduce ge a (opp n);
-    show le b n using (set auto 1 2; {});
+    show le b n using (set auto 1 1; {});
     deduce ge b (opp n);
     show le (p2 * a) (p2 * n) using add_increasing a n a n {} {};
     show le d (p3 * n) using add_increasing (p2 * a) (p2 * n) b n {} {};
@@ -152,8 +152,8 @@ val rec average_aux : ∀s, sman⟨s⟩ ⇒ sman⟨s⟩ ⇒ sbds⟨s,p2⟩ =
     let {hd = x0, tl = x} = force x;
     let {hd = y0, tl = y} = force y;
     let d = bti x0 + bti y0;
-    let _ : le d p2 = (set auto 2 1; {});
-    let _ : ge d n2 = (set auto 2 1; {});
+    let _ : le d p2 = (set auto 1 0; {});
+    let _ : ge d n2 = (set auto 1 0; {});
     { hd = d, tl = average_aux x y }
   } }
 
@@ -174,8 +174,8 @@ val rec big_average_aux : stream⟨man⟩ ⇒ bds⟨p4⟩ = fun xs { lazy {
    let { hd = b , tl = x0 } = force x0;
    let { hd = c , tl = x1 } = force x1;
    let d = p2* bti a + bti b + bti c;
-   let _ : le d p4 = (set auto 3 1; {});
-   let _ : ge d n4 = (set auto 3 1; {});
+   let _ : le d p4 = (set auto 1 0; {});
+   let _ : ge d n4 = (set auto 1 0; {});
    { hd = d
    , tl = big_average_aux (lazy { hd = average x0 x1, tl = xs }) }
 } }
