@@ -245,7 +245,7 @@ val rec compare_sym : ∀n m∈nat, compare n m ≡ inverse (compare m n) =
 
 // zero is minimal
 val zero_leq : ∀b∈nat, 0 ≤ b =
-  take b; set auto 1 3; qed
+  take b; set auto 1 0; qed
 
 // leq and succ
 val rec succ_leq : ∀b1 b2∈nat, b1 ≤ b2 ⇒ b1 ≤ S[b2] =
@@ -266,13 +266,13 @@ val lt_gt   : ∀a b∈nat, a < b ≡ b > a =
   fun a b { set auto 1 1; compare_sym a b }
 
 val leq_lt : ∀a b∈nat, a ≤ b ≡ not (b < a) =
-  fun a b { set auto 2 2; compare_sym a b }
+  fun a b { set auto 1 1; compare_sym a b }
 val geq_gt : ∀a b∈nat, a ≥ b ≡ not (b > a) =
-  fun a b { set auto 2 2; compare_sym a b }
+  fun a b { set auto 1 1; compare_sym a b }
 
 val rec leq_trans : ∀a b c∈nat, a ≤ b ⇒ b ≤ c ⇒ a ≤ c =
   take a b c; suppose a ≤ b, b ≤ c;
-  set auto 2 3;
+  set auto 1 0;
   case a {
     0     → qed
     S[a1] →
@@ -288,7 +288,7 @@ val rec leq_trans : ∀a b c∈nat, a ≤ b ⇒ b ≤ c ⇒ a ≤ c =
 
 val rec lt_trans : ∀a b c∈nat, a < b ⇒ b < c ⇒ a < c =
   take a b c; suppose a < b, b < c;
-  set auto 2 3;
+  set auto 1 0;
   case a {
     0     → qed
     S[a1] →
@@ -314,14 +314,14 @@ val rec gt_trans : ∀a b c∈nat, a > b ⇒ b > c ⇒ a > c =
   lt_gt b a; lt_gt c b; lt_gt c a; lt_trans c b a {} {}
 
 val leq_total : ∀a b∈nat, a ≤ b || b ≤ a =
-  take a b; set auto 2 2; compare_sym a b
+  take a b; set auto 1 1; compare_sym a b
 val geq_total : ∀a b∈nat, a ≥ b || b ≥ a =
-  take a b; set auto 2 2; compare_sym a b
+  take a b; set auto 1 1; compare_sym a b
 
 val leq_anti : ∀a b∈nat, a ≤ b ⇒ b ≤ a ⇒ a ≡ b =
-  take a b; suppose a ≤ b, b ≤ a; set auto 2 2; compare_sym a b
+  take a b; suppose a ≤ b, b ≤ a; set auto 1 1; compare_sym a b
 val geq_anti : ∀a b∈nat, a ≥ b ⇒ b ≥ a ⇒ a ≡ b =
-  take a b; suppose a ≥ b, b ≥ a; set auto 2 2; compare_sym a b
+  take a b; suppose a ≥ b, b ≥ a; set auto 1 1; compare_sym a b
 
 // addition is increasing
 val rec leq_add : ∀a1 b1 a2 b2∈nat, a1 ≤ a2 ⇒ b1 ≤ b2 ⇒ a1 + b1 ≤ a2 + b2 =
@@ -359,7 +359,7 @@ val rec leq_mul : ∀a1 b1 a2 b2∈nat, a1 ≤ a2 ⇒ b1 ≤ b2 ⇒ a1 * b1 ≤ 
 // max is smaller than sum
 val rec leq_max_add : ∀a b∈nat, max a b ≤ a+b =
   take a b;
-  set auto 2 3;
+  set auto 1 0;
   if leq a b {
     deduce max a b ≡ b;
     show b ≤ b using compare_refl b;

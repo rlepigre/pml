@@ -162,14 +162,14 @@ val opp_suc : ∀n∈int, opp (suc n) ≡ pre (opp n) = fun n {
   case n {
     Zero → {}
     S[p] → opp_pos_suc p
-    P[s] → set auto 2 2; {}
+    P[s] → set auto 1 2; {}
   }
 }
 
 val opp_pre : ∀n∈int, opp (pre n) ≡ suc (opp n) = fun n {
   case n {
     Zero → {}
-    S[p] → set auto 2 2; {}
+    S[p] → set auto 1 2; {}
     P[s] → opp_neg_pre s
   }
 }
@@ -253,7 +253,7 @@ val not_le_is_gt : ∀m n∈int, le m n ≡ false ⇒ gt m n = fun m n _ {
 
 val lt_is_le : ∀m n∈int, lt m n ⇒ le m n = fun m n _ {
   let c = n - m; // fixme #28 incompleteness of auto
-  set auto 2 2; qed
+  set auto 1 0; qed
 }
 
 val not_ge_is_lt : ∀m n∈int, ge m n ≡ false ⇒ lt m n =
