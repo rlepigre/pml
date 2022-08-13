@@ -994,7 +994,9 @@ let rec subtype =
 
 and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
   fun ctx exn t ty ->
-    log_aut "entering auto_prove (%a : %a)" Print.ex t Print.ex ty;
+    log_aut "entering auto_prove (%b, %d, %d, %d) (%a : %a)"
+      ctx.auto.doing ctx.auto.clvl ctx.auto.tlvl ctx.auto.dlvl
+      Print.ex t Print.ex ty;
     (* Tell we are in auto *)
     let auto = ctx.auto.doing in
     let ctx = { ctx with auto = { ctx.auto with doing = true } } in
@@ -1039,7 +1041,7 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
     let rec fn nb ctx0 todo =
       log_aut "loop (%d,%d,%d)" nb ctx.auto.tlvl ctx.auto.clvl;
       match todo with
-      | [] -> type_error ~auto (E(T,t)) ty exn
+      | [] -> (fun () -> type_error ~auto (E(T,t)) ty exn)
       | (tlvl, dlvl, (BTot (c,_,e) as b)) :: todo ->
          let tlvl = min tlvl ctx.auto.tlvl in
          ctx0.auto.tworst := min tlvl !(ctx0.auto.tworst);
@@ -1059,38 +1061,31 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
          let t0 = unbox (appl no_pos NoLz (valu no_pos f) (box e)) in
          log_aut "totality (%d,%d) (%d,%d) [%d]: %a"
            ctx.auto.clvl ctx.auto.tlvl tlvl c (List.length todo) Print.ex e;
-         let f =
-           try
-             let ctx = {ctx with auto = {ctx.auto with auto = false}} in
-             let r0 = type_term ctx t0 ty in
-             if nb > 0 then memo_insert ctx.memo (Skip nb);
-             log_aut "totality OK";
-             (fun () ->
-               match !res with
-               | None -> r0 (* Contradiction ! *)
-               | Some(ctx,bup,ptr,ty) ->
-                  let equations = { ctx.equations with
-                                    time = Timed.Time.return_futur bup } in
-                  let ctx = {ctx with equations;
-                                      auto = {ctx.auto with auto = true}} in
-                  try
-                    let (_,_,r) = type_term ctx t ty in
-                    ptr := r;
-                    r0
-                  with e ->
-                    log_aut "exception in auto (tot): %s" (Printexc.to_string e); raise e
-
-             )
-           with
-           | Failed_to_prove _
-           | Type_error _           ->
-              (fun () -> log_aut "totality FAIL";
-                         let todo =
-                           if dlvl > 0 then todo @ [(tlvl, dlvl-1,b)] else todo in
-                         UTimed.Time.rollback st;
-                         fn (nb+1) ctx0 todo)
-         in
-         f ()
+         (try
+           let ctx = {ctx with auto = {ctx.auto with auto = false}} in
+           let r0 = type_term ctx t0 ty in
+           if nb > 0 then memo_insert ctx.memo (Skip nb);
+           log_aut "totality OK";
+           (fun () ->
+             match !res with
+             | None -> r0 (* Contradiction ! *)
+             | Some(ctx,bup,ptr,ty) ->
+                let equations = { ctx.equations with
+                                  time = Timed.Time.return_futur bup } in
+                let ctx = {ctx with equations;
+                                    auto = {ctx.auto with auto = true}} in
+                let (_,_,r) = type_term ctx t ty in
+                ptr := r;
+                r0
+           )
+         with
+         | Failed_to_prove _
+         | Type_error _           ->
+            log_aut "totality FAIL";
+                       let todo =
+                         if dlvl > 0 then todo @ [(tlvl, dlvl-1,b)] else todo in
+                       UTimed.Time.rollback st;
+                       fn (nb+1) ctx0 todo)
       | (clvl, dlvl, (BCas(c,_,e,cs) as b)) :: todo ->
          let clvl = min clvl ctx.auto.clvl in
          ctx0.auto.cworst := min clvl !(ctx0.auto.cworst);
@@ -1120,44 +1115,39 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
          let t0 = unbox t0 in
          log_aut "cases    (%d,%d) (%d,%d) [%d]: %a"
            ctx.auto.clvl ctx.auto.tlvl clvl c (List.length todo) Print.ex e;
-         let f =
-           try
-             let ctx = {ctx with auto = {ctx.auto with auto = false}} in
-             let r0 = type_term ctx t0 ty in
-             if nb > 0 then memo_insert ctx.memo (Skip nb);
-             log_aut "case OK";
-             (fun () ->
-               let rec fn l =
-                 match l with
-                 | [] -> r0
-                 | (cs,ctx,bup,ptr,ty) :: ls->
+         (try
+           let ctx = {ctx with auto = {ctx.auto with auto = false}} in
+           let r0 = type_term ctx t0 ty in
+           if nb > 0 then memo_insert ctx.memo (Skip nb);
+           log_aut "case OK";
+           (fun () ->
+             let rec fn l =
+               match l with
+               | [] -> r0
+               | (cs,ctx,bup,ptr,ty) :: ls->
                   let equations = { ctx.equations with
                                     time = Timed.Time.return_futur bup } in
                   let ctx = {ctx with equations;
                                       auto = {ctx.auto with auto = true}} in
                   (*log_aut "restored context:\n%a\n\n" (print_pool "        ") ctx.equations;*)
-                    log_aut "cases    (%d,%d) (%d,%d) [%d]: %a ==> %s case (%d)"
-                      ctx.auto.clvl ctx.auto.tlvl clvl c (List.length todo)
-                      Print.ex e cs (List.length ls);
-                    try
-                      let (_,_,r) = type_term ctx t ty in
-                      ptr := r;
-                      fn ls
-                    with e ->
-                      log_aut "exception in auto (case): %s" (Printexc.to_string e); raise e
-               in fn (List.rev !res))
-           with
-           | Failed_to_prove _
-             | Type_error _           ->
-              (fun () ->
-                log_aut "case FAIL";
-                let todo =
-                  if dlvl > 0 then todo @ [(clvl, dlvl-1,b)] else todo in
-                UTimed.Time.rollback st;
-                fn (nb+1) ctx0 todo)
-         in
-         f ()
-    in fn skip ctx todo
+                  log_aut "cases    (%d,%d) (%d,%d) [%d]: %a ==> %s case (%d)"
+                    ctx.auto.clvl ctx.auto.tlvl clvl c (List.length todo)
+                    Print.ex e cs (List.length ls);
+                  let (_,_,r) = type_term ctx t ty in
+                  ptr := r;
+                  fn ls
+             in fn (List.rev !res))
+         with
+         | Failed_to_prove _
+         | Type_error _           ->
+              log_aut "case FAIL";
+              let todo =
+                if dlvl > 0 then todo @ [(clvl, dlvl-1,b)] else todo in
+              UTimed.Time.rollback st;
+              fn (nb+1) ctx0 todo)
+    in try fn skip ctx todo ()
+       with Failed_to_prove _ as e ->
+         type_error (E(T,t)) ty  e
 
 and gen_subtype : ctxt -> prop -> prop -> sub_rule =
   fun ctx a b ->
