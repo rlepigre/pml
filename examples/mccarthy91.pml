@@ -77,8 +77,8 @@ val mccarthy91_easy : nat ⇒ nat =
 
 val hard_lemma : ∀n∈nat, n > u100 ≡ false ⇒ mccarthy91_hard n ≡ u91 =
   fun n eq {
-    //{- takes too long -}
-    set auto 101 1; {}
+    {- takes too long -}
+    //set auto 101 1; {}
   }
 
 

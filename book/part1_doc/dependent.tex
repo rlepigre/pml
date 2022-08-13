@@ -120,7 +120,7 @@ with the intended type.
 \begin{pmlcode}
 val rec lem : ∀a, ∀c∈(a ⇒ a ⇒ cmp), ∀f∈(a ⇒ bool),∀t∈bt⟨a⟩,∀e∈a,
           for_all f t ⇒ f e ⇒ for_all f (insert c e t) =
-  fun c f t e ht he { set auto 1 2;
+  fun c f t e ht he { set auto 1 1;
     case t {
       | []                  → {}
       | Node[ l, e=e', r] →
@@ -196,7 +196,7 @@ val rec mem : ∀a,∀c∈(a ⇒ a ⇒ cmp), a ⇒ st⟨a,c⟩ ⇒ bool =
 val rec mem_correct : ∀a,∀c∈preorder⟨a⟩,∀e e'∈a,∀t∈st⟨a,c.f⟩,
                         mem c.f e (insert c.f e' t) ≡ (is_Eq (c.f e e') || mem c.f e t) =
   fun c e e' t {
-    set auto 2 2;
+    set auto 2 2; // TODO BUG: auto 1 2 loop
     case t {
       []                → qed
       Node[l, e=e'', r] →

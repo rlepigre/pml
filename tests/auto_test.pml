@@ -40,7 +40,7 @@ val taut0d : ∀a∈bool,  imp a a =
   qed
 
 val taut1 : ∀a b c∈bool,  eq (imp (and a b) c) (imp a (imp b c)) =
-  fun a b c { set auto 2 10; {} }
+  fun a b c { set auto 1 1; {} }
 
 set auto 3 10
 

@@ -921,8 +921,8 @@ let rec add_term :  bool -> bool -> pool -> term
     | FixN(_)     -> invalid_arg "nu in terms forbidden"
   in
   let po =
-    if o && not_uewit t0 &&
-         not (List.exists (fun (p',_) -> eq_ptr po p p') po.os)
+    if o && not_uewit t0 (*&&
+         not (List.exists (fun (p',_) -> eq_ptr po p p') po.os)*)
     then
       { po with os = (p, t0)::po.os }
     else po
@@ -1003,8 +1003,8 @@ and     add_valu : bool -> pool -> valu -> VPtr.t * pool = fun o po v0 ->
   in
   let po =
     let pv = Ptr.V_ptr p in
-    if o && not_uewit v0 &&
-         not (List.exists (fun (p',_) -> eq_ptr po pv p') po.os) then
+    if o && not_uewit v0 (*&&
+         not (List.exists (fun (p',_) -> eq_ptr po pv p') po.os)*) then
       { po with os = (pv, Pos.none (Valu v0))::po.os }
     else po
   in
@@ -2183,9 +2183,9 @@ let get_orig : Ptr.t -> pool -> int * term =
     let read (p,v) = age := max !age (ptr_adr p); v in
     let rec fn p =
       try
-        log_aut "get_orig fn %a" Ptr.print p;
+        (*log_aut "get_orig fn %a" Ptr.print p;*)
         let l = List.find_all (fun (v',e) -> eq_ptr po p v') po.os in
-        log_aut "get_orig fn %d candidate for %a" (List.length l) Ptr.print p;
+        (*log_aut "get_orig fn %d candidate for %a" (List.length l) Ptr.print p;*)
         if l = [] then raise Not_found;
         snd (List.hd (List.sort cmp_orig l))
       with Not_found ->
@@ -2193,7 +2193,7 @@ let get_orig : Ptr.t -> pool -> int * term =
         let (v',nn) = List.find (fun (v',nn) ->
                           eq_ptr po (Ptr.T_ptr v') p && is_appl nn) po.ts
         in
-        log_aut "get_orig fn found node %a %a" TPtr.print v' print_t_node nn;
+        (*log_aut "get_orig fn found node %a %a" TPtr.print v' print_t_node nn;*)
         match nn with
         | TN_Appl(u1,u2,l) ->
            let u1 = fn u1 in

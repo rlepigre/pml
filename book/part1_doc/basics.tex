@@ -709,8 +709,7 @@ Let us write a more detailed proof:
      take f l1 l2;
      case l1 {
        [] → qed
-       h::l →  set auto 0 2;
-               show map f l1 @ map f l2
+       h::l → show map f l1 @ map f l2
                  ≡ (f h :: map f l) @ map f l2
                  ≡ f h :: (map f l @ map f l2)
                  ≡ f h :: (map f (l @ l2)) by map_app f l l2
@@ -741,14 +740,15 @@ evaluation if they where not values):
      }
 \end{pmlcode}
 
-And a much simpler proof just increasing the auto level:
+And a much simpler proof, with the default auto level allowing
+to insert some let:
 \begin{pmlcode}
    val rec map_app : ∀a b, ∀f∈(a ⇒ b), ∀l1 l2∈list⟨a⟩,
                            map f l1 @ map f l2 ≡ map f (l1 @ l2) =
      take f l1 l2;
      case l1 {
        [] → qed
-       h::l → set auto 0 4; use map_app f l l2
+       h::l → use map_app f l l2
      }
 \end{pmlcode}
 
