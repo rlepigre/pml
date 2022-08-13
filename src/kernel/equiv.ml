@@ -814,6 +814,7 @@ let test_cyclic po pv =
 let rec add_term :  bool -> bool -> pool -> term
                     -> Ptr.t * pool = fun o free po t0 ->
   let t = Norm.whnf t0 in
+  log_edp2 "add_term %b %a" o Print.ex t;
   match Timed.get po.time t0.usr with
   | NPtr p | BPtr(_,p) when free      -> (find p po, po)
   | UPtr p | BPtr(p,_) when not free  -> (find p po, po)
@@ -920,7 +921,9 @@ let rec add_term :  bool -> bool -> pool -> term
     | FixN(_)     -> invalid_arg "nu in terms forbidden"
   in
   let po =
-    if o && not_uewit t0 then
+    if o && not_uewit t0 &&
+         not (List.exists (fun (p',_) -> eq_ptr po p p') po.os)
+    then
       { po with os = (p, t0)::po.os }
     else po
   in
@@ -942,6 +945,7 @@ and     add_valu : bool -> pool -> valu -> VPtr.t * pool = fun o po v0 ->
   let add_valu = add_valu o in
   (*log_edp2 "add_valu %a" Print.ex v;*)
   let v = Norm.whnf v0 in
+  log_edp2 "add_valu %b %a" o Print.ex v;
   match Timed.get po.time v0.usr with
   | EPtr p -> (p, po)
   | BPtr _ | NPtr _ | UPtr _  -> assert false
@@ -998,8 +1002,10 @@ and     add_valu : bool -> pool -> valu -> VPtr.t * pool = fun o po v0 ->
     | FixN(_)     -> invalid_arg "nu in values forbidden"
   in
   let po =
-    if o && not_uewit v0 then
-      { po with os = (Ptr.V_ptr p, Pos.none (Valu v0))::po.os }
+    let pv = Ptr.V_ptr p in
+    if o && not_uewit v0 &&
+         not (List.exists (fun (p',_) -> eq_ptr po pv p') po.os) then
+      { po with os = (pv, Pos.none (Valu v0))::po.os }
     else po
   in
   let po = {po with time = Timed.set po.time v0.usr (EPtr p)} in
