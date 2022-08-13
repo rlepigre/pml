@@ -162,14 +162,14 @@ val opp_suc : ∀n∈int, opp (suc n) ≡ pre (opp n) = fun n {
   case n {
     Zero → {}
     S[p] → opp_pos_suc p
-    P[s] → set auto 1 1; {}
+    P[s] → set auto 2 2; {}
   }
 }
 
 val opp_pre : ∀n∈int, opp (pre n) ≡ suc (opp n) = fun n {
   case n {
     Zero → {}
-    S[p] → set auto 1 1; {}
+    S[p] → set auto 2 2; {}
     P[s] → opp_neg_pre s
   }
 }

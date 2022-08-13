@@ -2080,16 +2080,16 @@ let learn : pool -> rel -> bool * pool = fun pool rel ->
 (** type of blocked evaluations sent back to typing for automatic
     case analysis and totality in auto_prove *)
 type blocked =
-  | BTot of int ref * Ptr.t * term
-  | BCas of int ref * Ptr.t * term * A.key list
+  | BTot of int * Ptr.t * term
+  | BCas of int * Ptr.t * term * A.key list
 
 let incrt p = incr p; true
 
 let eq_blocked : blocked -> blocked -> bool =
   fun b1 b2 ->
     match (b1, b2) with
-    | (BTot(_,pt,e)  , BTot(c,pu,f)  ) -> eq_expr e f && incrt c
-    | (BCas(_,pt,e,_), BCas(c,pu,f,_)) -> eq_expr e f && incrt c
+    | (BTot(_,pt,e)  , BTot(c,pu,f)  ) -> eq_expr e f
+    | (BCas(_,pt,e,_), BCas(c,pu,f,_)) -> eq_expr e f
     | (_             , _             ) -> false
 
 (** the exception when failing to prove carry the blocked evaluations *)
@@ -2110,16 +2110,16 @@ let cmp_orig (p,x) (q,y) = match (x.elt, y.elt) with
     | (_               , _               ) ->  0
 
 (* Search a vwit or a projection equal to a given term in the pool *)
-let term_vwit : term -> pool -> term = fun t po ->
+let term_vwit : term -> pool -> Ptr.t * term = fun t po ->
   (*Printf.eprintf "term_vwit: %a\n%!" Print.ex t;*)
   let (pt, po) = add_term true true po t in
   let fn (p,t) = eq_ptr po p pt in
   let l = List.find_all fn po.os in
   if l = [] then raise Not_found;
-  snd (List.hd (List.sort cmp_orig l))
+  List.hd (List.sort cmp_orig l)
 
 (* Search a vwit or a projection equal to a given valu in the pool *)
-let valu_vwit : valu -> pool -> valu = fun t po ->
+let valu_vwit : valu -> pool -> Ptr.t * valu = fun t po ->
   (*Printf.eprintf "valu_vwit: %a\n%!" Print.ex t;*)
   let (pt, po) = add_valu true po t in
   let fn (p,t) =
@@ -2129,9 +2129,9 @@ let valu_vwit : valu -> pool -> valu = fun t po ->
   in
   let l = List.find_all fn po.os in
   if l = [] then raise Not_found;
-  let t = snd (List.hd (List.sort cmp_orig l)) in
+  let (p,t) = List.hd (List.sort cmp_orig l) in
   match (Norm.repr t).elt with
-  | Valu v -> v
+  | Valu v -> (p,v)
   | _      -> assert false
 
 
@@ -2171,11 +2171,15 @@ let get_cases : Ptr.v_ptr -> pool -> A.key list option = fun pv po ->
   in gn l
 
 (** get one original term from the pool or their applications. *)
-let get_orig : Ptr.t -> pool -> term =
+let get_orig : Ptr.t -> pool -> int * term =
   fun p po ->
+    let age = ref (-1) in
+    let read (p,v) = age := max !age (ptr_adr p); v in
     let rec fn p =
       try
+        log_aut "get_orig fn %a" Ptr.print p;
         let l = List.find_all (fun (v',e) -> eq_ptr po p v') po.os in
+        log_aut "get_orig fn %d candidate for %a" (List.length l) Ptr.print p;
         if l = [] then raise Not_found;
         snd (List.hd (List.sort cmp_orig l))
       with Not_found ->
@@ -2183,6 +2187,7 @@ let get_orig : Ptr.t -> pool -> term =
         let (v',nn) = List.find (fun (v',nn) ->
                           eq_ptr po (Ptr.T_ptr v') p && is_appl nn) po.ts
         in
+        log_aut "get_orig fn found node %a %a" TPtr.print v' print_t_node nn;
         match nn with
         | TN_Appl(u1,u2,l) ->
            let u1 = fn u1 in
@@ -2199,33 +2204,33 @@ let get_orig : Ptr.t -> pool -> term =
       | UWit _ | EWit _ ->
          begin
            match sort t with
-           | (T, t) -> r.recall (term_vwit t po)
-           | (V, t) -> r.recall (valu_vwit t po)
+           | (T, t) -> r.recall (read (term_vwit t po))
+           | (V, t) -> r.recall (read (valu_vwit t po))
            | _      -> r.default t
          end
       | VPtr _ ->
          begin
            match sort t with
-           | (V, t) -> r.recall (valu_vwit t po)
+           | (V, t) -> r.recall (read (valu_vwit t po))
            | _      -> .
          end
       | TPtr _ ->
          begin
            match sort t with
-           | (T, t) -> r.recall (term_vwit t po)
+           | (T, t) -> r.recall (read (term_vwit t po))
            | _      -> .
          end
       | Valu(v) ->
          begin
            match (Norm.whnf v).elt with
-           | UWit _ | EWit _ | VPtr _ -> r.recall (term_vwit t po)
+           | UWit _ | EWit _ | VPtr _ -> r.recall (read (term_vwit t po))
            | _ -> r.default t
          end
       | _      -> r.default t
     in
     let t0 = unbox (map ~mapper:{mapper} t) in
     (*log_aut "%a ==> %a\n%!" Print.ex t Print.ex t0;*)
-    t0
+    (!age, t0)
 
 let is_let_underscore e = match e.elt with
   | Appl({elt = Valu({elt = LAbs(_,b,NoLz)})},_,NoLz)
@@ -2234,7 +2239,7 @@ let is_let_underscore e = match e.elt with
 
 (** get all blocked terms in the pool *)
 let get_blocked : pool -> blocked list -> blocked list = fun po old ->
-  (*log_aut "obtained context:\n%a\n\n" (print_pool "        ") po;*)
+  (*log_aut "get blocked context:\n%a\n\n" (print_pool "        ") po;*)
   (*Printf.eprintf "coucou 0 %d\n%!" (List.length !adone);*)
   let bl =
     List.fold_left (fun (acc:blocked list) (tp,tn) ->
@@ -2248,10 +2253,11 @@ let get_blocked : pool -> blocked list -> blocked list = fun po old ->
           | TN_Appl(_,v,l) when not (test_value v po) ->
              begin
                try
-                 let e = get_orig v po in
+                 (*log_aut "testing Appl no value";*)
+                 let (age, e) = get_orig v po in
                  (* no need to prove totality of let _ = t; u *)
                  if is_let_underscore e then raise Not_found;
-                 let b = BTot(ref 0, u,e) in
+                 let b = BTot(age, u,e) in
                  if List.exists (eq_blocked b) acc
                     || List.exists (eq_blocked b) old then acc
                  else
@@ -2267,8 +2273,8 @@ let get_blocked : pool -> blocked list -> blocked list = fun po old ->
                | Some l -> List.filter (fun x -> List.mem x l) cases
                | None   -> cases
              in
-             let e = get_orig (Ptr.V_ptr v) po in
-             let b = BCas (ref 0, u, e, cases) in
+             let (age, e) = get_orig (Ptr.V_ptr v) po in
+             let b = BCas (age, u, e, cases) in
              if List.exists (eq_blocked b) acc
                 || List.exists (eq_blocked b) old then acc
              else
@@ -2292,7 +2298,7 @@ let get_blocked : pool -> blocked list -> blocked list = fun po old ->
              let rec fn acc a =
                match  a.elt with
                | Memb(t,a) ->
-                  let b = BTot(ref 0, u,t) in
+                  let b = BTot(0, u,t) in (* TODO*)
                   let acc =
                     if List.exists (eq_blocked b) acc
                        || List.exists (eq_blocked b) old then acc else

@@ -212,7 +212,7 @@ val rec mem_correct : ∀a,∀c∈preorder⟨a⟩,∀e e'∈a,∀t∈st⟨a,c.f�
                     deduce c.f e e' ≡ Ls by c.trans e e' e'';
                     qed
              }
-        Eq → case c.f e' e'' { Ls → {} | Eq → {} | Gr → {} } //TODO
+        Eq → qed
         Gr → deduce mem c.f e (insert c.f e' r) ≡ is_Eq (c.f e e') || mem c.f e r
              by mem_correct c e e' r;
              case c.f e' e'' {
