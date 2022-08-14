@@ -2176,7 +2176,7 @@ let get_cases : Ptr.v_ptr -> pool -> A.key list option = fun pv po ->
     | _ -> assert false
   in gn l
 
-(** get one original term from the pool or their applications. *)
+(** get one original term from the pool or their applications/projections. *)
 let get_orig : Ptr.t -> pool -> int * term =
   fun p po ->
     let age = ref (-1) in
@@ -2211,7 +2211,7 @@ let get_orig : Ptr.t -> pool -> int * term =
                Not_found -> gn ls
         in
         gn ls
-      with Not_found ->
+      with Not_found -> (* try to find a parent record for projection *)
         let par = parents p po in
         let is_reco k v acc =
           match k with KV_Reco l -> (v, l) :: acc | _ -> acc
@@ -2273,7 +2273,7 @@ let is_let_underscore e = match e.elt with
         -> binder_constant (snd b)
   | _   -> false
 
-(** get all blocked terms in the pool *)
+(** get all terms blocking evaluation in the pool *)
 let get_blocked : pool -> blocked list -> blocked list = fun po old ->
   (*log_aut "get blocked context:\n%a\n\n" (print_pool "        ") po;*)
   (*Printf.eprintf "coucou 0 %d\n%!" (List.length !adone);*)
