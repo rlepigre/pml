@@ -666,8 +666,7 @@ and field = (l::lid) (t::~? ("=" (t::expr (Trm R)) => t)) => (l,t)
 and patt =
     '[' ']'                        => (in_pos _pos "Nil"  , None)
   ; (x::lid_wc) "::" (y::lid_wc) => (
-      let fs = if y.elt <> "_" then [(none "tl", (y, None))] else [] in
-      let fs = if x.elt <> "_" then (none "hd", (x, None))::fs else fs in
+      let fs = [(none "tl", (y, None)); (none "hd", (x, None))] in
       (in_pos _pos "Cons", Some (`LetArgRec fs)))
   ; (c::lbid) (arg::('[' (a::let_arg_inner) ']' => a))
                                    => (c                  , Some arg )
