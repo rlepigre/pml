@@ -1,11 +1,11 @@
 include lib.int
 
 val suc_pre : ∀n∈int, suc (pre n) ≡ n = fun n {
-  set auto 2 1; {}
+  set auto 1 1; {}
 }
 
 val pre_suc : ∀n∈int, pre (suc n) ≡ n = fun n {
-  set auto 2 1; {}
+  set auto 1 1; {}
 }
 
 val rec add_zero_right : ∀n∈int, n + Zero ≡ n = fun n {

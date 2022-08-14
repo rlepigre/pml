@@ -94,6 +94,7 @@ type auto_ctxt =
   { tlvl  : int
   ; clvl  : int
   ; dlvl  : int
+  ; tdif  : int
   ; doing : bool
   ; old   : blocked list
   ; todo  : (int * int * blocked) list
@@ -116,6 +117,7 @@ let auto_empty () =
   { tlvl  = default_auto_lvl.t
   ; clvl  = default_auto_lvl.c
   ; dlvl  = default_auto_lvl.d
+  ; tdif  = default_auto_lvl.c - default_auto_lvl.t
   ; doing = false
   ; old   = []
   ; todo  = []
@@ -1015,11 +1017,15 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
     let todo = bls @ ctx.auto.todo in
     let cmp b1 b2 = match (b1,b2) with
       | (_,n, _    ), (_,m, _    ) when n <> m -> compare m n
-      | (n,_, _    ), (m,_, _    ) when n <> m -> compare m n
+      | (n,_,BTot _), (m,_,BTot _) when n <> m -> compare m n
+      | (n,_,BCas _), (m,_,BCas _) when n <> m -> compare m n
+      | (n,_,BTot _), (m,_,BCas _) when n <> m -> compare m n
+      | (n,_,BTot _), (m,_,BCas _) when (n+ctx.auto.tdif) <> m -> compare m (n+ctx.auto.tdif)
+      | (n,_,BCas _), (m,_,BTot _) when n <> (m+ctx.auto.tdif) -> compare (m+ctx.auto.tdif) n
       | (_,_,BTot _), (_,_,BCas _) -> -1
       | (_,_,BCas _), (_,_,BTot _) ->  1
       | (_,_,BTot (c,_,_)), (_,_,BTot (d,_,_))
-      | (_,_,BCas (c,_,_,_)), (_,_,BCas (d,_,_,_)) -> compare c d
+      | (_,_,BCas (c,_,_,_)), (_,_,BCas (d,_,_,_)) -> compare d c
     in
     let todo = List.stable_sort cmp todo in
     let skip = match memo_find ctx.memo with
@@ -1781,6 +1787,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
 and do_set_param ctx = function
   | Alvl{t;c;d}     ->
      let ctx = { ctx with auto = { ctx.auto with clvl=c; tlvl=t; dlvl = d
+                                 ; tdif = c - t
                                  ; cworst = ref c
                                  ; tworst = ref t
                                  ; dworst = ref d

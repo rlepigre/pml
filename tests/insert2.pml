@@ -58,7 +58,7 @@ val rec insert : ∀s,∀a:ο, ∀o∈order⟨a⟩, a ⇒ slist⟨s,a,o⟩ ⇒ s
   fun o x l {
     // show that some lemma may be integrated in the function
     let cmp = fun x y {let _ = o.tot x y; o.cmp x y};
-    set auto 4 6 1;
+    set auto 7 7 1;
     case l {
       []     → x::[]
       hd::tl → if cmp x hd { x::l } else { hd :: insert o x tl }

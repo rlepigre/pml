@@ -2188,20 +2188,50 @@ let get_orig : Ptr.t -> pool -> int * term =
         (*log_aut "get_orig fn %d candidate for %a" (List.length l) Ptr.print p;*)
         if l = [] then raise Not_found;
         snd (List.hd (List.sort cmp_orig l))
-      with Not_found ->
+      with Not_found -> try
         let is_appl = function TN_Appl _ | TN_Proj _ -> true | _ -> false in
-        let (v',nn) = List.find (fun (v',nn) ->
+        let ls = List.find_all (fun (v',nn) ->
                           eq_ptr po (Ptr.T_ptr v') p && is_appl nn) po.ts
         in
-        (*log_aut "get_orig fn found node %a %a" TPtr.print v' print_t_node nn;*)
-        match nn with
-        | TN_Appl(u1,u2,l) ->
-           let u1 = fn u1 in
-           let u2 = fn u2 in
-           Pos.none (Appl(u1, u2,l))
-        | TN_Proj(u1,l) ->
-           x_proj no_pos (fn (Ptr.V_ptr u1)) l
-        | _ -> assert false
+        let rec gn l =
+          match l with
+          | [] -> raise Not_found
+          | (v',nn)::ls ->
+             try
+               (*log_aut "get_orig fn found node %a %a" TPtr.print v' print_t_node nn;*)
+               match nn with
+               | TN_Appl(u1,u2,l) ->
+                  let u1 = fn u1 in
+                  let u2 = fn u2 in
+                  Pos.none (Appl(u1, u2,l))
+               | TN_Proj(u1,l) ->
+                  x_proj no_pos (fn (Ptr.V_ptr u1)) l
+               | _ -> assert false
+             with
+               Not_found -> gn ls
+        in
+        gn ls
+      with Not_found ->
+        let par = parents p po in
+        let is_reco k v acc =
+          match k with KV_Reco l -> (v, l) :: acc | _ -> acc
+        in
+        let ls = MapKey.fold is_reco par [] in
+        let rec gn = function
+          | [] -> raise Not_found
+          | (us,l)::ls ->
+             try
+               let good x acc =
+                 match acc with Some _ -> acc
+                              | None -> try Some (fn x) with Not_found -> None
+               in
+               let u = match PtrSet.fold good us None with
+                   None -> raise Not_found
+                 | Some u -> u
+               in
+               x_proj no_pos u (none l)
+             with Not_found -> gn ls
+        in gn ls
     in
     let t = fn p in
     let open Mapper in

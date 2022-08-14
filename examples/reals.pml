@@ -61,7 +61,7 @@ val rec divideBy : ∀o:κ, ∀n∈nat, ∀s∈sbds⟨o+ₒ2,n⟩, sman⟨o⟩ =
     let { hd = a, tl = x } = force x;
     let { hd = b, tl = x } = force x;
     let d = p2 * a + b;
-    show le a n using (set auto 1 2; {});
+    show le a n using (set auto 1 1; {});
     deduce ge a (opp n);
     show le b n using (set auto 1 1; {});
     deduce ge b (opp n);
