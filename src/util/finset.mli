@@ -6,7 +6,7 @@ module type Elt = sig
   type t
 
   val all : t list
-  val print : out_channel -> t -> unit
+  val print : Format.formatter -> t -> unit
 end
 
 module type FinSet = sig

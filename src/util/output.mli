@@ -7,7 +7,7 @@ val verbose : verbose ref
 
 
 (** Type of printf-like functions. *)
-type 'a formatter = ('a, out_channel, unit) format -> 'a
+type 'a formatter = ('a, Format.formatter, unit) format -> 'a
 
 (** Always use escape sequences for colors (even in a pipe). *)
 val always_colors : bool ref
@@ -94,7 +94,7 @@ module Log :
   end
 
 (** Type of a printing function for elements of type ['a]. *)
-type 'a printer = out_channel -> 'a -> unit
+type 'a printer = Format.formatter -> 'a -> unit
 
 (** [print_list pelem sep l] prints the list [l] using the function  [pelem]
     ofr printing its elements, and [sep] as a separator. *)
@@ -107,3 +107,5 @@ val yel : string -> string
 val red : string -> string
 val mag : string -> string
 val cya : string -> string
+
+val output_string : Format.formatter -> string -> unit

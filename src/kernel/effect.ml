@@ -22,8 +22,8 @@ module Effect = struct
   type t = pml_effect
   let all = [ Loop; CallCC ]
   let print ch = function
-    | Loop   -> Printf.fprintf ch "Loop"
-    | CallCC -> Printf.fprintf ch "CallCC"
+    | Loop   -> Format.fprintf ch "Loop"
+    | CallCC -> Format.fprintf ch "CallCC"
 end
 
 include Finset.Make(UTimed)(Effect)

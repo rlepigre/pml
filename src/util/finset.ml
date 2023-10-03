@@ -6,7 +6,7 @@ module type Elt = sig
   type t
 
   val all : t list
-  val print : out_channel -> t -> unit
+  val print : Format.formatter -> t -> unit
 end
 
 module type FinSet = sig
@@ -65,7 +65,7 @@ module Make(T:Timed)(E:Elt) = struct
   type elt = E.t
   type set = E.t list
 
-  let espr ch l = List.iter (Printf.fprintf ch "%a;" E.print) l
+  let espr ch l = List.iter (Format.fprintf ch "%a;" E.print) l
 
   type constraints = { uiden : int
                      ; absen : set ref
@@ -99,11 +99,11 @@ module Make(T:Timed)(E:Elt) = struct
        in
        if known then Some res else None
 
-  let cpr ch c = Printf.fprintf ch "[%d %a^%a]" c.uiden
+  let cpr ch c = Format.fprintf ch "[%d %a^%a]" c.uiden
                                 espr !(c.prese) espr !(c.absen)
   let pr ch x =
     match x with
-    | Known l -> Printf.fprintf ch "{%a}" espr l
+    | Known l -> Format.fprintf ch "{%a}" espr l
     | Unkno c -> cpr ch c
 
   (** Creation of new totality variables *)

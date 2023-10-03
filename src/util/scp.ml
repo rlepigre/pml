@@ -10,8 +10,8 @@ type cmp = Min1 | Zero | Infi
 let cmp_to_string : cmp -> string =
   function Min1 -> "<" | Zero -> "=" | Infi -> "?"
 
-let pp_cmp : out_channel -> cmp -> unit = fun oc c ->
-  output_string oc (cmp_to_string c)
+let pp_cmp : Format.formatter -> cmp -> unit = fun oc c ->
+  Output.output_string oc (cmp_to_string c)
 
 (** Addition operation (minimum) *)
 let (<+>) : cmp -> cmp -> cmp = min
@@ -171,26 +171,26 @@ open Output
 let log_scp = Log.register 'y' (Some "scp") "size change principle"
 let log_scp = Log.(log_scp.p)
 
-let print_call : out_channel -> symbol IMap.t -> call -> unit = fun ff m c ->
+let print_call : Format.formatter -> symbol IMap.t -> call -> unit = fun ff m c ->
   let caller_sym = IMap.find c.caller m in
   let callee_sym = IMap.find c.callee m in
-  let print_args = print_array output_string "," in
-  Printf.fprintf ff "%s%d(%a%!) <- %s%d%!(" caller_sym.name c.caller
+  let print_args = print_array (fun fmt -> Format.fprintf fmt "%s") "," in
+  Format.fprintf ff "%s%d(%a%!) <- %s%d%!(" caller_sym.name c.caller
     print_args caller_sym.args callee_sym.name c.callee;
   for i = 0 to callee_sym.arity - 1 do
-    if i > 0 then Printf.fprintf ff ",";
+    if i > 0 then Format.fprintf ff ",";
     let some = ref false in
     for j = 0 to caller_sym.arity - 1 do
       let c = c.matrix.tab.(j).(i) in
       if c <> Infi then
         begin
           let sep = if !some then " " else "" in
-          Printf.fprintf ff "%s%a%s" sep pp_cmp c caller_sym.args.(j);
+          Format.fprintf ff "%s%a%s" sep pp_cmp c caller_sym.args.(j);
           some := true
         end
     done
   done;
-  Printf.fprintf ff ")%!"
+  Format.fprintf ff ")%!"
 
 (** the main function, checking if calls are well-founded *)
 let scp_only : t -> bool = fun ftbl ->

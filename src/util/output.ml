@@ -6,7 +6,7 @@ type verbose = Silent | Quiet | Verbose
 let verbose   = ref Verbose
 
 (* Type of a printf-like function. *)
-type 'a formatter = ('a, out_channel, unit) format -> 'a
+type 'a formatter = ('a, Format.formatter, unit) format -> 'a
 
 let always_colors : bool ref = ref false
 
@@ -28,7 +28,7 @@ let cya fmt = "\027[36m" ^ fmt ^ "\027[0m"
 let msg color str fmt =
   let fmt = "[%s] " ^^ fmt ^^ "\n%!" in
   let str = if isatty stderr then color str else str in
-  Printf.eprintf fmt str
+  Format.eprintf fmt str
 
 (* Printing function for a warning message. *)
 let wrn_msg : type a. a formatter = fun fmt -> msg yel "WRN" fmt
@@ -120,10 +120,11 @@ module Log =
         let p fmt =
           let tag = if isatty !log_channel then cya tag else tag in
           let fmt = "[%s] " ^^ fmt ^^ "\n%!" in
+          let ch = Format.formatter_of_out_channel !log_channel in
           if CSet.mem key !enabled then
-            Printf.fprintf !log_channel fmt tag
+            Format.fprintf ch fmt tag
           else
-            Printf.ifprintf !log_channel fmt tag
+            Format.ifprintf ch fmt tag
         in
         { p }
 
@@ -150,10 +151,13 @@ end
    anymore. *)
 let out : 'a formatter = fun fmt ->
   let ch = if !Log.log_channel == stderr then stdout else !Log.log_channel in
-  Printf.fprintf ch fmt
+  let ch = Format.formatter_of_out_channel ch in
+  Format.fprintf ch fmt
 
 (* Type of a function printing to a channel. *)
-type 'a printer = out_channel -> 'a -> unit
+type 'a printer = Format.formatter -> 'a -> unit
+
+let output_string ff s = Format.fprintf ff "%s" s
 
 (* Printing function for lists. *)
 let print_list : 'a printer -> string -> 'a list printer =

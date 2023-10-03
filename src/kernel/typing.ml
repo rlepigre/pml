@@ -47,7 +47,7 @@ let chk_exc = function
     | Assert_failure _
     | Exit | Contradiction
     | Not_found as e ->
-     Printf.eprintf "THIS SHOULD NOT HAPPEND %s" (Printexc.to_string e);
+     Format.eprintf "THIS SHOULD NOT HAPPEND %s" (Printexc.to_string e);
      Printexc.print_backtrace stderr;
      exit 1
   | Bad_memo -> true
@@ -150,26 +150,26 @@ let empty_memo_tbl () = { info  = ref NoInfo
                         ; below = ref MNil }
 
 let print_path ch = function
-  | Rc l -> Printf.fprintf ch "Rc(%s)" l
-  | Ca l -> Printf.fprintf ch "Ca(%s)" l
-  | Cm   -> Printf.fprintf ch "Cm"
-  | Ap L -> Printf.fprintf ch "ApL"
-  | Ap R -> Printf.fprintf ch "ApR"
-  | Df   -> Printf.fprintf ch "Df"
+  | Rc l -> Format.fprintf ch "Rc(%s)" l
+  | Ca l -> Format.fprintf ch "Ca(%s)" l
+  | Cm   -> Format.fprintf ch "Cm"
+  | Ap L -> Format.fprintf ch "ApL"
+  | Ap R -> Format.fprintf ch "ApR"
+  | Df   -> Format.fprintf ch "Df"
 
 let print_paths ch ls =
   List.iter (print_path ch) ls
 
 let print_info ch = function
-  | Weak   -> Printf.fprintf ch "Weak"
-  | Skip n -> Printf.fprintf ch "Sk %d" n
-  | OpDf   -> Printf.fprintf ch "OPDf"
-  | NoInfo -> Printf.fprintf ch "?"
+  | Weak   -> Format.fprintf ch "Weak"
+  | Skip n -> Format.fprintf ch "Sk %d" n
+  | OpDf   -> Format.fprintf ch "OPDf"
+  | NoInfo -> Format.fprintf ch "?"
 
 let print_memo ch tbl =
   let rec fn ps tbl =
     if !(tbl.info) <> NoInfo then
-      Printf.fprintf ch "%a => %a\n"
+      Format.fprintf ch "%a => %a\n"
         print_paths (List.rev ps) print_info !(tbl.info);
     match !(tbl.below) with
     | MNil        -> ()
@@ -390,7 +390,7 @@ let print_goal ctx str pos c =
   if !verbose > Silent then begin
       wrn_msg "goal (value) %S %a" str print_wrn_pos pos;
       Print.pretty ctx.pretty;
-      Printf.printf "|- %a\n%!" Print.ex c;
+      Format.printf "|- %a\n%!" Print.ex c;
     end
 
 let learn_nobox : ctxt -> valu -> ctxt = fun ctx v ->
@@ -581,12 +581,12 @@ let term_is_value : term -> ctxt -> bool * bool * ctxt = fun t ctx ->
   let (is_val, no_box, equations) = is_value t ctx.equations in
   (is_val, no_box, {ctx with equations})
 
-let print_pos : out_channel -> (ordi * ordi) list -> unit =
+let print_pos : Format.formatter -> (ordi * ordi) list -> unit =
   fun ch os ->
     match os with
     | [] -> output_string ch "∅"
     | os -> let print ch (o, oo) =
-              Printf.fprintf ch "%a (> %a)" Print.ex o Print.ex oo
+              Format.fprintf ch "%a (> %a)" Print.ex o Print.ex oo
             in print_list print ", " ch os
 
 let is_conv : ordi -> bool = fun o ->
@@ -2149,7 +2149,7 @@ and type_stac : ctxt -> stac -> prop -> stk_proof = fun ctx s c ->
     | Goal(_,str,cb) ->
         wrn_msg "goal (stack) %S %a" str print_wrn_pos s.pos;
         Print.pretty ctx.pretty;
-        Printf.printf "|- %a\n%!" Print.ex c;
+        Format.printf "|- %a\n%!" Print.ex c;
         Stk_Goal(str)
     (* Constructors that cannot appear in user-defined stacks. *)
     | Coer(_,_,_) -> .

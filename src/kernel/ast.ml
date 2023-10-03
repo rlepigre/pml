@@ -827,7 +827,7 @@ let rec sort : type a. a ex loc -> a sort * a ex loc = fun e ->
   | Vari(s,_)       -> (s,e)
 
 type fprint =
-      { mutable f : 'a. out_channel -> 'a ex loc -> unit }
+      { mutable f : 'a. Format.formatter -> 'a ex loc -> unit }
 
 let fprint = { f = fun ch x -> assert false }
 let rec apply_args : type a b. a ex loc -> (a, b) fix_args -> b ex loc =

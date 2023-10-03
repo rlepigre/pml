@@ -6,7 +6,7 @@ open Sorts
 open Pos
 open Ast
 open Output
-open Printf
+open Format
 open Uvars
 open Priority
 
@@ -47,17 +47,17 @@ let print_set_param ch = function
   | Keep(b)     -> fprintf ch "keep_intermediate %b" b
 
 let hint fn ch = function
-  | Eval            -> Printf.fprintf ch "eval"
-  | Sugar           -> Printf.fprintf ch "sugar"
-  | Close(true,ls)  -> Printf.fprintf ch "close %t;"
+  | Eval            -> fprintf ch "eval"
+  | Sugar           -> fprintf ch "sugar"
+  | Close(true,ls)  -> fprintf ch "close %t;"
                          (fun ch -> List.iter fn ls)
-  | Close(false,ls) -> Printf.fprintf ch "open %t;"
+  | Close(false,ls) -> fprintf ch "open %t;"
                          (fun ch -> List.iter fn ls)
-  | Auto b          -> Printf.fprintf ch "auto %b" b
+  | Auto b          -> fprintf ch "auto %b" b
   | LSet l          -> fprintf ch "%a" print_set_param l
 
-let vhint ch = hint (fun v -> Printf.fprintf ch "%s " v.value_name.elt) ch
-let lhint ch = hint (fun v -> Printf.fprintf ch "%s " v.elt) ch
+let vhint ch = hint (fun v -> fprintf ch "%s " v.value_name.elt) ch
+let lhint ch = hint (fun v -> fprintf ch "%s " v.elt) ch
 
 let removeq : ('a -> 'a -> bool) -> 'a list ref -> 'a -> bool = fun eq ls x ->
   let rec fn acc = function
@@ -573,9 +573,9 @@ type pretty =
 
 let pretty ps =
   let fn = function
-    | Decl(v,p)    -> Printf.printf "%a : %a\n" ex v ex p
-    | Rela(r)      -> Printf.printf "%a\n" rel r
-    | Posi (o)     -> Printf.printf "%a > 0\n" ex o
-    | CPrj (v,l,w) -> Printf.printf "%a.%s = %a\n" ex v l ex w
+    | Decl(v,p)    -> printf "%a : %a\n" ex v ex p
+    | Rela(r)      -> printf "%a\n" rel r
+    | Posi (o)     -> printf "%a > 0\n" ex o
+    | CPrj (v,l,w) -> printf "%a.%s = %a\n" ex v l ex w
   in
   List.iter fn ps

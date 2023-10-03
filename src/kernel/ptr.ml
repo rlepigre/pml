@@ -70,7 +70,7 @@ module rec Ptr : sig
 
   type t = ptr
   val compare : ptr -> ptr -> int
-  val print : out_channel -> ptr -> unit
+  val print : Format.formatter -> ptr -> unit
 end = struct
   type v_ptr = { vadr : int; vlnk : lnk Timed.tref; vval : dp
                ; bs : bool Timed.tref; mutable vas: las  }
@@ -103,23 +103,23 @@ and PtrSet : Set.S with type elt = Ptr.t = Set.Make(Ptr)
 and VPtr : sig
     type t = Ptr.v_ptr
     val compare : Ptr.v_ptr -> Ptr.v_ptr -> int
-    val print : out_channel -> Ptr.v_ptr -> unit
+    val print : Format.formatter -> Ptr.v_ptr -> unit
   end = struct
     type t = Ptr.v_ptr
     let compare i j = i.Ptr.vadr - j.Ptr.vadr
-    let print ch i = Printf.fprintf ch "%i" i.Ptr.vadr
+    let print ch i = Format.fprintf ch "%i" i.Ptr.vadr
   end
 
 (** Module for pointers on a term node of the graph. *)
 and TPtr : sig
     type t = Ptr.t_ptr
     val compare : Ptr.t_ptr -> Ptr.t_ptr -> int
-    val print : out_channel -> Ptr.t_ptr -> unit
+    val print : Format.formatter -> Ptr.t_ptr -> unit
   end =
   struct
     type t = Ptr.t_ptr
     let compare i j = i.Ptr.tadr - j.Ptr.tadr
-    let print ch i = Printf.fprintf ch "%i" i.Ptr.tadr
+    let print ch i = Format.fprintf ch "%i" i.Ptr.tadr
   end
 
 (** export types *)

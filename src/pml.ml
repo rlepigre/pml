@@ -150,7 +150,7 @@ let _ =
      err_msg "Effect %a is not legal here." Effect.print e;
   | e ->
       err_msg "Unexpected exception [%s]." (Printexc.to_string e);
-      err_msg "%t" Printexc.print_backtrace;
+      err_msg "%s" (Printexc.get_backtrace ());
   in
   try List.iter (handle_file true) files with
   | e -> print_exn Pos.phantom_pos e; exit 1

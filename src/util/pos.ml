@@ -37,10 +37,10 @@ let none : 'a -> 'a loc =
   fun elt -> { elt ; pos = Pos.phantom_pos; usr = Timed.tref Nothing }
 
 (** [print_pos oc pos] prints the position [pos] to the channel [oc]. *)
-let print_pos : string ->  out_channel -> pos -> unit = fun prefix ch p ->
+let print_pos : string -> Format.formatter -> pos -> unit = fun prefix ch p ->
   if has_pos p then
     begin
-      Printf.fprintf ch "%a"
+      Format.fprintf ch "%a"
         (Pos.print_pos ~style:Short ~quote:{default_quote with prefix} ()) p
     end
 open Output

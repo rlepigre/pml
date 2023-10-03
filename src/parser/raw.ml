@@ -8,6 +8,7 @@ open Extra
 open Sorts
 open Ast
 open Env
+open Format
 
 type constructors_constraints =
   { constructors : (string, pos) Hashtbl.t
@@ -62,8 +63,7 @@ and raw_sort' =
   | SUni of suvar
 and suvar = int * strloc option * raw_sort option ref
 
-let print_raw_sort : out_channel -> raw_sort -> unit = fun ch s ->
-  let open Printf in
+let print_raw_sort : Format.formatter -> raw_sort -> unit = fun ch s ->
   let rec print ch s =
     match s.elt with
     | SV _        -> output_string ch "SV"
@@ -81,7 +81,7 @@ let print_raw_sort : out_channel -> raw_sort -> unit = fun ch s ->
         end
   in print ch s
 
-let pretty_print_raw_sort : out_channel -> raw_sort -> unit = fun ch s ->
+let pretty_print_raw_sort : Format.formatter -> raw_sort -> unit = fun ch s ->
   let rec is_fun s =
     match s.elt with
     | SFun(_,_)   -> true
@@ -94,7 +94,6 @@ let pretty_print_raw_sort : out_channel -> raw_sort -> unit = fun ch s ->
     | _           -> false
   in
   let rec print ch s =
-    let open Printf in
     match s.elt with
     | SV _        -> output_string ch "ι"
     | ST          -> output_string ch "τ"
@@ -241,89 +240,89 @@ and raw_ex' =
 
 and patt_ex = (strloc * (strloc * raw_ex option) option) * raw_ex
 
-let print_raw_expr : out_channel -> raw_ex -> unit = fun ch e ->
+let print_raw_expr : Format.formatter -> raw_ex -> unit = fun ch e ->
   let rec print ch e =
     match e.elt with
-    | EVari(x,_)    -> Printf.fprintf ch "EVari(%S)" x.elt
-    | EHOAp(e,_,es) -> Printf.fprintf ch "EHOAp(%a,[%a])" print e
+    | EVari(x,_)    -> fprintf ch "EVari(%S)" x.elt
+    | EHOAp(e,_,es) -> fprintf ch "EHOAp(%a,[%a])" print e
                          (print_list print "; ") es
-    | EHOFn(x,s,e)  -> Printf.fprintf ch "EHOFn(%S,%a,%a)" x.elt
+    | EHOFn(x,s,e)  -> fprintf ch "EHOFn(%S,%a,%a)" x.elt
                          print_raw_sort s print e
-    | EFunc(t,a,b,l)-> Printf.fprintf ch "EFunc(%a,%a,%a,%b)"
+    | EFunc(t,a,b,l)-> fprintf ch "EFunc(%a,%a,%a,%b)"
                                       print a Print.arrow t print b (l = Lazy)
-    | ESubt(a,b)    -> Printf.fprintf ch "ESubt(%a,%a)" print a print b
-    | EProd(l,str)  -> Printf.fprintf ch "EProd([%a], %s)"
+    | ESubt(a,b)    -> fprintf ch "ESubt(%a,%a)" print a print b
+    | EProd(l,str)  -> fprintf ch "EProd([%a], %s)"
                          (print_list aux_ls "; ") l
                          (if str then "strict" else "extensible")
-    | EUnit         -> Printf.fprintf ch "EUnit"
-    | EDSum(l)      -> Printf.fprintf ch "EDSum([%a])"
+    | EUnit         -> fprintf ch "EUnit"
+    | EDSum(l)      -> fprintf ch "EDSum([%a])"
                          (print_list aux_ps "; ") l
-    | EUniv(xs,s,a) -> Printf.fprintf ch "EUniv([%a],%a,%a)"
+    | EUniv(xs,s,a) -> fprintf ch "EUniv([%a],%a,%a)"
                          (print_list aux_var ",") (ne_list_to_list xs)
                          print_raw_sort s print a
-    | EExis(xs,s,a) -> Printf.fprintf ch "EExis([%a],%a,%a)"
+    | EExis(xs,s,a) -> fprintf ch "EExis([%a],%a,%a)"
                          (print_list aux_var ",") (ne_list_to_list xs)
                          print_raw_sort s print a
-    | EFixM(s,o,x,a)-> Printf.fprintf ch "EFixM(%a,%a,%S,%a)"
+    | EFixM(s,o,x,a)-> fprintf ch "EFixM(%a,%a,%S,%a)"
                          print_raw_sort s print o x.elt print a
-    | EFixN(s,o,x,a)-> Printf.fprintf ch "EFixN(%a,%a,%S,%a)"
+    | EFixN(s,o,x,a)-> fprintf ch "EFixN(%a,%a,%S,%a)"
                          print_raw_sort s print o x.elt print a
-    | EMemb(t,a)    -> Printf.fprintf ch "EMemb(%a,%a)" print t print a
-    | ERest(a,eq)   -> Printf.fprintf ch "ERest(%a,%a)" aux_opt a aux_eq eq
-    | EImpl(eq,a)   -> Printf.fprintf ch "EImpl(%a,%a)" aux_opt a aux_eq eq
-    | ELAbs(ls,t,l) -> Printf.fprintf ch "ELAbs([%a],%a,%b)"
+    | EMemb(t,a)    -> fprintf ch "EMemb(%a,%a)" print t print a
+    | ERest(a,eq)   -> fprintf ch "ERest(%a,%a)" aux_opt a aux_eq eq
+    | EImpl(eq,a)   -> fprintf ch "EImpl(%a,%a)" aux_opt a aux_eq eq
+    | ELAbs(ls,t,l) -> fprintf ch "ELAbs([%a],%a,%b)"
                          (print_list aux_arg "; ")
                          (ne_list_to_list ls) print t (l = Lazy)
-    | ECons(c,ao)   -> Printf.fprintf ch "ECons(%S,%a)" c.elt aux_cons ao
-    | EReco(l)      -> Printf.fprintf ch "EReco([%a])"
+    | ECons(c,ao)   -> fprintf ch "ECons(%S,%a)" c.elt aux_cons ao
+    | EReco(l)      -> fprintf ch "EReco([%a])"
                          (print_list aux_rec "; ") l
-    | EScis         -> Printf.fprintf ch "EScis"
-    | EAppl(t,u,l)  -> Printf.fprintf ch "EAppl(%a,%a,%b)"
+    | EScis         -> fprintf ch "EScis"
+    | EAppl(t,u,l)  -> fprintf ch "EAppl(%a,%a,%b)"
                          print t print u (l = Lazy)
-    | ESequ(t,u)    -> Printf.fprintf ch "ESequ(%a,%a)" print t print u
-    | EMAbs(arg,t)  -> Printf.fprintf ch "EMAbs(%a,%a)" aux_var arg print t
-    | EName(s,t)    -> Printf.fprintf ch "EName(%a,%a)" print s print t
-    | EProj(v,_,l)  -> Printf.fprintf ch "EProj(%a,%S)" print v l.elt
-    | ECase(v,_,l)  -> Printf.fprintf ch "ECase(%a,[%a])" print v
+    | ESequ(t,u)    -> fprintf ch "ESequ(%a,%a)" print t print u
+    | EMAbs(arg,t)  -> fprintf ch "EMAbs(%a,%a)" aux_var arg print t
+    | EName(s,t)    -> fprintf ch "EName(%a,%a)" print s print t
+    | EProj(v,_,l)  -> fprintf ch "EProj(%a,%S)" print v l.elt
+    | ECase(v,_,l)  -> fprintf ch "ECase(%a,[%a])" print v
                          (print_list aux_patt "; ") l
-    | EFixY(a,t)    -> Printf.fprintf ch "EFixY(%a,%a)" aux_var a print t
-    | EPrnt(s)      -> Printf.fprintf ch "EPrnt(%S)" s
-    | ERepl(t,u,p)  -> Printf.fprintf ch "ERepl(%a,%a,%a)"
+    | EFixY(a,t)    -> fprintf ch "EFixY(%a,%a)" aux_var a print t
+    | EPrnt(s)      -> fprintf ch "EPrnt(%S)" s
+    | ERepl(t,u,p)  -> fprintf ch "ERepl(%a,%a,%a)"
                          print t print u aux_opt p
-    | EDelm(u)      -> Printf.fprintf ch "EDelm(%a)" print u
-    | EHint(h,u)    -> Printf.fprintf ch "EHint(%a,%a)" Print.lhint h.elt print u
-    | EClck(v)      -> Printf.fprintf ch "EClck(%a)" print v
-    | ECPsi         -> Printf.fprintf ch "ECPsi"
-    | ECoer(_,t,a)  -> Printf.fprintf ch "ECoer(%a,%a)" print t print a
+    | EDelm(u)      -> fprintf ch "EDelm(%a)" print u
+    | EHint(h,u)    -> fprintf ch "EHint(%a,%a)" Print.lhint h.elt print u
+    | EClck(v)      -> fprintf ch "EClck(%a)" print v
+    | ECPsi         -> fprintf ch "ECPsi"
+    | ECoer(_,t,a)  -> fprintf ch "ECoer(%a,%a)" print t print a
     | ESuch(_,v,j,u)-> let x = Option.default (none "_") (fst j) in
-                       Printf.fprintf ch "ESuch(%a,%s,%a,%a)"
+                       fprintf ch "ESuch(%a,%s,%a,%a)"
                          (print_list aux_sort ", ") (ne_list_to_list v)
                          x.elt print (snd j) print u
-    | EChck(_,v,p,t)-> Printf.fprintf ch "EChck(%a,%a,%a)"
+    | EChck(_,v,p,t)-> fprintf ch "EChck(%a,%a,%a)"
                          aux_opt v print p print t
-    | EInfx(t,p)    -> Printf.fprintf ch "EInfx(%a,%f)" print t p
-    | EConv         -> Printf.fprintf ch "EConv"
-    | ESucc(o,n)    -> Printf.fprintf ch "ESucc(%a,%d)" print o n
-    | EGoal(str)    -> Printf.fprintf ch "EGoal(%s)" str
-  and aux_ls ch (l,e) = Printf.fprintf ch "(%S,%a)" l.elt print e
-  and aux_ps ch (l,e) = Printf.fprintf ch "(%S,%a)" l.elt aux_opt e
-  and aux_rec ch (l,e,_) = Printf.fprintf ch "(%S,%a)" l.elt print e
-  and aux_var ch x = Printf.fprintf ch "%S" x.elt
-  and aux_sort ch (x,s) = Printf.fprintf ch "%s:%a" x.elt print_raw_sort s
+    | EInfx(t,p)    -> fprintf ch "EInfx(%a,%f)" print t p
+    | EConv         -> fprintf ch "EConv"
+    | ESucc(o,n)    -> fprintf ch "ESucc(%a,%d)" print o n
+    | EGoal(str)    -> fprintf ch "EGoal(%s)" str
+  and aux_ls ch (l,e) = fprintf ch "(%S,%a)" l.elt print e
+  and aux_ps ch (l,e) = fprintf ch "(%S,%a)" l.elt aux_opt e
+  and aux_rec ch (l,e,_) = fprintf ch "(%S,%a)" l.elt print e
+  and aux_var ch x = fprintf ch "%S" x.elt
+  and aux_sort ch (x,s) = fprintf ch "%s:%a" x.elt print_raw_sort s
   and aux_cons ch = function
-    | None      -> Printf.fprintf ch "None"
-    | Some(e,_) -> Printf.fprintf ch "Some(%a)" print e
+    | None      -> fprintf ch "None"
+    | Some(e,_) -> fprintf ch "Some(%a)" print e
   and aux_opt ch = function
-    | None    -> Printf.fprintf ch "None"
-    | Some(e) -> Printf.fprintf ch "Some(%a)" print e
+    | None    -> fprintf ch "None"
+    | Some(e) -> fprintf ch "Some(%a)" print e
   and aux_eq ch = function
-    | EEquiv(t,b,u) -> Printf.fprintf ch "(%a,%b,%a)" print t b print u
-    | ENoBox(v)     -> Printf.fprintf ch "(%a↓)" print v
-  and aux_arg ch (s,ao) = Printf.fprintf ch "(%S,%a)" s.elt aux_opt ao
+    | EEquiv(t,b,u) -> fprintf ch "(%a,%b,%a)" print t b print u
+    | ENoBox(v)     -> fprintf ch "(%a↓)" print v
+  and aux_arg ch (s,ao) = fprintf ch "(%S,%a)" s.elt aux_opt ao
   and aux_patt ch ((c,argo),t) =
     match argo with
-    | None       -> Printf.fprintf ch "(%S,(_,None),%a)" c.elt print t
-    | Some(x,ao) -> Printf.fprintf ch "(%S,(%S,%a),%a)" c.elt x.elt
+    | None       -> fprintf ch "(%S,(_,None),%a)" c.elt print t
+    | Some(x,ao) -> fprintf ch "(%S,(%S,%a),%a)" c.elt x.elt
                       aux_opt ao print t
   in print ch e
 
@@ -728,7 +727,7 @@ let sort_filter : type a. a sort -> boxed -> a ebox =
         begin
           match Sorts.eq_sort k s with
           | Eq.Eq  -> e
-          | Eq.NEq -> Printf.printf "ERROR: %a ≠ %a\n  %a\n%!"
+          | Eq.NEq -> printf "ERROR: %a ≠ %a\n  %a\n%!"
                         Print.sort s Print.sort k Print.ex (Bindlib.unbox e);
                       assert false (* FIXME #11 error management. *)
         end

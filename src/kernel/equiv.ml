@@ -174,9 +174,9 @@ type _ ty += T_Node : t_node ty
            | V_Node : v_node ty
 
 (** Printing closure. *)
-let pcl : type a. out_channel -> a closure -> unit =
+let pcl : type a. Format.formatter -> a closure -> unit =
   fun ch (funptr,vs,ts) ->
-    let prnt = Printf.fprintf in
+    let prnt = Format.fprintf in
     let pex = Print.ex in
     let (vvars,b) = unmbind funptr in
     let (tvars,t) = unmbind b in
@@ -197,9 +197,9 @@ let pcl : type a. out_channel -> a closure -> unit =
     prnt ch "%a[%t][%t]" pex t fn gn
 
 (** Printing function for value nodes. *)
-let pbcl : type a b. a sort -> out_channel -> (a, b) bndr_closure -> unit =
+let pbcl : type a b. a sort -> Format.formatter -> (a, b) bndr_closure -> unit =
   fun s ch (funptr,vs,ts) ->
-    let prnt = Printf.fprintf in
+    let prnt = Format.fprintf in
     let pex = Print.ex in
     let (vvars,b) = unmbind funptr in
     let (tvars,b) = unmbind b in
@@ -221,8 +221,8 @@ let pbcl : type a b. a sort -> out_channel -> (a, b) bndr_closure -> unit =
     prnt ch "%s.%a[%t][%t]" (name_of var) pex t fn gn
 
 
-let print_v_node : out_channel -> v_node -> unit = fun ch n ->
-  let prnt = Printf.fprintf in
+let print_v_node : Format.formatter -> v_node -> unit = fun ch n ->
+  let prnt = Format.fprintf in
   let pex = Print.ex in
   match n with
   | VN_LAbs(b,l)   -> prnt ch "VN_LAbs(%a,%b)" (pbcl V) b (l = Lazy)
@@ -231,18 +231,19 @@ let print_v_node : out_channel -> v_node -> unit = fun ch n ->
                       prnt ch "VN_Reco(%a)" (Print.print_map pelt ":") m
   | VN_Defi(d)     -> prnt ch "VN_Defi(%s)" d.value_name.elt
   | VN_Scis        -> prnt ch "VN_Scis"
-  | VN_VWit(w)     -> prnt ch "VN_VWit(%a)" pex (Pos.none (VWit(w)))
-  | VN_UWit(w)     -> prnt ch "VN_UWit(%a)" pex (Pos.none (UWit(w)))
-  | VN_EWit(w)     -> prnt ch "VN_EWit(%a)" pex (Pos.none (EWit(w)))
-  | VN_ESch(i,w)   -> prnt ch "VN_ESch(%a)" pex (Pos.none (ESch(V,i,w)))
+  | VN_VWit(w)     -> prnt ch "VN_VWit(%a)" pex (none (VWit(w)))
+  | VN_UWit(w)     -> prnt ch "VN_UWit(%a)" pex (none (UWit(w)))
+  | VN_EWit(w)     -> prnt ch "VN_EWit(%a)" pex (none (EWit(w)))
+  | VN_ESch(i,w)   -> prnt ch "VN_ESch(%a)" pex (none (ESch(V,i,w)))
   | VN_HApp(e)     -> let HO(s,f,a) = e in
                       prnt ch "VN_HApp(%a,%a)" pcl f pcl a
-  | VN_UVar(v)     -> prnt ch "VN_UVar(%a)" pex (Pos.none (UVar(V,v)))
+  | VN_UVar(v)     -> prnt ch "VN_UVar(%a)" pex (none (UVar(V,v)))
   | VN_Vari(x)     -> prnt ch "VN_Vari(%s)" (name_of x)
   | VN_Goal(v)     -> prnt ch "VN_Goal(%a)" pex v
+
 (** Printing function for term nodes. *)
-let print_t_node : out_channel -> t_node -> unit = fun ch n ->
-  let prnt = Printf.fprintf in
+let print_t_node : Format.formatter -> t_node -> unit = fun ch n ->
+  let prnt = Format.fprintf in
   let pex = Print.ex in
   match n with
   | TN_Valu(pv)    -> prnt ch "TN_Valu(%a)" VPtr.print pv
@@ -259,12 +260,12 @@ let print_t_node : out_channel -> t_node -> unit = fun ch n ->
   | TN_Delm(pt)    -> prnt ch "TN_Delm(%a)" Ptr.print pt
   | TN_FixY(b,_)   -> prnt ch "TN_FixY(%a)" (pbcl T) b
   | TN_Prnt(s)     -> prnt ch "TN_Prnt(%S)" s
-  | TN_UWit(w)     -> prnt ch "TN_UWit(%a)" pex (Pos.none (UWit(w)))
-  | TN_EWit(w)     -> prnt ch "TN_EWit(%a)" pex (Pos.none (EWit(w)))
-  | TN_ESch(i,w)   -> prnt ch "TN_ESch(%a)" pex (Pos.none (ESch(V,i,w)))
+  | TN_UWit(w)     -> prnt ch "TN_UWit(%a)" pex (none (UWit(w)))
+  | TN_EWit(w)     -> prnt ch "TN_EWit(%a)" pex (none (EWit(w)))
+  | TN_ESch(i,w)   -> prnt ch "TN_ESch(%a)" pex (none (ESch(V,i,w)))
   | TN_HApp(e)     -> let HO(s,f,a) = e in
                       prnt ch "TN_HApp(%a,%a)" pcl f pcl a
-  | TN_UVar(v)     -> prnt ch "TN_UVar(%a)" pex (Pos.none (UVar(T,v)))
+  | TN_UVar(v)     -> prnt ch "TN_UVar(%a)" pex (none (UVar(T,v)))
   | TN_Vari(x)     -> prnt ch "TN_Vari(%s)" (name_of x)
   | TN_Goal(t)     -> prnt ch "TN_Goal(%a)" pex t
   | TN_Clck(pv)    -> prnt ch "TN_Clck(%a)" VPtr.print pv
@@ -311,7 +312,7 @@ let reset_tbls () =
 
 let print_parents ch pars =
   MapKey.iter (fun _ s ->
-      PtrSet.iter (Printf.fprintf ch "%a " Ptr.print) s) pars
+      PtrSet.iter (Format.fprintf ch "%a " Ptr.print) s) pars
 
 (** Find operation (with path contraction). *)
 let find : Ptr.t -> pool -> Ptr.t = fun p po ->
@@ -330,43 +331,43 @@ let find_valu : VPtr.t -> pool -> VPtr.t = fun p po ->
   | Ptr.T_ptr _ -> assert false
 
 (** Printing a pool (useful for debugging. *)
-let print_pool : string -> out_channel -> pool -> unit = fun prefix ch po ->
+let print_pool : string -> Format.formatter -> pool -> unit = fun prefix ch po ->
   let { ts; vs; eq_map } = po in
-  Printf.fprintf ch "%s#### Nodes ####\n" prefix;
+  Format.fprintf ch "%s#### Nodes ####\n" prefix;
   let fn (k, n) =
     let b = if Timed.get po.time k.Ptr.bs then "*" else "" in
     let pars = let p = find (Ptr.V_ptr k) po in ptr_par p po.time in
-    Printf.fprintf ch "%s  %a%s\t→ %a [%a]\t\n" prefix VPtr.print k b
+    Format.fprintf ch "%s  %a%s\t→ %a [%a]\t\n" prefix VPtr.print k b
       print_v_node n print_parents pars
   in
   List.iter fn vs;
-  Printf.fprintf ch "%s---------------\n" prefix;
+  Format.fprintf ch "%s---------------\n" prefix;
   let fn (k, n) =
     let f = if Timed.get po.time k.Ptr.fs then "+" else "" in
     let g = if Timed.get po.time k.Ptr.ns then "n" else "" in
     let pars = let p = find (Ptr.T_ptr k) po in ptr_par p po.time in
-    Printf.fprintf ch "%s  %a%s%s\t→ %a [%a]\t\n" prefix TPtr.print k f g
+    Format.fprintf ch "%s  %a%s%s\t→ %a [%a]\t\n" prefix TPtr.print k f g
       print_t_node n print_parents pars
   in
   List.iter fn ts;
-  Printf.fprintf ch "%s#### Links ####\n" prefix;
+  Format.fprintf ch "%s#### Links ####\n" prefix;
   let fn (p1, p2) =
     let p3 = ptr_get p1 po.time in
-    Printf.fprintf ch "%s  %a\t→ %a (%a)\n" prefix
+    Format.fprintf ch "%s  %a\t→ %a (%a)\n" prefix
                    Ptr.print p1 Ptr.print p2 Ptr.print p3
   in
   List.iter fn eq_map;
-  Printf.fprintf ch "%s#### Ineq ####\n" prefix;
+  Format.fprintf ch "%s#### Ineq ####\n" prefix;
   let fn (p1, p2) =
-    Printf.fprintf ch "%s  %a != %a\n" prefix Ptr.print p1 Ptr.print p2
+    Format.fprintf ch "%s  %a != %a\n" prefix Ptr.print p1 Ptr.print p2
   in
   List.iter fn po.ineq;
-  Printf.fprintf ch "%s#### Orig ####\n" prefix;
+  Format.fprintf ch "%s#### Orig ####\n" prefix;
   let fn (p, t) =
-    Printf.fprintf ch "%s  %a = %a\n" prefix Ptr.print p Print.ex t
+    Format.fprintf ch "%s  %a = %a\n" prefix Ptr.print p Print.ex t
   in
   List.iter fn po.os;
-  Printf.fprintf ch "%s###############" prefix
+  Format.fprintf ch "%s###############" prefix
 
 
 (** Initial, empty pool. *)
@@ -618,7 +619,7 @@ let eq_cl po s (f1,vs1,ts1 as _cl1) (f2,vs2,ts2 as _cl2) =
     Array.for_all2 (eq_ptr  po) ts1 ts2
   else
     ((*assert (not (eq_funptr s f1 f2) ||
-               (Printf.printf "%a (%d)\n%a (%d)\n%!"
+               (Format.printf "%a (%d)\n%a (%d)\n%!"
                                (pbcl s) _cl1 (hash_funptr s f1)
                                (pbcl s) _cl2 (hash_funptr s f2);
                 false);*)
@@ -781,7 +782,6 @@ let rec not_uewit : type a. a ex loc -> bool =
     | VPtr _    -> false
     | TPtr _    -> false
     | Valu e    -> not_uewit e
-    | Case(_,c) -> A.length c > 1 (* TODO #29: fix this issue and remove! *)
     | _         -> true
 
 (** Unification of terms in the pool *)
@@ -2316,7 +2316,7 @@ let get_blocked : pool -> blocked list -> blocked list = fun po old ->
              else
                begin
                  log_aut "blocked case %a %t" Print.ex e
-                     (fun ch -> List.iter (Printf.fprintf ch "%s ") cases);
+                     (fun ch -> List.iter (Format.fprintf ch "%s ") cases);
                  b :: acc
                end
           | _ -> acc
