@@ -12,4 +12,4 @@
   (action (with-stdout-to config.ml (progn
     (echo "let path = [ String.trim \"") ; hack to remove newline.
     (run opam var lib)
-    (echo "\"]\n")))))
+    (echo "\" ^ \"/pml/lib\"]\n")))))

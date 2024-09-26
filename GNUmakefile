@@ -80,6 +80,7 @@ distclean: clean clean_mem
 .PHONY: install
 install: bin
 	@dune install
+	cp -r ./lib $(shell opam var lib)/pml
 
 .PHONY: uninstall
 uninstall:
