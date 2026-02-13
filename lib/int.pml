@@ -142,11 +142,11 @@ val positive : int ⇒ bool = fun d {
 
 val le : int ⇒ int ⇒ bool = fun n m { non_negative (m - n) }
 
-val rec ge : int ⇒ int ⇒ bool = fun n m { le m n }
+val ge : int ⇒ int ⇒ bool = fun n m { le m n }
 
-val rec lt : int ⇒ int ⇒ bool = fun n m { positive (m - n) }
+val lt : int ⇒ int ⇒ bool = fun n m { positive (m - n) }
 
-val rec gt : int ⇒ int ⇒ bool = fun n m { lt m n }
+val gt : int ⇒ int ⇒ bool = fun n m { lt m n }
 
 include lib.nat
 

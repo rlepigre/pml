@@ -1,38 +1,15 @@
 include lib.nat
 include lib.nat_proofs
 
-// Let's give names to relevant unary numbers.
-
-val u0   : nat = zero
-val u1   : nat = succ u0
-val u2   : nat = succ u1
-val u3   : nat = succ u2
-val u4   : nat = succ u3
-val u5   : nat = succ u4
-val u6   : nat = succ u5
-val u7   : nat = succ u6
-val u8   : nat = succ u7
-val u9   : nat = succ u8
-val u10  : nat = succ u9
-val u11  : nat = succ u10
-val u90  : nat = mul u9 u10
-val u91  : nat = succ u90
-val u100 : nat = mul u10 u10
-val u101 : nat = succ u100
-
-
-
-
-
 // We define the real McCarthy91 function as a term object.
 
 def mccarthy91_hard : τ =
   fix mccarthy91 {
     fun n {
-      if n > u100 {
-        n - u10
+      if n > 100 {
+        n - 10
       } else {
-        mccarthy91 (mccarthy91 (n + u11))
+        mccarthy91 (mccarthy91 (n + 11))
       }
     }
   }
@@ -42,67 +19,140 @@ def mccarthy91_hard : τ =
 //val mccarthy91 : nat ⇒ nat =
 //  mccarthy91_hard
 
-
-
-
-
-// However, McCarthy91 as another, non-recursive definition!
+// However, McCarthy91 has another, non-recursive definition!
 
 val mccarthy91_easy : nat ⇒ nat =
   fun n {
-    if n > u100 {
-      n - u10
+    if n > 100 {
+      n - 10
     } else {
-      u91
+      91
     }
   }
 
-
-
-
-
 // We firt prove that the McCarthy91 function is equal to 91 bellow 100.
 
-//val hard_lemma : ∀n∈nat, n > u100 ≡ false ⇒ mccarthy91_hard n ≡ u91 =
-//  fun n eq {
-//    case n { Zero → {} | S[n] →
-//    case n { Zero → {} | S[n] →
-//    case n { Zero → {} | S[n] →
-//    case n { Zero → {} | S[n] →
-//    case n { Zero → {} | S[n] →
-//      {- and_95_more_lines -}
-//      // At some point, we get a contradiction and use scissors ✂.
-//    }}}}}
-//  }
-
-val hard_lemma : ∀n∈nat, n > u100 ≡ false ⇒ mccarthy91_hard n ≡ u91 =
-  fun n eq {
-    {- takes too long -}
-    //set auto 101 1; {}
-  }
-
-
-
-
+val hard_lemma : ∀n∈nat, n > 100 ≡ false ⇒ mccarthy91_hard n ≡ 91 =
+  fun n eq { set auto 0 0;
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] →
+    case n { 0 → qed | S[n] → ✂
+    }}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}
+  }}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}
+}
 
 // We prove the equivalence between the two definitions.
 
 val hard_is_easy : ∀n∈nat, mccarthy91_easy n ≡ mccarthy91_hard n =
   fun n {
-    if n > u100 {
-      deduce mccarthy91_easy n ≡ n - u10;
-      deduce mccarthy91_hard n ≡ n - u10;
+    if n > 100 {
+      deduce mccarthy91_easy n ≡ n - 10;
+      deduce mccarthy91_hard n ≡ n - 10;
       qed
     } else {
-      deduce mccarthy91_easy n ≡ u91;
-      show mccarthy91_hard n ≡ u91 using hard_lemma n {};
+      deduce mccarthy91_easy n ≡ 91;
+      show mccarthy91_hard n ≡ 91 using hard_lemma n {};
       qed
     }
   }
-
-
-
-
 
 // We can finally type the real McCarthy91 function.
 

@@ -20,8 +20,8 @@ val is_even : nat ⇒ bool =
 
 // Type of odd / even numbers.
 
-type odd  = {n∈nat | is_odd  n}
-type even = {n∈nat | is_even n}
+type odd  = { n∈nat | is_odd  n}
+type even = { n∈nat | is_even n}
 
 include lib.either
 include lib.list

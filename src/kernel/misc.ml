@@ -160,13 +160,15 @@ type sassoc =
   | Nil : sassoc
   | Cns : 'a sort * 'a ex loc * 'a var * sassoc -> sassoc
 
-let sassoc : type a. Equiv.pool -> a ex loc -> sassoc -> a var = fun po e l ->
+let sassoc : type a. Equiv.pool -> a ex loc -> sassoc -> (a var * Equiv.pool) =
+  fun po e l ->
   let (s, e) = sort e in
-  let rec fn : sassoc -> a var = function
+  let rec fn : sassoc -> (a var * Equiv.pool) = function
     | Nil          -> raise Not_found
     | Cns(s1,e1,v1,l) ->
        match eq_sort s s1 with
-       | Eq.Eq  -> if Equiv.unif_expr po e e1 then v1 else fn l
+       | Eq.Eq  -> let (b,po) = Equiv.unif_expr_test po e e1 in
+                   if b then (v1,po) else fn l
        | Eq.NEq -> fn l
   in
   fn l
@@ -176,7 +178,7 @@ let rec mk_sassoc : slist -> sassoc = function
   | Cns(s,e,l) -> let v = new_var (mk_free s) "a" in Cns(s,e,v,mk_sassoc l)
 
 
-let bind_params : Equiv.pool -> p ex loc -> sbndr box * slist = fun po e ->
+let bind_params : Equiv.pool -> p ex loc -> sbndr box * slist * Equiv.pool = fun po e ->
   let params = ref (Nil:slist) in
   let open Iter in
   let iterator : type a. recall -> a ex loc -> unit =
@@ -211,10 +213,12 @@ let bind_params : Equiv.pool -> p ex loc -> sbndr box * slist = fun po e ->
   let assoc = mk_sassoc params in
   (* Binding function. *)
   let open Mapper in
+  let po = ref po in
   let bind_all : type a. a ex loc -> a ebox =
     let mapper : type a. recall -> a ex loc -> a ebox = fun { default } e ->
       try
-        let v = sassoc po e assoc in
+        let (v,npo) = sassoc !po e assoc in
+        po := npo;
         vari e.pos v
       with Not_found -> default e
     in
@@ -238,10 +242,10 @@ let bind_params : Equiv.pool -> p ex loc -> sbndr box * slist = fun po e ->
   in
   let (p1, p2) = fn (bind_all e) in
   let b = bind assoc p1 p2 in
-  (b, params)
+  (b, params, !po)
 
 let bind2_ordinals : Equiv.pool -> p ex loc -> p ex loc
-    -> (o ex, sbndr) mbinder * ordi array = fun po e1 e2 ->
+    -> (o ex, sbndr) mbinder * ordi array * Equiv.pool = fun po e1 e2 ->
   let m = A.singleton "1" (no_pos, e1) in
   let m = A.add "2" (no_pos, e2) m in
   let e = Pos.none (Prod m) in
@@ -251,8 +255,8 @@ let bind2_ordinals : Equiv.pool -> p ex loc -> p ex loc
   (* The variables themselves. *)
   let xs = new_mvar (mk_free O) names in
   let p = msubst b (Array.map (mk_free O) xs) in
-  let (b, ps) = bind_params po p in
-  (unbox (bind_mvar xs b), os)
+  let (b, ps, po) = bind_params po p in
+  (unbox (bind_mvar xs b), os, po)
 
 type occ = Pos | Neg | Any
 

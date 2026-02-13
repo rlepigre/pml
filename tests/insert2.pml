@@ -50,8 +50,8 @@ val rec rev_append : ∀s,∀a,∀o∈order⟨a⟩, ∀l1∈slist⟨s,a,orev o�
                        ∀l2∈slist⟨∞,a,o⟩|before o l1 l2, slist⟨∞,a,o⟩ =
     fun o l1 l2 { set auto 2 1;
       case l1 {
-        [] → []
-        x::l → rev_append o l (x::l2)
+        []    → []
+        x::l' → rev_append o l' (x::l2)
       }}
 
 val rec insert : ∀s,∀a:ο, ∀o∈order⟨a⟩, a ⇒ slist⟨s,a,o⟩ ⇒ slist⟨s+ₒ1,a,o⟩ =

@@ -24,14 +24,17 @@ module type Time =
        was already undone. *)
     val rollback : t -> unit
 
+    (** type to allow return to the futur (do not require a Delorean) *)
     type futur
+
     (** [save_futur t] save the change between the time [t] and the
-        present time. *)
+        present time. Allowing to go back to present time as long as
+        we did not backtrack past time [t] *)
     val save_futur : t -> futur
-    (** return to a previously saved futur, provided that we didnot go in past
+
+    (** return to a previously saved futur, provided that we did not go in past
         further that the time used to save the futur. *)
     val return_futur : futur -> t
-
   end
 
 module Time : Time

@@ -207,6 +207,21 @@ val rec (%) : ∀o, nat ⇒ [S of nat^o] ⇒ nat^o =
     }
   }
 
+val rec div2 : ∀o, nat^(o+ₒ2) ⇒ nat^(o+ₒ1) =
+  fun n {
+    case n {
+      Zero → Zero
+      S[n'] →
+        case n' {
+          Zero → Zero
+          S[n''] → case n'' {
+            Zero → n''
+            S[m] →
+              let x = div2 S[m];
+              S[x] }
+        }
+    }
+  }
 
 infix (/) = div priority 2 left associative
 

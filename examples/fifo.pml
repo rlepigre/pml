@@ -15,7 +15,7 @@ include lib.list_proofs
 
 // fifo as list
 val take_last : ∀a, list⟨a⟩ ⇒ option⟨a × list⟨a⟩⟩ =
-  fun s { case rev s { [] → None | e :: s → Some[(e,rev s)] } }
+  fun s { case rev s { [] → None | e :: s → Some[(e, rev s)] } }
 
 // one value with two types (open and abstracted*)
 val fifo_simple_open : fifo_sig_open⟨list⟩ =
@@ -189,7 +189,11 @@ val rec equiv_apply_aux :
     let a such that f : list2⟨a⟩;
     let (l1, l2) = f;
     case ops {
-      []      → {}
+      []      →
+        //set auto 0 1; set log "atu";
+        let _ = translate⟨apply_aux fifo_pair f ops⟩;
+        deduce translate⟨apply_aux fifo_pair f ops⟩ ≡ translate⟨f⟩;
+        {}
       op::ops' →
         case op {
           Pop     →
@@ -219,7 +223,7 @@ val rec equiv_apply_aux :
     }
   }
 
-val rec th : equiv_fifo⟨fifo_pair,fifo_simple⟩ =
+val th : equiv_fifo⟨fifo_pair,fifo_simple⟩ =
   fun ops {
     let a such that ops:list⟨ope⟨a⟩⟩;
     let fifo_pair = fifo_pair_open;

@@ -616,7 +616,7 @@ let rec subtype =
     let (t_is_val, _, ctx) = term_is_value t ctx in
     (* heuristic to instanciate some unification variables *)
     let mu_nu_heuristique : type a. bool -> a sort -> o ex loc ->
-                     (a, p) fix_args -> (a, a) bndr -> p ex loc -> unit
+                     (a, p) fix_args -> (a, a) bndr -> p ex loc -> pool
       = fun is_mu s1 o1 l1 f b ->
       let unif_ord o =
         match (Norm.whnf o).elt with
@@ -624,52 +624,52 @@ let rec subtype =
         | _ -> ()
       in
       let rec unif_args
-              : type a b c d. (a,b) fix_args -> (c,d) fix_args -> unit
-      = fun l1 l2 ->
+              : type a b c d. pool -> (a,b) fix_args -> (c,d) fix_args -> pool
+      = fun po l1 l2 ->
           match (l1, l2) with
           | (Ast.Cns(e1,l1), Ast.Cns(e2,l2)) ->
              let (s1, e1) = sort e1 in
              let (s2, e2) = sort e2 in
              begin
                match eq_sort s1 s2 with
-               | Eq.Eq          -> ignore (unif_expr ctx.equations e1 e2);
-                                   unif_args l1 l2
+               | Eq.Eq          -> let (_, po) = unif_expr_test po e1 e2 in
+                                   unif_args po l1 l2
                | Eq.NEq ->
                match (eq_sort s1 V, eq_sort s2 T) with
-               | (Eq.Eq, Eq.Eq) -> ignore (unif_expr ctx.equations
-                                                     (Pos.none (Valu e1)) e2);
-                                   unif_args l1 l2
+               | (Eq.Eq, Eq.Eq) -> let (_, po) = unif_expr_test po (Pos.none (Valu e1)) e2 in
+                                   unif_args po l1 l2
                | _              ->
                match (eq_sort s1 T, eq_sort s2 V) with
-               | (Eq.Eq, Eq.Eq) -> ignore (unif_expr ctx.equations
-                                                     e1 (Pos.none (Valu e2)));
-                                   unif_args l1 l2
-               | _              -> ()
+               | (Eq.Eq, Eq.Eq) -> let (_,po) = unif_expr_test po e1 (Pos.none (Valu e2)) in
+                                   unif_args po l1 l2
+               | _              -> po
              end
-          | _ -> ()
+          | _ -> po
       in
       let do_fix
-          : type b. b sort -> o ex loc -> (b,b) bndr -> (b,p) fix_args -> unit
-        = fun s o g l2 ->
+          : type b. pool -> b sort -> o ex loc -> (b,b) bndr
+                 -> (b,p) fix_args -> pool
+        = fun po s o g l2 ->
         unif_ord o;
         match eq_sort s s1 with
-        | Eq.Eq  -> if unif_bndr ctx.equations s f g then unif_args l1 l2
-        | Eq.NEq -> ()
+        | Eq.Eq  -> let (_,po) = unif_bndr_test po s f g in unif_args po l1 l2
+        | Eq.NEq -> po
       in
-      let rec fn : p ex loc -> unit = fun b ->
+      let rec fn : pool -> p ex loc -> pool = fun po b ->
         match ((Norm.whnf b).elt, is_mu) with
-        | (HDef(s,d)     , _    ) -> fn d.expr_def
-        | (Rest(b,_)     , _    ) -> fn b
-        | (Impl(_,b)     , _    ) -> fn b
-        | (FixM(s,o,g,l2), true ) -> do_fix s o g l2
-        | (FixN(s,o,g,l2), false) -> do_fix s o g l2
-        | _ -> ()
+        | (HDef(s,d)     , _    ) -> fn po d.expr_def
+        | (Rest(b,_)     , _    ) -> fn po b
+        | (Impl(_,b)     , _    ) -> fn po b
+        | (FixM(s,o,g,l2), true ) -> do_fix po s o g l2
+        | (FixN(s,o,g,l2), false) -> do_fix po s o g l2
+        | _ -> po
       in
-      fn b
+      fn ctx.equations b
     in
     try let r =
       (* Same types.  *)
-      if leq_expr ctx.equations ctx.positives a b then
+      let (leq, _) = leq_expr ctx.equations ctx.positives a b in
+      if leq then
         begin
           log_sub "reflexivity applies";
           Sub_Equal
@@ -740,7 +740,8 @@ let rec subtype =
       | (FixM(s,o,f,l), _          ) ->
           if t_is_val then (* avoid creating a witness with a unif var *)
             begin
-              mu_nu_heuristique true s o l f b;
+              let equations = mu_nu_heuristique true s o l f b in
+              let ctx = { ctx with equations } in
               let ctx, o' =
                 let o = Norm.whnf o in
                 match o.elt with
@@ -758,7 +759,8 @@ let rec subtype =
       | (_          , FixN(s,o,f,l)) ->
          if t_is_val then (* avoid creating a witness with a unif var *)
            begin
-             mu_nu_heuristique false s o l f a;
+             let equations = mu_nu_heuristique false s o l f a in
+             let ctx = { ctx with equations } in
              let ctx, o' =
                let o = Norm.whnf o in
                match o.elt with
@@ -938,7 +940,7 @@ let rec subtype =
       (* Membership on the right. *)
       | (_          , Memb(u,b)  ) when t_is_val ->
          begin
-           let st = UTimed.Time.save () in
+           let st = save_time ctx.equations in
            let e = Equiv(t,true,u) in
            try
              prove ctx.equations ctx.auto.old e;
@@ -996,7 +998,7 @@ let rec subtype =
 
 and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
   fun ctx exn t ty ->
-    log_aut "entering auto_prove (%b, %d, %d, %d) (%a : %a)"
+    log_aut "entering auto_prove (%b, %d, %d, %d) (%a : %a)\n   "
       ctx.auto.doing ctx.auto.clvl ctx.auto.tlvl ctx.auto.dlvl
       Print.ex t Print.ex ty;
     (* Tell we are in auto *)
@@ -1042,7 +1044,7 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
       fn skip todo
     in
     (* Save utime to backtrack even on unification *)
-    let st = UTimed.Time.save () in
+    let st = save_time ctx.equations in
     (* main recursive function trying all elements *)
     let rec fn nb ctx0 todo =
       log_aut "loop (%d,%d,%d)" nb ctx.auto.tlvl ctx.auto.clvl;
@@ -1059,6 +1061,7 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
          let time0 = ctx0.equations.time in
          let get_goal ctx rule_ptr ty =
            if !res <> None then assert false;
+           Timed.Time.rollback ctx.equations.time;
            let bup = Timed.Time.save_futur time0 in
            res := Some (ctx,bup,rule_ptr,ty)
          in
@@ -1103,6 +1106,7 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
          let time0 = ctx0.equations.time in
          let get_goal cs ctx rule_ptr ty =
            (*log_aut "saved context:\n%a\n\n" (print_pool "        ") ctx.equations;*)
+           Timed.Time.rollback ctx.equations.time;
            let bup = Timed.Time.save_futur time0 in
            res := (cs,ctx,bup,rule_ptr,ty) :: !res
          in
@@ -1125,7 +1129,7 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
            let ctx = {ctx with auto = {ctx.auto with auto = false}} in
            let r0 = type_term ctx t0 ty in
            if nb > 0 then memo_insert ctx.memo (Skip nb);
-           log_aut "case OK";
+           log_aut "case OK (%d)" (List.length !res);
            (fun () ->
              let rec fn l =
                match l with
@@ -1135,10 +1139,10 @@ and auto_prove : ctxt -> exn -> term -> prop -> typ_proof  =
                                     time = Timed.Time.return_futur bup } in
                   let ctx = {ctx with equations;
                                       auto = {ctx.auto with auto = true}} in
-                  (*log_aut "restored context:\n%a\n\n" (print_pool "        ") ctx.equations;*)
                   log_aut "cases    (%d,%d) (%d,%d) [%d]: %a ==> %s case (%d)"
                     ctx.auto.clvl ctx.auto.tlvl clvl c (List.length todo)
                     Print.ex e cs (List.length ls);
+                  (*log_aut "restored context:\n%a\n\n" (print_pool "        ") ctx.equations;*)
                   let (_,_,r) = type_term ctx t ty in
                   ptr := r;
                   fn ls
@@ -1204,8 +1208,14 @@ and find_suitable ctx manual a b =
             let (a0, b0) = spe.sspe_judge in
             (* Check if schema applies. *)
             if not (UTimed.pure_test
-                      (fun () -> leq_expr ctx.equations ctx.positives b0 b &&
-                                   leq_expr ctx.equations ctx.positives a a0)
+                      (fun () ->
+                        let (b1, po) =
+                          leq_expr ctx.equations ctx.positives b0 b
+                        in
+                        let (b2, po) =
+                          leq_expr po ctx.positives a a0
+                        in
+                        b1 && b2)
                       ())
             then raise Exit;
             (* Check positivity of ordinals. *)
@@ -1247,7 +1257,7 @@ and check_sub : ctxt -> prop -> prop -> check_sub = fun ctx a b ->
         | (DSum _, DSum _)
         | (Prod _, Prod _) when no_uvars () ->
            (* Construction of a new schema. *)
-           let (sch, os) = sub_generalise ctx a b in
+           let (sch, os, ctx) = sub_generalise ctx a b in
            (* Registration of the new top induction hypothesis and call. *)
            add_call ctx (sch.ssch_index, os) false;
            (* Recording of the new induction hypothesis. *)
@@ -1413,10 +1423,10 @@ and get_relat  : ordi array -> (int * int) list =
     !l
 
 (* Generalisation (construction of a fix_schema). *)
-and sub_generalise : ctxt -> prop -> prop -> sub_schema * ordi array =
+and sub_generalise : ctxt -> prop -> prop -> sub_schema * ordi array * ctxt =
   fun ctx b c ->
     (* Extracting ordinal parameters from the goal type. *)
-    let (ssch_judge, os) = Misc.bind2_ordinals ctx.equations b c in
+    let (ssch_judge, os, equations) = Misc.bind2_ordinals ctx.equations b c in
 
     (* build the relations *)
     let ssch_relat = get_relat os in
@@ -1433,7 +1443,7 @@ and sub_generalise : ctxt -> prop -> prop -> sub_schema * ordi array =
       Scp.create_symbol ctx.callgraph "$" names
     in
     (* Assemble the schema. *)
-    ({ssch_index ; ssch_relat ; ssch_judge}, os)
+    ({ssch_index ; ssch_relat ; ssch_judge}, os, {ctx with equations })
 
 (* Generalisation (construction of a fix_schema). *)
 and fix_generalise
@@ -1734,7 +1744,7 @@ and type_valu : ctxt -> valu -> prop -> typ_proof = fun ctx v c ->
     (* Value definition. *)
     | VDef(d)     ->
         begin
-          let st = UTimed.Time.save () in
+          let st = save_time ctx.equations in
           try
             if memo_find ctx.memo = OpDf then raise Exit;
             let p = subtype ctx t d.value_type c in
@@ -1848,7 +1858,7 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
   log_typ "proving the term judgment:\n  %a\n  ⊢(%a) %a\n  : %a"
           print_pos ctx.positives Print.arrow ctx.totality
           Print.ex t Print.ex c;
-  let st = UTimed.Time.save () in
+  let st = save_time ctx.equations in
   try
   let r =
     match t.elt with
@@ -1877,18 +1887,18 @@ and type_term : ctxt -> term -> prop -> typ_proof = fun ctx t c ->
                  else (Pos.none (Memb(u,a0)), true)
                in
                let c = Pos.none (Func(tot,a,c,l)) in
-               let st = UTimed.Time.save () in
+               let st = save_time ctx.equations in
                try
+                 log_typ "trying strong application";
                  let (v,ctx) = learn_value ctx u a0 in
                  let ctx = learn_equivalences ctx v a0 in
-                 log_typ "trying strong application";
                  type_term ctx f c
                with Contradiction       -> warn_unreachable ctx f;
                                            (t,c,Typ_Scis)
-                  | e when strong && is_typed VoT_T f && not (chk_exc e) &&
+                  | e when strong && (*is_typed VoT_T f &&*) not (chk_exc e) &&
                              not (is_break e) ->
-                     UTimed.Time.rollback st;
                      log_typ "strong application failed (%s)" (Printexc.to_string e);
+                     UTimed.Time.rollback st;
                      check_f ctx false a0
              else
                begin

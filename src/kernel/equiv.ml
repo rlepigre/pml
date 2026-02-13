@@ -6,6 +6,7 @@
 
 open Extra
 open Bindlib
+module Ptr0 = Ptr
 open Ptr
 open Sorts
 open Pos
@@ -284,6 +285,12 @@ type pool =
   ; e_defs   : (t expr * Ptr.t) list
   ; in_uni   : (Ptr.t * Ptr.t) list(* to avoid loop un unif_ptr, see note *)
   }
+
+let save_time po =
+  (* saving time requires rolling back in the pool, otherwise
+     we may restore a time in another branch of the proof *)
+  Timed.Time.rollback po.time;
+  UTimed.Time.save ()
 
 (**
    Here are some invariants of the pool:
@@ -810,6 +817,33 @@ let test_cyclic po pv =
   in
   fn VPtrSet.empty pv
 
+let cmp_orig (p,x) (q,y) = match (x.elt, y.elt) with
+    | (_               , Valu{elt=VPtr _}) -> -1
+    | (Valu{elt=VPtr _},  _              ) ->  1
+    | (Valu{elt=VDef _}, _               ) -> -1
+    | ( _              , Valu{elt=VDef _}) ->  1
+    | (Valu{elt=VWit _}, Valu{elt=VWit _}) ->  compare p q
+    | (Valu{elt=VWit _}, _               ) -> -1
+    | (_               , Valu{elt=VWit _}) ->  1
+    | (Proj _          , _               ) -> -1
+    | (_               , Proj _          ) ->  1
+    | (_               , _               ) ->  0
+
+let add_orig po p t =
+  if not_uewit t &&
+       not (List.exists (fun (p',t') -> Ptr0.eq_ptr p p'
+                                        && cmp_orig (p',t') (p,t) <= 0) po.os)
+    then
+(*      (List.iter (fun (p',t') ->
+           if Ptr0.eq_ptr p p' then
+             Format.eprintf "doublon %a = %a\n%!" Print.ex t Print.ex t')
+        po.os;*)
+       { po with os = (p, t)::po.os }
+  else po
+
+let add_value_orig po p v =
+  add_orig po (Ptr.V_ptr p) (none (Valu v))
+
 (** Insertion and normalisation of actual terms and values to the pool. *)
 let rec add_term :  bool -> bool -> pool -> term
                     -> Ptr.t * pool = fun o free po t0 ->
@@ -853,6 +887,7 @@ let rec add_term :  bool -> bool -> pool -> term
                      insert (TN_Valu(pv)) po
     | Appl(t,u,l) -> let (pt, po) = add_term po t in
                      let (pu, po) = add_term po u in
+                     let po = add_orig po pu u in
                      insert (TN_Appl(pt,pu,l)) po
     | MAbs(b)     -> let (cl, po) = add_bndr_closure po S T o b in
                      insert (TN_MAbs(cl)) po
@@ -920,13 +955,7 @@ let rec add_term :  bool -> bool -> pool -> term
     | FixM(_)     -> invalid_arg "mu in terms forbidden"
     | FixN(_)     -> invalid_arg "nu in terms forbidden"
   in
-  let po =
-    if o && not_uewit t0 (*&&
-         not (List.exists (fun (p',_) -> eq_ptr po p p') po.os)*)
-    then
-      { po with os = (p, t0)::po.os }
-    else po
-  in
+  let po = if o then add_orig po p t0 else po in
   let po =
     let time =
       match (free, Timed.get po.time t0.usr) with
@@ -1001,13 +1030,7 @@ and     add_valu : bool -> pool -> valu -> VPtr.t * pool = fun o po v0 ->
     | FixM(_)     -> invalid_arg "mu in values forbidden"
     | FixN(_)     -> invalid_arg "nu in values forbidden"
   in
-  let po =
-    let pv = Ptr.V_ptr p in
-    if o && not_uewit v0 (*&&
-         not (List.exists (fun (p',_) -> eq_ptr po pv p') po.os)*) then
-      { po with os = (pv, Pos.none (Valu v0))::po.os }
-    else po
-  in
+  let po = if o then add_value_orig po p v0 else po in
   let po = {po with time = Timed.set po.time v0.usr (EPtr p)} in
   (p, po)
 
@@ -1160,6 +1183,7 @@ and normalise_t_node : ?old:TPtr.t -> t_node -> pool -> Ptr.t  * pool =
              log_edp2 "normalised in %a = TN_Appl Appl: %a %a => %a"
                print_t_node node Ptr.print pt Ptr.print pu Ptr.print tp;
              (tp, po)
+           | e -> restore_loop pt save; raise e
          end
       | TN_MAbs(b)     -> insert node po (* FIXME #7 can do better. *)
       | TN_Name(s,pt)  -> insert node po (* FIXME #7 can do better. *)
@@ -1364,9 +1388,9 @@ and join : Ptr.t -> Ptr.t -> pool -> pool = fun p1 p2 po ->
              end
            else po
   in
-  let po = check_parents_eq nps pp2 po in
   let po = MapKey.fold (fun k l po ->
                if is_head k then PtrSet.fold reinsert l po else po) nps po in
+  let po = check_parents_eq nps pp2 po in
   let po = check_ineq po in
   po
 
@@ -1450,50 +1474,50 @@ and canonical_term : bool -> TPtr.t -> pool -> term * pool
         (*log_edp2 "canonical_term %a = %a" TPtr.print p print_t_node t;*)
         match t with
         | TN_Valu(pv)    -> let (v, po) = cv pv po in
-                            (Pos.none (Valu(v)), po)
+                            (none (Valu(v)), po)
         | TN_Appl(pt,pu,l) -> let (t, po) = cp pt po in
                             let (u, po) = cp pu po in
-                            (Pos.none (Appl(t,u,l)), po)
+                            (none (Appl(t,u,l)), po)
         | TN_MAbs(b)     -> let (b, po) = canonical_bndr_closure b po in
-                            (Pos.none (MAbs(b)), po)
+                            (none (MAbs(b)), po)
         | TN_Name(s,pt)  -> let (t, po) = cp pt po in
-                            (Pos.none (Name(s,t)), po)
+                            (none (Name(s,t)), po)
         | TN_Delm(pt)    -> let (t, po) = cp pt po in
-                            (Pos.none (Delm(t)), po)
+                            (none (Delm(t)), po)
         | TN_Proj(pv,l)  -> let (v, po) = cv pv po in
-                            (Pos.none (Proj(v,l)), po)
+                            (none (Proj(v,l)), po)
         | TN_Case(pv,m)  -> let (v, po) = cv pv po in
                             let (m, po) = A.fold_map (fun _ b po ->
                               let (p, po) = canonical_bndr_closure b po in
                               ((no_pos, p), po)) m po
                             in
-                            (Pos.none (Case(v, m)), po)
+                            (none (Case(v, m)), po)
         | TN_FixY(b,_)   -> let (b, po) = canonical_bndr_closure b po in
-                            (Pos.none (FixY(b)), po)
-        | TN_Prnt(s)     -> (Pos.none (Prnt(s)), po)
-        | TN_UWit(w)     -> (Pos.none (UWit(w)), po)
-        | TN_EWit(w)     -> (Pos.none (EWit(w)), po)
-        | TN_ESch(i,w)   -> (Pos.none (ESch(T,i,w)), po)
+                            (none (FixY(b)), po)
+        | TN_Prnt(s)     -> (none (Prnt(s)), po)
+        | TN_UWit(w)     -> (none (UWit(w)), po)
+        | TN_EWit(w)     -> (none (EWit(w)), po)
+        | TN_ESch(i,w)   -> (none (ESch(T,i,w)), po)
         | TN_HApp(e)     -> let HO(s,f,a) = e in
                             let (f, po) = canonical_closure f po in
                             let (a, po) = canonical_closure a po in
-                            (Pos.none (HApp(s,f,a)), po)
+                            (none (HApp(s,f,a)), po)
         | TN_UVar(v)     -> begin
                               match !(v.uvar_val) with
-                              | Unset _ -> (Pos.none (UVar(T,v)), po)
+                              | Unset _ -> (none (UVar(T,v)), po)
                               | Set t   ->
                                   let (tp, po) = add_term false false po t in
                                   let po = join (Ptr.T_ptr p) tp po in
                                   cp tp po
                             end
-        | TN_Vari(x)     -> (Pos.none (Vari(T,x)), po)
+        | TN_Vari(x)     -> (none (Vari(T,x)), po)
         | TN_Goal(t)     -> (t, po)
         | TN_Clck(pv)    -> let (v,po) = cv pv po in
-                            (Pos.none (Clck v), po)
+                            (none (Clck v), po)
       end
   | Ptr.V_ptr(p) ->
       let (v, po) = cv p po in
-      (Pos.none (Valu(v)), po)
+      (none (Valu(v)), po)
 
 (* NOTE: the "clos" bool is here to not follow the union find map if
     under closure, otherwise if loops, for instance on "exp n" *)
@@ -1505,28 +1529,28 @@ and     canonical_valu : bool -> VPtr.t -> pool -> valu * pool
   (*log_edp2 "canonical_term %a = %a" VPtr.print p print_v_node v;*)
   match v with
   | VN_LAbs(b,t)   -> let (b, po) = canonical_bndr_closure b po in
-                      (Pos.none (LAbs(None, b, t)), po)
+                      (none (LAbs(None, b, t)), po)
   | VN_Cons(c,pv)  -> let (v, po) = cv pv po in
-                      (Pos.none (Cons(c,v)), po)
+                      (none (Cons(c,v)), po)
   | VN_Reco(m)     -> let fn l pv (m, po) =
                         let (v, po) = cv pv po in
                         (A.add l (no_pos,v) m, po)
                       in
                       let (m, po) = A.fold fn m (A.empty, po) in
-                      (Pos.none (Reco(m)), po)
-  | VN_Defi(v)     -> (Pos.none (VDef(v)), po)
-  | VN_Scis        -> (Pos.none Scis, po)
-  | VN_VWit(w)     -> (Pos.none (VWit(w)), po)
-  | VN_UWit(w)     -> (Pos.none (UWit(w)), po)
-  | VN_EWit(w)     -> (Pos.none (EWit(w)), po)
-  | VN_ESch(i,w)   -> (Pos.none (ESch(V,i,w)), po)
+                      (none (Reco(m)), po)
+  | VN_Defi(v)     -> (none (VDef(v)), po)
+  | VN_Scis        -> (none Scis, po)
+  | VN_VWit(w)     -> (none (VWit(w)), po)
+  | VN_UWit(w)     -> (none (UWit(w)), po)
+  | VN_EWit(w)     -> (none (EWit(w)), po)
+  | VN_ESch(i,w)   -> (none (ESch(V,i,w)), po)
   | VN_HApp(e)     -> let HO(s,f,a) = e in
                       let (f, po) = canonical_closure f po in
                       let (a, po) = canonical_closure a po in
-                      (Pos.none (HApp(s,f,a)), po)
+                      (none (HApp(s,f,a)), po)
   | VN_UVar(v)     -> begin
                         match !(v.uvar_val) with
-                        | Unset _ -> (Pos.none (UVar(V,v)), po)
+                        | Unset _ -> (none (UVar(V,v)), po)
                         | Set w   ->
                            let (vp, po) = add_valu false po w in
                            let po = join (Ptr.V_ptr p)
@@ -1534,7 +1558,7 @@ and     canonical_valu : bool -> VPtr.t -> pool -> valu * pool
                            in
                            cv vp po
                       end
-  | VN_Vari(x)     -> (Pos.none (Vari(V,x)), po)
+  | VN_Vari(x)     -> (none (Vari(V,x)), po)
   | VN_Goal(v)     -> (v, po)
 
 and canonical_closure: type a. a closure -> pool -> a ex loc * pool =
@@ -1564,7 +1588,7 @@ and canonical : bool -> Ptr.t -> pool -> term * pool = fun clos p po ->
   match p with
   | Ptr.T_ptr p -> canonical_term clos p po
   | Ptr.V_ptr p -> let (v, po) = canonical_valu clos p po in
-                   (Pos.none (Valu v), po)
+                   (none (Valu v), po)
 
 
 and unif_cl
@@ -1615,7 +1639,7 @@ and unif_ptr : pool -> Ptr.t -> Ptr.t -> pool = fun po p1 p2 ->
        | TN_UVar v ->
           let (p, po) = canonical_valu false p2 po in
           if uvar_occurs v p then raise NoUnif;
-          uvar_set v (Pos.none (Valu p));
+          uvar_set v (none (Valu p));
           join (Ptr.T_ptr p1) (Ptr.V_ptr p2) po
        | _ -> raise NoUnif
      end
@@ -1626,7 +1650,7 @@ and unif_ptr : pool -> Ptr.t -> Ptr.t -> pool = fun po p1 p2 ->
        | TN_UVar v ->
           let (p, po) = canonical_valu false p1 po in
           if uvar_occurs v p then raise NoUnif;
-          uvar_set v (Pos.none (Valu p));
+          uvar_set v (none (Valu p));
           join (Ptr.T_ptr p2) (Ptr.V_ptr p1) po
        | _ -> raise NoUnif
      end
@@ -1949,40 +1973,34 @@ let proj_eps : Bindlib.ctxt -> valu -> string -> valu * Bindlib.ctxt =
       let name = "#" ^ proj_name l in
       let x = new_var (mk_free V) name in
       let term_x = valu no_pos (vari no_pos x) in
-      let v_dot_l = proj no_pos (box v) (Pos.none l) in
+      let v_dot_l = proj no_pos (box v) (none l) in
       let w = rest no_pos unit_prod (equiv term_x true v_dot_l) in
       unbox (bind_var x w)
     in
-    let t = Pos.none (Valu(Pos.none (Reco A.empty))) in
+    let t = none (Valu(none (Reco A.empty))) in
     ewit names V t (no_pos, w)
 
 let find_proj : pool -> Bindlib.ctxt -> valu -> string
                 -> valu * pool * Bindlib.ctxt =
   fun po names v l ->
-    try
-      let (vp, po) = add_valu true po v in
-      let vp = find_valu vp po in
-      let n = find_v_node vp po in
-      let (wp, w, po, names) =
-        match n with
-        | VN_Reco(m) ->
-           let pt = A.find l m in
-           (pt, Pos.none (VPtr pt), po, names)
-        | _ ->
-           let (w,names) = proj_eps names v l in
-           let (wp,po) = add_valu true po w in
-           let t = Pos.none (Proj(v,Pos.none l)) in
-           let (pt,po) = add_term true false po t in
-           let po = union (Ptr.V_ptr wp) pt po in
-           (wp, w, po, names)
-      in
-      let (_, po) = add_vptr_nobox wp po in
-      (w, po, names)
-    with Contradiction as e -> raise e
-       | e -> bug_msg "unexpected exception in find_proj: %s"
-                      (Printexc.to_string e);
-              assert false
-
+    let (vp, po) = add_valu true po v in
+    let vp = find_valu vp po in
+    let n = find_v_node vp po in
+    let (wp, w, po, names) =
+      match n with
+      | VN_Reco(m) ->
+         let pt = A.find l m in
+         (pt, none (VPtr pt), po, names)
+      | _ ->
+         let (w,names) = proj_eps names v l in
+         let (wp,po) = add_valu true po w in
+         let t = none (Proj(v,none l)) in
+         let (pt,po) = add_term true false po t in
+         let po = union (Ptr.V_ptr wp) pt po in
+         (wp, w, po, names)
+    in
+    let (_, po) = add_vptr_nobox wp po in
+    (w, po, names)
 
 (* NOTE: sum with one case should not fail, and be treated as projection *)
 let find_sum : pool -> valu -> (string * valu * pool) option = fun po v ->
@@ -1992,7 +2010,7 @@ let find_sum : pool -> valu -> (string * valu * pool) option = fun po v ->
     let n = find_v_node vp po in
     match n with
     | VN_Cons(c,pt) ->
-       Some (c.elt, Pos.none (VPtr pt), po)
+       Some (c.elt, none (VPtr pt), po)
     | VN_LAbs _ | VN_Reco _ -> raise Contradiction
     | _ -> raise Not_found
   with Not_found -> None
@@ -2063,7 +2081,7 @@ let to_value : term -> pool -> valu option * pool = fun t pool ->
   | _ ->
      let (pt, pool) = add_term true true pool t in
      match pt with
-     | Ptr.V_ptr(v) -> (Some (Pos.none (VPtr v)), pool)
+     | Ptr.V_ptr(v) -> (Some (none (VPtr v)), pool)
      | Ptr.T_ptr(_) -> (None, pool)
 
 (** learn a relation (equation, inequation or nobox) and returns a boolean
@@ -2103,30 +2121,68 @@ exception Failed_to_prove of rel * blocked list
 let equiv_error : rel -> blocked list -> 'a =
   fun rel bls -> raise (Failed_to_prove(rel, bls))
 
-let cmp_orig (p,x) (q,y) = match (x.elt, y.elt) with
-    | (_               , Valu{elt=VPtr _}) -> -1
-    | (Valu{elt=VPtr _},  _              ) ->  1
-    | (Valu{elt=VDef _}, _               ) -> -1
-    | ( _              , Valu{elt=VDef _}) ->  1
-    | (Valu{elt=VWit _}, Valu{elt=VWit _}) ->  compare p q
-    | (Valu{elt=VWit _}, _               ) -> -1
-    | (_               , Valu{elt=VWit _}) ->  1
-    | (Proj _          , _               ) -> -1
-    | (_               , Proj _          ) ->  1
-    | (_               , _               ) ->  0
-
 (* Search a vwit or a projection equal to a given term in the pool *)
 let term_vwit : term -> pool -> Ptr.t * term = fun t po ->
-  (*Printf.eprintf "term_vwit: %a\n%!" Print.ex t;*)
+  log_aut "term_vwit: %a" Print.ex t;
   let (pt, po) = add_term true true po t in
   let fn (p,t) = eq_ptr po p pt in
   let l = List.find_all fn po.os in
-  if l = [] then raise Not_found;
-  List.hd (List.sort cmp_orig l)
+  try
+    if l = [] then raise Not_found;
+    List.hd (List.sort cmp_orig l)
+  with Not_found -> try
+      let is_appl = function TN_Appl _ | TN_Proj _ -> true | _ -> false in
+      let ls = List.find_all (fun (v',nn) ->
+                   eq_ptr po (Ptr.T_ptr v') pt && is_appl nn) po.ts
+      in
+      let rec gn l =
+        match l with
+        | [] -> raise Not_found
+        | (v',nn)::ls ->
+           try
+             log_aut "get_orig fn found node %a %a" TPtr.print v' print_t_node nn;
+             match nn with
+             | TN_Appl(u1,u2,l) ->
+                let u1 = none (TPtr u1) in
+                let u2 = none (TPtr u2) in
+                (Ptr.T_ptr v', none (Appl(u1, u2,l)))
+             | TN_Proj(u1,l) ->
+                (* Need to build projection of a term, not a valu to
+                   be able to find an original term *)
+                (Ptr.T_ptr v', unbox (t_proj no_pos
+                                        (box (none (Valu (none (VPtr u1)))))
+                                        [no_pos, l]))
+             | _ -> assert false
+           with
+             Not_found -> gn ls
+      in
+      gn ls
+    with Not_found -> (* try to find a parent record for projection *)
+      let par = parents pt po in
+      let is_reco k v acc =
+        match k with KV_Reco l -> (v, l) :: acc | _ -> acc
+      in
+      let ls = MapKey.fold is_reco par [] in
+      let rec gn = function
+        | [] -> raise Not_found
+        | (us,l)::ls ->
+           try
+             let good x acc =
+               match (x,acc) with (_          , Some _) -> acc
+                                | (Ptr.V_ptr x, None  ) -> Some x
+                                | _                     -> None
+             in
+             let u = match PtrSet.fold good us None with
+                 None -> raise Not_found
+               | Some u -> u
+             in
+             (Ptr.V_ptr u, none (Proj (none (VPtr u), none l)))
+           with Not_found -> gn ls
+      in gn ls
 
 (* Search a vwit or a projection equal to a given valu in the pool *)
 let valu_vwit : valu -> pool -> Ptr.t * valu = fun t po ->
-  (*Printf.eprintf "valu_vwit: %a\n%!" Print.ex t;*)
+  log_aut "valu_vwit: %a" Print.ex t;
   let (pt, po) = add_valu true po t in
   let fn (p,t) =
     eq_ptr po p (Ptr.V_ptr pt) &&
@@ -2181,59 +2237,6 @@ let get_orig : Ptr.t -> pool -> int * term =
   fun p po ->
     let age = ref (-1) in
     let read (p,v) = age := max !age (ptr_adr p); v in
-    let rec fn p =
-      try
-        (*log_aut "get_orig fn %a" Ptr.print p;*)
-        let l = List.find_all (fun (v',e) -> eq_ptr po p v') po.os in
-        (*log_aut "get_orig fn %d candidate for %a" (List.length l) Ptr.print p;*)
-        if l = [] then raise Not_found;
-        snd (List.hd (List.sort cmp_orig l))
-      with Not_found -> try
-        let is_appl = function TN_Appl _ | TN_Proj _ -> true | _ -> false in
-        let ls = List.find_all (fun (v',nn) ->
-                          eq_ptr po (Ptr.T_ptr v') p && is_appl nn) po.ts
-        in
-        let rec gn l =
-          match l with
-          | [] -> raise Not_found
-          | (v',nn)::ls ->
-             try
-               (*log_aut "get_orig fn found node %a %a" TPtr.print v' print_t_node nn;*)
-               match nn with
-               | TN_Appl(u1,u2,l) ->
-                  let u1 = fn u1 in
-                  let u2 = fn u2 in
-                  Pos.none (Appl(u1, u2,l))
-               | TN_Proj(u1,l) ->
-                  x_proj no_pos (fn (Ptr.V_ptr u1)) l
-               | _ -> assert false
-             with
-               Not_found -> gn ls
-        in
-        gn ls
-      with Not_found -> (* try to find a parent record for projection *)
-        let par = parents p po in
-        let is_reco k v acc =
-          match k with KV_Reco l -> (v, l) :: acc | _ -> acc
-        in
-        let ls = MapKey.fold is_reco par [] in
-        let rec gn = function
-          | [] -> raise Not_found
-          | (us,l)::ls ->
-             try
-               let good x acc =
-                 match acc with Some _ -> acc
-                              | None -> try Some (fn x) with Not_found -> None
-               in
-               let u = match PtrSet.fold good us None with
-                   None -> raise Not_found
-                 | Some u -> u
-               in
-               x_proj no_pos u (none l)
-             with Not_found -> gn ls
-        in gn ls
-    in
-    let t = fn p in
     let open Mapper in
     let mapper : type a. recall -> a ex loc -> a ebox = fun r t ->
       match t.elt with
@@ -2264,8 +2267,9 @@ let get_orig : Ptr.t -> pool -> int * term =
          end
       | _      -> r.default t
     in
-    let t0 = unbox (map ~mapper:{mapper} t) in
-    (*log_aut "%a ==> %a\n%!" Print.ex t Print.ex t0;*)
+    log_aut "get_orig search %a" Ptr.print p;
+    let t0 = unbox (map ~mapper:{mapper} (none (TPtr p))) in
+    log_aut "get_orig %a ==> %a" Ptr.print p Print.ex t0;
     (!age, t0)
 
 let is_let_underscore e = match e.elt with
@@ -2275,8 +2279,8 @@ let is_let_underscore e = match e.elt with
 
 (** get all terms blocking evaluation in the pool *)
 let get_blocked : pool -> blocked list -> blocked list = fun po old ->
-  (*log_aut "get blocked context:\n%a\n\n" (print_pool "        ") po;*)
-  (*Printf.eprintf "coucou 0 %d\n%!" (List.length !adone);*)
+  log_aut "get blocked context:\n%a\n\n" (print_pool "        ") po;
+  (*Format.eprintf "coucou 0 %d\n%!" (List.length !adone);*)
   let bl =
     List.fold_left (fun (acc:blocked list) (tp,tn) ->
       let u = Ptr.T_ptr tp in
@@ -2355,7 +2359,7 @@ let get_blocked : pool -> blocked list -> blocked list = fun po old ->
  let prove : pool -> blocked list -> rel -> unit = fun pool old rel ->
   log_edp1 "proving  %a" Print.rel rel;
   try
-    let st = UTimed.Time.save () in
+    let st = save_time pool in
     let pool = match rel with
       | Equiv(t,b,u) ->
          snd ((if b then add_inequiv else add_equiv) (t,u) pool)
@@ -2364,26 +2368,37 @@ let get_blocked : pool -> blocked list -> blocked list = fun po old ->
          if b then raise Contradiction;
          pool
     in
-    UTimed.Time.rollback st;
     let bls = get_blocked pool old in
+    UTimed.Time.rollback st;
     log_edp1 "failed to prove %a" Print.rel rel;
     equiv_error rel bls
-  with Contradiction -> log_edp1 "proved   %a" Print.rel rel
+  with Contradiction ->
+    log_edp1 "proved   %a" Print.rel rel
 
-
-let unif_expr : type a. pool -> a ex loc -> a ex loc -> bool =
+let unif_expr_test : type a. pool -> a ex loc -> a ex loc -> bool * pool =
   fun po a b ->
-    eq_expr ~oracle:(oracle (ref po)) ~strict:false a b
+  try
+    (true, unif_expr po a b)
+  with
+    NoUnif -> (false, po)
 
-let unif_bndr
-    : type a b. pool -> a sort -> (a, b) bndr -> (a, b) bndr -> bool
-  = fun po s a b ->
-    eq_bndr ~oracle:(oracle (ref po)) ~strict:false s a b
+let unif_bndr_test : type a b. pool -> a sort -> (a,b) bndr -> (a,b) bndr
+                          -> bool * pool =
+  fun po s a b ->
+  try
+    (true, unif_bndr po s a b)
+  with
+    NoUnif -> (false, po)
 
-let leq_expr : pool -> (ordi * ordi) list -> p ex loc -> p ex loc -> bool =
-  fun po pos a b ->
-    let oracle = {(oracle (ref po)) with leq_ord = Ordinal.leq_ordi pos} in
-    eq_expr ~oracle ~strict:false a b
+let leq_expr : pool -> (ordi * ordi) list -> p ex loc -> p ex loc -> (bool * pool) =
+  fun po0 pos a b ->
+  let po = ref po0 in
+    (* if we do not rollback, we save the wrong time in eq_expr, which has no
+       access to the pool *)
+    Timed.Time.rollback po0.time;
+    let oracle = {(oracle po) with leq_ord = Ordinal.leq_ordi pos} in
+    let r = eq_expr ~oracle ~strict:false a b in
+    if r then (true, !po) else (false, po0)
 
 
 let learn pool rel    = Chrono.add_time equiv_chrono (learn pool) rel

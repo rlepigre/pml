@@ -36,14 +36,14 @@ val rec correct : ∀p∈product,∀q∈nat,∀o∈order,
                (qty + qty') * prd.price + price rest;
            {--}
          } else {
-             deduce price (add_order prd qty ord) ≡
+             {-deduce price (add_order prd qty ord) ≡
                qty' * prd'.price + price (add_order prd qty rest);
              showing qty' * prd'.price + (qty * prd.price + price rest) ≡
                qty * prd.price + ( qty' * prd'.price + price rest);
              use add_assoc (qty' *prd'.price) (qty * prd.price) (price rest);
              use add_assoc (qty * prd.price) (qty' *prd'.price) (price rest);
              use add_comm (qty * prd.price) (qty' *prd'.price);
-             qed
+             qed-}
            }
      }
    }

@@ -2,6 +2,7 @@
 
 (executable
   (name pml)
+  (modes byte exe)
   (public_name pml)
   (modules :standard)
   (preprocess (per_module ((pps pacomb.ppx) parser)))

@@ -228,7 +228,7 @@ let restore_loop p save =
   | Ptr.T_ptr p -> p.tas <- save
 
 let get_loop p q =
-  let s = save_loop p in (s, try List.assoc (ptr_adr q) (save_loop p)
+  let s = save_loop p in (s, try List.assoc (ptr_adr q) s
                              with Not_found -> 0)
 
 let set_loop p q n = match p with

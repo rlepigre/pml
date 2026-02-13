@@ -15,6 +15,7 @@ module NoTime : Time = struct
   type futur = unit
   let save_futur () = ()
   let return_futur () = ()
+
 end
 
 module Make(T:Time) = struct
@@ -29,7 +30,8 @@ module Make(T:Time) = struct
       type u = Undone : u (** already undone change up to that time (excluded)
                               or before*)
              | Futur : { mutable next : u ; r : 'a ref; old : 'a } -> u
-
+             | Present : u (** if [next] is [Present], this means this is the
+                               current time *)
 
       (** time of this module and the inherited module together, for nested
          times *)
@@ -37,57 +39,70 @@ module Make(T:Time) = struct
 
       (** reference holding the current time *)
       let current : u ref =
-        ref (Futur{ next = Undone; r = ref (); old = () })
+        ref (Futur{ next = Present; r = ref (); old = () })
 
       (** save the time, both local and inherited *)
-      let save : unit -> t = fun () -> (!current, T.save ())
+      let save : unit -> t = fun () ->
+        (!current, T.save ())
 
       (** rollback to the given time *)
       let rollback : t -> unit = fun (t,ut) ->
         (** undo all time in the futur of t, and make t the current time. *)
         let rec fn = function
-          | Undone -> ()
+          | Undone  -> assert false
+          | Present -> ()
           | Futur ({ next; r; old } as t) ->
-                       t.next <- Undone;
-                       fn next; (* tail rec call would be incorrect if the
-                                   same ref was updated twice *)
-                       r:= old
+             t.next <- Undone;
+             fn next; (* tail rec call would be incorrect if the
+                         same ref was updated twice *)
+             r:= old
         in
         T.rollback ut;
         current := t;
         match t with
-        | Undone -> assert false
-        | Futur ({ next; _ } as t) -> t.next <- Undone; fn next
+        | Undone
+        | Present -> assert false
+        | Futur ({ next; _ } as t) ->
+           t.next <- Present; fn next
 
       type bu = R : ('a ref * 'a) -> bu
       type futur = t * bu list * T.futur
 
-      (* same as roll_back, but we will be able to return in the futur *)
+      (** [save_futur t] save the change between the time [t] and the
+          present time. Allowing to go back to present time as long as
+          we did not backtrack past time [t] *)
       let save_futur : t -> futur =  fun (t,ut as t0) ->
         let sf = ref [] in
-        (** undo all time in the futur of t, and make t the current time. *)
         let rec fn = function
-          | Undone -> ()
-          | Futur ({ next; r; old }) ->
-                       sf := R (r, !r) :: !sf;
-                       fn next
+          | Undone -> assert false
+          | Present -> ()
+          | Futur { next; r; old } ->
+             sf := R (r, !r) :: !sf;
+             fn next;
         in
         let bu = T.save_futur ut in
         begin
           match t with
-          | Undone -> assert false
-          | Futur ({ next; _ }) -> fn next
+          | Undone | Present -> assert false
+          | Futur { next; _ } ->
+             fn next
         end;
-        (t0, List.rev !sf, bu)
+        (t0, !sf, bu)
 
       let (:=) : 'a ref -> 'a -> unit = fun r v ->
         let old = !r in
-        let t = Futur { next = Undone; r; old } in
+        let t = Futur { next = Present; r; old } in
         (match !current with
          | Undone -> assert false
+         | Present -> assert false
          | Futur u -> u.next <- t);
         current := t; r := v
 
+      (** return to a previously saved futur, provided that we did not go in past
+          further that the time used to save the futur. *)
+      (** NOTE: it is not necessary to rollback to t, we could stop at
+          the first common ancestor of the present time and the futur we
+          want to return *)
       let return_futur : futur -> t = fun (t, sf, bu) ->
         let _ = T.return_futur bu in
         rollback t;
