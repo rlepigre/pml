@@ -109,11 +109,11 @@ let files =
 let _ =
   let rec print_exn last = function
   | Type_error(E(_,t),c,exc) ->
-     if has_pos t.pos && t.pos <> last then err_msg "%a" print_err_pos t.pos;
+     if has_pos t.pos && t.pos != last then err_msg "%a" print_err_pos t.pos;
      err_msg "Type error: %a expected." Print.ex c;
      print_exn t.pos exc
   | Typing.Subtype_error(t,a,b,exc) ->
-     if has_pos t.pos && t.pos <> last  then err_msg "%a" print_err_pos t.pos;
+     if has_pos t.pos && t.pos != last  then err_msg "%a" print_err_pos t.pos;
      err_msg "Subtype error: %a ⊂ %a" Print.ex a Print.ex b;
      print_exn t.pos exc
   | Typing.Loops(t) ->
